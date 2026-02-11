@@ -9,5 +9,40 @@
   </head>
   <body>
     <div id="root"></div>
+    <script src="https://cdn.skypack.dev/octokit"></script>
+<script>
+  const REPO = 'andrei-filippov/stwarehouse';   // замени на свои
+  const FILE_PATH = 'data/equipment.json';
+
+  let token = localStorage.getItem('gh_token');
+  if (!token) {
+    token = prompt('Введи GitHub-токен один раз:');
+    if (token) localStorage.setItem('gh_token', token);
+  }
+
+  const octokit = new Octokit({ auth: token });
+
+  async function saveData(obj) {
+    // получаем текущий SHA файла
+    const { data: file } = await octokit.rest.repos.getContent({
+      owner: REPO.split('/')[0],
+      repo: REPO.split('/')[1],
+      path: FILE_PATH
+    });
+
+    await octokit.rest.repos.createOrUpdateFileContents({
+      owner: REPO.split('/')[0],
+      repo: REPO.split('/')[1],
+      path: FILE_PATH,
+      message: 'авто-сохранение склада',
+      content: btoa(JSON.stringify(obj, null, 2)),
+      sha: file.sha
+    });
+    alert('Сохранено в GitHub!');
+  }
+
+  // привязываем к своей кнопке
+  document.getElementById('saveBtn').onclick = () => saveData(equipmentArray);
+</script>
   </body>
 </html>
