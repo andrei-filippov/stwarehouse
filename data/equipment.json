@@ -1,17 +1,1 @@
 let equipmentArray = []; // по умолчанию пусто
-
-// вытягиваем актуальный файл
-(async () => {
-  try {
-    const { data } = await octokit.rest.repos.getContent({
-      owner: REPO.split('/')[0],
-      repo:  REPO.split('/')[1],
-      path:  FILE_PATH
-    });
-    // data.content приходит base64
-    equipmentArray = JSON.parse(atob(data.content));
-    console.log('Склад загружен:', equipmentArray);
-  } catch (e) {
-    console.warn('Файл ещё не создан, начинаем с пустого склада.');
-  }
-})();
