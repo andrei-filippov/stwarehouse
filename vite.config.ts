@@ -12,4 +12,18 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    chunkSizeWarningLimit: 1000, // Увеличиваем лимит до 1MB
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Разделяем библиотеки на отдельные чанки
+          'vendor-react': ['react', 'react-dom'],
+          'vendor-pdf': ['jspdf', 'jspdf-autotable'],
+          'vendor-charts': ['recharts'],
+          'vendor-ui': ['@radix-ui/react-dialog', '@radix-ui/react-select', '@radix-ui/react-tabs'],
+        }
+      }
+    }
+  }
 });
