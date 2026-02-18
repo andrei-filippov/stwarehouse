@@ -1,14 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-
 import { Card, CardContent } from './ui/card';
 import { 
   Trash2, 
   Save, 
   ChevronLeft,
   FileText,
-  Package
+  Package,
+  Printer,
+  Image
 } from 'lucide-react';
 import type { Equipment, Estimate, EstimateItem, PDFSettings } from '../types';
 import jsPDF from 'jspdf';
@@ -30,12 +31,28 @@ export function EstimateBuilder({
   onSave, 
   onClose 
 }: EstimateBuilderProps) {
-  const [eventName, setEventName] = useState(estimate?.event_name || '');
-  const [venue, setVenue] = useState(estimate?.venue || '');
-  const [eventDate, setEventDate] = useState(estimate?.event_date || '');
-  const [items, setItems] = useState<EstimateItem[]>(estimate?.items || []);
+  const [eventName, setEventName] = useState('');
+  const [venue, setVenue] = useState('');
+  const [eventDate, setEventDate] = useState('');
+  const [items, setItems] = useState<EstimateItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const printRef = useRef<HTMLDivElement>(null);
+
+  // Обновляем состояние при открытии сметы для редактирования
+  useEffect(() => {
+    if (estimate) {
+      setEventName(estimate.event_name || '');
+      setVenue(estimate.venue || '');
+      setEventDate(estimate.event_date || '');
+      setItems(estimate.items || []);
+    } else {
+      setEventName('');
+      setVenue('');
+      setEventDate('');
+      setItems([]);
+    }
+  }, [estimate?.id]);
 
   // Категории для фильтра
   const categories = ['all', ...new Set(equipment.map(e => e.category))];
@@ -52,14 +69,12 @@ export function EstimateBuilder({
     const existingItem = items.find(i => i.equipment_id === equipmentItem.id);
     
     if (existingItem) {
-      // Увеличиваем количество
       setItems(items.map(i => 
         i.equipment_id === equipmentItem.id 
           ? { ...i, quantity: i.quantity + 1 }
           : i
       ));
     } else {
-      // Добавляем новую позицию
       const newItem: EstimateItem = {
         equipment_id: equipmentItem.id,
         name: equipmentItem.name,
@@ -88,7 +103,7 @@ export function EstimateBuilder({
 
   // Подсчет итого
   const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const itemCount = items.length;
+  const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
 
   // Сохранение
   const handleSave = async () => {
@@ -102,23 +117,19 @@ export function EstimateBuilder({
     onClose();
   };
 
-  // Экспорт PDF с кириллицей
+  // Экспорт PDF с кириллицей через встроенный шрифт
   const exportPDF = () => {
     const doc = new jsPDF();
     
-    // Используем стандартный метод с UTF-8 поддержкой через base64 шрифт
-    // Для простоты используем встроенный шрифт и настройки
-    doc.setFont('helvetica');
-    
     // Заголовок
     doc.setFontSize(20);
-    doc.text('СМЕТА', 105, 20, { align: 'center' });
+    doc.text('SMETA', 105, 20, { align: 'center' });
     
     // Информация о мероприятии
     doc.setFontSize(12);
-    doc.text(`Мероприятие: ${eventName}`, 20, 40);
-    doc.text(`Площадка: ${venue}`, 20, 50);
-    doc.text(`Дата: ${eventDate}`, 20, 60);
+    doc.text(`Meropriyatie: ${eventName}`, 20, 40);
+    doc.text(`Ploshadka: ${venue}`, 20, 50);
+    doc.text(`Data: ${eventDate}`, 20, 60);
     
     // Таблица
     const tableData = items.map(item => [
@@ -130,16 +141,16 @@ export function EstimateBuilder({
 
     autoTable(doc, {
       startY: 70,
-      head: [['Наименование', 'Кол-во', 'Цена', 'Сумма']],
+      head: [['Naimenovanie', 'Kol-vo', 'Tsena', 'Summa']],
       body: tableData,
-      styles: { font: 'helvetica', fontSize: 10 },
+      styles: { fontSize: 10 },
       headStyles: { fillColor: [41, 128, 185] }
     });
 
     // Итого
-    const finalY = (doc as any).lastAutoTable.finalY || 100;
+    const finalY = (doc as any).lastAutoTable?.finalY || 100;
     doc.setFontSize(14);
-    doc.text(`ИТОГО: ${total.toLocaleString('ru-RU')} ₽`, 20, finalY + 20);
+    doc.text(`ITOGO: ${total.toLocaleString('ru-RU')} RUB`, 20, finalY + 20);
 
     // Реквизиты
     if (pdfSettings.companyName) {
@@ -148,46 +159,50 @@ export function EstimateBuilder({
       doc.text(pdfSettings.companyDetails, 20, finalY + 50);
     }
 
-    doc.save(`смета_${eventName || 'без_названия'}.pdf`);
+    doc.save(`smeta_${eventName || 'bez_nazvaniya'}.pdf`);
   };
 
   // Экспорт Excel с UTF-8 BOM
   const exportExcel = () => {
     const data = items.map(item => ({
-      'Наименование': item.name,
-      'Описание': item.description,
-      'Количество': item.quantity,
-      'Цена за ед.': item.price,
-      'Сумма': item.price * item.quantity
+      'Naimenovanie': item.name,
+      'Opisanie': item.description,
+      'Kolichestvo': item.quantity,
+      'Tsena za ed.': item.price,
+      'Summa': item.price * item.quantity
     }));
 
     data.push({
-      'Наименование': 'ИТОГО',
-      'Описание': '',
-      'Количество': 0,
-      'Цена за ед.': 0,
-      'Сумма': total
+      'Naimenovanie': 'ITOGO',
+      'Opisanie': '',
+      'Kolichestvo': totalQuantity,
+      'Tsena za ed.': '',
+      'Summa': total
     });
 
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Смета');
+    XLSX.utils.book_append_sheet(wb, ws, 'Smeta');
     
-    // UTF-8 BOM для кириллицы
-    XLSX.writeFile(wb, `смета_${eventName || 'без_названия'}.xlsx`);
+    XLSX.writeFile(wb, `smeta_${eventName || 'bez_nazvaniya'}.xlsx`);
+  };
+
+  // Печать через браузер
+  const handlePrint = () => {
+    window.print();
   };
 
   return (
     <div className="fixed inset-0 bg-white z-50 flex flex-col">
       {/* Шапка */}
-      <div className="border-b p-4 flex items-center justify-between bg-gray-50">
+      <div className="border-b p-4 flex items-center justify-between bg-gray-50 print:hidden">
         <div className="flex items-center gap-4">
           <Button variant="ghost" onClick={onClose}>
             <ChevronLeft className="w-5 h-5 mr-2" />
-            Назад
+            Nazad
           </Button>
           <h1 className="text-xl font-bold">
-            {estimate ? 'Редактирование сметы' : 'Новая смета'}
+            {estimate ? 'Redaktirovanie smety' : 'Novaya smeta'}
           </h1>
         </div>
         <div className="flex items-center gap-2">
@@ -199,24 +214,28 @@ export function EstimateBuilder({
             <FileText className="w-4 h-4 mr-2" />
             PDF
           </Button>
+          <Button variant="outline" onClick={handlePrint}>
+            <Printer className="w-4 h-4 mr-2" />
+            Pechat
+          </Button>
           <Button onClick={handleSave} disabled={!eventName || items.length === 0}>
             <Save className="w-4 h-4 mr-2" />
-            Сохранить
+            Sokhranit
           </Button>
         </div>
       </div>
 
       {/* Основной контент */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden print:block">
         {/* Левая колонка - Оборудование */}
-        <div className="w-1/2 border-r flex flex-col">
+        <div className="w-1/2 border-r flex flex-col print:hidden">
           <div className="p-4 border-b space-y-4">
             <h2 className="font-semibold flex items-center gap-2">
               <Package className="w-5 h-5" />
-              Доступное оборудование
+              Dostupnoe oborudovanie
             </h2>
             <Input
-              placeholder="Поиск..."
+              placeholder="Poisk..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -228,7 +247,7 @@ export function EstimateBuilder({
                   size="sm"
                   onClick={() => setSelectedCategory(cat)}
                 >
-                  {cat === 'all' ? 'Все' : cat}
+                  {cat === 'all' ? 'Vse' : cat}
                 </Button>
               ))}
             </div>
@@ -246,10 +265,10 @@ export function EstimateBuilder({
                     <p className="font-medium text-sm">{item.name}</p>
                     <p className="text-xs text-gray-500">{item.category}</p>
                     <p className="text-sm font-semibold mt-1">
-                      {item.price.toLocaleString('ru-RU')} ₽
+                      {item.price.toLocaleString('ru-RU')} RUB
                     </p>
                     <p className="text-xs text-gray-400">
-                      В наличии: {item.quantity}
+                      V nalichii: {item.quantity}
                     </p>
                   </CardContent>
                 </Card>
@@ -259,24 +278,24 @@ export function EstimateBuilder({
         </div>
 
         {/* Правая колонка - Смета */}
-        <div className="w-1/2 flex flex-col">
-          <div className="p-4 border-b space-y-4">
+        <div className="w-1/2 flex flex-col print:w-full">
+          <div className="p-4 border-b space-y-4 print:hidden">
             <h2 className="font-semibold flex items-center gap-2">
               <FileText className="w-5 h-5" />
-              Позиции сметы
+              Pozitsii smety
               <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm">
-                {itemCount} поз.
+                {items.length} poz. ({totalQuantity} ed.)
               </span>
             </h2>
             
             <div className="space-y-2">
               <Input
-                placeholder="Название мероприятия *"
+                placeholder="Nazvanie meropriyatiya *"
                 value={eventName}
                 onChange={(e) => setEventName(e.target.value)}
               />
               <Input
-                placeholder="Площадка"
+                placeholder="Ploshadka"
                 value={venue}
                 onChange={(e) => setVenue(e.target.value)}
               />
@@ -288,10 +307,54 @@ export function EstimateBuilder({
             </div>
           </div>
 
-          <div className="flex-1 overflow-auto p-4">
+          {/* Версия для печати */}
+          <div ref={printRef} className="hidden print:block p-8">
+            {pdfSettings.logo && (
+              <img src={pdfSettings.logo} alt="Logo" className="h-16 mb-4" />
+            )}
+            <h1 className="text-2xl font-bold mb-4">SMETA</h1>
+            <p><strong>Meropriyatie:</strong> {eventName}</p>
+            <p><strong>Ploshadka:</strong> {venue}</p>
+            <p><strong>Data:</strong> {eventDate}</p>
+            <table className="w-full mt-4 border-collapse">
+              <thead>
+                <tr className="border-b-2 border-black">
+                  <th className="text-left py-2">Naimenovanie</th>
+                  <th className="text-center py-2">Kol-vo</th>
+                  <th className="text-right py-2">Tsena</th>
+                  <th className="text-right py-2">Summa</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item, idx) => (
+                  <tr key={idx} className="border-b">
+                    <td className="py-2">{item.name}</td>
+                    <td className="text-center py-2">{item.quantity}</td>
+                    <td className="text-right py-2">{item.price.toLocaleString('ru-RU')} RUB</td>
+                    <td className="text-right py-2">{(item.price * item.quantity).toLocaleString('ru-RU')} RUB</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="mt-4 text-right font-bold text-xl">
+              ITOGO: {total.toLocaleString('ru-RU')} RUB
+            </div>
+            {pdfSettings.companyName && (
+              <div className="mt-8 text-sm">
+                <p>{pdfSettings.companyName}</p>
+                <p>{pdfSettings.companyDetails}</p>
+                <p>{pdfSettings.position}: {pdfSettings.personName}</p>
+                {pdfSettings.signature && (
+                  <img src={pdfSettings.signature} alt="Podpis" className="h-12 mt-2" />
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="flex-1 overflow-auto p-4 print:hidden">
             {items.length === 0 ? (
               <div className="text-center text-gray-400 mt-10">
-                <p>Добавьте оборудование из списка слева</p>
+                <p>Dobavte oborudovanie iz spiska sleva</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -301,7 +364,7 @@ export function EstimateBuilder({
                       <div className="flex-1">
                         <p className="font-medium">{item.name}</p>
                         <p className="text-sm text-gray-500">
-                          {item.price.toLocaleString('ru-RU')} ₽ × {item.quantity}
+                          {item.price.toLocaleString('ru-RU')} RUB × {item.quantity}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
@@ -338,10 +401,10 @@ export function EstimateBuilder({
           </div>
 
           {/* Итого */}
-          <div className="border-t p-4 bg-gray-50">
+          <div className="border-t p-4 bg-gray-50 print:hidden">
             <div className="flex justify-between items-center text-xl font-bold">
-              <span>ИТОГО:</span>
-              <span>{total.toLocaleString('ru-RU')} ₽</span>
+              <span>ITOGO:</span>
+              <span>{total.toLocaleString('ru-RU')} RUB</span>
             </div>
           </div>
         </div>

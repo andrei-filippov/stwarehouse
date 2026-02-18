@@ -305,22 +305,27 @@ function EquipmentForm({
   const [formData, setFormData] = useState({
     name: initialData?.name || '',
     category: initialData?.category || '',
-    quantity: initialData?.quantity || 0,
-    price: initialData?.price || 0,
+    quantity: initialData?.quantity?.toString() || '',
+    price: initialData?.price?.toString() || '',
     description: initialData?.description || ''
   });
 
   const handleNumberChange = (field: string, value: string) => {
-    // Исправление проблемы с первой цифрой
-    const numValue = value === '' ? 0 : parseFloat(value);
-    setFormData(prev => ({ ...prev, [field]: numValue }));
+    // Разрешаем пустую строку и только числа
+    if (value === '' || /^\d*\.?\d*$/.test(value)) {
+      setFormData(prev => ({ ...prev, [field]: value }));
+    }
   };
 
   return (
     <form 
       onSubmit={(e) => {
         e.preventDefault();
-        onSubmit(formData);
+        onSubmit({
+          ...formData,
+          quantity: parseInt(formData.quantity) || 0,
+          price: parseFloat(formData.price) || 0
+        });
       }}
       className="space-y-4"
     >
@@ -352,7 +357,7 @@ function EquipmentForm({
           <Input
             type="number"
             min="0"
-            value={formData.quantity || ''}
+            value={formData.quantity}
             onChange={(e) => handleNumberChange('quantity', e.target.value)}
           />
         </div>
@@ -362,7 +367,7 @@ function EquipmentForm({
             type="number"
             min="0"
             step="0.01"
-            value={formData.price || ''}
+            value={formData.price}
             onChange={(e) => handleNumberChange('price', e.target.value)}
           />
         </div>

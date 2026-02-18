@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -117,14 +117,28 @@ function TemplateForm({
   template: Template | null;
   onSubmit: (data: any, items: any[]) => void;
 }) {
-  const [name, setName] = useState(template?.name || '');
-  const [description, setDescription] = useState(template?.description || '');
-  const [items, setItems] = useState<TemplateItem[]>(template?.items || []);
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [items, setItems] = useState<TemplateItem[]>([]);
   const [newItem, setNewItem] = useState({
     category: '',
     equipment_name: '',
     default_quantity: 1
   });
+
+  // Сброс состояния при открытии
+  useEffect(() => {
+    if (template) {
+      setName(template.name || '');
+      setDescription(template.description || '');
+      setItems(template.items || []);
+    } else {
+      setName('');
+      setDescription('');
+      setItems([]);
+    }
+    setNewItem({ category: '', equipment_name: '', default_quantity: 1 });
+  }, [template?.id]);
 
   const addItem = () => {
     if (!newItem.equipment_name) return;
