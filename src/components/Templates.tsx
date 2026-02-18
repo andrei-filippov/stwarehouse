@@ -1,166 +1,201 @@
-import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Plus, Edit, Trash, Layout, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
-import type { Template, TemplateItem, Category, Equipment } from '@/types';
-import { getTemplates, getTemplateWithItems, addTemplate, updateTemplate, deleteTemplate, getCategories, getEquipment } from '@/lib/supabase';
+import { useState } from 'react';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
+import { Plus, Trash2, Edit, Copy } from 'lucide-react';
+import { Template, TemplateItem } from '../types';
 
-export default function Templates() {
-    const [templates, setTemplates] = useState<Template[]>([]);
-    const [categories, setCategories] = useState<Category[]>([]);
-    const [equipment, setEquipment] = useState<Equipment[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
-    const [expandedTemplate, setExpandedTemplate] = useState<string | null>(null);
-    const [saving, setSaving] = useState(false);
+interface TemplatesManagerProps {
+  templates: Template[];
+  categories: { id: string; name: string }[];
+  onCreate: (template: any, items: any[]) => Promise<void>;
+  onUpdate: (id: string, updates: any, items?: any[]) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
+}
 
-    const [formData, setFormData] = useState({ name: '', description: '', items: [] as TemplateItem[] });
-    const [newItem, setNewItem] = useState<TemplateItem>({ category: '', equipment_name: '', default_quantity: 1 });
+export function TemplatesManager({
+  templates,
+  categories,
+  onCreate,
+  onUpdate,
+  onDelete
+}: TemplatesManagerProps) {
+  const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-    useEffect(() => { loadData(); }, []);
-
-    const loadData = async () => {
-        setLoading(true);
-        const [{ data: tplData }, { data: catData }, { data: eqData }] = await Promise.all([
-            getTemplates(), getCategories(), getEquipment()
-        ]);
-        setTemplates(tplData);
-        setCategories(catData);
-        setEquipment(eqData);
-        if (catData.length > 0) setNewItem(prev => ({ ...prev, category: catData[0].name }));
-        setLoading(false);
-    };
-
-    const handleSave = async () => {
-        if (!formData.name) return;
-        setSaving(true);
-        if (editingTemplate) {
-            await updateTemplate(editingTemplate.id, { name: formData.name, description: formData.description }, formData.items);
-        } else {
-            await addTemplate({ name: formData.name, description: formData.description }, formData.items);
-        }
-        await loadData();
-        closeModal();
-        setSaving(false);
-    };
-
-    const handleDelete = async (id: string) => {
-        if (confirm('Удалить этот шаблон?')) {
-            await deleteTemplate(id);
-            await loadData();
-        }
-    };
-
-    const openModal = async (template: Template | null = null) => {
-        if (template) {
-            const { data } = await getTemplateWithItems(template.id);
-            setEditingTemplate(template);
-            setFormData({ name: template.name, description: template.description || '', items: data?.items || [] });
-        } else {
-            setEditingTemplate(null);
-            setFormData({ name: '', description: '', items: [] });
-        }
-        setIsModalOpen(true);
-    };
-
-    const closeModal = () => {
-        setIsModalOpen(false);
-        setEditingTemplate(null);
-        setFormData({ name: '', description: '', items: [] });
-        setNewItem({ category: categories[0]?.name || '', equipment_name: '', default_quantity: 1 });
-    };
-
-    const addItemToTemplate = () => {
-        if (!newItem.equipment_name) return;
-        setFormData({ ...formData, items: [...formData.items, { ...newItem }] });
-        setNewItem({ category: categories[0]?.name || '', equipment_name: '', default_quantity: 1 });
-    };
-
-    const removeItemFromTemplate = (index: number) => {
-        setFormData({ ...formData, items: formData.items.filter((_, i) => i !== index) });
-    };
-
-    const toggleExpand = (id: string) => setExpandedTemplate(expandedTemplate === id ? null : id);
-    const getEquipmentByCategory = (category: string) => equipment.filter(e => e.category === category).map(e => e.name);
-
-    if (loading) return <div className="flex items-center justify-center h-64"><Loader2 className="w-8 h-8 animate-spin text-blue-600" /></div>;
-
-    return (
-        <div className="space-y-4">
-            <div className="flex justify-between items-center">
-                <div><h2 className="text-2xl font-bold text-gray-800">Шаблоны</h2><p className="text-gray-500">Всего шаблонов: {templates.length}</p></div>
-                <Button onClick={() => openModal()}><Plus className="w-4 h-4 mr-2" /> Новый шаблон</Button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {templates.map(template => (
-                    <div key={template.id} className="bg-white border rounded-xl p-4 shadow-sm">
-                        <div className="flex items-start justify-between">
-                            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center"><Layout className="w-5 h-5 text-blue-600" /></div>
-                            <div className="flex gap-1">
-                                <button onClick={() => openModal(template)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"><Edit className="w-4 h-4" /></button>
-                                <button onClick={() => handleDelete(template.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded"><Trash className="w-4 h-4" /></button>
-                            </div>
-                        </div>
-                        <h3 className="font-semibold text-gray-800 mt-3">{template.name}</h3>
-                        <p className="text-sm text-gray-500">{template.description}</p>
-                        {template.items && template.items.length > 0 && (
-                            <button onClick={() => toggleExpand(template.id)} className="flex items-center gap-1 mt-3 text-sm text-blue-600 hover:text-blue-700">
-                                {expandedTemplate === template.id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                                {template.items.length} позиций
-                            </button>
-                        )}
-                        {expandedTemplate === template.id && template.items && (
-                            <div className="mt-3 pt-3 border-t space-y-1">
-                                {template.items.map((item, idx) => (
-                                    <div key={idx} className="text-sm text-gray-600 flex justify-between"><span>{item.equipment_name}</span><span className="text-gray-400">{item.default_quantity} шт.</span></div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                ))}
-            </div>
-
-            {templates.length === 0 && <div className="text-center py-12 text-gray-500"><Layout className="w-16 h-16 mx-auto mb-4 text-gray-300" /><p>Шаблоны не созданы</p></div>}
-
-            <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-                <DialogContent className="max-w-lg">
-                    <DialogHeader><DialogTitle>{editingTemplate ? 'Редактировать шаблон' : 'Новый шаблон'}</DialogTitle></DialogHeader>
-                    <div className="space-y-4 pt-4">
-                        <div><label className="text-sm font-medium text-gray-700 mb-1 block">Название *</label><Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required /></div>
-                        <div><label className="text-sm font-medium text-gray-700 mb-1 block">Описание</label><Input value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} /></div>
-                        <div className="border rounded-lg p-4">
-                            <h4 className="font-medium text-gray-700 mb-3">Позиции шаблона</h4>
-                            <div className="space-y-2 mb-4">
-                                <div className="grid grid-cols-2 gap-2">
-                                    <select value={newItem.category} onChange={(e) => setNewItem({ ...newItem, category: e.target.value, equipment_name: '' })} className="px-3 py-2 border border-gray-300 rounded-lg text-sm">{categories.map(cat => <option key={cat.id} value={cat.name}>{cat.name}</option>)}</select>
-                                    <Input type="number" min={1} value={newItem.default_quantity} onChange={(e) => setNewItem({ ...newItem, default_quantity: parseInt(e.target.value) || 1 })} className="text-sm" />
-                                </div>
-                                <select value={newItem.equipment_name} onChange={(e) => setNewItem({ ...newItem, equipment_name: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                                    <option value="">Выберите оборудование</option>
-                                    {getEquipmentByCategory(newItem.category).map(name => <option key={name} value={name}>{name}</option>)}
-                                </select>
-                                <Button variant="outline" onClick={addItemToTemplate} className="w-full text-sm"><Plus className="w-4 h-4 mr-2" /> Добавить позицию</Button>
-                            </div>
-                            <div className="space-y-2 max-h-48 overflow-y-auto">
-                                {formData.items.map((item, idx) => (
-                                    <div key={idx} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                                        <div><div className="text-sm font-medium">{item.equipment_name}</div><div className="text-xs text-gray-500">{item.category} — {item.default_quantity} шт.</div></div>
-                                        <button onClick={() => removeItemFromTemplate(idx)} className="p-1 text-red-600 hover:bg-red-50 rounded"><Trash className="w-4 h-4" /></button>
-                                    </div>
-                                ))}
-                                {formData.items.length === 0 && <p className="text-sm text-gray-500 text-center py-2">Нет позиций</p>}
-                            </div>
-                        </div>
-                        <div className="flex gap-2 pt-4">
-                            <Button variant="outline" onClick={closeModal} className="flex-1" disabled={saving}>Отмена</Button>
-                            <Button onClick={handleSave} className="flex-1" disabled={saving || !formData.name}>{saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}Сохранить</Button>
-                        </div>
-                    </div>
-                </DialogContent>
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <div className="flex justify-between items-center">
+            <CardTitle>Шаблоны смет</CardTitle>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={() => setEditingTemplate(null)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Новый шаблон
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-3xl">
+                <DialogHeader>
+                  <DialogTitle>
+                    {editingTemplate ? 'Редактировать шаблон' : 'Новый шаблон'}
+                  </DialogTitle>
+                </DialogHeader>
+                <TemplateForm
+                  categories={categories}
+                  template={editingTemplate}
+                  onSubmit={async (data, items) => {
+                    if (editingTemplate) {
+                      await onUpdate(editingTemplate.id, data, items);
+                    } else {
+                      await onCreate(data, items);
+                    }
+                    setIsDialogOpen(false);
+                  }}
+                />
+              </DialogContent>
             </Dialog>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Название</TableHead>
+                <TableHead>Описание</TableHead>
+                <TableHead>Позиций</TableHead>
+                <TableHead>Действия</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {templates.map((template) => (
+                <TableRow key={template.id}>
+                  <TableCell className="font-medium">{template.name}</TableCell>
+                  <TableCell>{template.description || '-'}</TableCell>
+                  <TableCell>{template.items?.length || 0}</TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => {
+                          setEditingTemplate(template);
+                          setIsDialogOpen(true);
+                        }}
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => onDelete(template.id)}
+                      >
+                        <Trash2 className="w-4 h-4 text-red-500" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function TemplateForm({ 
+  categories, 
+  template, 
+  onSubmit 
+}: { 
+  categories: { id: string; name: string }[];
+  template: Template | null;
+  onSubmit: (data: any, items: any[]) => void;
+}) {
+  const [name, setName] = useState(template?.name || '');
+  const [description, setDescription] = useState(template?.description || '');
+  const [items, setItems] = useState<TemplateItem[]>(template?.items || []);
+  const [newItem, setNewItem] = useState({
+    category: '',
+    equipment_name: '',
+    default_quantity: 1
+  });
+
+  const addItem = () => {
+    if (!newItem.equipment_name) return;
+    setItems([...items, { ...newItem, id: crypto.randomUUID() }]);
+    setNewItem({ category: '', equipment_name: '', default_quantity: 1 });
+  };
+
+  const removeItem = (index: number) => {
+    setItems(items.filter((_, i) => i !== index));
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label>Название шаблона</Label>
+        <Input value={name} onChange={(e) => setName(e.target.value)} required />
+      </div>
+      <div className="space-y-2">
+        <Label>Описание</Label>
+        <Input value={description} onChange={(e) => setDescription(e.target.value)} />
+      </div>
+
+      <div className="border-t pt-4">
+        <h4 className="font-medium mb-2">Позиции шаблона</h4>
+        
+        <div className="flex gap-2 mb-2">
+          <select
+            className="border rounded px-2 py-1"
+            value={newItem.category}
+            onChange={(e) => setNewItem({ ...newItem, category: e.target.value })}
+          >
+            <option value="">Категория</option>
+            {categories.map(c => (
+              <option key={c.id} value={c.name}>{c.name}</option>
+            ))}
+          </select>
+          <Input
+            placeholder="Название оборудования"
+            value={newItem.equipment_name}
+            onChange={(e) => setNewItem({ ...newItem, equipment_name: e.target.value })}
+          />
+          <Input
+            type="number"
+            className="w-24"
+            value={newItem.default_quantity}
+            onChange={(e) => setNewItem({ ...newItem, default_quantity: parseInt(e.target.value) || 1 })}
+          />
+          <Button onClick={addItem} size="sm">
+            <Plus className="w-4 h-4" />
+          </Button>
         </div>
-    );
+
+        <div className="space-y-1 max-h-60 overflow-auto">
+          {items.map((item, idx) => (
+            <div key={idx} className="flex justify-between items-center bg-gray-50 p-2 rounded">
+              <span className="text-sm">{item.equipment_name} ({item.category}) × {item.default_quantity}</span>
+              <Button variant="ghost" size="sm" onClick={() => removeItem(idx)}>
+                <Trash2 className="w-3 h-3 text-red-500" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <Button 
+        onClick={() => onSubmit({ name, description }, items)}
+        className="w-full"
+        disabled={!name}
+      >
+        {template ? 'Сохранить изменения' : 'Создать шаблон'}
+      </Button>
+    </div>
+  );
 }
