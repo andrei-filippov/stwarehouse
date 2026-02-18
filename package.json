@@ -51,7 +51,7 @@
     "vaul": "^1.1.2",
     "xlsx": "^0.18.5",
     "zod": "^4.3.5"
-  }
+  },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
     "@types/node": "^24.10.1",
@@ -71,7 +71,7 @@
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.4",
     "vite": "^7.2.4"
-  }
+  },
   "name": "my-app",
   "private": true,
   "scripts": {
@@ -79,7 +79,7 @@
     "dev": "vite",
     "lint": "eslint .",
     "preview": "vite preview"
-  }
+  },
   "type": "module",
   "version": "0.0.0"
 }
