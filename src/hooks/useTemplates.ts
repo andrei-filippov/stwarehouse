@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { Template, TemplateItem } from '../types';
+import type { Template, TemplateItem } from '../types';
 
 export function useTemplates(userId: string | undefined) {
   const [templates, setTemplates] = useState<Template[]>([]);

@@ -4,9 +4,9 @@ import { useEquipment } from './hooks/useEquipment';
 import { useEstimates } from './hooks/useEstimates';
 import { useTemplates } from './hooks/useTemplates';
 import { Auth } from './components/Auth';
-import { EquipmentManager } from './components/EquipmentManager';
+import { EquipmentManager } from './components/EquipmentManagement';
 import { EstimateManager } from './components/EstimateManager';
-import { TemplatesManager } from './components/TemplatesManager';
+import { TemplatesManager } from './components/Templates';
 import { PDFSettings } from './components/PDFSettings';
 import { Button } from './components/ui/button';
 import { 
@@ -17,7 +17,7 @@ import {
   LogOut,
   User
 } from 'lucide-react';
-import { PDFSettings as PDFSettingsType } from './types';
+import type { PDFSettings as PDFSettingsType } from './types';
 
 type Tab = 'equipment' | 'estimates' | 'templates' | 'settings';
 
@@ -84,7 +84,7 @@ function App() {
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <User className="w-4 h-4" />
-              <span>{profile?.name || user.email}</span>
+              <span>{profile?.name || user?.email}</span>
             </div>
             <Button variant="ghost" size="sm" onClick={signOut}>
               <LogOut className="w-4 h-4 mr-2" />

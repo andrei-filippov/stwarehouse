@@ -5,15 +5,15 @@ import { Label } from './ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
-import { Plus, Trash2, Edit, Copy } from 'lucide-react';
-import { Template, TemplateItem } from '../types';
+import { Plus, Trash2, Edit } from 'lucide-react';
+import type { Template, TemplateItem } from '../types';
 
 interface TemplatesManagerProps {
   templates: Template[];
   categories: { id: string; name: string }[];
-  onCreate: (template: any, items: any[]) => Promise<void>;
-  onUpdate: (id: string, updates: any, items?: any[]) => Promise<void>;
-  onDelete: (id: string) => Promise<void>;
+  onCreate: (template: any, items: any[]) => Promise<{ error: any; data?: any }>;
+  onUpdate: (id: string, updates: any, items?: any[]) => Promise<{ error: any }>;
+  onDelete: (id: string) => Promise<{ error: any }>;
 }
 
 export function TemplatesManager({

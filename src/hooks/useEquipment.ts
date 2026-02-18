@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { Equipment, Category } from '../types';
+import type { Equipment, Category } from '../types';
 
 export function useEquipment(userId: string | undefined) {
   const [equipment, setEquipment] = useState<Equipment[]>([]);

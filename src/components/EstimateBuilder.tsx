@@ -1,18 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Label } from './ui/label';
+
 import { Card, CardContent } from './ui/card';
 import { 
-  Plus, 
   Trash2, 
   Save, 
-  X, 
   ChevronLeft,
   FileText,
   Package
 } from 'lucide-react';
-import { Equipment, Estimate, EstimateItem, PDFSettings } from '../types';
+import type { Equipment, Estimate, EstimateItem, PDFSettings } from '../types';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
@@ -166,8 +164,8 @@ export function EstimateBuilder({
     data.push({
       'Наименование': 'ИТОГО',
       'Описание': '',
-      'Количество': '',
-      'Цена за ед.': '',
+      'Количество': 0,
+      'Цена за ед.': 0,
       'Сумма': total
     });
 

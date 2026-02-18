@@ -2,17 +2,17 @@ import { useState } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-import { Plus, Edit, Trash2, FileText } from 'lucide-react';
-import { Estimate, PDFSettings } from '../types';
+import { Plus, Edit, Trash2 } from 'lucide-react';
+import type { Estimate, PDFSettings } from '../types';
 import { EstimateBuilder } from './EstimateBuilder';
 
 interface EstimateManagerProps {
   estimates: Estimate[];
   equipment: any[];
   pdfSettings: PDFSettings;
-  onCreate: (estimate: any, items: any[]) => Promise<void>;
-  onUpdate: (id: string, estimate: any, items: any[]) => Promise<void>;
-  onDelete: (id: string) => Promise<void>;
+  onCreate: (estimate: any, items: any[]) => Promise<{ error: any; data?: any }>;
+  onUpdate: (id: string, estimate: any, items: any[]) => Promise<{ error: any }>;
+  onDelete: (id: string) => Promise<{ error: any }>;
 }
 
 export function EstimateManager({

@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Plus, Upload, Download, Trash2, Edit, Search } from 'lucide-react';
-import { Equipment } from '../types';
+import type { Equipment } from '../types';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 
@@ -89,7 +89,7 @@ export function EquipmentManager({
   };
 
   const handleImport = async () => {
-    const { error, count } = await onBulkInsert(importData);
+    const { error } = await onBulkInsert(importData);
     if (!error) {
       setIsImportDialogOpen(false);
       setImportPreview(false);
@@ -112,23 +112,6 @@ export function EquipmentManager({
     
     // UTF-8 для кириллицы
     XLSX.writeFile(wb, 'оборудование.xlsx');
-  };
-
-  const exportToCSV = () => {
-    const data = equipment.map(item => ({
-      name: item.name,
-      category: item.category,
-      quantity: item.quantity,
-      price: item.price,
-      description: item.description
-    }));
-
-    const csv = Papa.unparse(data);
-    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = 'оборудование.csv';
-    link.click();
   };
 
   return (

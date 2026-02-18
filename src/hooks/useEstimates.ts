@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { Estimate, EstimateItem } from '../types';
+import type { Estimate, EstimateItem } from '../types';
 
 export function useEstimates(userId: string | undefined) {
   const [estimates, setEstimates] = useState<Estimate[]>([]);
