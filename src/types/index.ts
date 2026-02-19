@@ -21,6 +21,7 @@ export type EstimateItem = {
   equipment_id: string;
   name: string;
   description: string;
+  category: string; // категория оборудования
   quantity: number;
   price: number;
   unit: string; // единица измерения

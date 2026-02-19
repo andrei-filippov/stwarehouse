@@ -141,6 +141,7 @@ export function EstimateBuilder({
             equipment_id: matchingEquipment.id,
             name: matchingEquipment.name,
             description: matchingEquipment.description,
+            category: matchingEquipment.category,
             quantity: quantity,
             price: matchingEquipment.price,
             unit: matchingEquipment.unit || 'шт',
@@ -225,6 +226,7 @@ export function EstimateBuilder({
         equipment_id: equipmentItem.id,
         name: equipmentItem.name,
         description: equipmentItem.description,
+        category: equipmentItem.category,
         quantity: 1,
         price: equipmentItem.price,
         unit: equipmentItem.unit || 'шт',
@@ -318,6 +320,7 @@ export function EstimateBuilder({
               equipment_id: matchingEquipment.id,
               name: matchingEquipment.name,
               description: matchingEquipment.description,
+              category: matchingEquipment.category,
               quantity: quantity,
               price: matchingEquipment.price,
               unit: matchingEquipment.unit || 'шт',
@@ -335,6 +338,26 @@ export function EstimateBuilder({
   // Подсчет итого с учетом коэффициента
   const total = items.reduce((sum, item) => sum + (item.price * item.quantity * (item.coefficient || 1)), 0);
   const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
+
+  // Группировка по категориям
+  const groupedItems = useMemo(() => {
+    const grouped = items.reduce((acc, item) => {
+      const category = item.category || 'Без категории';
+      if (!acc[category]) {
+        acc[category] = [];
+      }
+      acc[category].push(item);
+      return acc;
+    }, {} as Record<string, EstimateItem[]>);
+    
+    // Сортируем категории по алфавиту
+    return Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b));
+  }, [items]);
+
+  // Расчет суммы по категории
+  const getCategoryTotal = (categoryItems: EstimateItem[]) => {
+    return categoryItems.reduce((sum, item) => sum + (item.price * item.quantity * (item.coefficient || 1)), 0);
+  };
 
   // Сохранение
   const handleSave = async () => {
@@ -404,34 +427,49 @@ export function EstimateBuilder({
           <p><strong>Дата:</strong> ${eventDate ? new Date(eventDate).toLocaleDateString('ru-RU') : '-'}</p>
         </div>
         
-        <table>
-          <thead>
-            <tr>
-              <th style="width:5%">№</th>
-              <th style="width:25%">Наименование</th>
-              <th style="width:20%">Описание</th>
-              <th style="width:8%">Ед.</th>
-              <th style="width:8%">Кол-во</th>
-              <th style="width:10%">Цена</th>
-              <th style="width:8%">Коэф.</th>
-              <th style="width:10%">Сумма</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${items.map((item, idx) => `
-              <tr>
-                <td>${idx + 1}</td>
-                <td>${item.name}</td>
-                <td>${item.description || '-'}</td>
-                <td>${item.unit || 'шт'}</td>
-                <td>${item.quantity}</td>
-                <td class="nowrap">${item.price.toLocaleString('ru-RU')}₽</td>
-                <td>${item.coefficient || 1}</td>
-                <td class="nowrap">${(item.price * item.quantity * (item.coefficient || 1)).toLocaleString('ru-RU')}₽</td>
+        ${groupedItems.map(([category, categoryItems], catIdx) => {
+          const catTotal = categoryItems.reduce((sum, item) => sum + (item.price * item.quantity * (item.coefficient || 1)), 0);
+          return `
+          <table>
+            <thead>
+              <tr style="background:#e3f2fd;">
+                <th colspan="8" style="text-align:left;padding:8px;font-size:13px;">
+                  ${category} (${categoryItems.length} поз.)
+                </th>
               </tr>
-            `).join('')}
-          </tbody>
-        </table>
+              <tr>
+                <th style="width:5%">№</th>
+                <th style="width:25%">Наименование</th>
+                <th style="width:20%">Описание</th>
+                <th style="width:8%">Ед.</th>
+                <th style="width:8%">Кол-во</th>
+                <th style="width:10%">Цена</th>
+                <th style="width:8%">Коэф.</th>
+                <th style="width:10%">Сумма</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${categoryItems.map((item, idx) => `
+                <tr>
+                  <td>${idx + 1}</td>
+                  <td>${item.name}</td>
+                  <td>${item.description || '-'}</td>
+                  <td>${item.unit || 'шт'}</td>
+                  <td>${item.quantity}</td>
+                  <td class="nowrap">${item.price.toLocaleString('ru-RU')}₽</td>
+                  <td>${item.coefficient || 1}</td>
+                  <td class="nowrap">${(item.price * item.quantity * (item.coefficient || 1)).toLocaleString('ru-RU')}₽</td>
+                </tr>
+              `).join('')}
+              <tr style="background:#f5f5f5;font-weight:bold;">
+                <td colspan="7" style="text-align:right;padding:8px;">Итого по категории:</td>
+                <td style="text-align:right;padding:8px;" class="nowrap">${catTotal.toLocaleString('ru-RU')}₽</td>
+              </tr>
+            </tbody>
+          </table>
+          <div style="height:10px;"></div>
+          `;
+        }).join('')}
         
         <div class="total">
           ИТОГО: ${total.toLocaleString('ru-RU')}₽
@@ -466,17 +504,65 @@ export function EstimateBuilder({
 
   // Экспорт Excel с поддержкой кириллицы
   const exportExcel = () => {
-    const data = items.map(item => ({
-      'Наименование': item.name,
-      'Описание': item.description || '',
-      'Ед.изм': item.unit || 'шт',
-      'Количество': item.quantity,
-      'Цена за ед.': item.price,
-      'Коэффициент': item.coefficient || 1,
-      'Сумма': item.price * item.quantity * (item.coefficient || 1)
-    }));
+    const data: any[] = [];
+    
+    // Группируем по категориям
+    groupedItems.forEach(([category, categoryItems]) => {
+      // Заголовок категории
+      data.push({
+        'Категория': category,
+        'Наименование': '',
+        'Описание': '',
+        'Ед.изм': '',
+        'Количество': categoryItems.length + ' поз.',
+        'Цена за ед.': '',
+        'Коэффициент': '',
+        'Сумма': ''
+      });
+      
+      // Позиции категории
+      categoryItems.forEach((item, idx) => {
+        data.push({
+          'Категория': '',
+          'Наименование': (idx + 1) + '. ' + item.name,
+          'Описание': item.description || '',
+          'Ед.изм': item.unit || 'шт',
+          'Количество': item.quantity,
+          'Цена за ед.': item.price,
+          'Коэффициент': item.coefficient || 1,
+          'Сумма': item.price * item.quantity * (item.coefficient || 1)
+        });
+      });
+      
+      // Подытог категории
+      const catTotal = categoryItems.reduce((sum, item) => sum + (item.price * item.quantity * (item.coefficient || 1)), 0);
+      data.push({
+        'Категория': '',
+        'Наименование': 'Итого по категории:',
+        'Описание': '',
+        'Ед.изм': '',
+        'Количество': '',
+        'Цена за ед.': '',
+        'Коэффициент': '',
+        'Сумма': catTotal
+      });
+      
+      // Пустая строка между категориями
+      data.push({
+        'Категория': '',
+        'Наименование': '',
+        'Описание': '',
+        'Ед.изм': '',
+        'Количество': '',
+        'Цена за ед.': '',
+        'Коэффициент': '',
+        'Сумма': ''
+      });
+    });
 
+    // Итого
     data.push({
+      'Категория': '',
       'Наименование': 'ИТОГО',
       'Описание': '',
       'Ед.изм': '',
@@ -702,36 +788,50 @@ export function EstimateBuilder({
               <p><strong>Дата:</strong> {eventDate ? new Date(eventDate).toLocaleDateString('ru-RU') : '-'}</p>
             </div>
 
-            <table className="w-full mt-4 border-collapse text-sm">
-              <thead>
-                <tr className="border-b-2 border-black bg-gray-100">
-                  <th className="text-left py-2 px-1 w-8">№</th>
-                  <th className="text-left py-2 px-1">Наименование</th>
-                  <th className="text-left py-2 px-1 text-xs">Описание</th>
-                  <th className="text-center py-2 px-1 w-12">Ед.</th>
-                  <th className="text-center py-2 px-1 w-12">Кол-во</th>
-                  <th className="text-right py-2 px-1 w-20">Цена</th>
-                  <th className="text-center py-2 px-1 w-12">Коэф.</th>
-                  <th className="text-right py-2 px-1 w-24">Сумма</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item, idx) => (
-                  <tr key={idx} className="border-b">
-                    <td className="py-2 px-1">{idx + 1}</td>
-                    <td className="py-2 px-1">{item.name}</td>
-                    <td className="py-2 px-1 text-xs text-gray-600">{item.description || '-'}</td>
-                    <td className="text-center py-2 px-1">{item.unit || 'шт'}</td>
-                    <td className="text-center py-2 px-1">{item.quantity}</td>
-                    <td className="text-right py-2 px-1 whitespace-nowrap">{item.price.toLocaleString('ru-RU')}₽</td>
-                    <td className="text-center py-2 px-1">{item.coefficient || 1}</td>
-                    <td className="text-right py-2 px-1 whitespace-nowrap">{(item.price * item.quantity * (item.coefficient || 1)).toLocaleString('ru-RU')}₽</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            {groupedItems.map(([category, categoryItems]) => {
+              const catTotal = categoryItems.reduce((sum, item) => sum + (item.price * item.quantity * (item.coefficient || 1)), 0);
+              return (
+                <div key={category} className="mb-6">
+                  <h3 className="font-bold text-sm bg-gray-100 p-2 border-t-2 border-b border-gray-300">
+                    {category} ({categoryItems.length} поз.)
+                  </h3>
+                  <table className="w-full border-collapse text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left py-1 px-1 w-8 text-xs">№</th>
+                        <th className="text-left py-1 px-1 text-xs">Наименование</th>
+                        <th className="text-left py-1 px-1 text-xs">Описание</th>
+                        <th className="text-center py-1 px-1 w-10 text-xs">Ед.</th>
+                        <th className="text-center py-1 px-1 w-10 text-xs">Кол</th>
+                        <th className="text-right py-1 px-1 w-16 text-xs">Цена</th>
+                        <th className="text-center py-1 px-1 w-8 text-xs">Кф</th>
+                        <th className="text-right py-1 px-1 w-20 text-xs">Сумма</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {categoryItems.map((item, idx) => (
+                        <tr key={idx} className="border-b">
+                          <td className="py-1 px-1">{idx + 1}</td>
+                          <td className="py-1 px-1">{item.name}</td>
+                          <td className="py-1 px-1 text-xs text-gray-600">{item.description || '-'}</td>
+                          <td className="text-center py-1 px-1">{item.unit || 'шт'}</td>
+                          <td className="text-center py-1 px-1">{item.quantity}</td>
+                          <td className="text-right py-1 px-1 whitespace-nowrap text-xs">{item.price.toLocaleString('ru-RU')}₽</td>
+                          <td className="text-center py-1 px-1">{item.coefficient || 1}</td>
+                          <td className="text-right py-1 px-1 whitespace-nowrap">{(item.price * item.quantity * (item.coefficient || 1)).toLocaleString('ru-RU')}₽</td>
+                        </tr>
+                      ))}
+                      <tr className="bg-gray-50 font-semibold">
+                        <td colSpan={7} className="text-right py-2 px-2">Итого по категории:</td>
+                        <td className="text-right py-2 px-1">{catTotal.toLocaleString('ru-RU')}₽</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })}
 
-            <div className="mt-4 text-right font-bold text-lg">
+            <div className="mt-4 text-right font-bold text-lg border-t-2 border-black pt-3">
               ИТОГО: {total.toLocaleString('ru-RU')}₽
             </div>
 
@@ -762,79 +862,103 @@ export function EstimateBuilder({
                 <p>Добавьте оборудование из списка слева</p>
               </div>
             ) : (
-              <div className="space-y-2">
-                {items.map((item, index) => (
-                  <Card key={index}>
-                    <CardContent className="p-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium">{item.name}</p>
-                          {item.description && (
-                            <p className="text-xs text-gray-500 truncate" title={item.description}>
-                              {item.description}
-                            </p>
-                          )}
-                          <p className="text-sm text-gray-600 mt-1">
-                            {item.price.toLocaleString('ru-RU')} ₽ / {item.unit || 'шт'}
-                          </p>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeItem(index)}
-                          className="shrink-0"
-                        >
-                          <Trash2 className="w-4 h-4 text-red-500" />
-                        </Button>
-                      </div>
-                      
-                      <div className="flex items-center gap-4 mt-3">
-                        {/* Количество */}
-                        <div className="flex items-center gap-1">
-                          <span className="text-xs text-gray-500 mr-1">Кол-во:</span>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-7 w-7 p-0"
-                            onClick={() => updateQuantity(index, item.quantity - 1)}
-                          >
-                            -
-                          </Button>
-                          <span className="w-8 text-center font-medium text-sm">
-                            {item.quantity} {item.unit || 'шт'}
-                          </span>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-7 w-7 p-0"
-                            onClick={() => updateQuantity(index, item.quantity + 1)}
-                          >
-                            +
-                          </Button>
-                        </div>
-                        
-                        {/* Коэффициент */}
-                        <div className="flex items-center gap-1">
-                          <span className="text-xs text-gray-500">Коэф:</span>
-                          <input
-                            type="number"
-                            step="0.1"
-                            min="0.01"
-                            value={item.coefficient || 1}
-                            onChange={(e) => updateCoefficient(index, parseFloat(e.target.value) || 1)}
-                            className="w-14 h-7 text-center border rounded text-sm"
-                          />
-                        </div>
-                        
-                        {/* Сумма */}
-                        <div className="ml-auto text-right">
-                          <span className="font-semibold text-sm">
-                            {(item.price * item.quantity * (item.coefficient || 1)).toLocaleString('ru-RU')} ₽
-                          </span>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+              <div className="space-y-4">
+                {groupedItems.map(([category, categoryItems]) => (
+                  <div key={category} className="space-y-2">
+                    {/* Заголовок категории */}
+                    <div className="flex items-center justify-between bg-gray-100 p-2 rounded">
+                      <h3 className="font-semibold text-gray-700">{category}</h3>
+                      <span className="text-sm text-gray-500">{categoryItems.length} поз.</span>
+                    </div>
+                    
+                    {/* Позиции категории */}
+                    <div className="space-y-2">
+                      {categoryItems.map((item, idx) => {
+                        const originalIndex = items.findIndex(i => i === item);
+                        return (
+                          <Card key={idx}>
+                            <CardContent className="p-3">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium">{item.name}</p>
+                                  {item.description && (
+                                    <p className="text-xs text-gray-500 truncate" title={item.description}>
+                                      {item.description}
+                                    </p>
+                                  )}
+                                  <p className="text-sm text-gray-600 mt-1">
+                                    {item.price.toLocaleString('ru-RU')} ₽ / {item.unit || 'шт'}
+                                  </p>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => removeItem(originalIndex)}
+                                  className="shrink-0"
+                                >
+                                  <Trash2 className="w-4 h-4 text-red-500" />
+                                </Button>
+                              </div>
+                              
+                              <div className="flex items-center gap-4 mt-3">
+                                {/* Количество */}
+                                <div className="flex items-center gap-1">
+                                  <span className="text-xs text-gray-500 mr-1">Кол-во:</span>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 w-7 p-0"
+                                    onClick={() => updateQuantity(originalIndex, item.quantity - 1)}
+                                  >
+                                    -
+                                  </Button>
+                                  <span className="w-8 text-center font-medium text-sm">
+                                    {item.quantity} {item.unit || 'шт'}
+                                  </span>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 w-7 p-0"
+                                    onClick={() => updateQuantity(originalIndex, item.quantity + 1)}
+                                  >
+                                    +
+                                  </Button>
+                                </div>
+                                
+                                {/* Коэффициент */}
+                                <div className="flex items-center gap-1">
+                                  <span className="text-xs text-gray-500">Коэф:</span>
+                                  <input
+                                    type="number"
+                                    step="0.1"
+                                    min="0.01"
+                                    value={item.coefficient || 1}
+                                    onChange={(e) => updateCoefficient(originalIndex, parseFloat(e.target.value) || 1)}
+                                    className="w-14 h-7 text-center border rounded text-sm"
+                                  />
+                                </div>
+                                
+                                {/* Сумма */}
+                                <div className="ml-auto text-right">
+                                  <span className="font-semibold text-sm">
+                                    {(item.price * item.quantity * (item.coefficient || 1)).toLocaleString('ru-RU')} ₽
+                                  </span>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                    
+                    {/* Подытог по категории */}
+                    <div className="flex justify-end items-center py-2 px-3 bg-blue-50 rounded">
+                      <span className="text-sm text-gray-600 mr-2">Итого по категории:</span>
+                      <span className="font-semibold text-blue-700">
+                        {getCategoryTotal(categoryItems).toLocaleString('ru-RU')} ₽
+                      </span>
+                    </div>
+                  </div>
                 ))}
               </div>
             )}
