@@ -61,29 +61,34 @@ export function EstimateBuilder({
       setVenue(estimate.venue || '');
       setEventDate(estimate.event_date || '');
       setItems(estimate.items || []);
-    } else if (selectedTemplate) {
-      // Автоматически применяем выбранный шаблон
+    } else if (selectedTemplate && equipment.length > 0) {
+      // Автоматически применяем выбранный шаблон только когда оборудование загружено
+      setEventName(selectedTemplate.name || '');
+      setVenue('');
+      setEventDate('');
+      // Применяем шаблон сразу (без проверки доступности, так как дата не выбрана)
+      applyTemplateDirect(selectedTemplate);
+    } else if (selectedTemplate && equipment.length === 0) {
+      // Оборудование еще не загружено - ждем
       setEventName(selectedTemplate.name || '');
       setVenue('');
       setEventDate('');
       setItems([]);
-      // Применяем шаблон сразу (без проверки доступности, так как дата не выбрана)
-      applyTemplateDirect(selectedTemplate);
     } else {
       setEventName('');
       setVenue('');
       setEventDate('');
       setItems([]);
     }
-  }, [estimate?.id, selectedTemplate?.id]);
+  }, [estimate?.id, selectedTemplate?.id, equipment.length]);
 
   // Прямое применение шаблона без проверки доступности
   const applyTemplateDirect = (template: Template) => {
-    if (!template.items || template.items.length === 0) return;
+    if (!template.items || template.items.length === 0 || equipment.length === 0) return;
     
     const newItems: EstimateItem[] = [];
     
-    template.items.forEach(templateItem => {
+    template.items.forEach((templateItem, index) => {
       // Ищем оборудование по ID (если есть) или по имени
       let matchingEquipment = null;
       
@@ -92,23 +97,46 @@ export function EstimateBuilder({
         matchingEquipment = equipment.find(eq => eq.id === templateItem.equipment_id);
       }
       
-      // Если не нашли по ID, ищем по имени
-      if (!matchingEquipment) {
+      // Если не нашли по ID, ищем по имени (точное совпадение)
+      if (!matchingEquipment && templateItem.equipment_name) {
         matchingEquipment = equipment.find(eq => 
-          eq.name.toLowerCase() === templateItem.equipment_name.toLowerCase() ||
+          eq.name.toLowerCase().trim() === templateItem.equipment_name.toLowerCase().trim()
+        );
+      }
+      
+      // Если всё ещё не нашли, ищем по категории (но пропускаем если уже добавляли из этой категории)
+      if (!matchingEquipment && templateItem.category) {
+        // Для категорийного поиска берем оборудование по индексу, если возможно
+        const categoryEquipment = equipment.filter(eq => 
           eq.category.toLowerCase() === templateItem.category.toLowerCase()
         );
+        if (categoryEquipment.length > 0) {
+          // Берем оборудование из категории по индексу позиции в шаблоне
+          // или первое неиспользованное
+          for (const eq of categoryEquipment) {
+            if (!newItems.find(item => item.equipment_id === eq.id)) {
+              matchingEquipment = eq;
+              break;
+            }
+          }
+          // Если все уже использованы, берем первое
+          if (!matchingEquipment) {
+            matchingEquipment = categoryEquipment[0];
+          }
+        }
       }
       
       if (matchingEquipment) {
         // Без проверки доступности - просто берем запрошенное количество
-        const quantity = templateItem.default_quantity;
+        const quantity = templateItem.default_quantity || 1;
         
-        // Проверяем, не добавили ли уже это оборудование
+        // Проверяем, не добавили ли уже это оборудование (избегаем дубликатов)
         const existingIndex = newItems.findIndex(i => i.equipment_id === matchingEquipment!.id);
         if (existingIndex >= 0) {
+          // Если уже есть - увеличиваем количество
           newItems[existingIndex].quantity += quantity;
         } else {
+          // Добавляем новую позицию
           newItems.push({
             equipment_id: matchingEquipment.id,
             name: matchingEquipment.name,
@@ -228,32 +256,64 @@ export function EstimateBuilder({
     setItems(items.filter((_, i) => i !== index));
   };
 
-  // Применение шаблона
+  // Применение шаблона (при клике на кнопку шаблона)
   const applyTemplate = (template: Template) => {
-    if (!template.items || template.items.length === 0) return;
+    if (!template.items || template.items.length === 0 || equipment.length === 0) return;
     
     const newItems: EstimateItem[] = [];
+    const usedEquipmentIds = new Set<string>(); // Отслеживаем уже использованное оборудование
     
-    template.items.forEach(templateItem => {
-      // Ищем оборудование по имени
-      const matchingEquipment = equipment.find(eq => 
-        eq.name.toLowerCase() === templateItem.equipment_name.toLowerCase() ||
-        eq.category.toLowerCase() === templateItem.category.toLowerCase()
-      );
+    template.items.forEach((templateItem, index) => {
+      // Ищем оборудование по ID (если есть) или по имени
+      let matchingEquipment = null;
+      
+      // Сначала пробуем найти по ID
+      if (templateItem.equipment_id) {
+        matchingEquipment = equipment.find(eq => eq.id === templateItem.equipment_id);
+      }
+      
+      // Если не нашли по ID, ищем по имени (точное совпадение)
+      if (!matchingEquipment && templateItem.equipment_name) {
+        matchingEquipment = equipment.find(eq => 
+          eq.name.toLowerCase().trim() === templateItem.equipment_name.toLowerCase().trim()
+        );
+      }
+      
+      // Если всё ещё не нашли, ищем по категории (берем первое неиспользованное)
+      if (!matchingEquipment && templateItem.category) {
+        const categoryEquipment = equipment.filter(eq => 
+          eq.category.toLowerCase() === templateItem.category.toLowerCase() &&
+          !usedEquipmentIds.has(eq.id) // Исключаем уже использованное
+        );
+        if (categoryEquipment.length > 0) {
+          matchingEquipment = categoryEquipment[0];
+        }
+      }
       
       if (matchingEquipment) {
         // Проверяем доступность
-        const eqAvail = equipmentAvailability.find(ea => ea.equipment.id === matchingEquipment.id);
+        const eqAvail = equipmentAvailability.find(ea => ea.equipment.id === matchingEquipment!.id);
         const maxAvailable = eqAvail?.availableQuantity || 0;
         
         if (maxAvailable > 0) {
-          const quantity = Math.min(templateItem.default_quantity, maxAvailable);
+          const quantity = Math.min(templateItem.default_quantity || 1, maxAvailable);
           
-          // Проверяем, не добавили ли уже это оборудование
-          const existingIndex = newItems.findIndex(i => i.equipment_id === matchingEquipment.id);
+          // Проверяем, не добавили ли уже это оборудование в текущую смету
+          const existingIndex = items.findIndex(i => i.equipment_id === matchingEquipment!.id);
+          const newItemIndex = newItems.findIndex(i => i.equipment_id === matchingEquipment!.id);
+          
           if (existingIndex >= 0) {
-            newItems[existingIndex].quantity += quantity;
+            // Уже есть в смете - увеличиваем количество
+            setItems(prev => prev.map((item, idx) => 
+              idx === existingIndex 
+                ? { ...item, quantity: item.quantity + quantity }
+                : item
+            ));
+          } else if (newItemIndex >= 0) {
+            // Уже добавили в этом шаблоне - увеличиваем количество
+            newItems[newItemIndex].quantity += quantity;
           } else {
+            // Новое оборудование
             newItems.push({
               equipment_id: matchingEquipment.id,
               name: matchingEquipment.name,
@@ -263,6 +323,7 @@ export function EstimateBuilder({
               unit: matchingEquipment.unit || 'шт',
               coefficient: 1
             });
+            usedEquipmentIds.add(matchingEquipment.id);
           }
         }
       }
