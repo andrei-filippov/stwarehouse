@@ -15,10 +15,10 @@ interface EquipmentManagerProps {
   equipment: Equipment[];
   categories: { id: string; name: string }[];
   userId: string | undefined;
-  onAdd: (item: Omit<Equipment, 'id' | 'created_at' | 'updated_at'>) => Promise<{ error: any }>;
+  onAdd: (item: Omit<Equipment, 'id' | 'created_at' | 'updated_at'> & { user_id: string }) => Promise<{ error: any }>;
   onUpdate: (id: string, updates: Partial<Equipment>) => Promise<{ error: any }>;
   onDelete: (id: string) => Promise<{ error: any }>;
-  onBulkInsert: (items: Omit<Equipment, 'id' | 'created_at' | 'updated_at'>[]) => Promise<{ error: any; count?: number }>;
+  onBulkInsert: (items: (Omit<Equipment, 'id' | 'created_at' | 'updated_at'> & { user_id: string })[]) => Promise<{ error: any; count?: number }>;
   onAddCategory: (name: string) => Promise<{ error: any; data?: any }>;
 }
 
@@ -129,6 +129,10 @@ export function EquipmentManager({
   };
 
   const handleImport = async () => {
+    if (!userId) {
+      console.error('userId is undefined');
+      return;
+    }
     const itemsWithUserId = importData.map(item => ({ ...item, user_id: userId }));
     const { error } = await onBulkInsert(itemsWithUserId);
     if (!error) {
@@ -421,7 +425,13 @@ export function EquipmentManager({
                 const { error } = await onUpdate(editingItem.id, data);
                 if (!error) setEditingItem(null);
               } else {
-                const { error } = await onAdd({ ...data, user_id: userId });
+                if (!userId) {
+                  console.error('userId is undefined');
+                  return;
+                }
+                const itemData = { ...data, user_id: userId };
+                console.log('Adding equipment:', itemData);
+                const { error } = await onAdd(itemData);
                 if (!error) setIsAddDialogOpen(false);
               }
             }}

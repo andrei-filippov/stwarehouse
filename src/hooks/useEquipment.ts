@@ -38,7 +38,7 @@ export function useEquipment(userId: string | undefined) {
     fetchCategories();
   }, [fetchEquipment, fetchCategories]);
 
-  const addEquipment = async (item: Omit<Equipment, 'id' | 'created_at' | 'updated_at'>) => {
+  const addEquipment = async (item: Omit<Equipment, 'id' | 'created_at' | 'updated_at'> & { user_id: string }) => {
     const { data, error } = await supabase
       .from('equipment')
       .insert([item])
@@ -77,7 +77,7 @@ export function useEquipment(userId: string | undefined) {
     return { error };
   };
 
-  const bulkInsert = async (items: Omit<Equipment, 'id' | 'created_at' | 'updated_at'>[]) => {
+  const bulkInsert = async (items: (Omit<Equipment, 'id' | 'created_at' | 'updated_at'> & { user_id: string })[]) => {
     const { data, error } = await supabase
       .from('equipment')
       .insert(items)
