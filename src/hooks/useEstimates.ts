@@ -40,18 +40,20 @@ export function useEstimates(userId: string | undefined) {
       return { error: estimateError };
     }
 
-    // Добавляем позиции (без поля category - оно только для UI)
+    // Добавляем позиции
     if (items.length > 0) {
       const itemsWithEstimateId = items.map(item => ({
         equipment_id: item.equipment_id,
         name: item.name,
-        description: item.description,
-        quantity: item.quantity,
-        price: item.price,
-        unit: item.unit,
-        coefficient: item.coefficient,
+        description: item.description || '',
+        quantity: item.quantity || 1,
+        price: item.price || 0,
+        unit: item.unit || 'шт',
+        coefficient: item.coefficient || 1,
         estimate_id: estimateData.id
       }));
+      
+      console.log('Inserting estimate items:', itemsWithEstimateId);
       
       const { error: itemsError } = await supabase
         .from('estimate_items')
@@ -59,6 +61,7 @@ export function useEstimates(userId: string | undefined) {
       
       if (itemsError) {
         console.error('Error creating estimate items:', itemsError);
+        console.error('Items data:', itemsWithEstimateId);
         return { error: itemsError };
       }
     }
