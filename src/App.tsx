@@ -5,12 +5,14 @@ import { useEstimates } from './hooks/useEstimates';
 import { useTemplates } from './hooks/useTemplates';
 import { useChecklists } from './hooks/useChecklists';
 import { useStaff } from './hooks/useStaff';
+import { useGoals } from './hooks/useGoals';
 import { Auth } from './components/Auth';
 import { EquipmentManager } from './components/EquipmentManagement';
 import { EstimateManager } from './components/EstimateManager';
 import { TemplatesManager } from './components/Templates';
 import { ChecklistsManager } from './components/Checklists';
 import { StaffManager } from './components/StaffManager';
+import { GoalsManager } from './components/GoalsManager';
 import { PDFSettings } from './components/PDFSettings';
 import { EventCalendar } from './components/EventCalendar';
 import { Button } from './components/ui/button';
@@ -23,11 +25,12 @@ import {
   User,
   Calendar,
   ClipboardCheck,
-  Users
+  Users,
+  Target
 } from 'lucide-react';
 import type { PDFSettings as PDFSettingsType } from './types';
 
-type Tab = 'equipment' | 'estimates' | 'templates' | 'calendar' | 'checklists' | 'staff' | 'settings';
+type Tab = 'equipment' | 'estimates' | 'templates' | 'calendar' | 'checklists' | 'staff' | 'goals' | 'settings';
 
 function App() {
   const { user, profile, loading: authLoading, signIn, signUp, signOut } = useAuth();
@@ -36,6 +39,7 @@ function App() {
   const { templates, createTemplate, updateTemplate, deleteTemplate } = useTemplates(user?.id);
   const { checklists, rules, createRule, deleteRule, createChecklist, updateChecklistItem, deleteChecklist } = useChecklists(user?.id, estimates);
   const { staff, addStaff, updateStaff, deleteStaff } = useStaff(user?.id);
+  const { tasks, addTask, updateTask, deleteTask } = useGoals(user?.id);
   
   const [activeTab, setActiveTab] = useState<Tab>('equipment');
   const [pdfSettings, setPdfSettings] = useState<PDFSettingsType>({
@@ -76,6 +80,7 @@ function App() {
     { id: 'calendar' as Tab, label: 'Календарь', icon: Calendar },
     { id: 'checklists' as Tab, label: 'Чек-листы', icon: ClipboardCheck },
     { id: 'staff' as Tab, label: 'Персонал', icon: Users },
+    { id: 'goals' as Tab, label: 'Задачи', icon: Target },
     { id: 'settings' as Tab, label: 'Настройки PDF', icon: Settings },
   ];
 
@@ -193,6 +198,16 @@ function App() {
             onAdd={addStaff}
             onUpdate={updateStaff}
             onDelete={deleteStaff}
+          />
+        )}
+
+        {activeTab === 'goals' && (
+          <GoalsManager
+            tasks={tasks}
+            staff={staff}
+            onAdd={addTask}
+            onUpdate={updateTask}
+            onDelete={deleteTask}
           />
         )}
 
