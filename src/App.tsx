@@ -34,7 +34,7 @@ type Tab = 'equipment' | 'estimates' | 'templates' | 'calendar' | 'checklists' |
 
 function App() {
   const { user, profile, loading: authLoading, signIn, signUp, signOut } = useAuth();
-  const { equipment, categories, addEquipment, updateEquipment, deleteEquipment, bulkInsert } = useEquipment(user?.id);
+  const { equipment, categories, addEquipment, updateEquipment, deleteEquipment, bulkInsert, addCategory } = useEquipment(user?.id);
   const { estimates, createEstimate, updateEstimate, deleteEstimate } = useEstimates(user?.id);
   const { templates, createTemplate, updateTemplate, deleteTemplate } = useTemplates(user?.id);
   const { checklists, rules, createRule, deleteRule, createChecklist, updateChecklistItem, deleteChecklist } = useChecklists(user?.id, estimates);
@@ -147,6 +147,7 @@ function App() {
             onUpdate={updateEquipment}
             onDelete={deleteEquipment}
             onBulkInsert={bulkInsert}
+            onAddCategory={addCategory}
           />
         )}
 

@@ -89,6 +89,19 @@ export function useEquipment(userId: string | undefined) {
     return { error, count: data?.length || 0 };
   };
 
+  const addCategory = async (name: string) => {
+    const { data, error } = await supabase
+      .from('categories')
+      .insert([{ name }])
+      .select()
+      .single();
+    
+    if (!error && data) {
+      setCategories(prev => [...prev, data as Category]);
+    }
+    return { error, data };
+  };
+
   return {
     equipment,
     categories,
@@ -97,6 +110,7 @@ export function useEquipment(userId: string | undefined) {
     updateEquipment,
     deleteEquipment,
     bulkInsert,
+    addCategory,
     refresh: fetchEquipment
   };
 }
