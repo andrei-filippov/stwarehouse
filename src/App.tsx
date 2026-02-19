@@ -167,6 +167,7 @@ function App() {
           <TemplatesManager
             templates={templates}
             categories={categories}
+            equipment={equipment}
             onCreate={createTemplate}
             onUpdate={updateTemplate}
             onDelete={deleteTemplate}

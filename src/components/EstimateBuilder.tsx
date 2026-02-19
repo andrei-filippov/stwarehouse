@@ -30,6 +30,7 @@ interface EstimateBuilderProps {
   estimates: Estimate[];
   templates: Template[];
   estimate?: Estimate | null;
+  selectedTemplate?: Template | null;
   pdfSettings: PDFSettings;
   onSave: (estimate: any, items: any[]) => Promise<void>;
   onClose: () => void;
@@ -40,6 +41,7 @@ export function EstimateBuilder({
   estimates,
   templates,
   estimate, 
+  selectedTemplate,
   pdfSettings, 
   onSave, 
   onClose 
@@ -59,13 +61,69 @@ export function EstimateBuilder({
       setVenue(estimate.venue || '');
       setEventDate(estimate.event_date || '');
       setItems(estimate.items || []);
+    } else if (selectedTemplate) {
+      // Автоматически применяем выбранный шаблон
+      setEventName(selectedTemplate.name || '');
+      setVenue('');
+      setEventDate('');
+      setItems([]);
+      // Применяем шаблон сразу (без проверки доступности, так как дата не выбрана)
+      applyTemplateDirect(selectedTemplate);
     } else {
       setEventName('');
       setVenue('');
       setEventDate('');
       setItems([]);
     }
-  }, [estimate?.id]);
+  }, [estimate?.id, selectedTemplate?.id]);
+
+  // Прямое применение шаблона без проверки доступности
+  const applyTemplateDirect = (template: Template) => {
+    if (!template.items || template.items.length === 0) return;
+    
+    const newItems: EstimateItem[] = [];
+    
+    template.items.forEach(templateItem => {
+      // Ищем оборудование по ID (если есть) или по имени
+      let matchingEquipment = null;
+      
+      // Сначала пробуем найти по ID (если шаблон был создан с equipment_id)
+      if (templateItem.equipment_id) {
+        matchingEquipment = equipment.find(eq => eq.id === templateItem.equipment_id);
+      }
+      
+      // Если не нашли по ID, ищем по имени
+      if (!matchingEquipment) {
+        matchingEquipment = equipment.find(eq => 
+          eq.name.toLowerCase() === templateItem.equipment_name.toLowerCase() ||
+          eq.category.toLowerCase() === templateItem.category.toLowerCase()
+        );
+      }
+      
+      if (matchingEquipment) {
+        // Без проверки доступности - просто берем запрошенное количество
+        const quantity = templateItem.default_quantity;
+        
+        // Проверяем, не добавили ли уже это оборудование
+        const existingIndex = newItems.findIndex(i => i.equipment_id === matchingEquipment!.id);
+        if (existingIndex >= 0) {
+          newItems[existingIndex].quantity += quantity;
+        } else {
+          newItems.push({
+            equipment_id: matchingEquipment.id,
+            name: matchingEquipment.name,
+            description: matchingEquipment.description,
+            quantity: quantity,
+            price: matchingEquipment.price,
+            unit: matchingEquipment.unit || 'шт',
+            coefficient: 1
+          });
+        }
+      }
+    });
+    
+    setItems(newItems);
+  };
 
   // Расчёт занятости оборудования на выбранную дату
   const equipmentAvailability = useMemo<EquipmentAvailability[]>(() => {

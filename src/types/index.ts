@@ -42,6 +42,7 @@ export type Estimate = {
 export type TemplateItem = {
   id?: string;
   template_id?: string;
+  equipment_id?: string;
   category: string;
   equipment_name: string;
   default_quantity: number;

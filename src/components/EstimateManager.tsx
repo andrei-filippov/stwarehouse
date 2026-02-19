@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-import { Plus, Edit, Trash2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+import { Plus, Edit, Trash2, Layout, Copy } from 'lucide-react';
 import type { Estimate, PDFSettings, Template } from '../types';
 import { EstimateBuilder } from './EstimateBuilder';
 
@@ -26,16 +27,33 @@ export function EstimateManager({
   onDelete
 }: EstimateManagerProps) {
   const [isBuilderOpen, setIsBuilderOpen] = useState(false);
+  const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
   const [editingEstimate, setEditingEstimate] = useState<Estimate | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
 
   const handleEdit = (estimate: Estimate) => {
     setEditingEstimate(estimate);
+    setSelectedTemplate(null);
     setIsBuilderOpen(true);
   };
 
   const handleClose = () => {
     setIsBuilderOpen(false);
     setEditingEstimate(null);
+    setSelectedTemplate(null);
+  };
+
+  const handleCreateFromTemplate = (template: Template) => {
+    setSelectedTemplate(template);
+    setEditingEstimate(null);
+    setIsBuilderOpen(true);
+    setIsTemplateDialogOpen(false);
+  };
+
+  const handleCreateNew = () => {
+    setSelectedTemplate(null);
+    setEditingEstimate(null);
+    setIsBuilderOpen(true);
   };
 
   const handleSave = async (estimateData: any, items: any[]) => {
@@ -54,6 +72,7 @@ export function EstimateManager({
         estimates={estimates}
         templates={templates}
         estimate={editingEstimate}
+        selectedTemplate={selectedTemplate}
         pdfSettings={pdfSettings}
         onSave={handleSave}
         onClose={handleClose}
@@ -67,10 +86,21 @@ export function EstimateManager({
         <CardHeader>
           <div className="flex justify-between items-center">
             <CardTitle>Сметы</CardTitle>
-            <Button onClick={() => setIsBuilderOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Новая смета
-            </Button>
+            <div className="flex gap-2">
+              {templates.length > 0 && (
+                <Button 
+                  variant="outline" 
+                  onClick={() => setIsTemplateDialogOpen(true)}
+                >
+                  <Layout className="w-4 h-4 mr-2" />
+                  Из шаблона
+                </Button>
+              )}
+              <Button onClick={handleCreateNew}>
+                <Plus className="w-4 h-4 mr-2" />
+                Новая смета
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -117,6 +147,32 @@ export function EstimateManager({
           </Table>
         </CardContent>
       </Card>
+
+      {/* Диалог выбора шаблона */}
+      <Dialog open={isTemplateDialogOpen} onOpenChange={setIsTemplateDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Выберите шаблон</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 max-h-96 overflow-y-auto">
+            {templates.map((template) => (
+              <Button
+                key={template.id}
+                variant="outline"
+                className="w-full justify-start h-auto py-3"
+                onClick={() => handleCreateFromTemplate(template)}
+              >
+                <div className="text-left">
+                  <div className="font-medium">{template.name}</div>
+                  <div className="text-xs text-gray-500">
+                    {template.description || `${template.items?.length || 0} позиций`}
+                  </div>
+                </div>
+              </Button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

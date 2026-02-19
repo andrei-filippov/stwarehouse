@@ -11,6 +11,7 @@ import type { Template, TemplateItem } from '../types';
 interface TemplatesManagerProps {
   templates: Template[];
   categories: { id: string; name: string }[];
+  equipment: { id: string; name: string; category: string }[];
   onCreate: (template: any, items: any[]) => Promise<{ error: any; data?: any }>;
   onUpdate: (id: string, updates: any, items?: any[]) => Promise<{ error: any }>;
   onDelete: (id: string) => Promise<{ error: any }>;
@@ -19,6 +20,7 @@ interface TemplatesManagerProps {
 export function TemplatesManager({
   templates,
   categories,
+  equipment,
   onCreate,
   onUpdate,
   onDelete
@@ -122,6 +124,7 @@ export function TemplatesManager({
           </DialogHeader>
           <TemplateForm
             categories={categories}
+            equipment={equipment}
             template={editingTemplate}
             onSubmit={handleSubmit}
             onCancel={handleClose}
@@ -134,20 +137,23 @@ export function TemplatesManager({
 
 interface TemplateFormProps {
   categories: { id: string; name: string }[];
+  equipment: { id: string; name: string; category: string }[];
   template: Template | null;
   onSubmit: (data: any, items: any[]) => void;
   onCancel: () => void;
 }
 
-function TemplateForm({ categories, template, onSubmit, onCancel }: TemplateFormProps) {
+function TemplateForm({ categories, equipment, template, onSubmit, onCancel }: TemplateFormProps) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [items, setItems] = useState<TemplateItem[]>([]);
   const [newItem, setNewItem] = useState({
     category: '',
+    equipment_id: '',
     equipment_name: '',
     default_quantity: 1
   });
+  const [quantityInput, setQuantityInput] = useState('1');
 
   // Сброс состояния при открытии
   useEffect(() => {
@@ -160,13 +166,22 @@ function TemplateForm({ categories, template, onSubmit, onCancel }: TemplateForm
       setDescription('');
       setItems([]);
     }
-    setNewItem({ category: '', equipment_name: '', default_quantity: 1 });
+    setNewItem({ category: '', equipment_id: '', equipment_name: '', default_quantity: 1 });
+    setQuantityInput('1');
   }, [template?.id]);
 
   const addItem = () => {
     if (!newItem.equipment_name) return;
-    setItems([...items, { ...newItem, id: crypto.randomUUID() }]);
-    setNewItem({ category: '', equipment_name: '', default_quantity: 1 });
+    const itemToAdd: TemplateItem = {
+      id: crypto.randomUUID(),
+      category: newItem.category,
+      equipment_id: newItem.equipment_id || undefined,
+      equipment_name: newItem.equipment_name,
+      default_quantity: parseInt(quantityInput) || 1
+    };
+    setItems([...items, itemToAdd]);
+    setNewItem({ category: '', equipment_id: '', equipment_name: '', default_quantity: 1 });
+    setQuantityInput('1');
   };
 
   const removeItem = (index: number) => {
@@ -177,6 +192,28 @@ function TemplateForm({ categories, template, onSubmit, onCancel }: TemplateForm
     if (e.key === 'Enter') {
       e.preventDefault();
       addItem();
+    }
+  };
+
+  const handleQuantityChange = (value: string) => {
+    setQuantityInput(value);
+    const num = parseInt(value);
+    if (!isNaN(num) && num > 0) {
+      setNewItem(prev => ({ ...prev, default_quantity: num }));
+    }
+  };
+
+  const handleEquipmentSelect = (equipmentId: string) => {
+    const selected = equipment.find(e => e.id === equipmentId);
+    if (selected) {
+      setNewItem({
+        category: selected.category,
+        equipment_id: selected.id,
+        equipment_name: selected.name,
+        default_quantity: 1
+      });
+    } else {
+      setNewItem({ category: '', equipment_id: '', equipment_name: '', default_quantity: 1 });
     }
   };
 
@@ -210,11 +247,35 @@ function TemplateForm({ categories, template, onSubmit, onCancel }: TemplateForm
         <h4 className="font-medium">Добавить оборудование в шаблон</h4>
         
         <div className="grid grid-cols-12 gap-2">
+          <div className="col-span-4">
+            <select
+              className="w-full border rounded-md px-3 py-2 text-sm"
+              value={newItem.equipment_id}
+              onChange={(e) => handleEquipmentSelect(e.target.value)}
+            >
+              <option value="">Выберите оборудование</option>
+              {equipment.map(eq => (
+                <option key={eq.id} value={eq.id}>
+                  {eq.name} ({eq.category})
+                </option>
+              ))}
+            </select>
+          </div>
           <div className="col-span-3">
+            <Input
+              placeholder="Или введите название вручную"
+              value={newItem.equipment_id ? '' : newItem.equipment_name}
+              onChange={(e) => setNewItem({ ...newItem, equipment_name: e.target.value, equipment_id: '', category: '' })}
+              onKeyDown={handleKeyDown}
+              disabled={!!newItem.equipment_id}
+            />
+          </div>
+          <div className="col-span-2">
             <select
               className="w-full border rounded-md px-3 py-2 text-sm"
               value={newItem.category}
               onChange={(e) => setNewItem({ ...newItem, category: e.target.value })}
+              disabled={!!newItem.equipment_id}
             >
               <option value="">Категория</option>
               {categories.map(c => (
@@ -222,21 +283,13 @@ function TemplateForm({ categories, template, onSubmit, onCancel }: TemplateForm
               ))}
             </select>
           </div>
-          <div className="col-span-6">
-            <Input
-              placeholder="Название оборудования"
-              value={newItem.equipment_name}
-              onChange={(e) => setNewItem({ ...newItem, equipment_name: e.target.value })}
-              onKeyDown={handleKeyDown}
-            />
-          </div>
           <div className="col-span-2">
             <Input
-              type="number"
+              type="text"
               min={1}
               placeholder="Кол-во"
-              value={newItem.default_quantity}
-              onChange={(e) => setNewItem({ ...newItem, default_quantity: parseInt(e.target.value) || 1 })}
+              value={quantityInput}
+              onChange={(e) => handleQuantityChange(e.target.value)}
               onKeyDown={handleKeyDown}
             />
           </div>
