@@ -12,10 +12,8 @@ export function useGoals(userId: string | undefined) {
     
     const { data, error } = await supabase
       .from('goals')
-      .select(`
-        *,
-        assignee:staff(full_name)
-      `)
+      .select('*')
+      .eq('user_id', userId)
       .order('due_date', { ascending: true })
       .order('priority', { ascending: false });
     

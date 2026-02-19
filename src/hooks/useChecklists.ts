@@ -52,18 +52,27 @@ export function useChecklists(userId: string | undefined, estimates: Estimate[])
   const createRule = async (rule: Omit<ChecklistRule, 'id' | 'created_at'>, items: Omit<ChecklistRuleItem, 'id' | 'rule_id'>[]) => {
     const { data: ruleData, error: ruleError } = await supabase
       .from('checklist_rules')
-      .insert([{ ...rule, user_id: userId }])
+      .insert([{ 
+        name: rule.name,
+        condition_type: rule.condition_type,
+        condition_value: rule.condition_value,
+        user_id: userId 
+      }])
       .select()
       .single();
     
     if (ruleError || !ruleData) {
+      console.error('Error creating rule:', ruleError);
       return { error: ruleError };
     }
 
     if (items.length > 0) {
       const itemsWithRuleId = items.map(item => ({
-        ...item,
-        rule_id: ruleData.id
+        rule_id: ruleData.id,
+        name: item.name,
+        quantity: item.quantity,
+        category: item.category,
+        is_required: item.is_required
       }));
       
       const { error: itemsError } = await supabase
@@ -71,6 +80,7 @@ export function useChecklists(userId: string | undefined, estimates: Estimate[])
         .insert(itemsWithRuleId);
       
       if (itemsError) {
+        console.error('Error creating rule items:', itemsError);
         return { error: itemsError };
       }
     }

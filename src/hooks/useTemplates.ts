@@ -40,9 +40,12 @@ export function useTemplates(userId: string | undefined) {
     }
 
     if (items.length > 0) {
+      // Очищаем данные перед сохранением (убираем id и equipment_id если их нет в БД)
       const itemsWithTemplateId = items.map(item => ({
-        ...item,
-        template_id: templateData.id
+        template_id: templateData.id,
+        category: item.category,
+        equipment_name: item.equipment_name,
+        default_quantity: item.default_quantity
       }));
       
       const { error: itemsError } = await supabase
@@ -50,6 +53,7 @@ export function useTemplates(userId: string | undefined) {
         .insert(itemsWithTemplateId);
       
       if (itemsError) {
+        console.error('Error inserting template items:', itemsError);
         return { error: itemsError };
       }
     }
@@ -70,9 +74,13 @@ export function useTemplates(userId: string | undefined) {
       await supabase.from('template_items').delete().eq('template_id', id);
       
       if (items.length > 0) {
-        await supabase.from('template_items').insert(
-          items.map(item => ({ ...item, template_id: id }))
-        );
+        const cleanItems = items.map(item => ({
+          template_id: id,
+          category: item.category,
+          equipment_name: item.equipment_name,
+          default_quantity: item.default_quantity
+        }));
+        await supabase.from('template_items').insert(cleanItems);
       }
     }
 
