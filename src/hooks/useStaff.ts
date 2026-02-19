@@ -13,7 +13,6 @@ export function useStaff(userId: string | undefined) {
     const { data, error } = await supabase
       .from('staff')
       .select('*')
-      .eq('user_id', userId)
       .order('full_name');
     
     if (!error && data) {
