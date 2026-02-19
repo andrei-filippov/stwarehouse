@@ -160,6 +160,7 @@ export function useChecklists(userId: string | undefined, estimates: Estimate[])
     const generatedItems = await generateChecklist(estimate);
     const allItems = [...generatedItems, ...(customItems || [])];
 
+    // Сначала создаем сам чек-лист
     const { data, error } = await supabase
       .from('checklists')
       .insert([{
@@ -167,24 +168,37 @@ export function useChecklists(userId: string | undefined, estimates: Estimate[])
         user_id: userId,
         event_name: estimate.event_name,
         event_date: estimate.event_date,
-        notes,
-        items: allItems
+        notes
       }])
       .select()
       .single();
 
-    if (error) {
+    if (error || !data) {
+      console.error('Error creating checklist:', error);
       return { error };
     }
 
-    // Создаем пункты чек-листа
+    // Создаем пункты чек-листа отдельно
     if (allItems.length > 0) {
       const itemsWithChecklistId = allItems.map(item => ({
-        ...item,
-        checklist_id: data.id
+        checklist_id: data.id,
+        name: item.name,
+        quantity: item.quantity,
+        category: item.category || 'other',
+        is_required: item.is_required !== false,
+        is_checked: false,
+        source_rule_id: item.source_rule_id || null,
+        notes: item.notes || null
       }));
 
-      await supabase.from('checklist_items').insert(itemsWithChecklistId);
+      const { error: itemsError } = await supabase.from('checklist_items').insert(itemsWithChecklistId);
+      
+      if (itemsError) {
+        console.error('Error creating checklist items:', itemsError);
+        // Удаляем чек-лист если не удалось добавить пункты
+        await supabase.from('checklists').delete().eq('id', data.id);
+        return { error: itemsError };
+      }
     }
 
     await fetchChecklists();

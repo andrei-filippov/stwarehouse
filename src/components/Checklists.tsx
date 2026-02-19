@@ -750,128 +750,211 @@ function exportChecklistToPDF(checklist: Checklist) {
 
 // Калькулятор ферм и кабелей
 function TrussCalculator({ onAddItems, onCancel }: { onAddItems: (items: { name: string; quantity: number; category: string; is_required: boolean }[]) => void, onCancel: () => void }) {
-  const [trussType, setTrussType] = useState<'square' | 'triangle'>('square');
+  const [trussType, setTrussType] = useState<'square' | 'triangle' | 'flat'>('square');
   const [length, setLength] = useState(6); // метры
   const [segments, setSegments] = useState(3);
-  const [cableType, setCableType] = useState('power');
+  const [lightFixtures, setLightFixtures] = useState(4); // количество приборов для DMX
+  const [calcMode, setCalcMode] = useState<'truss' | 'dmx'>('truss');
   
-  // Расчет количества кабелей и коннекторов
-  const calculate = () => {
+  // Количество стыков (joints)
+  const joints = Math.max(0, segments - 1);
+  
+  // Расчет компонентов фермы
+  const calculateTruss = () => {
     const items: { name: string; quantity: number; category: string; is_required: boolean }[] = [];
     
-    // Коннекторы для ферм ( Sparco/Prolyte )
-    if (trussType === 'square') {
-      items.push({ name: 'Коннектор фермы (квадрат) SP-M290', quantity: segments - 1, category: 'accessory', is_required: true });
-      items.push({ name: 'Зажим безопасности для фермы', quantity: (segments - 1) * 2, category: 'accessory', is_required: true });
-    } else {
-      items.push({ name: 'Коннектор фермы (треугольник) PT-M290', quantity: segments - 1, category: 'accessory', is_required: true });
-      items.push({ name: 'Зажим безопасности для фермы', quantity: (segments - 1) * 2, category: 'accessory', is_required: true });
-    }
+    if (joints === 0) return items;
     
-    // Кабели
-    const cableLength = Math.ceil(length * 1.2); // +20% запас
-    
-    switch (cableType) {
-      case 'power':
-        items.push({ name: `Силовой кабель 3×2.5мм² (${cableLength}м)`, quantity: 1, category: 'cable', is_required: true });
-        items.push({ name: 'Штепсельная вилка 16А', quantity: Math.ceil(length / 10), category: 'accessory', is_required: true });
+    // Коннекторы и компоненты в зависимости от типа фермы
+    switch (trussType) {
+      case 'square':
+        // Квадратная: 4 коннектора, 8 пальцев, 8 шплинтов на стык
+        items.push({ name: 'Коннектор фермы квадратный (комплект)', quantity: joints * 4, category: 'accessory', is_required: true });
+        items.push({ name: 'Палец коннектора фермы', quantity: joints * 8, category: 'accessory', is_required: true });
+        items.push({ name: 'Шплинт коннектора фермы', quantity: joints * 8, category: 'accessory', is_required: true });
         break;
-      case 'dmx':
-        items.push({ name: `DMX кабель (${cableLength}м)`, quantity: 1, category: 'cable', is_required: true });
-        items.push({ name: 'DMX терминатор', quantity: 1, category: 'accessory', is_required: false });
+      case 'triangle':
+        // Треугольная: 3 коннектора, 6 пальцев, 6 шплинтов на стык
+        items.push({ name: 'Коннектор фермы треугольный (комплект)', quantity: joints * 3, category: 'accessory', is_required: true });
+        items.push({ name: 'Палец коннектора фермы', quantity: joints * 6, category: 'accessory', is_required: true });
+        items.push({ name: 'Шплинт коннектора фермы', quantity: joints * 6, category: 'accessory', is_required: true });
         break;
-      case 'xlr':
-        items.push({ name: `XLR кабель (${cableLength}м)`, quantity: 1, category: 'cable', is_required: true });
-        items.push({ name: 'XLR переходник мама/папа', quantity: 2, category: 'accessory', is_required: false });
-        break;
-      case 'ethernet':
-        items.push({ name: `Ethernet кабель CAT5e (${cableLength}м)`, quantity: 1, category: 'cable', is_required: true });
-        items.push({ name: 'RJ45 коннектор (запасной)', quantity: 4, category: 'accessory', is_required: false });
+      case 'flat':
+        // Плоская: 2 коннектора, 4 пальца, 4 шплинта на стык
+        items.push({ name: 'Коннектор фермы плоский (комплект)', quantity: joints * 2, category: 'accessory', is_required: true });
+        items.push({ name: 'Палец коннектора фермы', quantity: joints * 4, category: 'accessory', is_required: true });
+        items.push({ name: 'Шплинт коннектора фермы', quantity: joints * 4, category: 'accessory', is_required: true });
         break;
     }
     
-    // Тросы безопасности
-    items.push({ name: 'Стальной трос безопасности 3мм', quantity: segments * 2, category: 'cable', is_required: true });
+    // Тросы безопасности - по 2 на секцию
+    items.push({ name: 'Стальной трос безопасности 3мм', quantity: segments * 2, category: 'accessory', is_required: true });
     items.push({ name: 'Карабин стальной', quantity: segments * 2, category: 'accessory', is_required: true });
     
-    // Подъемные точки
-    items.push({ name: 'Подъемная стропа 1т', quantity: Math.ceil(length / 3), category: 'accessory', is_required: true });
-    items.push({ name: 'Шекель 1т', quantity: Math.ceil(length / 3) * 2, category: 'accessory', is_required: true });
+    // Подъемные точки - каждые 3 метра
+    const liftPoints = Math.max(1, Math.ceil(length / 3));
+    items.push({ name: 'Подъемная стропа 1т', quantity: liftPoints, category: 'accessory', is_required: true });
+    items.push({ name: 'Шекель 1т', quantity: liftPoints * 2, category: 'accessory', is_required: true });
     
     return items;
   };
   
-  const result = calculate();
+  // Расчет DMX коммутации
+  const calculateDMX = () => {
+    const items: { name: string; quantity: number; category: string; is_required: boolean }[] = [];
+    
+    if (lightFixtures <= 0 || length <= 0) return items;
+    
+    // Расстояние между приборами
+    const spacing = lightFixtures > 1 ? (length / lightFixtures) : 0;
+    
+    // Количество кабелей: приборы × 2 - 2 (последний не нуждается в проходе)
+    const cableRuns = Math.max(1, lightFixtures * 2 - 2);
+    
+    // Длина каждого отрезка с запасом 20%
+    const segmentLength = Math.ceil(spacing * 1.2);
+    
+    items.push({ name: `DMX кабель (${segmentLength}м)`, quantity: cableRuns, category: 'cable', is_required: true });
+    items.push({ name: 'DMX терминатор', quantity: lightFixtures, category: 'accessory', is_required: true });
+    items.push({ name: `Расстояние между приборами: ~${spacing.toFixed(1)}м`, quantity: 0, category: 'other', is_required: false });
+    
+    return items;
+  };
+  
+  const result = calcMode === 'truss' ? calculateTruss() : calculateDMX();
   
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label>Тип фермы</Label>
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant={trussType === 'square' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setTrussType('square')}
-              className="flex-1"
-            >
-              Квадратная
-            </Button>
-            <Button
-              type="button"
-              variant={trussType === 'triangle' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setTrussType('triangle')}
-              className="flex-1"
-            >
-              Треугольная
-            </Button>
-          </div>
-        </div>
-        
-        <div className="space-y-2">
-          <Label>Тип кабеля</Label>
-          <select
-            className="w-full border rounded-md p-2 text-sm"
-            value={cableType}
-            onChange={(e) => setCableType(e.target.value)}
+      {/* Переключатель режима */}
+      <div className="space-y-2">
+        <Label>Режим расчета</Label>
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant={calcMode === 'truss' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setCalcMode('truss')}
+            className="flex-1"
           >
-            <option value="power">Силовой 3×2.5</option>
-            <option value="dmx">DMX</option>
-            <option value="xlr">XLR</option>
-            <option value="ethernet">Ethernet</option>
-          </select>
+            Фермы
+          </Button>
+          <Button
+            type="button"
+            variant={calcMode === 'dmx' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setCalcMode('dmx')}
+            className="flex-1"
+          >
+            DMX коммутация
+          </Button>
         </div>
       </div>
-      
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label>Длина (м)</Label>
-          <Input
-            type="number"
-            min={1}
-            max={50}
-            value={length}
-            onChange={(e) => setLength(parseInt(e.target.value) || 1)}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label>Количество секций</Label>
-          <Input
-            type="number"
-            min={2}
-            max={20}
-            value={segments}
-            onChange={(e) => setSegments(parseInt(e.target.value) || 2)}
-          />
-        </div>
-      </div>
+
+      {calcMode === 'truss' ? (
+        <>
+          <div className="space-y-2">
+            <Label>Тип фермы</Label>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={trussType === 'square' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setTrussType('square')}
+                className="flex-1"
+              >
+                Квадратная
+              </Button>
+              <Button
+                type="button"
+                variant={trussType === 'triangle' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setTrussType('triangle')}
+                className="flex-1"
+              >
+                Треугольная
+              </Button>
+              <Button
+                type="button"
+                variant={trussType === 'flat' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setTrussType('flat')}
+                className="flex-1"
+              >
+                Плоская
+              </Button>
+            </div>
+            <p className="text-xs text-gray-500">
+              {trussType === 'square' && '4 коннектора, 8 пальцев, 8 шплинтов на стык'}
+              {trussType === 'triangle' && '3 коннектора, 6 пальцев, 6 шплинтов на стык'}
+              {trussType === 'flat' && '2 коннектора, 4 пальца, 4 шплинта на стык'}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Длина фермы (м)</Label>
+              <Input
+                type="number"
+                min={1}
+                max={100}
+                value={length}
+                onChange={(e) => setLength(parseInt(e.target.value) || 1)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Количество секций</Label>
+              <Input
+                type="number"
+                min={2}
+                max={50}
+                value={segments}
+                onChange={(e) => setSegments(parseInt(e.target.value) || 2)}
+              />
+            </div>
+          </div>
+
+          <div className="bg-blue-50 p-2 rounded text-sm">
+            <strong>Стыков: {joints}</strong>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Длина фермы (м)</Label>
+              <Input
+                type="number"
+                min={1}
+                max={100}
+                value={length}
+                onChange={(e) => setLength(parseInt(e.target.value) || 1)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Количество приборов</Label>
+              <Input
+                type="number"
+                min={1}
+                max={100}
+                value={lightFixtures}
+                onChange={(e) => setLightFixtures(parseInt(e.target.value) || 1)}
+              />
+            </div>
+          </div>
+
+          {lightFixtures > 0 && length > 0 && (
+            <div className="bg-blue-50 p-2 rounded text-sm space-y-1">
+              <p><strong>Расстояние между приборами:</strong> ~{(length / lightFixtures).toFixed(1)} м</p>
+              <p><strong>Отрезков кабеля:</strong> {Math.max(1, lightFixtures * 2 - 2)} шт</p>
+            </div>
+          )}
+        </>
+      )}
       
       <div className="border rounded-lg p-3 bg-gray-50">
         <h4 className="font-medium mb-2">Результат расчета:</h4>
         <div className="space-y-1 text-sm">
-          {result.map((item, idx) => (
+          {result.filter(item => item.quantity > 0).map((item, idx) => (
             <div key={idx} className="flex justify-between">
               <span>{item.name}</span>
               <span className="font-medium">× {item.quantity}</span>
@@ -882,7 +965,7 @@ function TrussCalculator({ onAddItems, onCancel }: { onAddItems: (items: { name:
       
       <div className="flex gap-3 pt-2">
         <Button 
-          onClick={() => onAddItems(result)}
+          onClick={() => onAddItems(result.filter(item => item.quantity > 0))}
           className="flex-1"
         >
           <Plus className="w-4 h-4 mr-2" />
