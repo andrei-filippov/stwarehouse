@@ -242,36 +242,60 @@ export function EstimateBuilder({
         <title>Смета - ${eventName}</title>
         <style>
           body { font-family: Arial, sans-serif; margin: 20px; }
-          h1 { text-align: center; font-size: 20px; margin-bottom: 20px; }
-          .info { margin-bottom: 20px; font-size: 12px; }
+          .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 15px; }
+          .logo-section { width: 45%; }
+          .logo-section img { max-height: 80px; max-width: 100%; }
+          .company-section { width: 50%; text-align: right; font-size: 11px; }
+          .company-section h2 { margin: 0 0 5px 0; font-size: 14px; }
+          .company-section p { margin: 3px 0; }
+          h1 { text-align: center; font-size: 18px; margin: 15px 0; }
+          .info { margin-bottom: 15px; font-size: 12px; }
           .info p { margin: 5px 0; }
-          table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 10px; }
-          th { background: #2980b9; color: white; padding: 8px; text-align: left; }
-          td { padding: 6px 8px; border-bottom: 1px solid #ddd; }
+          table { width: 100%; border-collapse: collapse; font-size: 10px; margin-top: 10px; }
+          th { background: #2980b9; color: white; padding: 6px 4px; text-align: left; }
+          td { padding: 5px 4px; border-bottom: 1px solid #ddd; }
           tr:nth-child(even) { background: #f5f5f5; }
-          .total { margin-top: 20px; font-size: 14px; font-weight: bold; text-align: right; }
-          .footer { margin-top: 30px; font-size: 10px; color: #666; }
+          .nowrap { white-space: nowrap; }
+          .total { margin-top: 15px; font-size: 14px; font-weight: bold; text-align: right; }
+          .signature-section { margin-top: 40px; display: flex; justify-content: space-between; align-items: flex-end; }
+          .signature-left { width: 45%; }
+          .signature-right { width: 45%; text-align: right; }
+          .signature-line { border-top: 1px solid #333; margin-top: 30px; padding-top: 5px; font-size: 10px; }
+          .signature-img { max-height: 40px; margin-top: 10px; }
+          .stamp-img { max-height: 60px; }
         </style>
       </head>
       <body>
-        <h1>СМЕТА</h1>
+        <!-- Шапка с логотипом и реквизитами -->
+        <div class="header">
+          <div class="logo-section">
+            ${pdfSettings.logo ? `<img src="${pdfSettings.logo}" alt="Логотип" />` : '<p>&nbsp;</p>'}
+          </div>
+          <div class="company-section">
+            ${pdfSettings.companyName ? `<h2>${pdfSettings.companyName}</h2>` : ''}
+            ${pdfSettings.companyDetails ? pdfSettings.companyDetails.split('\n').map(line => `<p>${line}</p>`).join('') : ''}
+          </div>
+        </div>
+
+        <h1>Коммерческое предложение</h1>
+        
         <div class="info">
           <p><strong>Мероприятие:</strong> ${eventName}</p>
           <p><strong>Площадка:</strong> ${venue || '-'}</p>
-          <p><strong>Дата:</strong> ${eventDate || '-'}</p>
+          <p><strong>Дата:</strong> ${eventDate ? new Date(eventDate).toLocaleDateString('ru-RU') : '-'}</p>
         </div>
         
         <table>
           <thead>
             <tr>
-              <th>№</th>
-              <th>Наименование</th>
-              <th>Описание</th>
-              <th>Ед.</th>
-              <th>Кол-во</th>
-              <th>Цена</th>
-              <th>Коэф.</th>
-              <th>Сумма</th>
+              <th style="width:5%">№</th>
+              <th style="width:25%">Наименование</th>
+              <th style="width:20%">Описание</th>
+              <th style="width:8%">Ед.</th>
+              <th style="width:8%">Кол-во</th>
+              <th style="width:10%">Цена</th>
+              <th style="width:8%">Коэф.</th>
+              <th style="width:10%">Сумма</th>
             </tr>
           </thead>
           <tbody>
@@ -282,23 +306,31 @@ export function EstimateBuilder({
                 <td>${item.description || '-'}</td>
                 <td>${item.unit || 'шт'}</td>
                 <td>${item.quantity}</td>
-                <td>${item.price.toLocaleString('ru-RU')} ₽</td>
+                <td class="nowrap">${item.price.toLocaleString('ru-RU')}₽</td>
                 <td>${item.coefficient || 1}</td>
-                <td>${(item.price * item.quantity * (item.coefficient || 1)).toLocaleString('ru-RU')} ₽</td>
+                <td class="nowrap">${(item.price * item.quantity * (item.coefficient || 1)).toLocaleString('ru-RU')}₽</td>
               </tr>
             `).join('')}
           </tbody>
         </table>
         
         <div class="total">
-          ИТОГО: ${total.toLocaleString('ru-RU')} ₽
+          ИТОГО: ${total.toLocaleString('ru-RU')}₽
         </div>
         
-        ${pdfSettings.companyName ? `
-          <div class="footer">
-            <p><strong>${pdfSettings.companyName}</strong></p>
-            <p>${pdfSettings.companyDetails}</p>
-            <p>${pdfSettings.position}: ${pdfSettings.personName}</p>
+        <!-- Подпись и печать -->
+        ${(pdfSettings.personName || pdfSettings.position) ? `
+          <div class="signature-section">
+            <div class="signature-left">
+              <div class="signature-line">
+                ${pdfSettings.position || ''}${pdfSettings.position && pdfSettings.personName ? '<br/>' : ''}
+                ${pdfSettings.personName || ''}
+              </div>
+              ${pdfSettings.signature ? `<img src="${pdfSettings.signature}" alt="Подпись" class="signature-img" />` : ''}
+            </div>
+            <div class="signature-right">
+              ${pdfSettings.stamp ? `<img src="${pdfSettings.stamp}" alt="Печать" class="stamp-img" />` : ''}
+            </div>
           </div>
         ` : ''}
       </body>
@@ -522,50 +554,85 @@ export function EstimateBuilder({
 
           {/* Версия для печати */}
           <div ref={printRef} className="hidden print:block p-8">
-            {pdfSettings.logo && (
-              <img src={pdfSettings.logo} alt="Logo" className="h-16 mb-4" />
-            )}
-            <h1 className="text-2xl font-bold mb-4">СМЕТА</h1>
-            <p><strong>Мероприятие:</strong> {eventName}</p>
-            <p><strong>Площадка:</strong> {venue}</p>
-            <p><strong>Дата:</strong> {eventDate}</p>
-            <table className="w-full mt-4 border-collapse">
+            {/* Шапка с логотипом и реквизитами */}
+            <div className="flex justify-between items-start mb-6 border-b-2 border-black pb-4">
+              <div className="w-1/2">
+                {pdfSettings.logo && (
+                  <img src={pdfSettings.logo} alt="Logo" className="h-20 object-contain" />
+                )}
+              </div>
+              <div className="w-1/2 text-right text-xs">
+                {pdfSettings.companyName && (
+                  <h2 className="font-bold text-sm mb-1">{pdfSettings.companyName}</h2>
+                )}
+                {pdfSettings.companyDetails && (
+                  <div className="text-gray-600">
+                    {pdfSettings.companyDetails.split('\n').map((line, i) => (
+                      <p key={i}>{line}</p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <h1 className="text-xl font-bold mb-4 text-center">Коммерческое предложение</h1>
+            
+            <div className="mb-4 text-sm">
+              <p><strong>Мероприятие:</strong> {eventName}</p>
+              <p><strong>Площадка:</strong> {venue || '-'}</p>
+              <p><strong>Дата:</strong> {eventDate ? new Date(eventDate).toLocaleDateString('ru-RU') : '-'}</p>
+            </div>
+
+            <table className="w-full mt-4 border-collapse text-sm">
               <thead>
-                <tr className="border-b-2 border-black">
-                  <th className="text-left py-2">Наименование</th>
-                  <th className="text-left py-2 text-xs">Описание</th>
-                  <th className="text-center py-2">Ед.</th>
-                  <th className="text-center py-2">Кол-во</th>
-                  <th className="text-right py-2">Цена</th>
-                  <th className="text-center py-2">Коэф.</th>
-                  <th className="text-right py-2">Сумма</th>
+                <tr className="border-b-2 border-black bg-gray-100">
+                  <th className="text-left py-2 px-1 w-8">№</th>
+                  <th className="text-left py-2 px-1">Наименование</th>
+                  <th className="text-left py-2 px-1 text-xs">Описание</th>
+                  <th className="text-center py-2 px-1 w-12">Ед.</th>
+                  <th className="text-center py-2 px-1 w-12">Кол-во</th>
+                  <th className="text-right py-2 px-1 w-20">Цена</th>
+                  <th className="text-center py-2 px-1 w-12">Коэф.</th>
+                  <th className="text-right py-2 px-1 w-24">Сумма</th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((item, idx) => (
                   <tr key={idx} className="border-b">
-                    <td className="py-2">{item.name}</td>
-                    <td className="py-2 text-xs text-gray-600">{item.description || '-'}</td>
-                    <td className="text-center py-2">{item.unit || 'шт'}</td>
-                    <td className="text-center py-2">{item.quantity}</td>
-                    <td className="text-right py-2">{item.price.toLocaleString('ru-RU')} ₽</td>
-                    <td className="text-center py-2">{item.coefficient || 1}</td>
-                    <td className="text-right py-2">{(item.price * item.quantity * (item.coefficient || 1)).toLocaleString('ru-RU')} ₽</td>
+                    <td className="py-2 px-1">{idx + 1}</td>
+                    <td className="py-2 px-1">{item.name}</td>
+                    <td className="py-2 px-1 text-xs text-gray-600">{item.description || '-'}</td>
+                    <td className="text-center py-2 px-1">{item.unit || 'шт'}</td>
+                    <td className="text-center py-2 px-1">{item.quantity}</td>
+                    <td className="text-right py-2 px-1 whitespace-nowrap">{item.price.toLocaleString('ru-RU')}₽</td>
+                    <td className="text-center py-2 px-1">{item.coefficient || 1}</td>
+                    <td className="text-right py-2 px-1 whitespace-nowrap">{(item.price * item.quantity * (item.coefficient || 1)).toLocaleString('ru-RU')}₽</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            <div className="mt-4 text-right font-bold text-xl">
-              ИТОГО: {total.toLocaleString('ru-RU')} ₽
+
+            <div className="mt-4 text-right font-bold text-lg">
+              ИТОГО: {total.toLocaleString('ru-RU')}₽
             </div>
-            {pdfSettings.companyName && (
-              <div className="mt-8 text-sm">
-                <p>{pdfSettings.companyName}</p>
-                <p>{pdfSettings.companyDetails}</p>
-                <p>{pdfSettings.position}: {pdfSettings.personName}</p>
-                {pdfSettings.signature && (
-                  <img src={pdfSettings.signature} alt="Подпись" className="h-12 mt-2" />
-                )}
+
+            {/* Подпись и печать */}
+            {(pdfSettings.personName || pdfSettings.position) && (
+              <div className="mt-12 flex justify-between items-end">
+                <div className="w-1/2">
+                  <div className="border-t border-black pt-2 text-sm">
+                    {pdfSettings.position && <p>{pdfSettings.position}</p>}
+                    {pdfSettings.personName && <p className="font-medium">{pdfSettings.personName}</p>}
+                  </div>
+                  {pdfSettings.signature && (
+                    <img src={pdfSettings.signature} alt="Подпись" className="h-10 mt-2" />
+                  )}
+                </div>
+                <div className="w-1/2 text-right">
+                  {pdfSettings.stamp && (
+                    <img src={pdfSettings.stamp} alt="Печать" className="h-16 inline-block" />
+                  )}
+                </div>
               </div>
             )}
           </div>
