@@ -430,8 +430,11 @@ export function EquipmentManager({
                   return;
                 }
                 const itemData = { ...data, user_id: userId };
-                console.log('Adding equipment:', itemData);
+                console.log('Adding equipment:', JSON.stringify(itemData, null, 2));
                 const { error } = await onAdd(itemData);
+                if (error) {
+                  console.error('Error details:', error);
+                }
                 if (!error) setIsAddDialogOpen(false);
               }
             }}
@@ -525,11 +528,25 @@ function EquipmentForm({ categories, userId, initialData, onSubmit, onAddCategor
     <form 
       onSubmit={(e) => {
         e.preventDefault();
-        onSubmit({
-          ...formData,
+        if (!formData.name.trim()) {
+          alert('Введите название оборудования');
+          return;
+        }
+        if (!formData.category) {
+          alert('Выберите категорию');
+          return;
+        }
+        const finalUnit = isCustomUnit && customUnit.trim() ? customUnit.trim() : (formData.unit || 'шт');
+        const data = {
+          name: formData.name.trim(),
+          category: formData.category,
           quantity: parseInt(formData.quantity) || 0,
-          price: parseFloat(formData.price) || 0
-        });
+          price: parseFloat(formData.price) || 0,
+          description: formData.description || '',
+          unit: finalUnit
+        };
+        console.log('Form submitting:', JSON.stringify(data, null, 2));
+        onSubmit(data);
       }}
       className="space-y-4"
     >
