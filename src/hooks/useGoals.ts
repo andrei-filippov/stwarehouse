@@ -28,14 +28,29 @@ export function useGoals(userId: string | undefined) {
   }, [fetchTasks]);
 
   const addTask = async (task: Omit<Task, 'id' | 'created_at' | 'updated_at'>) => {
+    const taskData: any = {
+      title: task.title,
+      user_id: userId
+    };
+    
+    // Добавляем только если значения есть
+    if (task.description) taskData.description = task.description;
+    if (task.category) taskData.category = task.category;
+    if (task.priority) taskData.priority = task.priority;
+    if (task.status) taskData.status = task.status;
+    if (task.due_date) taskData.due_date = task.due_date;
+    if (task.assigned_to) taskData.assigned_to = task.assigned_to;
+    
     const { data, error } = await supabase
       .from('goals')
-      .insert([{ ...task, user_id: userId }])
+      .insert([taskData])
       .select()
       .single();
     
     if (!error && data) {
       setTasks(prev => [...prev, data as Task]);
+    } else {
+      console.error('Error adding task:', error);
     }
     return { error, data };
   };
