@@ -564,17 +564,11 @@ function ChecklistView({
   );
 }
 
-// Экспорт чек-листа в PDF
+// Экспорт чек-листа в PDF с поддержкой кириллицы
 function exportChecklistToPDF(checklist: Checklist) {
-  const doc = new jsPDF();
-  
-  doc.setFontSize(20);
-  doc.text('CHECK LIST', 105, 20, { align: 'center' });
-  
-  doc.setFontSize(12);
-  doc.text(`Meropriyatie: ${checklist.event_name}`, 20, 40);
-  doc.text(`Data: ${checklist.event_date}`, 20, 50);
-  
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) return;
+
   const grouped = checklist.items?.reduce((acc, item) => {
     if (!acc[item.category]) acc[item.category] = [];
     acc[item.category].push(item);
@@ -582,37 +576,65 @@ function exportChecklistToPDF(checklist: Checklist) {
   }, {} as Record<string, ChecklistItem[]>);
 
   const categoryNames: Record<string, string> = {
-    tool: 'Instrumenty',
-    cable: 'Kabeli',
-    accessory: 'Aksessuary',
-    other: 'Drugoe'
+    tool: 'Инструменты',
+    cable: 'Кабели и провода',
+    accessory: 'Аксессуары',
+    other: 'Другое'
   };
 
-  let yPos = 70;
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Чек-лист - ${checklist.event_name}</title>
+      <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1 { text-align: center; font-size: 20px; margin-bottom: 5px; }
+        .subtitle { text-align: center; font-size: 12px; color: #666; margin-bottom: 20px; }
+        .info { font-size: 12px; margin-bottom: 20px; }
+        .category { font-size: 14px; font-weight: bold; margin-top: 15px; margin-bottom: 8px; color: #2980b9; }
+        .item { font-size: 11px; margin: 5px 0; display: flex; align-items: center; }
+        .checkbox { width: 14px; height: 14px; border: 1px solid #333; margin-right: 8px; display: inline-flex; align-items: center; justify-content: center; }
+        .checkbox.checked { background: #2980b9; color: white; }
+        .notes { margin-top: 20px; padding-top: 10px; border-top: 1px solid #ddd; font-size: 11px; }
+        @media print { .no-print { display: none; } }
+      </style>
+    </head>
+    <body>
+      <h1>ЧЕК-ЛИСТ</h1>
+      <div class="subtitle">${checklist.event_name}</div>
+      
+      <div class="info">
+        <strong>Дата мероприятия:</strong> ${new Date(checklist.event_date).toLocaleDateString('ru-RU')}<br>
+        <strong>Дата формирования:</strong> ${new Date().toLocaleDateString('ru-RU')}
+      </div>
+
+      ${Object.entries(grouped || {}).map(([category, items]) => `
+        <div class="category">${categoryNames[category] || category}</div>
+        ${items.map(item => `
+          <div class="item">
+            <span class="checkbox ${item.is_checked ? 'checked' : ''}">${item.is_checked ? '✓' : ''}</span>
+            ${item.name} × ${item.quantity}
+            ${item.is_required ? '<span style="color: red;">*</span>' : ''}
+          </div>
+        `).join('')}
+      `).join('')}
+
+      ${checklist.notes ? `
+        <div class="notes">
+          <strong>Примечания:</strong><br>
+          ${checklist.notes}
+        </div>
+      ` : ''}
+    </body>
+    </html>
+  `;
+
+  printWindow.document.write(html);
+  printWindow.document.close();
   
-  Object.entries(grouped || {}).forEach(([category, items]) => {
-    doc.setFontSize(14);
-    doc.text(categoryNames[category] || category, 20, yPos);
-    yPos += 10;
-    
-    doc.setFontSize(10);
-    items.forEach(item => {
-      const checkbox = item.is_checked ? '[X]' : '[ ]';
-      doc.text(`${checkbox} ${item.name} x${item.quantity}`, 25, yPos);
-      yPos += 7;
-    });
-    
-    yPos += 5;
-  });
-
-  if (checklist.notes) {
-    yPos += 10;
-    doc.setFontSize(12);
-    doc.text('Primechaniya:', 20, yPos);
-    yPos += 7;
-    doc.setFontSize(10);
-    doc.text(checklist.notes, 25, yPos);
-  }
-
-  doc.save(`checklist_${checklist.event_name}.pdf`);
+  setTimeout(() => {
+    printWindow.print();
+  }, 500);
 }

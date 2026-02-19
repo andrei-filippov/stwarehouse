@@ -218,72 +218,105 @@ export function EstimateBuilder({
     onClose();
   };
 
-  // Экспорт PDF с кириллицей через встроенный шрифт
+  // Экспорт PDF с поддержкой кириллицы через HTML
   const exportPDF = () => {
-    const doc = new jsPDF();
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Смета - ${eventName}</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          h1 { text-align: center; font-size: 20px; margin-bottom: 20px; }
+          .info { margin-bottom: 20px; font-size: 12px; }
+          .info p { margin: 5px 0; }
+          table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 10px; }
+          th { background: #2980b9; color: white; padding: 8px; text-align: left; }
+          td { padding: 6px 8px; border-bottom: 1px solid #ddd; }
+          tr:nth-child(even) { background: #f5f5f5; }
+          .total { margin-top: 20px; font-size: 14px; font-weight: bold; text-align: right; }
+          .footer { margin-top: 30px; font-size: 10px; color: #666; }
+        </style>
+      </head>
+      <body>
+        <h1>СМЕТА</h1>
+        <div class="info">
+          <p><strong>Мероприятие:</strong> ${eventName}</p>
+          <p><strong>Площадка:</strong> ${venue || '-'}</p>
+          <p><strong>Дата:</strong> ${eventDate || '-'}</p>
+        </div>
+        
+        <table>
+          <thead>
+            <tr>
+              <th>№</th>
+              <th>Наименование</th>
+              <th>Кол-во</th>
+              <th>Цена</th>
+              <th>Сумма</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${items.map((item, idx) => `
+              <tr>
+                <td>${idx + 1}</td>
+                <td>${item.name}</td>
+                <td>${item.quantity}</td>
+                <td>${item.price.toLocaleString('ru-RU')} ₽</td>
+                <td>${(item.price * item.quantity).toLocaleString('ru-RU')} ₽</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        
+        <div class="total">
+          ИТОГО: ${total.toLocaleString('ru-RU')} ₽
+        </div>
+        
+        ${pdfSettings.companyName ? `
+          <div class="footer">
+            <p><strong>${pdfSettings.companyName}</strong></p>
+            <p>${pdfSettings.companyDetails}</p>
+            <p>${pdfSettings.position}: ${pdfSettings.personName}</p>
+          </div>
+        ` : ''}
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
     
-    // Заголовок
-    doc.setFontSize(20);
-    doc.text('SMETA', 105, 20, { align: 'center' });
-    
-    // Информация о мероприятии
-    doc.setFontSize(12);
-    doc.text(`Meropriyatie: ${eventName}`, 20, 40);
-    doc.text(`Ploshadka: ${venue}`, 20, 50);
-    doc.text(`Data: ${eventDate}`, 20, 60);
-    
-    // Таблица
-    const tableData = items.map(item => [
-      item.name,
-      item.quantity.toString(),
-      item.price.toLocaleString('ru-RU'),
-      (item.price * item.quantity).toLocaleString('ru-RU')
-    ]);
-
-    autoTable(doc, {
-      startY: 70,
-      head: [['Naimenovanie', 'Kol-vo', 'Tsena', 'Summa']],
-      body: tableData,
-      styles: { fontSize: 10 },
-      headStyles: { fillColor: [41, 128, 185] }
-    });
-
-    // Итого
-    const finalY = (doc as any).lastAutoTable?.finalY || 100;
-    doc.setFontSize(14);
-    doc.text(`ITOGO: ${total.toLocaleString('ru-RU')} RUB`, 20, finalY + 20);
-
-    // Реквизиты
-    if (pdfSettings.companyName) {
-      doc.setFontSize(10);
-      doc.text(pdfSettings.companyName, 20, finalY + 40);
-      doc.text(pdfSettings.companyDetails, 20, finalY + 50);
-    }
-
-    doc.save(`smeta_${eventName || 'bez_nazvaniya'}.pdf`);
+    setTimeout(() => {
+      printWindow.print();
+    }, 500);
   };
 
-  // Экспорт Excel с UTF-8 BOM
+  // Экспорт Excel с поддержкой кириллицы
   const exportExcel = () => {
     const data = items.map(item => ({
-      'Naimenovanie': item.name,
-      'Opisanie': item.description,
-      'Kolichestvo': item.quantity,
-      'Tsena za ed.': item.price,
-      'Summa': item.price * item.quantity
+      'Наименование': item.name,
+      'Описание': item.description,
+      'Количество': item.quantity,
+      'Цена за ед.': item.price,
+      'Сумма': item.price * item.quantity
     }));
 
     data.push({
-      'Naimenovanie': 'ITOGO',
-      'Opisanie': '',
-      'Kolichestvo': totalQuantity,
-      'Tsena za ed.': '',
-      'Summa': total
+      'Наименование': 'ИТОГО',
+      'Описание': '',
+      'Количество': totalQuantity,
+      'Цена за ед.': '',
+      'Сумма': total
     });
 
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Smeta');
+    XLSX.utils.book_append_sheet(wb, ws, 'Смета');
     
     XLSX.writeFile(wb, `smeta_${eventName || 'bez_nazvaniya'}.xlsx`);
   };
@@ -562,8 +595,8 @@ export function EstimateBuilder({
           {/* Итого */}
           <div className="border-t p-4 bg-gray-50 print:hidden">
             <div className="flex justify-between items-center text-xl font-bold">
-              <span>ITOGO:</span>
-              <span>{total.toLocaleString('ru-RU')} RUB</span>
+              <span>ИТОГО:</span>
+              <span>{total.toLocaleString('ru-RU')} ₽</span>
             </div>
           </div>
         </div>

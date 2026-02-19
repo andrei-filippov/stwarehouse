@@ -17,8 +17,8 @@ import {
   FileText
 } from 'lucide-react';
 import type { Staff } from '../types';
+import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 
 interface StaffManagerProps {
   staff: Staff[];
@@ -69,67 +69,138 @@ export function StaffManager({ staff, onAdd, onUpdate, onDelete }: StaffManagerP
     handleClose();
   };
 
-  // Экспорт списка в PDF
-  const exportToPDF = () => {
-    const doc = new jsPDF();
+  // Экспорт списка в PDF через html2canvas (поддержка кириллицы)
+  const exportToPDF = async () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Список персонала</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          h1 { text-align: center; font-size: 18px; margin-bottom: 10px; }
+          .info { font-size: 12px; margin-bottom: 20px; color: #666; }
+          table { width: 100%; border-collapse: collapse; font-size: 11px; }
+          th { background: #2980b9; color: white; padding: 8px; text-align: left; }
+          td { padding: 6px 8px; border-bottom: 1px solid #ddd; }
+          tr:nth-child(even) { background: #f5f5f5; }
+          .inactive { color: #999; }
+        </style>
+      </head>
+      <body>
+        <h1>СПИСОК ПЕРСОНАЛА</h1>
+        <div class="info">
+          Всего: ${filteredStaff.length} человек | 
+          Дата формирования: ${new Date().toLocaleDateString('ru-RU')}
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>№</th>
+              <th>ФИО</th>
+              <th>Должность</th>
+              <th>Телефон</th>
+              <th>Email</th>
+              <th>Дата рождения</th>
+              <th>Статус</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filteredStaff.map((s, idx) => `
+              <tr class="${s.is_active ? '' : 'inactive'}">
+                <td>${idx + 1}</td>
+                <td>${s.full_name}</td>
+                <td>${s.position}</td>
+                <td>${s.phone || '-'}</td>
+                <td>${s.email || '-'}</td>
+                <td>${s.birth_date ? new Date(s.birth_date).toLocaleDateString('ru-RU') : '-'}</td>
+                <td>${s.is_active ? 'Активен' : 'Уволен'}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
     
-    doc.setFontSize(18);
-    doc.text('SPISOK PERSONALA', 105, 20, { align: 'center' });
-    
-    doc.setFontSize(10);
-    doc.text(`Vsego: ${filteredStaff.length} chelovek`, 20, 35);
-    doc.text(`Data formirovaniya: ${new Date().toLocaleDateString('ru-RU')}`, 20, 42);
-
-    const tableData = filteredStaff.map((s, idx) => [
-      (idx + 1).toString(),
-      s.full_name,
-      s.position,
-      s.phone || '-',
-      s.email || '-',
-      s.birth_date ? new Date(s.birth_date).toLocaleDateString('ru-RU') : '-'
-    ]);
-
-    autoTable(doc, {
-      startY: 50,
-      head: [['#', 'FIO', 'Dolzhnost', 'Telefon', 'Email', 'Data rozhdeniya']],
-      body: tableData,
-      styles: { fontSize: 9 },
-      headStyles: { fillColor: [41, 128, 185] }
-    });
-
-    doc.save(`personal_${new Date().toISOString().split('T')[0]}.pdf`);
+    // Автоматически открываем диалог печати
+    setTimeout(() => {
+      printWindow.print();
+    }, 500);
   };
 
-  // Экспорт полных данных (с паспортами) - для внутреннего использования
-  const exportFullDataPDF = () => {
-    const doc = new jsPDF('l', 'mm', 'a4'); // Альбомная ориентация
+  // Экспорт полных данных (с паспортами)
+  const exportFullDataPDF = async () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Полные данные персонала</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 15px; }
+          h1 { text-align: center; font-size: 16px; margin-bottom: 10px; }
+          .info { font-size: 11px; margin-bottom: 15px; color: #666; }
+          table { width: 100%; border-collapse: collapse; font-size: 9px; }
+          th { background: #2980b9; color: white; padding: 6px; text-align: left; }
+          td { padding: 4px 6px; border-bottom: 1px solid #ddd; }
+          tr:nth-child(even) { background: #f5f5f5; }
+          .passport { font-family: monospace; }
+        </style>
+      </head>
+      <body>
+        <h1>ПОЛНЫЕ ДАННЫЕ ПЕРСОНАЛА</h1>
+        <div class="info">
+          Дата: ${new Date().toLocaleDateString('ru-RU')}
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>№</th>
+              <th>ФИО</th>
+              <th>Должность</th>
+              <th>Паспорт</th>
+              <th>Выдан</th>
+              <th>Дата выдачи</th>
+              <th>Телефон</th>
+              <th>Дата рожд.</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filteredStaff.map((s, idx) => `
+              <tr>
+                <td>${idx + 1}</td>
+                <td>${s.full_name}</td>
+                <td>${s.position}</td>
+                <td class="passport">${s.passport_series || ''} ${s.passport_number || ''}</td>
+                <td>${s.passport_issued_by || '-'}</td>
+                <td>${s.passport_issue_date ? new Date(s.passport_issue_date).toLocaleDateString('ru-RU') : '-'}</td>
+                <td>${s.phone || '-'}</td>
+                <td>${s.birth_date ? new Date(s.birth_date).toLocaleDateString('ru-RU') : '-'}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
     
-    doc.setFontSize(16);
-    doc.text('POLNIE DANNYE PERSONALA', 148, 15, { align: 'center' });
-    
-    doc.setFontSize(8);
-    doc.text(`Data: ${new Date().toLocaleDateString('ru-RU')}`, 20, 25);
-
-    const tableData = filteredStaff.map((s, idx) => [
-      (idx + 1).toString(),
-      s.full_name,
-      s.position,
-      s.passport_series && s.passport_number ? `${s.passport_series} ${s.passport_number}` : '-',
-      s.passport_issued_by || '-',
-      s.passport_issue_date ? new Date(s.passport_issue_date).toLocaleDateString('ru-RU') : '-',
-      s.phone || '-',
-      s.birth_date ? new Date(s.birth_date).toLocaleDateString('ru-RU') : '-'
-    ]);
-
-    autoTable(doc, {
-      startY: 30,
-      head: [['#', 'FIO', 'Dolzhnost', 'Pasport', 'Vidan', 'Data vydachi', 'Telefon', 'Data rozhd.']],
-      body: tableData,
-      styles: { fontSize: 7, cellPadding: 2 },
-      headStyles: { fillColor: [41, 128, 185] }
-    });
-
-    doc.save(`personal_full_${new Date().toISOString().split('T')[0]}.pdf`);
+    setTimeout(() => {
+      printWindow.print();
+    }, 500);
   };
 
   return (
