@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -391,17 +391,54 @@ interface EquipmentFormProps {
 
 function EquipmentForm({ categories, initialData, onSubmit, onAddCategory }: EquipmentFormProps) {
   const [formData, setFormData] = useState({
-    name: initialData?.name || '',
-    category: initialData?.category || '',
-    quantity: initialData?.quantity?.toString() || '',
-    price: initialData?.price?.toString() || '',
-    description: initialData?.description || '',
-    unit: initialData?.unit || 'шт'
+    name: '',
+    category: '',
+    quantity: '',
+    price: '',
+    description: '',
+    unit: 'шт'
   });
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [isCustomUnit, setIsCustomUnit] = useState(false);
   const [customUnit, setCustomUnit] = useState('');
+
+  // Обновляем formData при изменении initialData (для редактирования)
+  useEffect(() => {
+    if (initialData) {
+      setFormData({
+        name: initialData.name || '',
+        category: initialData.category || '',
+        quantity: initialData.quantity?.toString() || '',
+        price: initialData.price?.toString() || '',
+        description: initialData.description || '',
+        unit: initialData.unit || 'шт'
+      });
+      // Проверяем, является ли единица измерения кастомной
+      const UNIT_OPTIONS = ['шт', 'комплект', 'услуга', 'человек', 'п.м.'];
+      if (initialData.unit && !UNIT_OPTIONS.includes(initialData.unit)) {
+        setIsCustomUnit(true);
+        setCustomUnit(initialData.unit);
+      } else {
+        setIsCustomUnit(false);
+        setCustomUnit('');
+      }
+    } else {
+      // Сброс формы при добавлении нового
+      setFormData({
+        name: '',
+        category: '',
+        quantity: '',
+        price: '',
+        description: '',
+        unit: 'шт'
+      });
+      setIsCustomUnit(false);
+      setCustomUnit('');
+      setIsAddingCategory(false);
+      setNewCategoryName('');
+    }
+  }, [initialData?.id]);
 
   const handleNumberChange = (field: string, value: string) => {
     if (value === '' || /^\d*\.?\d*$/.test(value)) {
