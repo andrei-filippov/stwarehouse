@@ -5,6 +5,7 @@ export type Equipment = {
   quantity: number;
   price: number;
   description: string;
+  unit: string; // единица измерения: шт, комплект, услуга, человек, п.м.
   created_at?: string;
   updated_at?: string;
 };
@@ -22,6 +23,8 @@ export type EstimateItem = {
   description: string;
   quantity: number;
   price: number;
+  unit: string; // единица измерения
+  coefficient: number; // коэффициент, по умолчанию 1
 };
 
 export type Estimate = {

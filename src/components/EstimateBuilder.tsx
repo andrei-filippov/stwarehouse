@@ -140,7 +140,9 @@ export function EstimateBuilder({
         name: equipmentItem.name,
         description: equipmentItem.description,
         quantity: 1,
-        price: equipmentItem.price
+        price: equipmentItem.price,
+        unit: equipmentItem.unit || 'шт',
+        coefficient: 1
       };
       setItems([...items, newItem]);
     }
@@ -153,6 +155,13 @@ export function EstimateBuilder({
     if (newItems[index].quantity === 0) {
       newItems.splice(index, 1);
     }
+    setItems(newItems);
+  };
+
+  // Обновление коэффициента
+  const updateCoefficient = (index: number, coefficient: number) => {
+    const newItems = [...items];
+    newItems[index].coefficient = Math.max(0.01, coefficient);
     setItems(newItems);
   };
 
@@ -192,7 +201,9 @@ export function EstimateBuilder({
               name: matchingEquipment.name,
               description: matchingEquipment.description,
               quantity: quantity,
-              price: matchingEquipment.price
+              price: matchingEquipment.price,
+              unit: matchingEquipment.unit || 'шт',
+              coefficient: 1
             });
           }
         }
@@ -202,8 +213,8 @@ export function EstimateBuilder({
     setItems(prev => [...prev, ...newItems]);
   };
 
-  // Подсчет итого
-  const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  // Подсчет итого с учетом коэффициента
+  const total = items.reduce((sum, item) => sum + (item.price * item.quantity * (item.coefficient || 1)), 0);
   const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
 
   // Сохранение
@@ -255,8 +266,11 @@ export function EstimateBuilder({
             <tr>
               <th>№</th>
               <th>Наименование</th>
+              <th>Описание</th>
+              <th>Ед.</th>
               <th>Кол-во</th>
               <th>Цена</th>
+              <th>Коэф.</th>
               <th>Сумма</th>
             </tr>
           </thead>
@@ -265,9 +279,12 @@ export function EstimateBuilder({
               <tr>
                 <td>${idx + 1}</td>
                 <td>${item.name}</td>
+                <td>${item.description || '-'}</td>
+                <td>${item.unit || 'шт'}</td>
                 <td>${item.quantity}</td>
                 <td>${item.price.toLocaleString('ru-RU')} ₽</td>
-                <td>${(item.price * item.quantity).toLocaleString('ru-RU')} ₽</td>
+                <td>${item.coefficient || 1}</td>
+                <td>${(item.price * item.quantity * (item.coefficient || 1)).toLocaleString('ru-RU')} ₽</td>
               </tr>
             `).join('')}
           </tbody>
@@ -300,17 +317,21 @@ export function EstimateBuilder({
   const exportExcel = () => {
     const data = items.map(item => ({
       'Наименование': item.name,
-      'Описание': item.description,
+      'Описание': item.description || '',
+      'Ед.изм': item.unit || 'шт',
       'Количество': item.quantity,
       'Цена за ед.': item.price,
-      'Сумма': item.price * item.quantity
+      'Коэффициент': item.coefficient || 1,
+      'Сумма': item.price * item.quantity * (item.coefficient || 1)
     }));
 
     data.push({
       'Наименование': 'ИТОГО',
       'Описание': '',
+      'Ед.изм': '',
       'Количество': totalQuantity,
       'Цена за ед.': '',
+      'Коэффициент': '',
       'Сумма': total
     });
 
@@ -512,8 +533,11 @@ export function EstimateBuilder({
               <thead>
                 <tr className="border-b-2 border-black">
                   <th className="text-left py-2">Наименование</th>
+                  <th className="text-left py-2 text-xs">Описание</th>
+                  <th className="text-center py-2">Ед.</th>
                   <th className="text-center py-2">Кол-во</th>
                   <th className="text-right py-2">Цена</th>
+                  <th className="text-center py-2">Коэф.</th>
                   <th className="text-right py-2">Сумма</th>
                 </tr>
               </thead>
@@ -521,9 +545,12 @@ export function EstimateBuilder({
                 {items.map((item, idx) => (
                   <tr key={idx} className="border-b">
                     <td className="py-2">{item.name}</td>
+                    <td className="py-2 text-xs text-gray-600">{item.description || '-'}</td>
+                    <td className="text-center py-2">{item.unit || 'шт'}</td>
                     <td className="text-center py-2">{item.quantity}</td>
                     <td className="text-right py-2">{item.price.toLocaleString('ru-RU')} ₽</td>
-                    <td className="text-right py-2">{(item.price * item.quantity).toLocaleString('ru-RU')} ₽</td>
+                    <td className="text-center py-2">{item.coefficient || 1}</td>
+                    <td className="text-right py-2">{(item.price * item.quantity * (item.coefficient || 1)).toLocaleString('ru-RU')} ₽</td>
                   </tr>
                 ))}
               </tbody>
@@ -552,38 +579,73 @@ export function EstimateBuilder({
               <div className="space-y-2">
                 {items.map((item, index) => (
                   <Card key={index}>
-                    <CardContent className="p-3 flex items-center justify-between">
-                      <div className="flex-1">
-                        <p className="font-medium">{item.name}</p>
-                        <p className="text-sm text-gray-500">
-                          {item.price.toLocaleString('ru-RU')} ₽ × {item.quantity}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => updateQuantity(index, item.quantity - 1)}
-                        >
-                          -
-                        </Button>
-                        <span className="w-8 text-center font-medium">
-                          {item.quantity}
-                        </span>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => updateQuantity(index, item.quantity + 1)}
-                        >
-                          +
-                        </Button>
+                    <CardContent className="p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium">{item.name}</p>
+                          {item.description && (
+                            <p className="text-xs text-gray-500 truncate" title={item.description}>
+                              {item.description}
+                            </p>
+                          )}
+                          <p className="text-sm text-gray-600 mt-1">
+                            {item.price.toLocaleString('ru-RU')} ₽ / {item.unit || 'шт'}
+                          </p>
+                        </div>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => removeItem(index)}
+                          className="shrink-0"
                         >
                           <Trash2 className="w-4 h-4 text-red-500" />
                         </Button>
+                      </div>
+                      
+                      <div className="flex items-center gap-4 mt-3">
+                        {/* Количество */}
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-gray-500 mr-1">Кол-во:</span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 w-7 p-0"
+                            onClick={() => updateQuantity(index, item.quantity - 1)}
+                          >
+                            -
+                          </Button>
+                          <span className="w-8 text-center font-medium text-sm">
+                            {item.quantity} {item.unit || 'шт'}
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 w-7 p-0"
+                            onClick={() => updateQuantity(index, item.quantity + 1)}
+                          >
+                            +
+                          </Button>
+                        </div>
+                        
+                        {/* Коэффициент */}
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-gray-500">Коэф:</span>
+                          <input
+                            type="number"
+                            step="0.1"
+                            min="0.01"
+                            value={item.coefficient || 1}
+                            onChange={(e) => updateCoefficient(index, parseFloat(e.target.value) || 1)}
+                            className="w-14 h-7 text-center border rounded text-sm"
+                          />
+                        </div>
+                        
+                        {/* Сумма */}
+                        <div className="ml-auto text-right">
+                          <span className="font-semibold text-sm">
+                            {(item.price * item.quantity * (item.coefficient || 1)).toLocaleString('ru-RU')} ₽
+                          </span>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>

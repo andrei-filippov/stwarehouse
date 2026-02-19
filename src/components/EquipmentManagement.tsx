@@ -118,7 +118,8 @@ export function EquipmentManager({
       category: row.category || row.Категория || row['Категория'] || 'Общее',
       quantity: parseInt(row.quantity || row.Количество || row['Кол-во'] || 0),
       price: parseFloat(row.price || row.Цена || row['Стоимость'] || 0),
-      description: row.description || row.Описание || ''
+      description: row.description || row.Описание || '',
+      unit: row.unit || row['Ед.изм'] || row['Единица'] || 'шт'
     })).filter(item => item.name);
 
     setImportData(processed);
@@ -139,6 +140,7 @@ export function EquipmentManager({
       'Название': item.name,
       'Категория': item.category,
       'Количество': item.quantity,
+      'Ед.изм': item.unit || 'шт',
       'Цена': item.price,
       'Описание': item.description
     }));
@@ -209,7 +211,7 @@ export function EquipmentManager({
                         <Badge variant="secondary">{items.length}</Badge>
                       </div>
                       <div className="text-sm text-gray-500">
-                        {items.reduce((sum, i) => sum + i.quantity, 0)} шт.
+                        {items.reduce((sum, i) => sum + i.quantity, 0)} ед.
                       </div>
                     </div>
                     
@@ -221,6 +223,7 @@ export function EquipmentManager({
                               <TableHead>Название</TableHead>
                               <TableHead className="hidden md:table-cell">Описание</TableHead>
                               <TableHead className="w-24">Кол-во</TableHead>
+                              <TableHead className="w-20">Ед.</TableHead>
                               <TableHead className="w-32">Цена</TableHead>
                               <TableHead className="w-24 text-right">Действия</TableHead>
                             </TableRow>
@@ -242,6 +245,7 @@ export function EquipmentManager({
                                   </p>
                                 </TableCell>
                                 <TableCell>{item.quantity}</TableCell>
+                                <TableCell>{item.unit || 'шт'}</TableCell>
                                 <TableCell>{item.price.toLocaleString('ru-RU')} ₽</TableCell>
                                 <TableCell>
                                   <div className="flex justify-end gap-1">
@@ -285,7 +289,7 @@ export function EquipmentManager({
           {!importPreview ? (
             <div className="space-y-4">
               <p className="text-sm text-gray-500">
-                Загрузите Excel или CSV файл со столбцами: Название, Категория, Количество, Цена, Описание
+                Загрузите Excel или CSV файл со столбцами: Название, Категория, Количество, Ед.изм, Цена, Описание
               </p>
               <Input
                 type="file"
@@ -304,6 +308,7 @@ export function EquipmentManager({
                       <TableHead>Название</TableHead>
                       <TableHead>Категория</TableHead>
                       <TableHead>Кол-во</TableHead>
+                      <TableHead>Ед.</TableHead>
                       <TableHead>Цена</TableHead>
                       <TableHead>Описание</TableHead>
                     </TableRow>
@@ -314,6 +319,7 @@ export function EquipmentManager({
                         <TableCell>{item.name}</TableCell>
                         <TableCell>{item.category}</TableCell>
                         <TableCell>{item.quantity}</TableCell>
+                        <TableCell>{item.unit || 'шт'}</TableCell>
                         <TableCell>{item.price}</TableCell>
                         <TableCell>{item.description || '—'}</TableCell>
                       </TableRow>
@@ -389,10 +395,13 @@ function EquipmentForm({ categories, initialData, onSubmit, onAddCategory }: Equ
     category: initialData?.category || '',
     quantity: initialData?.quantity?.toString() || '',
     price: initialData?.price?.toString() || '',
-    description: initialData?.description || ''
+    description: initialData?.description || '',
+    unit: initialData?.unit || 'шт'
   });
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [isCustomUnit, setIsCustomUnit] = useState(false);
+  const [customUnit, setCustomUnit] = useState('');
 
   const handleNumberChange = (field: string, value: string) => {
     if (value === '' || /^\d*\.?\d*$/.test(value)) {
@@ -473,7 +482,7 @@ function EquipmentForm({ categories, initialData, onSubmit, onAddCategory }: Equ
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         <div className="space-y-2">
           <Label>Количество</Label>
           <Input
@@ -482,6 +491,58 @@ function EquipmentForm({ categories, initialData, onSubmit, onAddCategory }: Equ
             value={formData.quantity}
             onChange={(e) => handleNumberChange('quantity', e.target.value)}
           />
+        </div>
+        <div className="space-y-2">
+          <Label>Ед. изм.</Label>
+          {isCustomUnit ? (
+            <div className="flex gap-2">
+              <Input
+                value={customUnit}
+                onChange={(e) => setCustomUnit(e.target.value)}
+                placeholder="Введите единицу"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (customUnit.trim()) {
+                      setFormData(prev => ({ ...prev, unit: customUnit.trim() }));
+                    }
+                    setIsCustomUnit(false);
+                  }
+                }}
+              />
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  if (customUnit.trim()) {
+                    setFormData(prev => ({ ...prev, unit: customUnit.trim() }));
+                  }
+                  setIsCustomUnit(false);
+                }}
+              >
+                OK
+              </Button>
+            </div>
+          ) : (
+            <select
+              className="w-full border rounded-md p-2"
+              value={UNIT_OPTIONS.includes(formData.unit) ? formData.unit : 'custom'}
+              onChange={(e) => {
+                if (e.target.value === 'custom') {
+                  setIsCustomUnit(true);
+                  setCustomUnit('');
+                } else {
+                  setFormData({ ...formData, unit: e.target.value });
+                }
+              }}
+            >
+              {UNIT_OPTIONS.map(u => (
+                <option key={u} value={u}>{u}</option>
+              ))}
+              <option value="custom">+ Своя единица</option>
+            </select>
+          )}
         </div>
         <div className="space-y-2">
           <Label>Цена (₽)</Label>
