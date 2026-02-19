@@ -3,10 +3,14 @@ import { useAuth } from './hooks/useAuth';
 import { useEquipment } from './hooks/useEquipment';
 import { useEstimates } from './hooks/useEstimates';
 import { useTemplates } from './hooks/useTemplates';
+import { useChecklists } from './hooks/useChecklists';
+import { useStaff } from './hooks/useStaff';
 import { Auth } from './components/Auth';
 import { EquipmentManager } from './components/EquipmentManagement';
 import { EstimateManager } from './components/EstimateManager';
 import { TemplatesManager } from './components/Templates';
+import { ChecklistsManager } from './components/Checklists';
+import { StaffManager } from './components/StaffManager';
 import { PDFSettings } from './components/PDFSettings';
 import { EventCalendar } from './components/EventCalendar';
 import { Button } from './components/ui/button';
@@ -17,17 +21,21 @@ import {
   Settings, 
   LogOut,
   User,
-  Calendar
+  Calendar,
+  ClipboardCheck,
+  Users
 } from 'lucide-react';
 import type { PDFSettings as PDFSettingsType } from './types';
 
-type Tab = 'equipment' | 'estimates' | 'templates' | 'calendar' | 'settings';
+type Tab = 'equipment' | 'estimates' | 'templates' | 'calendar' | 'checklists' | 'staff' | 'settings';
 
 function App() {
   const { user, profile, loading: authLoading, signIn, signUp, signOut } = useAuth();
   const { equipment, categories, addEquipment, updateEquipment, deleteEquipment, bulkInsert } = useEquipment(user?.id);
   const { estimates, createEstimate, updateEstimate, deleteEstimate } = useEstimates(user?.id);
   const { templates, createTemplate, updateTemplate, deleteTemplate } = useTemplates(user?.id);
+  const { checklists, rules, createRule, deleteRule, createChecklist, updateChecklistItem, deleteChecklist } = useChecklists(user?.id, estimates);
+  const { staff, addStaff, updateStaff, deleteStaff } = useStaff(user?.id);
   
   const [activeTab, setActiveTab] = useState<Tab>('equipment');
   const [pdfSettings, setPdfSettings] = useState<PDFSettingsType>({
@@ -66,6 +74,8 @@ function App() {
     { id: 'estimates' as Tab, label: 'Сметы', icon: FileText },
     { id: 'templates' as Tab, label: 'Шаблоны', icon: Layout },
     { id: 'calendar' as Tab, label: 'Календарь', icon: Calendar },
+    { id: 'checklists' as Tab, label: 'Чек-листы', icon: ClipboardCheck },
+    { id: 'staff' as Tab, label: 'Персонал', icon: Users },
     { id: 'settings' as Tab, label: 'Настройки PDF', icon: Settings },
   ];
 
@@ -139,6 +149,7 @@ function App() {
           <EstimateManager
             estimates={estimates}
             equipment={equipment}
+            templates={templates}
             pdfSettings={pdfSettings}
             onCreate={createEstimate}
             onUpdate={updateEstimate}
@@ -160,6 +171,28 @@ function App() {
           <EventCalendar
             estimates={estimates}
             equipment={equipment}
+          />
+        )}
+
+        {activeTab === 'checklists' && (
+          <ChecklistsManager
+            estimates={estimates}
+            checklists={checklists}
+            rules={rules}
+            onCreateRule={createRule}
+            onDeleteRule={deleteRule}
+            onCreateChecklist={createChecklist}
+            onUpdateChecklistItem={updateChecklistItem}
+            onDeleteChecklist={deleteChecklist}
+          />
+        )}
+
+        {activeTab === 'staff' && (
+          <StaffManager
+            staff={staff}
+            onAdd={addStaff}
+            onUpdate={updateStaff}
+            onDelete={deleteStaff}
           />
         )}
 

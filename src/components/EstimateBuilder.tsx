@@ -10,9 +10,9 @@ import {
   FileText,
   Package,
   Printer,
-  Image
+  Layout
 } from 'lucide-react';
-import type { Equipment, Estimate, EstimateItem, PDFSettings } from '../types';
+import type { Equipment, Estimate, EstimateItem, PDFSettings, Template } from '../types';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
@@ -28,6 +28,7 @@ interface EquipmentAvailability {
 interface EstimateBuilderProps {
   equipment: Equipment[];
   estimates: Estimate[];
+  templates: Template[];
   estimate?: Estimate | null;
   pdfSettings: PDFSettings;
   onSave: (estimate: any, items: any[]) => Promise<void>;
@@ -37,6 +38,7 @@ interface EstimateBuilderProps {
 export function EstimateBuilder({ 
   equipment, 
   estimates,
+  templates,
   estimate, 
   pdfSettings, 
   onSave, 
@@ -157,6 +159,47 @@ export function EstimateBuilder({
   // Удаление позиции
   const removeItem = (index: number) => {
     setItems(items.filter((_, i) => i !== index));
+  };
+
+  // Применение шаблона
+  const applyTemplate = (template: Template) => {
+    if (!template.items || template.items.length === 0) return;
+    
+    const newItems: EstimateItem[] = [];
+    
+    template.items.forEach(templateItem => {
+      // Ищем оборудование по имени
+      const matchingEquipment = equipment.find(eq => 
+        eq.name.toLowerCase() === templateItem.equipment_name.toLowerCase() ||
+        eq.category.toLowerCase() === templateItem.category.toLowerCase()
+      );
+      
+      if (matchingEquipment) {
+        // Проверяем доступность
+        const eqAvail = equipmentAvailability.find(ea => ea.equipment.id === matchingEquipment.id);
+        const maxAvailable = eqAvail?.availableQuantity || 0;
+        
+        if (maxAvailable > 0) {
+          const quantity = Math.min(templateItem.default_quantity, maxAvailable);
+          
+          // Проверяем, не добавили ли уже это оборудование
+          const existingIndex = newItems.findIndex(i => i.equipment_id === matchingEquipment.id);
+          if (existingIndex >= 0) {
+            newItems[existingIndex].quantity += quantity;
+          } else {
+            newItems.push({
+              equipment_id: matchingEquipment.id,
+              name: matchingEquipment.name,
+              description: matchingEquipment.description,
+              quantity: quantity,
+              price: matchingEquipment.price
+            });
+          }
+        }
+      }
+    });
+    
+    setItems(prev => [...prev, ...newItems]);
   };
 
   // Подсчет итого
@@ -393,6 +436,32 @@ export function EstimateBuilder({
                     {equipmentAvailability.filter(eq => eq.occupiedQuantity > 0).length} позиций оборудования уже занято.
                   </AlertDescription>
                 </Alert>
+              )}
+
+              {/* Применение шаблона */}
+              {!estimate && templates.length > 0 && (
+                <div className="border rounded-lg p-3 bg-blue-50">
+                  <p className="text-sm font-medium mb-2 flex items-center gap-2">
+                    <Layout className="w-4 h-4" />
+                    Применить шаблон
+                  </p>
+                  <div className="flex gap-2 flex-wrap">
+                    {templates.map(template => (
+                      <Button
+                        key={template.id}
+                        variant="outline"
+                        size="sm"
+                        onClick={() => applyTemplate(template)}
+                        className="bg-white"
+                      >
+                        {template.name}
+                        <span className="ml-1 text-xs text-gray-500">
+                          ({template.items?.length || 0})
+                        </span>
+                      </Button>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
           </div>

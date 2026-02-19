@@ -3,12 +3,13 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Plus, Edit, Trash2 } from 'lucide-react';
-import type { Estimate, PDFSettings } from '../types';
+import type { Estimate, PDFSettings, Template } from '../types';
 import { EstimateBuilder } from './EstimateBuilder';
 
 interface EstimateManagerProps {
   estimates: Estimate[];
   equipment: any[];
+  templates: Template[];
   pdfSettings: PDFSettings;
   onCreate: (estimate: any, items: any[]) => Promise<{ error: any; data?: any }>;
   onUpdate: (id: string, estimate: any, items: any[]) => Promise<{ error: any }>;
@@ -18,6 +19,7 @@ interface EstimateManagerProps {
 export function EstimateManager({
   estimates,
   equipment,
+  templates,
   pdfSettings,
   onCreate,
   onUpdate,
@@ -50,6 +52,7 @@ export function EstimateManager({
       <EstimateBuilder
         equipment={equipment}
         estimates={estimates}
+        templates={templates}
         estimate={editingEstimate}
         pdfSettings={pdfSettings}
         onSave={handleSave}
