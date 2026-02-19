@@ -40,10 +40,16 @@ export function useEstimates(userId: string | undefined) {
       return { error: estimateError };
     }
 
-    // Добавляем позиции
+    // Добавляем позиции (без поля category - оно только для UI)
     if (items.length > 0) {
       const itemsWithEstimateId = items.map(item => ({
-        ...item,
+        equipment_id: item.equipment_id,
+        name: item.name,
+        description: item.description,
+        quantity: item.quantity,
+        price: item.price,
+        unit: item.unit,
+        coefficient: item.coefficient,
         estimate_id: estimateData.id
       }));
       
@@ -52,6 +58,7 @@ export function useEstimates(userId: string | undefined) {
         .insert(itemsWithEstimateId);
       
       if (itemsError) {
+        console.error('Error creating estimate items:', itemsError);
         return { error: itemsError };
       }
     }
@@ -76,16 +83,25 @@ export function useEstimates(userId: string | undefined) {
       // Удаляем старые позиции
       await supabase.from('estimate_items').delete().eq('estimate_id', id);
       
-      // Добавляем новые
+      // Добавляем новые (без поля category - оно только для UI)
       if (items.length > 0) {
+        const cleanItems = items.map(item => ({
+          equipment_id: item.equipment_id,
+          name: item.name,
+          description: item.description,
+          quantity: item.quantity,
+          price: item.price,
+          unit: item.unit,
+          coefficient: item.coefficient,
+          estimate_id: id
+        }));
+        
         const { error: itemsError } = await supabase
           .from('estimate_items')
-          .insert(items.map(item => ({
-            ...item,
-            estimate_id: id
-          })));
+          .insert(cleanItems);
         
         if (itemsError) {
+          console.error('Error updating estimate items:', itemsError);
           return { error: itemsError };
         }
       }
