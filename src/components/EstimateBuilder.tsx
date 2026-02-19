@@ -52,6 +52,7 @@ export function EstimateBuilder({
   const [items, setItems] = useState<EstimateItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [activeMobileTab, setActiveMobileTab] = useState<'equipment' | 'estimate'>('equipment');
   const printRef = useRef<HTMLDivElement>(null);
 
   // Обновляем состояние при открытии сметы для редактирования
@@ -587,66 +588,95 @@ export function EstimateBuilder({
   return (
     <div className="fixed inset-0 bg-white z-50 flex flex-col">
       {/* Шапка */}
-      <div className="border-b p-4 flex items-center justify-between bg-gray-50 print:hidden">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={onClose}>
-            <ChevronLeft className="w-5 h-5 mr-2" />
-            Назад
+      <div className="border-b p-2 md:p-4 flex items-center justify-between bg-gray-50 print:hidden">
+        <div className="flex items-center gap-2 md:gap-4">
+          <Button variant="ghost" size="sm" onClick={onClose} className="px-2">
+            <ChevronLeft className="w-5 h-5 md:mr-2" />
+            <span className="hidden md:inline">Назад</span>
           </Button>
-          <h1 className="text-xl font-bold">
-            {estimate ? 'Редактирование сметы' : 'Новая смета'}
+          <h1 className="text-base md:text-xl font-bold truncate max-w-[150px] md:max-w-none">
+            {estimate ? 'Редактирование' : 'Новая смета'}
           </h1>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={exportExcel}>
-            <FileText className="w-4 h-4 mr-2" />
-            Excel
+        <div className="flex items-center gap-1 md:gap-2">
+          <Button variant="outline" size="sm" onClick={exportExcel} className="px-2 md:px-3 hidden sm:flex">
+            <FileText className="w-4 h-4 md:mr-2" />
+            <span className="hidden md:inline">Excel</span>
           </Button>
-          <Button variant="outline" onClick={exportPDF}>
-            <FileText className="w-4 h-4 mr-2" />
-            PDF
+          <Button variant="outline" size="sm" onClick={exportPDF} className="px-2 md:px-3">
+            <FileText className="w-4 h-4 md:mr-2" />
+            <span className="hidden md:inline">PDF</span>
           </Button>
-          <Button variant="outline" onClick={handlePrint}>
-            <Printer className="w-4 h-4 mr-2" />
-            Печать
+          <Button variant="outline" size="sm" onClick={handlePrint} className="px-2 md:px-3">
+            <Printer className="w-4 h-4 md:mr-2" />
+            <span className="hidden md:inline">Печать</span>
           </Button>
-          <Button onClick={handleSave} disabled={!eventName || items.length === 0}>
-            <Save className="w-4 h-4 mr-2" />
-            Сохранить
+          <Button size="sm" onClick={handleSave} disabled={!eventName || items.length === 0} className="px-2 md:px-3">
+            <Save className="w-4 h-4 md:mr-2" />
+            <span className="hidden md:inline">Сохранить</span>
           </Button>
         </div>
+      </div>
+
+      {/* Mobile Tab Switcher */}
+      <div className="flex md:hidden border-b bg-white">
+        <button
+          className={`flex-1 py-3 text-sm font-medium ${activeMobileTab === 'equipment' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}
+          onClick={() => setActiveMobileTab('equipment')}
+        >
+          Оборудование
+        </button>
+        <button
+          className={`flex-1 py-3 text-sm font-medium ${activeMobileTab === 'estimate' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}
+          onClick={() => setActiveMobileTab('estimate')}
+        >
+          Смета ({items.length})
+        </button>
       </div>
 
       {/* Основной контент */}
       <div className="flex-1 flex overflow-hidden print:block">
         {/* Левая колонка - Оборудование */}
-        <div className="w-1/2 border-r flex flex-col print:hidden">
-          <div className="p-4 border-b space-y-4">
-            <h2 className="font-semibold flex items-center gap-2">
-              <Package className="w-5 h-5" />
+        <div className={`${activeMobileTab === 'equipment' ? 'flex' : 'hidden'} md:flex w-full md:w-1/2 border-r flex-col print:hidden`}>
+          <div className="p-3 md:p-4 border-b space-y-3 md:space-y-4">
+            <h2 className="font-semibold flex items-center gap-2 text-sm md:text-base">
+              <Package className="w-4 h-4 md:w-5 md:h-5" />
               Доступное оборудование
             </h2>
             <Input
               placeholder="Поиск..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              className="text-sm"
             />
-            <div className="flex gap-2 flex-wrap">
-              {categories.map(cat => (
+            <div className="flex gap-1.5 md:gap-2 flex-wrap">
+              {categories.slice(0, 6).map(cat => (
                 <Button
                   key={cat}
                   variant={selectedCategory === cat ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setSelectedCategory(cat)}
+                  className="text-xs px-2 py-1 h-auto"
                 >
                   {cat === 'all' ? 'Все' : cat}
                 </Button>
               ))}
+              {categories.length > 6 && (
+                <select
+                  className="text-xs border rounded px-2 py-1"
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                >
+                  {categories.slice(6).map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              )}
             </div>
           </div>
           
-          <div className="flex-1 overflow-auto p-4">
-            <div className="grid grid-cols-2 gap-2">
+          <div className="flex-1 overflow-auto p-3 md:p-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {filteredEquipment.map(item => {
                 const isFullyBooked = item.isFullyBooked;
                 const isInEstimate = items.find(i => i.equipment_id === item.equipment.id);
@@ -662,9 +692,14 @@ export function EstimateBuilder({
                           ? 'cursor-pointer hover:border-blue-500' 
                           : 'opacity-70 cursor-not-allowed bg-yellow-50'
                     }`}
-                    onClick={() => canAddMore && addItem(item)}
+                    onClick={() => {
+                      if (canAddMore) {
+                        addItem(item);
+                        setActiveMobileTab('estimate');
+                      }
+                    }}
                   >
-                    <CardContent className="p-3">
+                    <CardContent className="p-2.5 md:p-3">
                       <p className="font-medium text-sm">{item.equipment.name}</p>
                       <p className="text-xs text-gray-500">{item.equipment.category}</p>
                       <p className="text-sm font-semibold mt-1">
@@ -691,13 +726,13 @@ export function EstimateBuilder({
         </div>
 
         {/* Правая колонка - Смета */}
-        <div className="w-1/2 flex flex-col print:w-full">
-          <div className="p-4 border-b space-y-4 print:hidden">
-            <h2 className="font-semibold flex items-center gap-2">
-              <FileText className="w-5 h-5" />
+        <div className={`${activeMobileTab === 'estimate' ? 'flex' : 'hidden'} md:flex w-full md:w-1/2 flex-col print:w-full`}>
+          <div className="p-3 md:p-4 border-b space-y-3 md:space-y-4 print:hidden">
+            <h2 className="font-semibold flex items-center gap-2 text-sm md:text-base">
+              <FileText className="w-4 h-4 md:w-5 md:h-5" />
               Позиции сметы
-              <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm">
-                {items.length} поз. ({totalQuantity} ед.)
+              <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-xs md:text-sm">
+                {items.length} поз.
               </span>
             </h2>
             
@@ -706,51 +741,69 @@ export function EstimateBuilder({
                 placeholder="Название мероприятия *"
                 value={eventName}
                 onChange={(e) => setEventName(e.target.value)}
+                className="text-sm"
               />
-              <Input
-                placeholder="Площадка"
-                value={venue}
-                onChange={(e) => setVenue(e.target.value)}
-              />
-              <Input
-                type="date"
-                value={eventDate}
-                onChange={(e) => setEventDate(e.target.value)}
-              />
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  placeholder="Площадка"
+                  value={venue}
+                  onChange={(e) => setVenue(e.target.value)}
+                  className="text-sm"
+                />
+                <Input
+                  type="date"
+                  value={eventDate}
+                  onChange={(e) => setEventDate(e.target.value)}
+                  className="text-sm"
+                />
+              </div>
               
               {/* Предупреждение о занятости */}
               {eventDate && equipmentAvailability.some(eq => eq.occupiedQuantity > 0) && (
-                <Alert className="bg-amber-50 border-amber-200">
-                  <AlertDescription className="text-sm">
-                    <strong>Внимание!</strong> На {new Date(eventDate).toLocaleDateString('ru-RU')} есть другие мероприятия.
-                    <br />
-                    {equipmentAvailability.filter(eq => eq.occupiedQuantity > 0).length} позиций оборудования уже занято.
+                <Alert className="bg-amber-50 border-amber-200 p-2 md:p-3">
+                  <AlertDescription className="text-xs md:text-sm">
+                    <strong>Внимание!</strong> На {new Date(eventDate).toLocaleDateString('ru-RU')} есть другие мероприятия ({equipmentAvailability.filter(eq => eq.occupiedQuantity > 0).length} поз. занято).
                   </AlertDescription>
                 </Alert>
               )}
 
               {/* Применение шаблона */}
               {!estimate && templates.length > 0 && (
-                <div className="border rounded-lg p-3 bg-blue-50">
-                  <p className="text-sm font-medium mb-2 flex items-center gap-2">
-                    <Layout className="w-4 h-4" />
+                <div className="border rounded-lg p-2 md:p-3 bg-blue-50">
+                  <p className="text-xs md:text-sm font-medium mb-2 flex items-center gap-2">
+                    <Layout className="w-3 h-3 md:w-4 md:h-4" />
                     Применить шаблон
                   </p>
-                  <div className="flex gap-2 flex-wrap">
-                    {templates.map(template => (
+                  <div className="flex gap-1.5 md:gap-2 flex-wrap">
+                    {templates.slice(0, 3).map(template => (
                       <Button
                         key={template.id}
                         variant="outline"
                         size="sm"
                         onClick={() => applyTemplate(template)}
-                        className="bg-white"
+                        className="bg-white text-xs px-2 py-1 h-auto"
                       >
                         {template.name}
-                        <span className="ml-1 text-xs text-gray-500">
+                        <span className="ml-1 text-[10px] text-gray-500">
                           ({template.items?.length || 0})
                         </span>
                       </Button>
                     ))}
+                    {templates.length > 3 && (
+                      <select 
+                        className="text-xs border rounded px-2 py-1"
+                        onChange={(e) => {
+                          const template = templates.find(t => t.id === e.target.value);
+                          if (template) applyTemplate(template);
+                          e.target.value = '';
+                        }}
+                      >
+                        <option value="">Ещё...</option>
+                        {templates.slice(3).map(t => (
+                          <option key={t.id} value={t.id}>{t.name}</option>
+                        ))}
+                      </select>
+                    )}
                   </div>
                 </div>
               )}
@@ -876,71 +929,70 @@ export function EstimateBuilder({
                       {categoryItems.map((item, idx) => {
                         const originalIndex = items.findIndex(i => i === item);
                         return (
-                          <Card key={idx}>
-                            <CardContent className="p-3">
+                          <Card key={idx} className="overflow-hidden">
+                            <CardContent className="p-2.5 md:p-3">
                               <div className="flex items-start justify-between gap-2">
                                 <div className="flex-1 min-w-0">
-                                  <p className="font-medium">{item.name}</p>
+                                  <p className="font-medium text-sm md:text-base">{item.name}</p>
                                   {item.description && (
-                                    <p className="text-xs text-gray-500 truncate" title={item.description}>
+                                    <p className="text-xs text-gray-500 truncate hidden sm:block" title={item.description}>
                                       {item.description}
                                     </p>
                                   )}
-                                  <p className="text-sm text-gray-600 mt-1">
-                                    {item.price.toLocaleString('ru-RU')} ₽ / {item.unit || 'шт'}
+                                  <p className="text-xs md:text-sm text-gray-600 mt-0.5">
+                                    {item.price.toLocaleString('ru-RU')} ₽/{item.unit || 'шт'}
                                   </p>
                                 </div>
                                 <Button
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => removeItem(originalIndex)}
-                                  className="shrink-0"
+                                  className="shrink-0 h-8 w-8 p-0 -mr-1 -mt-1"
                                 >
                                   <Trash2 className="w-4 h-4 text-red-500" />
                                 </Button>
                               </div>
                               
-                              <div className="flex items-center gap-4 mt-3">
+                              <div className="flex items-center gap-2 md:gap-4 mt-2 md:mt-3">
                                 {/* Количество */}
                                 <div className="flex items-center gap-1">
-                                  <span className="text-xs text-gray-500 mr-1">Кол-во:</span>
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    className="h-7 w-7 p-0"
+                                    className="h-6 w-6 md:h-7 md:w-7 p-0 text-xs md:text-sm"
                                     onClick={() => updateQuantity(originalIndex, item.quantity - 1)}
                                   >
                                     -
                                   </Button>
-                                  <span className="w-8 text-center font-medium text-sm">
-                                    {item.quantity} {item.unit || 'шт'}
+                                  <span className="w-10 text-center font-medium text-xs md:text-sm">
+                                    {item.quantity}
                                   </span>
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    className="h-7 w-7 p-0"
+                                    className="h-6 w-6 md:h-7 md:w-7 p-0 text-xs md:text-sm"
                                     onClick={() => updateQuantity(originalIndex, item.quantity + 1)}
                                   >
                                     +
                                   </Button>
                                 </div>
                                 
-                                {/* Коэффициент */}
-                                <div className="flex items-center gap-1">
-                                  <span className="text-xs text-gray-500">Коэф:</span>
+                                {/* Коэффициент - скрыт на очень маленьких экранах */}
+                                <div className="hidden sm:flex items-center gap-1">
+                                  <span className="text-xs text-gray-500">Кф:</span>
                                   <input
                                     type="number"
                                     step="0.1"
                                     min="0.01"
                                     value={item.coefficient || 1}
                                     onChange={(e) => updateCoefficient(originalIndex, parseFloat(e.target.value) || 1)}
-                                    className="w-14 h-7 text-center border rounded text-sm"
+                                    className="w-12 md:w-14 h-6 md:h-7 text-center border rounded text-xs md:text-sm"
                                   />
                                 </div>
                                 
                                 {/* Сумма */}
                                 <div className="ml-auto text-right">
-                                  <span className="font-semibold text-sm">
+                                  <span className="font-semibold text-xs md:text-sm">
                                     {(item.price * item.quantity * (item.coefficient || 1)).toLocaleString('ru-RU')} ₽
                                   </span>
                                 </div>
@@ -952,9 +1004,9 @@ export function EstimateBuilder({
                     </div>
                     
                     {/* Подытог по категории */}
-                    <div className="flex justify-end items-center py-2 px-3 bg-blue-50 rounded">
-                      <span className="text-sm text-gray-600 mr-2">Итого по категории:</span>
-                      <span className="font-semibold text-blue-700">
+                    <div className="flex justify-end items-center py-2 px-2 md:px-3 bg-blue-50 rounded">
+                      <span className="text-xs md:text-sm text-gray-600 mr-2">Итого по категории:</span>
+                      <span className="font-semibold text-blue-700 text-sm md:text-base">
                         {getCategoryTotal(categoryItems).toLocaleString('ru-RU')} ₽
                       </span>
                     </div>
@@ -965,8 +1017,8 @@ export function EstimateBuilder({
           </div>
 
           {/* Итого */}
-          <div className="border-t p-4 bg-gray-50 print:hidden">
-            <div className="flex justify-between items-center text-xl font-bold">
+          <div className="border-t p-3 md:p-4 bg-gray-50 print:hidden">
+            <div className="flex justify-between items-center text-lg md:text-xl font-bold">
               <span>ИТОГО:</span>
               <span>{total.toLocaleString('ru-RU')} ₽</span>
             </div>

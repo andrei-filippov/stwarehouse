@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Menu, X } from 'lucide-react';
 import { useAuth } from './hooks/useAuth';
 import { useEquipment } from './hooks/useEquipment';
 import { useEstimates } from './hooks/useEstimates';
@@ -42,6 +43,7 @@ function App() {
   const { tasks, addTask, updateTask, deleteTask } = useGoals(user?.id);
   
   const [activeTab, setActiveTab] = useState<Tab>('equipment');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [pdfSettings, setPdfSettings] = useState<PDFSettingsType>({
     logo: null,
     companyName: '',
@@ -85,44 +87,44 @@ function App() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-              <Package className="w-6 h-6 text-white" />
+    <div className="min-h-screen bg-gray-50 pb-20 md:pb-0">
+      {/* Header - Desktop & Mobile */}
+      <header className="bg-white border-b shadow-sm sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-3 md:px-4 py-3 md:py-4 flex justify-between items-center">
+          <div className="flex items-center gap-2 md:gap-3">
+            <div className="w-8 h-8 md:w-10 md:h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+              <Package className="w-5 h-5 md:w-6 md:h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">СкладОборуд</h1>
-              <p className="text-xs text-gray-500">Система учета оборудования</p>
+              <h1 className="text-lg md:text-xl font-bold text-gray-900">СкладОборуд</h1>
+              <p className="text-[10px] md:text-xs text-gray-500 hidden sm:block">Система учета оборудования</p>
             </div>
           </div>
           
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 text-sm text-gray-600">
+          <div className="flex items-center gap-2 md:gap-4">
+            <div className="flex items-center gap-2 text-sm text-gray-600 hidden sm:flex">
               <User className="w-4 h-4" />
-              <span>{profile?.name || user?.email}</span>
+              <span className="max-w-[150px] truncate">{profile?.name || user?.email}</span>
             </div>
-            <Button variant="ghost" size="sm" onClick={signOut}>
-              <LogOut className="w-4 h-4 mr-2" />
-              Выйти
+            <Button variant="ghost" size="sm" onClick={signOut} className="px-2 md:px-3">
+              <LogOut className="w-4 h-4 md:mr-2" />
+              <span className="hidden md:inline">Выйти</span>
             </Button>
           </div>
         </div>
       </header>
 
-      {/* Navigation */}
-      <nav className="bg-white border-b">
+      {/* Desktop Navigation */}
+      <nav className="bg-white border-b hidden md:block">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="flex gap-1">
+          <div className="flex gap-1 overflow-x-auto">
             {navItems.map((item) => {
               const Icon = item.icon;
               return (
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                  className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                     activeTab === item.id
                       ? 'border-blue-600 text-blue-600'
                       : 'border-transparent text-gray-600 hover:text-gray-900'
@@ -137,8 +139,65 @@ function App() {
         </div>
       </nav>
 
+      {/* Mobile Bottom Navigation */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t md:hidden z-50">
+        <div className="flex justify-around items-center h-16">
+          {navItems.slice(0, 5).map((item) => {
+            const Icon = item.icon;
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id)}
+                className={`flex flex-col items-center justify-center flex-1 h-full ${
+                  isActive ? 'text-blue-600' : 'text-gray-500'
+                }`}
+              >
+                <Icon className="w-5 h-5 mb-0.5" />
+                <span className="text-[10px]">{item.label.slice(0, 8)}</span>
+              </button>
+            );
+          })}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="flex flex-col items-center justify-center flex-1 h-full text-gray-500"
+          >
+            {mobileMenuOpen ? <X className="w-5 h-5 mb-0.5" /> : <Menu className="w-5 h-5 mb-0.5" />}
+            <span className="text-[10px]">Ещё</span>
+          </button>
+        </div>
+      </nav>
+
+      {/* Mobile Menu Overlay */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setMobileMenuOpen(false)}>
+          <div className="absolute bottom-16 left-0 right-0 bg-white rounded-t-xl p-4" onClick={e => e.stopPropagation()}>
+            <div className="space-y-2">
+              {navItems.slice(5).map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setActiveTab(item.id);
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`flex items-center gap-3 w-full p-3 rounded-lg ${
+                      activeTab === item.id ? 'bg-blue-50 text-blue-600' : 'text-gray-700'
+                    }`}
+                  >
+                    <Icon className="w-5 h-5" />
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 py-6">
+      <main className="max-w-7xl mx-auto px-3 md:px-4 py-4 md:py-6">
         {activeTab === 'equipment' && (
           <EquipmentManager
             equipment={equipment}

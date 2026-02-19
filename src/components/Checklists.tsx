@@ -70,14 +70,14 @@ export function ChecklistsManager({
         </TabsList>
 
         {/* Вкладка Чек-листы */}
-        <TabsContent value="checklists" className="space-y-4">
+        <TabsContent value="checklists" className="space-y-3 md:space-y-4">
           <Card>
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle>Чек-листы мероприятий</CardTitle>
-                <Button onClick={() => setIsChecklistDialogOpen(true)}>
+            <CardHeader className="p-4 md:p-6">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <CardTitle className="text-base md:text-lg">Чек-листы</CardTitle>
+                <Button onClick={() => setIsChecklistDialogOpen(true)} size="sm" className="w-full sm:w-auto">
                   <Plus className="w-4 h-4 mr-2" />
-                  Создать чек-лист
+                  Создать
                 </Button>
               </div>
             </CardHeader>
@@ -88,28 +88,29 @@ export function ChecklistsManager({
                   <p className="text-sm">Создайте чек-лист на основе сметы</p>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2 md:space-y-3">
                   {checklists.map(checklist => (
                     <Card 
                       key={checklist.id} 
                       className="cursor-pointer hover:shadow-md"
                       onClick={() => setSelectedChecklist(checklist)}
                     >
-                      <CardContent className="p-4">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="font-medium">{checklist.event_name}</p>
-                            <p className="text-sm text-gray-500">
-                              {new Date(checklist.event_date).toLocaleDateString('ru-RU')}
+                      <CardContent className="p-3 md:p-4">
+                        <div className="flex justify-between items-start gap-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-sm md:text-base truncate">{checklist.event_name}</p>
+                            <p className="text-xs md:text-sm text-gray-500">
+                              {checklist.event_date ? new Date(checklist.event_date).toLocaleDateString('ru-RU') : '—'}
                             </p>
                           </div>
-                          <div className="flex items-center gap-3">
-                            <Badge variant="outline">
-                              {checklist.items?.filter(i => i.is_checked).length || 0} / {checklist.items?.length || 0}
+                          <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
+                            <Badge variant="outline" className="text-xs">
+                              {checklist.items?.filter(i => i.is_checked).length || 0}/{checklist.items?.length || 0}
                             </Badge>
                             <Button 
                               variant="ghost" 
                               size="sm"
+                              className="h-8 w-8 p-0"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 exportChecklistToPDF(checklist);
@@ -120,6 +121,7 @@ export function ChecklistsManager({
                             <Button 
                               variant="ghost" 
                               size="sm"
+                              className="h-8 w-8 p-0"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 onDeleteChecklist(checklist.id);
@@ -139,26 +141,28 @@ export function ChecklistsManager({
         </TabsContent>
 
         {/* Вкладка Правила */}
-        <TabsContent value="rules" className="space-y-4">
+        <TabsContent value="rules" className="space-y-3 md:space-y-4">
           <Card>
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle>Правила формирования чек-листов</CardTitle>
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => setIsCalculatorOpen(true)}>
+            <CardHeader className="p-4 md:p-6">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <CardTitle className="text-base md:text-lg">Правила</CardTitle>
+                <div className="flex gap-2 w-full sm:w-auto">
+                  <Button variant="outline" onClick={() => setIsCalculatorOpen(true)} size="sm" className="flex-1 sm:flex-none">
                     <Wrench className="w-4 h-4 mr-2" />
-                    Калькулятор
+                    <span className="hidden md:inline">Калькулятор</span>
+                    <span className="md:hidden">Кальк.</span>
                   </Button>
-                  <Button onClick={() => setIsRuleDialogOpen(true)}>
+                  <Button onClick={() => setIsRuleDialogOpen(true)} size="sm" className="flex-1 sm:flex-none">
                     <Plus className="w-4 h-4 mr-2" />
-                    Новое правило
+                    <span className="hidden md:inline">Новое правило</span>
+                    <span className="md:hidden">Добавить</span>
                   </Button>
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
-              <p className="text-sm text-gray-500 mb-4">
-                Правила автоматически добавляют инструменты и оборудование в чек-лист на основе позиций сметы.
+            <CardContent className="p-4 pt-0">
+              <p className="text-xs md:text-sm text-gray-500 mb-3 md:mb-4">
+                Правила автоматически добавляют инструменты в чек-лист на основе позиций сметы.
               </p>
               
               {rules.length === 0 ? (
@@ -167,28 +171,32 @@ export function ChecklistsManager({
                   <p className="text-sm">Создайте правило для автоматического формирования чек-листов</p>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2 md:space-y-3">
                   {rules.map(rule => (
                     <Card key={rule.id}>
-                      <CardContent className="p-4">
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1">
-                            <p className="font-medium">{rule.name}</p>
-                            <p className="text-sm text-gray-500">
-                              Условие: {rule.condition_type === 'category' ? 'Категория' : 'Оборудование'} = "{rule.condition_value}"
+                      <CardContent className="p-3 md:p-4">
+                        <div className="flex justify-between items-start gap-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-sm md:text-base">{rule.name}</p>
+                            <p className="text-xs md:text-sm text-gray-500">
+                              {rule.condition_type === 'category' ? 'Категория' : 'Оборудование'}: {rule.condition_value}
                             </p>
-                            <div className="flex flex-wrap gap-2 mt-2">
-                              {rule.items?.map((item, idx) => (
-                                <Badge key={idx} variant="secondary" className="text-xs">
+                            <div className="flex flex-wrap gap-1.5 md:gap-2 mt-2">
+                              {rule.items?.slice(0, 3).map((item, idx) => (
+                                <Badge key={idx} variant="secondary" className="text-[10px] md:text-xs">
                                   {item.name} × {item.quantity}
                                   {item.is_required && ' *'}
                                 </Badge>
                               ))}
+                              {rule.items && rule.items.length > 3 && (
+                                <Badge variant="secondary" className="text-[10px] md:text-xs">+{rule.items.length - 3}</Badge>
+                              )}
                             </div>
                           </div>
                           <Button 
                             variant="ghost" 
                             size="sm"
+                            className="h-8 w-8 p-0 flex-shrink-0"
                             onClick={() => onDeleteRule(rule.id)}
                           >
                             <Trash2 className="w-4 h-4 text-red-500" />
@@ -206,7 +214,7 @@ export function ChecklistsManager({
 
       {/* Диалог создания правила */}
       <Dialog open={isRuleDialogOpen} onOpenChange={setIsRuleDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl w-[95%] md:w-full max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Новое правило</DialogTitle>
           </DialogHeader>
@@ -224,7 +232,7 @@ export function ChecklistsManager({
 
       {/* Диалог калькулятора */}
       <Dialog open={isCalculatorOpen} onOpenChange={setIsCalculatorOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg w-[95%] md:w-full">
           <DialogHeader>
             <DialogTitle>Калькулятор ферм и кабелей</DialogTitle>
           </DialogHeader>
@@ -240,7 +248,7 @@ export function ChecklistsManager({
 
       {/* Диалог создания чек-листа */}
       <Dialog open={isChecklistDialogOpen} onOpenChange={setIsChecklistDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl w-[95%] md:w-full max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Создать чек-лист</DialogTitle>
           </DialogHeader>

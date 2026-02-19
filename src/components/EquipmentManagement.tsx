@@ -155,26 +155,30 @@ export function EquipmentManager({
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-            <CardTitle>Оборудование</CardTitle>
-            <div className="flex gap-2 flex-wrap">
-              <Button variant="outline" size="sm" onClick={expandAll}>
-                Развернуть все
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+            <CardTitle className="text-lg md:text-xl">Оборудование</CardTitle>
+            <div className="flex gap-1.5 md:gap-2 flex-wrap">
+              <Button variant="outline" size="sm" onClick={expandAll} className="text-xs md:text-sm px-2 md:px-3">
+                <span className="hidden md:inline mr-2">Развернуть</span>
+                <span className="md:hidden">+</span>
+                <span className="hidden sm:inline">все</span>
               </Button>
-              <Button variant="outline" size="sm" onClick={collapseAll}>
-                Свернуть все
+              <Button variant="outline" size="sm" onClick={collapseAll} className="text-xs md:text-sm px-2 md:px-3">
+                <span className="hidden md:inline mr-2">Свернуть</span>
+                <span className="md:hidden">-</span>
+                <span className="hidden sm:inline">все</span>
               </Button>
-              <Button variant="outline" onClick={() => setIsImportDialogOpen(true)}>
-                <Upload className="w-4 h-4 mr-2" />
-                Импорт
+              <Button variant="outline" size="sm" onClick={() => setIsImportDialogOpen(true)} className="px-2 md:px-3">
+                <Upload className="w-4 h-4 md:mr-2" />
+                <span className="hidden md:inline">Импорт</span>
               </Button>
-              <Button variant="outline" onClick={exportToExcel}>
-                <Download className="w-4 h-4 mr-2" />
-                Excel
+              <Button variant="outline" size="sm" onClick={exportToExcel} className="px-2 md:px-3">
+                <Download className="w-4 h-4 md:mr-2" />
+                <span className="hidden md:inline">Excel</span>
               </Button>
-              <Button onClick={() => setIsAddDialogOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Добавить
+              <Button size="sm" onClick={() => setIsAddDialogOpen(true)} className="px-2 md:px-3">
+                <Plus className="w-4 h-4 md:mr-2" />
+                <span className="hidden md:inline">Добавить</span>
               </Button>
             </div>
           </div>
@@ -217,58 +221,96 @@ export function EquipmentManager({
                     
                     {isExpanded && (
                       <div className="border-t">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Название</TableHead>
-                              <TableHead className="hidden md:table-cell">Описание</TableHead>
-                              <TableHead className="w-24">Кол-во</TableHead>
-                              <TableHead className="w-20">Ед.</TableHead>
-                              <TableHead className="w-32">Цена</TableHead>
-                              <TableHead className="w-24 text-right">Действия</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {items.map((item) => (
-                              <TableRow key={item.id}>
-                                <TableCell>
-                                  <div>
-                                    <p className="font-medium">{item.name}</p>
-                                    <p className="text-xs text-gray-500 md:hidden">
+                        {/* Desktop Table */}
+                        <div className="hidden md:block">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Название</TableHead>
+                                <TableHead>Описание</TableHead>
+                                <TableHead className="w-24">Кол-во</TableHead>
+                                <TableHead className="w-20">Ед.</TableHead>
+                                <TableHead className="w-32">Цена</TableHead>
+                                <TableHead className="w-24 text-right">Действия</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {items.map((item) => (
+                                <TableRow key={item.id}>
+                                  <TableCell>
+                                    <div>
+                                      <p className="font-medium">{item.name}</p>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <p className="text-sm text-gray-600 max-w-xs truncate" title={item.description}>
                                       {item.description || '—'}
                                     </p>
-                                  </div>
-                                </TableCell>
-                                <TableCell className="hidden md:table-cell">
-                                  <p className="text-sm text-gray-600 max-w-xs truncate" title={item.description}>
-                                    {item.description || '—'}
-                                  </p>
-                                </TableCell>
-                                <TableCell>{item.quantity}</TableCell>
-                                <TableCell>{item.unit || 'шт'}</TableCell>
-                                <TableCell>{item.price.toLocaleString('ru-RU')} ₽</TableCell>
-                                <TableCell>
-                                  <div className="flex justify-end gap-1">
-                                    <Button 
-                                      variant="ghost" 
-                                      size="sm"
-                                      onClick={() => setEditingItem(item)}
-                                    >
-                                      <Edit className="w-4 h-4" />
-                                    </Button>
-                                    <Button 
-                                      variant="ghost" 
-                                      size="sm"
-                                      onClick={() => onDelete(item.id)}
-                                    >
-                                      <Trash2 className="w-4 h-4 text-red-500" />
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
+                                  </TableCell>
+                                  <TableCell>{item.quantity}</TableCell>
+                                  <TableCell>{item.unit || 'шт'}</TableCell>
+                                  <TableCell>{item.price.toLocaleString('ru-RU')} ₽</TableCell>
+                                  <TableCell>
+                                    <div className="flex justify-end gap-1">
+                                      <Button 
+                                        variant="ghost" 
+                                        size="sm"
+                                        onClick={() => setEditingItem(item)}
+                                      >
+                                        <Edit className="w-4 h-4" />
+                                      </Button>
+                                      <Button 
+                                        variant="ghost" 
+                                        size="sm"
+                                        onClick={() => onDelete(item.id)}
+                                      >
+                                        <Trash2 className="w-4 h-4 text-red-500" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                        
+                        {/* Mobile Cards */}
+                        <div className="md:hidden space-y-2 p-2">
+                          {items.map((item) => (
+                            <Card key={item.id} className="p-3">
+                              <div className="flex justify-between items-start mb-2">
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium text-sm truncate">{item.name}</p>
+                                  <p className="text-xs text-gray-500 mt-0.5">{item.description || '—'}</p>
+                                </div>
+                                <div className="flex gap-1 ml-2">
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm"
+                                    className="h-8 w-8 p-0"
+                                    onClick={() => setEditingItem(item)}
+                                  >
+                                    <Edit className="w-4 h-4" />
+                                  </Button>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm"
+                                    className="h-8 w-8 p-0"
+                                    onClick={() => onDelete(item.id)}
+                                  >
+                                    <Trash2 className="w-4 h-4 text-red-500" />
+                                  </Button>
+                                </div>
+                              </div>
+                              <div className="flex justify-between items-center text-sm">
+                                <div className="flex gap-3 text-gray-600">
+                                  <span>{item.quantity} {item.unit || 'шт'}</span>
+                                </div>
+                                <span className="font-semibold">{item.price.toLocaleString('ru-RU')} ₽</span>
+                              </div>
+                            </Card>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </Card>
