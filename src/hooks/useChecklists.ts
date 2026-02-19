@@ -96,7 +96,19 @@ export function useChecklists(userId: string | undefined, estimates: Estimate[])
   const generateChecklist = async (estimate: Estimate): Promise<ChecklistItem[]> => {
     const items: ChecklistItem[] = [];
     
-    // Для каждого элемента сметы ищем подходящие правила
+    // 1. Добавляем оборудование из сметы (без цен)
+    estimate.items?.forEach(estimateItem => {
+      items.push({
+        name: estimateItem.name,
+        quantity: estimateItem.quantity,
+        category: 'equipment',
+        is_required: true,
+        is_checked: false,
+        source_rule_id: undefined
+      });
+    });
+    
+    // 2. Для каждого элемента сметы ищем подходящие правила и добавляем доп. оборудование
     estimate.items?.forEach(estimateItem => {
       const applicableRules = rules.filter(rule => {
         if (rule.condition_type === 'category') {

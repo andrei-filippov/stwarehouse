@@ -184,6 +184,8 @@ function App() {
         {activeTab === 'checklists' && (
           <ChecklistsManager
             estimates={estimates}
+            equipment={equipment}
+            categories={categories}
             checklists={checklists}
             rules={rules}
             onCreateRule={createRule}

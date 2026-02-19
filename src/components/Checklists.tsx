@@ -25,6 +25,8 @@ import autoTable from 'jspdf-autotable';
 
 interface ChecklistsProps {
   estimates: Estimate[];
+  equipment: { id: string; name: string; category: string; price?: number }[];
+  categories: { id: string; name: string }[];
   checklists: Checklist[];
   rules: ChecklistRule[];
   onCreateRule: (rule: any, items: any[]) => Promise<{ error: any }>;
@@ -36,6 +38,8 @@ interface ChecklistsProps {
 
 export function ChecklistsManager({
   estimates,
+  equipment,
+  categories,
   checklists,
   rules,
   onCreateRule,
@@ -49,6 +53,7 @@ export function ChecklistsManager({
   const [selectedEstimate, setSelectedEstimate] = useState<Estimate | null>(null);
   const [isRuleDialogOpen, setIsRuleDialogOpen] = useState(false);
   const [isChecklistDialogOpen, setIsChecklistDialogOpen] = useState(false);
+  const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
 
   return (
     <div className="space-y-4">
@@ -139,10 +144,16 @@ export function ChecklistsManager({
             <CardHeader>
               <div className="flex justify-between items-center">
                 <CardTitle>Правила формирования чек-листов</CardTitle>
-                <Button onClick={() => setIsRuleDialogOpen(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Новое правило
-                </Button>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => setIsCalculatorOpen(true)}>
+                    <Wrench className="w-4 h-4 mr-2" />
+                    Калькулятор
+                  </Button>
+                  <Button onClick={() => setIsRuleDialogOpen(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Новое правило
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -200,11 +211,29 @@ export function ChecklistsManager({
             <DialogTitle>Новое правило</DialogTitle>
           </DialogHeader>
           <RuleForm 
+            equipment={equipment}
+            categories={categories}
             onSubmit={async (data, items) => {
               await onCreateRule(data, items);
               setIsRuleDialogOpen(false);
             }}
             onCancel={() => setIsRuleDialogOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Диалог калькулятора */}
+      <Dialog open={isCalculatorOpen} onOpenChange={setIsCalculatorOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Калькулятор ферм и кабелей</DialogTitle>
+          </DialogHeader>
+          <TrussCalculator 
+            onAddItems={(items) => {
+              // Can be used to add items to a rule or checklist
+              setIsCalculatorOpen(false);
+            }}
+            onCancel={() => setIsCalculatorOpen(false)}
           />
         </DialogContent>
       </Dialog>
@@ -249,10 +278,22 @@ export function ChecklistsManager({
 }
 
 // Форма создания правила
-function RuleForm({ onSubmit, onCancel }: { onSubmit: (data: any, items: any[]) => void, onCancel: () => void }) {
+function RuleForm({ 
+  equipment, 
+  categories: equipmentCategories,
+  onSubmit, 
+  onCancel 
+}: { 
+  equipment: { id: string; name: string; category: string }[];
+  categories: { id: string; name: string }[];
+  onSubmit: (data: any, items: any[]) => void, 
+  onCancel: () => void 
+}) {
   const [name, setName] = useState('');
   const [conditionType, setConditionType] = useState<'category' | 'equipment'>('equipment');
   const [conditionValue, setConditionValue] = useState('');
+  const [selectedEquipmentId, setSelectedEquipmentId] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
   const [items, setItems] = useState<Array<{ name: string; quantity: number; category: string; is_required: boolean }>>([]);
   const [newItem, setNewItem] = useState({ name: '', quantity: 1, category: 'tool', is_required: true });
 
@@ -266,12 +307,32 @@ function RuleForm({ onSubmit, onCancel }: { onSubmit: (data: any, items: any[]) 
     setItems(items.filter((_, i) => i !== index));
   };
 
-  const categories = [
+  const itemCategories = [
     { value: 'tool', label: 'Инструмент' },
     { value: 'cable', label: 'Кабель/Провод' },
     { value: 'accessory', label: 'Аксессуар' },
     { value: 'other', label: 'Другое' }
   ];
+
+  const handleConditionTypeChange = (type: 'category' | 'equipment') => {
+    setConditionType(type);
+    setConditionValue('');
+    setSelectedEquipmentId('');
+    setSelectedCategory('');
+  };
+
+  const handleEquipmentSelect = (equipmentId: string) => {
+    setSelectedEquipmentId(equipmentId);
+    const eq = equipment.find(e => e.id === equipmentId);
+    if (eq) {
+      setConditionValue(eq.name);
+    }
+  };
+
+  const handleCategorySelect = (categoryName: string) => {
+    setSelectedCategory(categoryName);
+    setConditionValue(categoryName);
+  };
 
   return (
     <div className="space-y-4">
@@ -284,27 +345,62 @@ function RuleForm({ onSubmit, onCancel }: { onSubmit: (data: any, items: any[]) 
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label>Тип условия</Label>
-          <Select value={conditionType} onValueChange={(v) => setConditionType(v as any)}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="equipment">Оборудование</SelectItem>
-              <SelectItem value="category">Категория</SelectItem>
-            </SelectContent>
-          </Select>
+      <div className="space-y-2">
+        <Label>Привязка к</Label>
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant={conditionType === 'equipment' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => handleConditionTypeChange('equipment')}
+          >
+            Оборудованию
+          </Button>
+          <Button
+            type="button"
+            variant={conditionType === 'category' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => handleConditionTypeChange('category')}
+          >
+            Категории
+          </Button>
         </div>
-        <div className="space-y-2">
-          <Label>Значение условия</Label>
-          <Input 
-            value={conditionValue} 
-            onChange={(e) => setConditionValue(e.target.value)}
-            placeholder={conditionType === 'category' ? 'Звук' : 'Микшер'}
-          />
-        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label>{conditionType === 'equipment' ? 'Выберите оборудование' : 'Выберите категорию'}</Label>
+        {conditionType === 'equipment' ? (
+          <select
+            className="w-full border rounded-md p-2"
+            value={selectedEquipmentId}
+            onChange={(e) => handleEquipmentSelect(e.target.value)}
+          >
+            <option value="">-- Выберите оборудование --</option>
+            {equipment.map(eq => (
+              <option key={eq.id} value={eq.id}>
+                {eq.name} ({eq.category})
+              </option>
+            ))}
+          </select>
+        ) : (
+          <select
+            className="w-full border rounded-md p-2"
+            value={selectedCategory}
+            onChange={(e) => handleCategorySelect(e.target.value)}
+          >
+            <option value="">-- Выберите категорию --</option>
+            {equipmentCategories.map(cat => (
+              <option key={cat.id} value={cat.name}>
+                {cat.name}
+              </option>
+            ))}
+          </select>
+        )}
+        {conditionValue && (
+          <p className="text-sm text-gray-500">
+            Условие: {conditionType === 'equipment' ? 'Оборудование' : 'Категория'} = "{conditionValue}"
+          </p>
+        )}
       </div>
 
       <div className="border rounded-lg p-4 space-y-3">
@@ -333,7 +429,7 @@ function RuleForm({ onSubmit, onCancel }: { onSubmit: (data: any, items: any[]) 
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {categories.map(c => (
+                {itemCategories.map(c => (
                   <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
                 ))}
               </SelectContent>
@@ -352,7 +448,7 @@ function RuleForm({ onSubmit, onCancel }: { onSubmit: (data: any, items: any[]) 
               <span className="text-sm">
                 {item.name} × {item.quantity}
                 <Badge variant="outline" className="ml-2 text-xs">
-                  {categories.find(c => c.value === item.category)?.label}
+                  {itemCategories.find(c => c.value === item.category)?.label}
                 </Badge>
                 {item.is_required && <span className="text-red-500 ml-1">*</span>}
               </span>
@@ -501,6 +597,7 @@ function ChecklistView({
   }, {} as Record<string, ChecklistItem[]>);
 
   const categoryNames: Record<string, string> = {
+    equipment: 'Оборудование из сметы',
     tool: 'Инструменты',
     cable: 'Кабели и провода',
     accessory: 'Аксессуары',
@@ -576,6 +673,7 @@ function exportChecklistToPDF(checklist: Checklist) {
   }, {} as Record<string, ChecklistItem[]>);
 
   const categoryNames: Record<string, string> = {
+    equipment: 'Оборудование из сметы',
     tool: 'Инструменты',
     cable: 'Кабели и провода',
     accessory: 'Аксессуары',
@@ -589,34 +687,41 @@ function exportChecklistToPDF(checklist: Checklist) {
       <meta charset="UTF-8">
       <title>Чек-лист - ${checklist.event_name}</title>
       <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        h1 { text-align: center; font-size: 20px; margin-bottom: 5px; }
-        .subtitle { text-align: center; font-size: 12px; color: #666; margin-bottom: 20px; }
-        .info { font-size: 12px; margin-bottom: 20px; }
-        .category { font-size: 14px; font-weight: bold; margin-top: 15px; margin-bottom: 8px; color: #2980b9; }
-        .item { font-size: 11px; margin: 5px 0; display: flex; align-items: center; }
-        .checkbox { width: 14px; height: 14px; border: 1px solid #333; margin-right: 8px; display: inline-flex; align-items: center; justify-content: center; }
-        .checkbox.checked { background: #2980b9; color: white; }
-        .notes { margin-top: 20px; padding-top: 10px; border-top: 1px solid #ddd; font-size: 11px; }
-        @media print { .no-print { display: none; } }
+        body { font-family: Arial, sans-serif; margin: 20px; font-size: 11px; }
+        h1 { text-align: center; font-size: 18px; margin-bottom: 5px; }
+        .subtitle { text-align: center; font-size: 12px; color: #666; margin-bottom: 15px; }
+        .info { font-size: 11px; margin-bottom: 15px; padding: 10px; background: #f5f5f5; border-radius: 4px; }
+        .category { font-size: 13px; font-weight: bold; margin-top: 12px; margin-bottom: 6px; color: #2980b9; border-bottom: 1px solid #2980b9; padding-bottom: 2px; }
+        .category.equipment { color: #27ae60; border-bottom-color: #27ae60; }
+        .item { font-size: 10px; margin: 4px 0; display: flex; align-items: center; }
+        .checkbox { width: 12px; height: 12px; border: 1px solid #333; margin-right: 8px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .checkbox.checked { background: #2980b9; color: white; border-color: #2980b9; }
+        .notes { margin-top: 15px; padding: 10px; background: #fffacd; border-radius: 4px; font-size: 10px; }
+        .footer { margin-top: 20px; padding-top: 10px; border-top: 1px solid #ddd; font-size: 9px; color: #666; text-align: center; }
+        @media print { 
+          .no-print { display: none; }
+          body { margin: 15px; }
+        }
       </style>
     </head>
     <body>
-      <h1>ЧЕК-ЛИСТ</h1>
+      <h1>ЧЕК-ЛИСТ МЕРОПРИЯТИЯ</h1>
       <div class="subtitle">${checklist.event_name}</div>
       
       <div class="info">
         <strong>Дата мероприятия:</strong> ${new Date(checklist.event_date).toLocaleDateString('ru-RU')}<br>
-        <strong>Дата формирования:</strong> ${new Date().toLocaleDateString('ru-RU')}
+        <strong>Дата формирования:</strong> ${new Date().toLocaleDateString('ru-RU')}<br>
+        <strong>Всего позиций:</strong> ${checklist.items?.length || 0}
       </div>
 
       ${Object.entries(grouped || {}).map(([category, items]) => `
-        <div class="category">${categoryNames[category] || category}</div>
+        <div class="category ${category === 'equipment' ? 'equipment' : ''}">${categoryNames[category] || category}</div>
         ${items.map(item => `
           <div class="item">
             <span class="checkbox ${item.is_checked ? 'checked' : ''}">${item.is_checked ? '✓' : ''}</span>
-            ${item.name} × ${item.quantity}
-            ${item.is_required ? '<span style="color: red;">*</span>' : ''}
+            <span style="flex: 1;">${item.name}</span>
+            <span style="margin-left: 10px; font-weight: bold;">× ${item.quantity}</span>
+            ${item.is_required ? '<span style="color: red; margin-left: 5px;">*</span>' : ''}
           </div>
         `).join('')}
       `).join('')}
@@ -627,6 +732,10 @@ function exportChecklistToPDF(checklist: Checklist) {
           ${checklist.notes}
         </div>
       ` : ''}
+      
+      <div class="footer">
+        * — обязательный пункт
+      </div>
     </body>
     </html>
   `;
@@ -637,4 +746,150 @@ function exportChecklistToPDF(checklist: Checklist) {
   setTimeout(() => {
     printWindow.print();
   }, 500);
+}
+
+// Калькулятор ферм и кабелей
+function TrussCalculator({ onAddItems, onCancel }: { onAddItems: (items: { name: string; quantity: number; category: string; is_required: boolean }[]) => void, onCancel: () => void }) {
+  const [trussType, setTrussType] = useState<'square' | 'triangle'>('square');
+  const [length, setLength] = useState(6); // метры
+  const [segments, setSegments] = useState(3);
+  const [cableType, setCableType] = useState('power');
+  
+  // Расчет количества кабелей и коннекторов
+  const calculate = () => {
+    const items: { name: string; quantity: number; category: string; is_required: boolean }[] = [];
+    
+    // Коннекторы для ферм ( Sparco/Prolyte )
+    if (trussType === 'square') {
+      items.push({ name: 'Коннектор фермы (квадрат) SP-M290', quantity: segments - 1, category: 'accessory', is_required: true });
+      items.push({ name: 'Зажим безопасности для фермы', quantity: (segments - 1) * 2, category: 'accessory', is_required: true });
+    } else {
+      items.push({ name: 'Коннектор фермы (треугольник) PT-M290', quantity: segments - 1, category: 'accessory', is_required: true });
+      items.push({ name: 'Зажим безопасности для фермы', quantity: (segments - 1) * 2, category: 'accessory', is_required: true });
+    }
+    
+    // Кабели
+    const cableLength = Math.ceil(length * 1.2); // +20% запас
+    
+    switch (cableType) {
+      case 'power':
+        items.push({ name: `Силовой кабель 3×2.5мм² (${cableLength}м)`, quantity: 1, category: 'cable', is_required: true });
+        items.push({ name: 'Штепсельная вилка 16А', quantity: Math.ceil(length / 10), category: 'accessory', is_required: true });
+        break;
+      case 'dmx':
+        items.push({ name: `DMX кабель (${cableLength}м)`, quantity: 1, category: 'cable', is_required: true });
+        items.push({ name: 'DMX терминатор', quantity: 1, category: 'accessory', is_required: false });
+        break;
+      case 'xlr':
+        items.push({ name: `XLR кабель (${cableLength}м)`, quantity: 1, category: 'cable', is_required: true });
+        items.push({ name: 'XLR переходник мама/папа', quantity: 2, category: 'accessory', is_required: false });
+        break;
+      case 'ethernet':
+        items.push({ name: `Ethernet кабель CAT5e (${cableLength}м)`, quantity: 1, category: 'cable', is_required: true });
+        items.push({ name: 'RJ45 коннектор (запасной)', quantity: 4, category: 'accessory', is_required: false });
+        break;
+    }
+    
+    // Тросы безопасности
+    items.push({ name: 'Стальной трос безопасности 3мм', quantity: segments * 2, category: 'cable', is_required: true });
+    items.push({ name: 'Карабин стальной', quantity: segments * 2, category: 'accessory', is_required: true });
+    
+    // Подъемные точки
+    items.push({ name: 'Подъемная стропа 1т', quantity: Math.ceil(length / 3), category: 'accessory', is_required: true });
+    items.push({ name: 'Шекель 1т', quantity: Math.ceil(length / 3) * 2, category: 'accessory', is_required: true });
+    
+    return items;
+  };
+  
+  const result = calculate();
+  
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>Тип фермы</Label>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant={trussType === 'square' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setTrussType('square')}
+              className="flex-1"
+            >
+              Квадратная
+            </Button>
+            <Button
+              type="button"
+              variant={trussType === 'triangle' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setTrussType('triangle')}
+              className="flex-1"
+            >
+              Треугольная
+            </Button>
+          </div>
+        </div>
+        
+        <div className="space-y-2">
+          <Label>Тип кабеля</Label>
+          <select
+            className="w-full border rounded-md p-2 text-sm"
+            value={cableType}
+            onChange={(e) => setCableType(e.target.value)}
+          >
+            <option value="power">Силовой 3×2.5</option>
+            <option value="dmx">DMX</option>
+            <option value="xlr">XLR</option>
+            <option value="ethernet">Ethernet</option>
+          </select>
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>Длина (м)</Label>
+          <Input
+            type="number"
+            min={1}
+            max={50}
+            value={length}
+            onChange={(e) => setLength(parseInt(e.target.value) || 1)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Количество секций</Label>
+          <Input
+            type="number"
+            min={2}
+            max={20}
+            value={segments}
+            onChange={(e) => setSegments(parseInt(e.target.value) || 2)}
+          />
+        </div>
+      </div>
+      
+      <div className="border rounded-lg p-3 bg-gray-50">
+        <h4 className="font-medium mb-2">Результат расчета:</h4>
+        <div className="space-y-1 text-sm">
+          {result.map((item, idx) => (
+            <div key={idx} className="flex justify-between">
+              <span>{item.name}</span>
+              <span className="font-medium">× {item.quantity}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      
+      <div className="flex gap-3 pt-2">
+        <Button 
+          onClick={() => onAddItems(result)}
+          className="flex-1"
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          Добавить в правило
+        </Button>
+        <Button variant="outline" onClick={onCancel}>Закрыть</Button>
+      </div>
+    </div>
+  );
 }
