@@ -49,6 +49,7 @@ export function EstimateManager({
     return (
       <EstimateBuilder
         equipment={equipment}
+        estimates={estimates}
         estimate={editingEstimate}
         pdfSettings={pdfSettings}
         onSave={handleSave}

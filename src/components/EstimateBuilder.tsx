@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Card, CardContent } from './ui/card';
+import { Alert, AlertDescription } from './ui/alert';
 import { 
   Trash2, 
   Save, 
@@ -16,8 +17,17 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 
+interface EquipmentAvailability {
+  equipment: Equipment;
+  totalQuantity: number;
+  occupiedQuantity: number;
+  availableQuantity: number;
+  isFullyBooked: boolean;
+}
+
 interface EstimateBuilderProps {
   equipment: Equipment[];
+  estimates: Estimate[];
   estimate?: Estimate | null;
   pdfSettings: PDFSettings;
   onSave: (estimate: any, items: any[]) => Promise<void>;
@@ -26,6 +36,7 @@ interface EstimateBuilderProps {
 
 export function EstimateBuilder({ 
   equipment, 
+  estimates,
   estimate, 
   pdfSettings, 
   onSave, 
@@ -54,19 +65,66 @@ export function EstimateBuilder({
     }
   }, [estimate?.id]);
 
+  // Расчёт занятости оборудования на выбранную дату
+  const equipmentAvailability = useMemo<EquipmentAvailability[]>(() => {
+    if (!eventDate) {
+      return equipment.map(eq => ({
+        equipment: eq,
+        totalQuantity: eq.quantity,
+        occupiedQuantity: 0,
+        availableQuantity: eq.quantity,
+        isFullyBooked: false
+      }));
+    }
+
+    // Находим все сметы на эту дату (исключая текущую редактируемую)
+    const otherEstimatesOnDate = estimates.filter(e => 
+      e.event_date === eventDate && 
+      e.id !== estimate?.id
+    );
+
+    // Считаем занятость по каждому оборудованию
+    const occupiedMap = new Map<string, number>();
+    otherEstimatesOnDate.forEach(est => {
+      est.items?.forEach(item => {
+        const current = occupiedMap.get(item.equipment_id) || 0;
+        occupiedMap.set(item.equipment_id, current + item.quantity);
+      });
+    });
+
+    return equipment.map(eq => {
+      const occupied = occupiedMap.get(eq.id) || 0;
+      const available = Math.max(0, eq.quantity - occupied);
+      return {
+        equipment: eq,
+        totalQuantity: eq.quantity,
+        occupiedQuantity: occupied,
+        availableQuantity: available,
+        isFullyBooked: available === 0
+      };
+    });
+  }, [equipment, estimates, eventDate, estimate?.id]);
+
   // Категории для фильтра
   const categories = ['all', ...new Set(equipment.map(e => e.category))];
 
   // Фильтр оборудования
-  const filteredEquipment = equipment.filter(item => {
-    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
+  const filteredEquipment = equipmentAvailability.filter(item => {
+    const matchesSearch = item.equipment.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = selectedCategory === 'all' || item.equipment.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
 
-  // Добавление позиции
-  const addItem = (equipmentItem: Equipment) => {
+  // Добавление позиции с проверкой доступности
+  const addItem = (eqAvailability: EquipmentAvailability) => {
+    const equipmentItem = eqAvailability.equipment;
     const existingItem = items.find(i => i.equipment_id === equipmentItem.id);
+    
+    // Проверяем, не превышаем ли доступное количество
+    const currentQtyInEstimate = existingItem?.quantity || 0;
+    if (currentQtyInEstimate >= eqAvailability.availableQuantity) {
+      return; // Нельзя добавить больше чем доступно
+    }
     
     if (existingItem) {
       setItems(items.map(i => 
@@ -199,10 +257,10 @@ export function EstimateBuilder({
         <div className="flex items-center gap-4">
           <Button variant="ghost" onClick={onClose}>
             <ChevronLeft className="w-5 h-5 mr-2" />
-            Nazad
+            Назад
           </Button>
           <h1 className="text-xl font-bold">
-            {estimate ? 'Redaktirovanie smety' : 'Novaya smeta'}
+            {estimate ? 'Редактирование сметы' : 'Новая смета'}
           </h1>
         </div>
         <div className="flex items-center gap-2">
@@ -216,11 +274,11 @@ export function EstimateBuilder({
           </Button>
           <Button variant="outline" onClick={handlePrint}>
             <Printer className="w-4 h-4 mr-2" />
-            Pechat
+            Печать
           </Button>
           <Button onClick={handleSave} disabled={!eventName || items.length === 0}>
             <Save className="w-4 h-4 mr-2" />
-            Sokhranit
+            Сохранить
           </Button>
         </div>
       </div>
@@ -232,10 +290,10 @@ export function EstimateBuilder({
           <div className="p-4 border-b space-y-4">
             <h2 className="font-semibold flex items-center gap-2">
               <Package className="w-5 h-5" />
-              Dostupnoe oborudovanie
+              Доступное оборудование
             </h2>
             <Input
-              placeholder="Poisk..."
+              placeholder="Поиск..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -247,7 +305,7 @@ export function EstimateBuilder({
                   size="sm"
                   onClick={() => setSelectedCategory(cat)}
                 >
-                  {cat === 'all' ? 'Vse' : cat}
+                  {cat === 'all' ? 'Все' : cat}
                 </Button>
               ))}
             </div>
@@ -255,24 +313,45 @@ export function EstimateBuilder({
           
           <div className="flex-1 overflow-auto p-4">
             <div className="grid grid-cols-2 gap-2">
-              {filteredEquipment.map(item => (
-                <Card 
-                  key={item.id} 
-                  className="cursor-pointer hover:border-blue-500 transition-colors"
-                  onClick={() => addItem(item)}
-                >
-                  <CardContent className="p-3">
-                    <p className="font-medium text-sm">{item.name}</p>
-                    <p className="text-xs text-gray-500">{item.category}</p>
-                    <p className="text-sm font-semibold mt-1">
-                      {item.price.toLocaleString('ru-RU')} RUB
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      V nalichii: {item.quantity}
-                    </p>
-                  </CardContent>
-                </Card>
-              ))}
+              {filteredEquipment.map(item => {
+                const isFullyBooked = item.isFullyBooked;
+                const isInEstimate = items.find(i => i.equipment_id === item.equipment.id);
+                const canAddMore = !isFullyBooked && (!isInEstimate || isInEstimate.quantity < item.availableQuantity);
+                
+                return (
+                  <Card 
+                    key={item.equipment.id} 
+                    className={`transition-colors ${
+                      isFullyBooked 
+                        ? 'opacity-50 cursor-not-allowed bg-red-50' 
+                        : canAddMore 
+                          ? 'cursor-pointer hover:border-blue-500' 
+                          : 'opacity-70 cursor-not-allowed bg-yellow-50'
+                    }`}
+                    onClick={() => canAddMore && addItem(item)}
+                  >
+                    <CardContent className="p-3">
+                      <p className="font-medium text-sm">{item.equipment.name}</p>
+                      <p className="text-xs text-gray-500">{item.equipment.category}</p>
+                      <p className="text-sm font-semibold mt-1">
+                        {item.equipment.price.toLocaleString('ru-RU')} ₽
+                      </p>
+                      <p className={`text-xs ${
+                        item.availableQuantity === 0 
+                          ? 'text-red-600 font-semibold' 
+                          : item.availableQuantity < item.totalQuantity * 0.2 
+                            ? 'text-orange-600' 
+                            : 'text-gray-400'
+                      }`}>
+                        {item.availableQuantity === 0 
+                          ? 'Занято полностью' 
+                          : `Доступно: ${item.availableQuantity} / ${item.totalQuantity}`}
+                        {item.occupiedQuantity > 0 && ` (занято: ${item.occupiedQuantity})`}
+                      </p>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -282,20 +361,20 @@ export function EstimateBuilder({
           <div className="p-4 border-b space-y-4 print:hidden">
             <h2 className="font-semibold flex items-center gap-2">
               <FileText className="w-5 h-5" />
-              Pozitsii smety
+              Позиции сметы
               <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm">
-                {items.length} poz. ({totalQuantity} ed.)
+                {items.length} поз. ({totalQuantity} ед.)
               </span>
             </h2>
             
             <div className="space-y-2">
               <Input
-                placeholder="Nazvanie meropriyatiya *"
+                placeholder="Название мероприятия *"
                 value={eventName}
                 onChange={(e) => setEventName(e.target.value)}
               />
               <Input
-                placeholder="Ploshadka"
+                placeholder="Площадка"
                 value={venue}
                 onChange={(e) => setVenue(e.target.value)}
               />
@@ -304,6 +383,17 @@ export function EstimateBuilder({
                 value={eventDate}
                 onChange={(e) => setEventDate(e.target.value)}
               />
+              
+              {/* Предупреждение о занятости */}
+              {eventDate && equipmentAvailability.some(eq => eq.occupiedQuantity > 0) && (
+                <Alert className="bg-amber-50 border-amber-200">
+                  <AlertDescription className="text-sm">
+                    <strong>Внимание!</strong> На {new Date(eventDate).toLocaleDateString('ru-RU')} есть другие мероприятия.
+                    <br />
+                    {equipmentAvailability.filter(eq => eq.occupiedQuantity > 0).length} позиций оборудования уже занято.
+                  </AlertDescription>
+                </Alert>
+              )}
             </div>
           </div>
 
@@ -312,17 +402,17 @@ export function EstimateBuilder({
             {pdfSettings.logo && (
               <img src={pdfSettings.logo} alt="Logo" className="h-16 mb-4" />
             )}
-            <h1 className="text-2xl font-bold mb-4">SMETA</h1>
-            <p><strong>Meropriyatie:</strong> {eventName}</p>
-            <p><strong>Ploshadka:</strong> {venue}</p>
-            <p><strong>Data:</strong> {eventDate}</p>
+            <h1 className="text-2xl font-bold mb-4">СМЕТА</h1>
+            <p><strong>Мероприятие:</strong> {eventName}</p>
+            <p><strong>Площадка:</strong> {venue}</p>
+            <p><strong>Дата:</strong> {eventDate}</p>
             <table className="w-full mt-4 border-collapse">
               <thead>
                 <tr className="border-b-2 border-black">
-                  <th className="text-left py-2">Naimenovanie</th>
-                  <th className="text-center py-2">Kol-vo</th>
-                  <th className="text-right py-2">Tsena</th>
-                  <th className="text-right py-2">Summa</th>
+                  <th className="text-left py-2">Наименование</th>
+                  <th className="text-center py-2">Кол-во</th>
+                  <th className="text-right py-2">Цена</th>
+                  <th className="text-right py-2">Сумма</th>
                 </tr>
               </thead>
               <tbody>
@@ -330,14 +420,14 @@ export function EstimateBuilder({
                   <tr key={idx} className="border-b">
                     <td className="py-2">{item.name}</td>
                     <td className="text-center py-2">{item.quantity}</td>
-                    <td className="text-right py-2">{item.price.toLocaleString('ru-RU')} RUB</td>
-                    <td className="text-right py-2">{(item.price * item.quantity).toLocaleString('ru-RU')} RUB</td>
+                    <td className="text-right py-2">{item.price.toLocaleString('ru-RU')} ₽</td>
+                    <td className="text-right py-2">{(item.price * item.quantity).toLocaleString('ru-RU')} ₽</td>
                   </tr>
                 ))}
               </tbody>
             </table>
             <div className="mt-4 text-right font-bold text-xl">
-              ITOGO: {total.toLocaleString('ru-RU')} RUB
+              ИТОГО: {total.toLocaleString('ru-RU')} ₽
             </div>
             {pdfSettings.companyName && (
               <div className="mt-8 text-sm">
@@ -345,7 +435,7 @@ export function EstimateBuilder({
                 <p>{pdfSettings.companyDetails}</p>
                 <p>{pdfSettings.position}: {pdfSettings.personName}</p>
                 {pdfSettings.signature && (
-                  <img src={pdfSettings.signature} alt="Podpis" className="h-12 mt-2" />
+                  <img src={pdfSettings.signature} alt="Подпись" className="h-12 mt-2" />
                 )}
               </div>
             )}
@@ -354,7 +444,7 @@ export function EstimateBuilder({
           <div className="flex-1 overflow-auto p-4 print:hidden">
             {items.length === 0 ? (
               <div className="text-center text-gray-400 mt-10">
-                <p>Dobavte oborudovanie iz spiska sleva</p>
+                <p>Добавьте оборудование из списка слева</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -364,7 +454,7 @@ export function EstimateBuilder({
                       <div className="flex-1">
                         <p className="font-medium">{item.name}</p>
                         <p className="text-sm text-gray-500">
-                          {item.price.toLocaleString('ru-RU')} RUB × {item.quantity}
+                          {item.price.toLocaleString('ru-RU')} ₽ × {item.quantity}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">

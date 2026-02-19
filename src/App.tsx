@@ -8,6 +8,7 @@ import { EquipmentManager } from './components/EquipmentManagement';
 import { EstimateManager } from './components/EstimateManager';
 import { TemplatesManager } from './components/Templates';
 import { PDFSettings } from './components/PDFSettings';
+import { EventCalendar } from './components/EventCalendar';
 import { Button } from './components/ui/button';
 import { 
   Package, 
@@ -15,11 +16,12 @@ import {
   Layout, 
   Settings, 
   LogOut,
-  User
+  User,
+  Calendar
 } from 'lucide-react';
 import type { PDFSettings as PDFSettingsType } from './types';
 
-type Tab = 'equipment' | 'estimates' | 'templates' | 'settings';
+type Tab = 'equipment' | 'estimates' | 'templates' | 'calendar' | 'settings';
 
 function App() {
   const { user, profile, loading: authLoading, signIn, signUp, signOut } = useAuth();
@@ -63,6 +65,7 @@ function App() {
     { id: 'equipment' as Tab, label: 'Оборудование', icon: Package },
     { id: 'estimates' as Tab, label: 'Сметы', icon: FileText },
     { id: 'templates' as Tab, label: 'Шаблоны', icon: Layout },
+    { id: 'calendar' as Tab, label: 'Календарь', icon: Calendar },
     { id: 'settings' as Tab, label: 'Настройки PDF', icon: Settings },
   ];
 
@@ -150,6 +153,13 @@ function App() {
             onCreate={createTemplate}
             onUpdate={updateTemplate}
             onDelete={deleteTemplate}
+          />
+        )}
+
+        {activeTab === 'calendar' && (
+          <EventCalendar
+            estimates={estimates}
+            equipment={equipment}
           />
         )}
 
