@@ -202,6 +202,7 @@ function App() {
           <EquipmentManager
             equipment={equipment}
             categories={categories}
+            userId={user?.id}
             onAdd={addEquipment}
             onUpdate={updateEquipment}
             onDelete={deleteEquipment}

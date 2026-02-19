@@ -4,7 +4,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { Badge } from './ui/badge';
 import { Plus, Upload, Download, Trash2, Edit, Search, FolderPlus, ChevronDown, ChevronUp } from 'lucide-react';
 import type { Equipment } from '../types';
@@ -14,6 +14,7 @@ import * as XLSX from 'xlsx';
 interface EquipmentManagerProps {
   equipment: Equipment[];
   categories: { id: string; name: string }[];
+  userId: string | undefined;
   onAdd: (item: Omit<Equipment, 'id' | 'created_at' | 'updated_at'>) => Promise<{ error: any }>;
   onUpdate: (id: string, updates: Partial<Equipment>) => Promise<{ error: any }>;
   onDelete: (id: string) => Promise<{ error: any }>;
@@ -24,6 +25,7 @@ interface EquipmentManagerProps {
 export function EquipmentManager({ 
   equipment, 
   categories, 
+  userId,
   onAdd, 
   onUpdate, 
   onDelete,
@@ -127,7 +129,8 @@ export function EquipmentManager({
   };
 
   const handleImport = async () => {
-    const { error } = await onBulkInsert(importData);
+    const itemsWithUserId = importData.map(item => ({ ...item, user_id: userId }));
+    const { error } = await onBulkInsert(itemsWithUserId);
     if (!error) {
       setIsImportDialogOpen(false);
       setImportPreview(false);
@@ -323,9 +326,12 @@ export function EquipmentManager({
 
       {/* Диалог импорта */}
       <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-4xl" aria-describedby="import-dialog-desc">
           <DialogHeader>
             <DialogTitle>Импорт оборудования</DialogTitle>
+            <DialogDescription id="import-dialog-desc">
+              Загрузите файл Excel или CSV с данными оборудования
+            </DialogDescription>
           </DialogHeader>
           
           {!importPreview ? (
@@ -397,21 +403,25 @@ export function EquipmentManager({
           setEditingItem(null);
         }
       }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg" aria-describedby="equipment-dialog-desc">
           <DialogHeader>
             <DialogTitle>
               {editingItem ? 'Редактировать оборудование' : 'Добавить оборудование'}
             </DialogTitle>
+            <DialogDescription id="equipment-dialog-desc">
+              {editingItem ? 'Измените данные оборудования' : 'Заполните данные нового оборудования'}
+            </DialogDescription>
           </DialogHeader>
           <EquipmentForm 
             categories={categories}
+            userId={userId}
             initialData={editingItem}
             onSubmit={async (data) => {
               if (editingItem) {
                 const { error } = await onUpdate(editingItem.id, data);
                 if (!error) setEditingItem(null);
               } else {
-                const { error } = await onAdd(data);
+                const { error } = await onAdd({ ...data, user_id: userId });
                 if (!error) setIsAddDialogOpen(false);
               }
             }}
@@ -426,12 +436,13 @@ export function EquipmentManager({
 // Форма оборудования
 interface EquipmentFormProps {
   categories: { id: string; name: string }[];
+  userId: string | undefined;
   initialData?: Partial<Equipment> | null;
   onSubmit: (data: any) => Promise<void>;
   onAddCategory: (name: string) => Promise<{ error: any; data?: any }>;
 }
 
-function EquipmentForm({ categories, initialData, onSubmit, onAddCategory }: EquipmentFormProps) {
+function EquipmentForm({ categories, userId, initialData, onSubmit, onAddCategory }: EquipmentFormProps) {
   const [formData, setFormData] = useState({
     name: '',
     category: '',
