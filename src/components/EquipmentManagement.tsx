@@ -445,6 +445,9 @@ function EquipmentForm({ categories, initialData, onSubmit, onAddCategory }: Equ
   const [isCustomUnit, setIsCustomUnit] = useState(false);
   const [customUnit, setCustomUnit] = useState('');
 
+  // Статический массив единиц измерения
+  const UNIT_OPTIONS = ['шт', 'комплект', 'услуга', 'человек', 'п.м.'];
+
   // Обновляем formData при изменении initialData (для редактирования)
   useEffect(() => {
     if (initialData) {
@@ -457,7 +460,6 @@ function EquipmentForm({ categories, initialData, onSubmit, onAddCategory }: Equ
         unit: initialData.unit || 'шт'
       });
       // Проверяем, является ли единица измерения кастомной
-      const UNIT_OPTIONS = ['шт', 'комплект', 'услуга', 'человек', 'п.м.'];
       if (initialData.unit && !UNIT_OPTIONS.includes(initialData.unit)) {
         setIsCustomUnit(true);
         setCustomUnit(initialData.unit);
