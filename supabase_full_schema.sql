@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS estimate_items (
   price NUMERIC(10, 2) NOT NULL DEFAULT 0,
   unit TEXT DEFAULT 'шт',
   coefficient NUMERIC(5,2) DEFAULT 1,
+  category TEXT DEFAULT '',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

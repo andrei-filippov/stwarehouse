@@ -50,6 +50,7 @@ export function useEstimates(userId: string | undefined) {
         price: item.price || 0,
         unit: item.unit || 'шт',
         coefficient: item.coefficient || 1,
+        category: item.category || '',
         estimate_id: estimateData.id
       }));
       
@@ -86,7 +87,7 @@ export function useEstimates(userId: string | undefined) {
       // Удаляем старые позиции
       await supabase.from('estimate_items').delete().eq('estimate_id', id);
       
-      // Добавляем новые (без поля category - оно только для UI)
+      // Добавляем новые
       if (items.length > 0) {
         const cleanItems = items.map(item => ({
           equipment_id: item.equipment_id,
@@ -96,6 +97,7 @@ export function useEstimates(userId: string | undefined) {
           price: item.price,
           unit: item.unit,
           coefficient: item.coefficient,
+          category: item.category || '',
           estimate_id: id
         }));
         
