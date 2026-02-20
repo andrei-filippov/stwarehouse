@@ -594,12 +594,42 @@ function ChecklistView({
   onUpdateItem: (checklistId: string, itemId: string, updates: Partial<ChecklistItem>) => Promise<{ error: any }>;
   onExportPDF: () => void;
 }) {
+  // Локальное состояние для мгновенного обновления UI
+  const [localItems, setLocalItems] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    checklist.items?.forEach(item => {
+      if (item.id) initial[item.id] = item.is_checked;
+    });
+    return initial;
+  });
+
+  // Синхронизируем локальное состояние с пропсами
+  useEffect(() => {
+    const updated: Record<string, boolean> = {};
+    checklist.items?.forEach(item => {
+      if (item.id) updated[item.id] = item.is_checked;
+    });
+    setLocalItems(updated);
+  }, [checklist.items]);
+
   const handleToggle = async (item: ChecklistItem) => {
     if (!item.id) {
       console.error('Item has no id:', item);
       return;
     }
-    await onUpdateItem(checklist.id, item.id, { is_checked: !item.is_checked });
+    
+    // Мгновенно обновляем локальное состояние
+    const newValue = !localItems[item.id];
+    setLocalItems(prev => ({ ...prev, [item.id]: newValue }));
+    
+    // Отправляем на сервер
+    await onUpdateItem(checklist.id, item.id, { is_checked: newValue });
+  };
+
+  // Используем локальное состояние или пропсы
+  const isChecked = (item: ChecklistItem) => {
+    if (!item.id) return item.is_checked;
+    return localItems[item.id] ?? item.is_checked;
   };
 
   const grouped = checklist.items?.reduce((acc, item) => {
@@ -616,7 +646,7 @@ function ChecklistView({
     other: 'Другое'
   };
 
-  const progress = checklist.items?.filter(i => i.is_checked).length || 0;
+  const progress = checklist.items?.filter(i => isChecked(i)).length || 0;
   const total = checklist.items?.length || 0;
 
   return (
@@ -645,26 +675,29 @@ function ChecklistView({
               {categoryNames[category] || category}
             </h4>
             <div className="space-y-1">
-              {items.map((item, idx) => (
-                <div 
-                  key={idx}
-                  className={`flex items-center gap-3 p-2 rounded cursor-pointer transition-colors ${
-                    item.is_checked ? 'bg-green-50' : 'bg-gray-50'
-                  }`}
-                  onClick={() => handleToggle(item)}
-                >
-                  {item.is_checked ? (
-                    <CheckSquare className="w-5 h-5 text-green-600" />
-                  ) : (
-                    <Square className="w-5 h-5 text-gray-400" />
-                  )}
-                  <span className={`flex-1 ${item.is_checked ? 'line-through text-gray-500' : ''}`}>
-                    {item.name}
-                    <span className="text-gray-500 ml-2">× {item.quantity}</span>
-                    {item.is_required && <span className="text-red-500 ml-1">*</span>}
-                  </span>
-                </div>
-              ))}
+              {items.map((item, idx) => {
+                const checked = isChecked(item);
+                return (
+                  <div 
+                    key={idx}
+                    className={`flex items-center gap-3 p-2 rounded cursor-pointer transition-colors ${
+                      checked ? 'bg-green-50' : 'bg-gray-50'
+                    }`}
+                    onClick={() => handleToggle(item)}
+                  >
+                    {checked ? (
+                      <CheckSquare className="w-5 h-5 text-green-600" />
+                    ) : (
+                      <Square className="w-5 h-5 text-gray-400" />
+                    )}
+                    <span className={`flex-1 ${checked ? 'line-through text-gray-500' : ''}`}>
+                      {item.name}
+                      <span className="text-gray-500 ml-2">× {item.quantity}</span>
+                      {item.is_required && <span className="text-red-500 ml-1">*</span>}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         ))}
