@@ -31,7 +31,7 @@ export function EventCalendar({ estimates, equipment }: EventCalendarProps) {
     }
     
     // Добавляем составителя
-    const creator = estimate.creator?.name ? `\n\nСоставитель: ${estimate.creator.name}` : '';
+    const creator = estimate.creator_name ? `\n\nСоставитель: ${estimate.creator_name}` : '';
     
     const details = encodeURIComponent(
       `Смета на мероприятие: ${estimate.event_name}${equipmentList}${creator}`
@@ -224,9 +224,9 @@ export function EventCalendar({ estimates, equipment }: EventCalendarProps) {
                           <div className="min-w-0 flex-1">
                             <p className="font-medium truncate">{estimate.event_name}</p>
                             <p className="text-sm text-gray-500 truncate">{estimate.venue}</p>
-                            {estimate.creator?.name && (
+                            {estimate.creator_name && (
                               <p className="text-xs text-blue-600 mt-1">
-                                👤 {estimate.creator.name}
+                                👤 {estimate.creator_name}
                               </p>
                             )}
                           </div>

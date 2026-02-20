@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS estimates (
   venue TEXT,
   event_date DATE,
   total NUMERIC(12, 2) NOT NULL DEFAULT 0,
+  creator_name TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

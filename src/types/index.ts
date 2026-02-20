@@ -39,7 +39,7 @@ export type Estimate = {
   created_at?: string;
   updated_at?: string;
   items?: EstimateItem[];
-  creator?: { name: string } | null;
+  creator_name?: string;
 };
 
 export type TemplateItem = {

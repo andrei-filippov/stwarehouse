@@ -14,8 +14,7 @@ export function useEstimates(userId: string | undefined) {
       .from('estimates')
       .select(`
         *,
-        items:estimate_items(*),
-        creator:profiles(name)
+        items:estimate_items(*)
       `)
       .order('created_at', { ascending: false });
     
@@ -29,11 +28,11 @@ export function useEstimates(userId: string | undefined) {
     fetchEstimates();
   }, [fetchEstimates]);
 
-  const createEstimate = async (estimate: Omit<Estimate, 'id' | 'created_at' | 'updated_at'>, items: Omit<EstimateItem, 'id' | 'estimate_id'>[]) => {
+  const createEstimate = async (estimate: Omit<Estimate, 'id' | 'created_at' | 'updated_at'>, items: Omit<EstimateItem, 'id' | 'estimate_id'>[], creatorName?: string) => {
     // Создаем смету
     const { data: estimateData, error: estimateError } = await supabase
       .from('estimates')
-      .insert([estimate])
+      .insert([{ ...estimate, creator_name: creatorName }])
       .select()
       .single();
     

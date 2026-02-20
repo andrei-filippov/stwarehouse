@@ -217,7 +217,7 @@ function App() {
             equipment={equipment}
             templates={templates}
             pdfSettings={pdfSettings}
-            onCreate={createEstimate}
+            onCreate={(estimate, items) => createEstimate(estimate, items, profile?.name)}
             onUpdate={updateEstimate}
             onDelete={deleteEstimate}
           />
