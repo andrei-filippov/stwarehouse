@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Package, FileText } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Package, FileText, CalendarPlus, ExternalLink } from 'lucide-react';
 import type { Estimate, Equipment } from '../types';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, addMonths, subMonths, startOfWeek, endOfWeek } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -16,6 +16,33 @@ export function EventCalendar({ estimates, equipment }: EventCalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedEstimate, setSelectedEstimate] = useState<Estimate | null>(null);
+
+  // Функция для генерации ссылки Google Calendar
+  const generateGoogleCalendarUrl = (estimate: Estimate) => {
+    const title = encodeURIComponent(estimate.event_name);
+    const location = encodeURIComponent(estimate.venue || '');
+    
+    // Формируем список оборудования
+    let equipmentList = '';
+    if (estimate.items && estimate.items.length > 0) {
+      equipmentList = '\n\nОборудование:\n' + estimate.items.map(item => 
+        `• ${item.name} - ${item.quantity} ${item.unit || 'шт'}`
+      ).join('\n');
+    }
+    
+    // Добавляем составителя
+    const creator = estimate.creator?.name ? `\n\nСоставитель: ${estimate.creator.name}` : '';
+    
+    const details = encodeURIComponent(
+      `Смета на мероприятие: ${estimate.event_name}${equipmentList}${creator}`
+    );
+    
+    // Дата в формате YYYYMMDD (целый день)
+    const date = estimate.event_date?.replace(/-/g, '');
+    const dates = date ? `${date}/${date}` : '';
+    
+    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dates}&details=${details}&location=${location}`;
+  };
 
   // Получаем все дни месяца (включая дни соседних месяцев для полной сетки)
   const days = useMemo(() => {
@@ -211,6 +238,19 @@ export function EventCalendar({ estimates, equipment }: EventCalendarProps) {
                               {estimate.items?.length || 0} позиций
                             </p>
                           </div>
+                        </div>
+                        <div className="mt-3 pt-2 border-t flex justify-end">
+                          <a
+                            href={generateGoogleCalendarUrl(estimate)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Button variant="outline" size="sm" className="text-xs">
+                              <CalendarPlus className="w-3 h-3 mr-1" />
+                              В Google Calendar
+                            </Button>
+                          </a>
                         </div>
                       </CardContent>
                     </Card>
