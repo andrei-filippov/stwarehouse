@@ -19,6 +19,7 @@ import { EventCalendar } from './components/EventCalendar';
 import { Analytics } from './components/Analytics';
 import { Button } from './components/ui/button';
 import { 
+  BarChart3,
   Package, 
   FileText, 
   Layout, 

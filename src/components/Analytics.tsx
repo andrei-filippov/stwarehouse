@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { 
-  BarChart3, 
+  BarChart3 as BarChartIcon, 
   TrendingUp, 
   Package, 
   Calendar,
@@ -178,7 +178,7 @@ export function Analytics({ equipment, estimates, staff }: AnalyticsProps) {
       {/* Заголовок и фильтр */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h2 className="text-2xl font-bold flex items-center gap-2">
-          <BarChart3 className="w-6 h-6" />
+          <BarChartIcon className="w-6 h-6" />
           Аналитика
         </h2>
         <div className="flex gap-2">
