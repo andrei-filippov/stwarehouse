@@ -14,7 +14,8 @@ export function useEstimates(userId: string | undefined) {
       .from('estimates')
       .select(`
         *,
-        items:estimate_items(*)
+        items:estimate_items(*),
+        creator:profiles(name)
       `)
       .order('created_at', { ascending: false });
     

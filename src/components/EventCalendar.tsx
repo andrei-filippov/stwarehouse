@@ -194,11 +194,16 @@ export function EventCalendar({ estimates, equipment }: EventCalendarProps) {
                     >
                       <CardContent className="p-3">
                         <div className="flex justify-between items-start">
-                          <div>
-                            <p className="font-medium">{estimate.event_name}</p>
-                            <p className="text-sm text-gray-500">{estimate.venue}</p>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium truncate">{estimate.event_name}</p>
+                            <p className="text-sm text-gray-500 truncate">{estimate.venue}</p>
+                            {estimate.creator?.name && (
+                              <p className="text-xs text-blue-600 mt-1">
+                                👤 {estimate.creator.name}
+                              </p>
+                            )}
                           </div>
-                          <div className="text-right">
+                          <div className="text-right ml-2">
                             <p className="font-semibold">
                               {estimate.total.toLocaleString('ru-RU')} ₽
                             </p>
