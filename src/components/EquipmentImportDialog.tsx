@@ -489,9 +489,12 @@ export function EquipmentImportDialog({
         {/* Диалог редактирования одной позиции */}
         {editingItem && (
           <Dialog open={!!editingItem} onOpenChange={() => setEditingItem(null)}>
-            <DialogContent className="max-w-lg">
+            <DialogContent className="max-w-lg" aria-describedby="edit-item-desc">
               <DialogHeader>
                 <DialogTitle>Редактирование позиции</DialogTitle>
+                <DialogDescription id="edit-item-desc">
+                  Измените данные позиции перед импортом
+                </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 <div>

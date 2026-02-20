@@ -248,8 +248,8 @@ export function EstimateImportDialog({
   const handleImport = () => {
     const selectedItems = importData.filter(item => item.selected);
     
-    const estimateItems: EstimateItem[] = selectedItems.map((item, idx) => ({
-      equipment_id: `imported-${idx}`, // Временный ID
+    const estimateItems: EstimateItem[] = selectedItems.map((item) => ({
+      equipment_id: undefined, // Импортированное оборудование не привязано к справочнику
       name: item.name,
       description: item.description,
       category: item.category || 'Общее',

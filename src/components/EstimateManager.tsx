@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { Plus, Edit, Trash2, Layout, Copy, FileSpreadsheet } from 'lucide-react';
 import type { Estimate, PDFSettings, Template, EstimateItem } from '../types';
 import { EstimateBuilder } from './EstimateBuilder';
@@ -73,7 +73,7 @@ export function EstimateManager({
   };
 
   const handleSave = async (estimateData: any, items: any[]) => {
-    if (editingEstimate) {
+    if (editingEstimate && editingEstimate.id !== 'new') {
       await onUpdate(editingEstimate.id, estimateData, items);
     } else {
       await onCreate(estimateData, items);
@@ -173,9 +173,12 @@ export function EstimateManager({
 
       {/* Диалог выбора шаблона */}
       <Dialog open={isTemplateDialogOpen} onOpenChange={setIsTemplateDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md" aria-describedby="template-dialog-desc">
           <DialogHeader>
             <DialogTitle>Выберите шаблон</DialogTitle>
+            <DialogDescription id="template-dialog-desc">
+              Выберите шаблон для создания новой сметы
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-2 max-h-96 overflow-y-auto">
             {templates.map((template) => (

@@ -19,7 +19,7 @@ export type Category = {
 export type EstimateItem = {
   id?: string;
   estimate_id?: string;
-  equipment_id: string;
+  equipment_id?: string; // Опционально — для импортированного оборудования может не быть
   name: string;
   description: string;
   category: string; // категория оборудования
