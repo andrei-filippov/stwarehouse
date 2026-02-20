@@ -10,7 +10,8 @@ import {
   FileText,
   Package,
   Printer,
-  Layout
+  Layout,
+  FileSpreadsheet
 } from 'lucide-react';
 import type { Equipment, Estimate, EstimateItem, PDFSettings, Template } from '../types';
 import jsPDF from 'jspdf';
@@ -504,80 +505,86 @@ export function EstimateBuilder({
   };
 
   // Экспорт Excel с поддержкой кириллицы
+  // Экспорт в Excel в стиле файла сметы
   const exportExcel = () => {
-    const data: any[] = [];
+    // Создаем массив строк для Excel (AOA - array of arrays)
+    const wsData: any[][] = [];
     
-    // Группируем по категориям
+    // Заголовок сметы
+    wsData.push(['', 'Коммерческое предложение:', '', '', '', '', '', '', '']);
+    wsData.push(['', `Дата и место проведения: ${eventDate || 'не указана'}`, '', '', '', '', '', '', '']);
+    wsData.push(['', `Место проведения: ${venue || 'не указано'}`, '', '', '', '', '', '', '']);
+    wsData.push(['', '', '', '', '', '', '', '', '']);
+    
+    // Шапка таблицы
+    wsData.push(['№', 'Наименование', 'Ед. изм.', 'Кол-во', 'Цена, руб.', 'Коэфф.', 'Стоимость, руб.', '', '']);
+    
+    let rowIndex = 6; // Начало данных (для формул Excel - 1-based)
+    
     groupedItems.forEach(([category, categoryItems]) => {
       // Заголовок категории
-      data.push({
-        'Категория': category,
-        'Наименование': '',
-        'Описание': '',
-        'Ед.изм': '',
-        'Количество': categoryItems.length + ' поз.',
-        'Цена за ед.': '',
-        'Коэффициент': '',
-        'Сумма': ''
-      });
+      wsData.push([category, '', '', '', '', '', '', '', '']);
+      rowIndex++;
       
       // Позиции категории
+      const categoryStartRow = rowIndex;
       categoryItems.forEach((item, idx) => {
-        data.push({
-          'Категория': '',
-          'Наименование': (idx + 1) + '. ' + item.name,
-          'Описание': item.description || '',
-          'Ед.изм': item.unit || 'шт',
-          'Количество': item.quantity,
-          'Цена за ед.': item.price,
-          'Коэффициент': item.coefficient || 1,
-          'Сумма': item.price * item.quantity * (item.coefficient || 1)
-        });
+        const fullName = item.description 
+          ? `${item.name} - ${item.description}` 
+          : item.name;
+        
+        wsData.push([
+          idx + 1,                              // №
+          fullName,                             // Наименование (с описанием через " - ")
+          item.unit || 'шт',                    // Ед. изм.
+          item.quantity,                        // Кол-во
+          item.price,                           // Цена
+          item.coefficient || 1,                // Коэфф.
+          { f: `D${rowIndex}*E${rowIndex}*F${rowIndex}` }, // Формула Excel
+          '',
+          ''
+        ]);
+        rowIndex++;
       });
       
-      // Подытог категории
-      const catTotal = categoryItems.reduce((sum, item) => sum + (item.price * item.quantity * (item.coefficient || 1)), 0);
-      data.push({
-        'Категория': '',
-        'Наименование': 'Итого по категории:',
-        'Описание': '',
-        'Ед.изм': '',
-        'Количество': '',
-        'Цена за ед.': '',
-        'Коэффициент': '',
-        'Сумма': catTotal
-      });
+      // Итого по категории
+      if (categoryItems.length > 0) {
+        wsData.push(['', '', '', '', '', 'Итого:', { f: `SUM(G${categoryStartRow}:G${rowIndex-1})` }, '', '']);
+        rowIndex++;
+      }
       
-      // Пустая строка между категориями
-      data.push({
-        'Категория': '',
-        'Наименование': '',
-        'Описание': '',
-        'Ед.изм': '',
-        'Количество': '',
-        'Цена за ед.': '',
-        'Коэффициент': '',
-        'Сумма': ''
-      });
+      // Пустая строка
+      wsData.push(['', '', '', '', '', '', '', '', '']);
+      rowIndex++;
     });
-
-    // Итого
-    data.push({
-      'Категория': '',
-      'Наименование': 'ИТОГО',
-      'Описание': '',
-      'Ед.изм': '',
-      'Количество': totalQuantity,
-      'Цена за ед.': '',
-      'Коэффициент': '',
-      'Сумма': total
-    });
-
-    const ws = XLSX.utils.json_to_sheet(data);
+    
+    // Общий итог (суммируем все строки с формулами)
+    wsData.push(['', '', '', '', '', 'ИТОГО:', { f: `SUM(G6:G${rowIndex-1})` }, '', '']);
+    
+    // Создаем worksheet
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    
+    // Настройки ширины колонок
+    ws['!cols'] = [
+      { wch: 5 },   // №
+      { wch: 60 },  // Наименование
+      { wch: 10 },  // Ед. изм.
+      { wch: 10 },  // Кол-во
+      { wch: 12 },  // Цена
+      { wch: 10 },  // Коэфф.
+      { wch: 15 },  // Стоимость
+      { wch: 5 },
+      { wch: 5 }
+    ];
+    
+    // Создаем workbook
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Смета');
     
-    XLSX.writeFile(wb, `smeta_${eventName || 'bez_nazvaniya'}.xlsx`);
+    // Имя файла
+    const fileName = `Смета ${eventName || 'без названия'} ${eventDate || ''}.xlsx`.trim();
+    
+    XLSX.writeFile(wb, fileName);
   };
 
   // Печать через браузер
@@ -600,7 +607,7 @@ export function EstimateBuilder({
         </div>
         <div className="flex items-center gap-1 md:gap-2">
           <Button variant="outline" size="sm" onClick={exportExcel} className="px-2 md:px-3 hidden sm:flex">
-            <FileText className="w-4 h-4 md:mr-2" />
+            <FileSpreadsheet className="w-4 h-4 md:mr-2" />
             <span className="hidden md:inline">Excel</span>
           </Button>
           <Button variant="outline" size="sm" onClick={exportPDF} className="px-2 md:px-3">

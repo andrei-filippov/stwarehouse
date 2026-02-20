@@ -3,9 +3,10 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
-import { Plus, Edit, Trash2, Layout, Copy } from 'lucide-react';
-import type { Estimate, PDFSettings, Template } from '../types';
+import { Plus, Edit, Trash2, Layout, Copy, FileSpreadsheet } from 'lucide-react';
+import type { Estimate, PDFSettings, Template, EstimateItem } from '../types';
 import { EstimateBuilder } from './EstimateBuilder';
+import { EstimateImportDialog } from './EstimateImportDialog';
 
 interface EstimateManagerProps {
   estimates: Estimate[];
@@ -28,6 +29,7 @@ export function EstimateManager({
 }: EstimateManagerProps) {
   const [isBuilderOpen, setIsBuilderOpen] = useState(false);
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [editingEstimate, setEditingEstimate] = useState<Estimate | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
 
@@ -48,6 +50,20 @@ export function EstimateManager({
     setEditingEstimate(null);
     setIsBuilderOpen(true);
     setIsTemplateDialogOpen(false);
+  };
+
+  const handleImportFromExcel = (estimateData: { event_name: string; venue: string; event_date: string }, items: EstimateItem[]) => {
+    setSelectedTemplate(null);
+    setEditingEstimate({
+      id: 'new',
+      event_name: estimateData.event_name,
+      venue: estimateData.venue,
+      event_date: estimateData.event_date,
+      total: items.reduce((sum, item) => sum + (item.price * item.quantity * item.coefficient), 0),
+      items: items
+    } as Estimate);
+    setIsImportDialogOpen(false);
+    setIsBuilderOpen(true);
   };
 
   const handleCreateNew = () => {
@@ -87,6 +103,13 @@ export function EstimateManager({
           <div className="flex justify-between items-center">
             <CardTitle>Сметы</CardTitle>
             <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => setIsImportDialogOpen(true)}
+              >
+                <FileSpreadsheet className="w-4 h-4 mr-2" />
+                Из Excel
+              </Button>
               {templates.length > 0 && (
                 <Button 
                   variant="outline" 
@@ -173,6 +196,13 @@ export function EstimateManager({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Диалог импорта из Excel */}
+      <EstimateImportDialog
+        isOpen={isImportDialogOpen}
+        onClose={() => setIsImportDialogOpen(false)}
+        onImport={handleImportFromExcel}
+      />
     </div>
   );
 }

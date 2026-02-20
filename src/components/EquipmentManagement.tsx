@@ -8,8 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Badge } from './ui/badge';
 import { Plus, Upload, Download, Trash2, Edit, Search, FolderPlus, ChevronDown, ChevronUp } from 'lucide-react';
 import type { Equipment } from '../types';
-import Papa from 'papaparse';
-import * as XLSX from 'xlsx';
+import { EquipmentImportDialog } from './EquipmentImportDialog';
 
 interface EquipmentManagerProps {
   equipment: Equipment[];
@@ -36,10 +35,7 @@ export function EquipmentManager({
   const [editingItem, setEditingItem] = useState<Equipment | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
-  const [importData, setImportData] = useState<any[]>([]);
-  const [importPreview, setImportPreview] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Фильтрация оборудования
   const filteredEquipment = equipment.filter(item =>
@@ -81,65 +77,8 @@ export function EquipmentManager({
     setExpandedCategories(new Set());
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    
-    reader.onload = (event) => {
-      const data = event.target?.result;
-      
-      if (file.name.endsWith('.csv')) {
-        Papa.parse(data as string, {
-          header: true,
-          skipEmptyLines: true,
-          complete: (results) => {
-            processImportData(results.data);
-          }
-        });
-      } else {
-        const workbook = XLSX.read(data, { type: 'binary' });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet);
-        processImportData(jsonData);
-      }
-    };
-
-    if (file.name.endsWith('.csv')) {
-      reader.readAsText(file);
-    } else {
-      reader.readAsBinaryString(file);
-    }
-  };
-
-  const processImportData = (data: any[]) => {
-    const processed = data.map((row: any) => ({
-      name: row.name || row.Название || row['Наименование'] || '',
-      category: row.category || row.Категория || row['Категория'] || 'Общее',
-      quantity: parseInt(row.quantity || row.Количество || row['Кол-во'] || 0),
-      price: parseFloat(row.price || row.Цена || row['Стоимость'] || 0),
-      description: row.description || row.Описание || '',
-      unit: row.unit || row['Ед.изм'] || row['Единица'] || 'шт'
-    })).filter(item => item.name);
-
-    setImportData(processed);
-    setImportPreview(true);
-  };
-
-  const handleImport = async () => {
-    if (!userId) {
-      console.error('userId is undefined');
-      return;
-    }
-    const itemsWithUserId = importData.map(item => ({ ...item, user_id: userId }));
-    const { error } = await onBulkInsert(itemsWithUserId);
-    if (!error) {
-      setIsImportDialogOpen(false);
-      setImportPreview(false);
-      setImportData([]);
-    }
+  const handleImportSuccess = () => {
+    setIsImportDialogOpen(false);
   };
 
   const exportToExcel = () => {
@@ -329,76 +268,14 @@ export function EquipmentManager({
       </Card>
 
       {/* Диалог импорта */}
-      <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
-        <DialogContent className="max-w-4xl" aria-describedby="import-dialog-desc">
-          <DialogHeader>
-            <DialogTitle>Импорт оборудования</DialogTitle>
-            <DialogDescription id="import-dialog-desc">
-              Загрузите файл Excel или CSV с данными оборудования
-            </DialogDescription>
-          </DialogHeader>
-          
-          {!importPreview ? (
-            <div className="space-y-4">
-              <p className="text-sm text-gray-500">
-                Загрузите Excel или CSV файл со столбцами: Название, Категория, Количество, Ед.изм, Цена, Описание
-              </p>
-              <Input
-                type="file"
-                accept=".csv,.xlsx,.xls"
-                onChange={handleFileUpload}
-                ref={fileInputRef}
-              />
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <p className="text-sm">Найдено записей: {importData.length}</p>
-              <div className="max-h-96 overflow-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Название</TableHead>
-                      <TableHead>Категория</TableHead>
-                      <TableHead>Кол-во</TableHead>
-                      <TableHead>Ед.</TableHead>
-                      <TableHead>Цена</TableHead>
-                      <TableHead>Описание</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {importData.slice(0, 10).map((item, idx) => (
-                      <TableRow key={idx}>
-                        <TableCell>{item.name}</TableCell>
-                        <TableCell>{item.category}</TableCell>
-                        <TableCell>{item.quantity}</TableCell>
-                        <TableCell>{item.unit || 'шт'}</TableCell>
-                        <TableCell>{item.price}</TableCell>
-                        <TableCell>{item.description || '—'}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-                {importData.length > 10 && (
-                  <p className="text-center text-sm text-gray-500 mt-2">
-                    ... и ещё {importData.length - 10} записей
-                  </p>
-                )}
-              </div>
-              <div className="flex gap-2 justify-end">
-                <Button variant="outline" onClick={() => {
-                  setImportPreview(false);
-                  setImportData([]);
-                }}>
-                  Отмена
-                </Button>
-                <Button onClick={handleImport}>
-                  Импортировать {importData.length} записей
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <EquipmentImportDialog
+        isOpen={isImportDialogOpen}
+        onClose={handleImportSuccess}
+        categories={categories}
+        userId={userId}
+        onBulkInsert={onBulkInsert}
+        onAddCategory={onAddCategory}
+      />
 
       {/* Диалог добавления/редактирования */}
       <Dialog open={isAddDialogOpen || !!editingItem} onOpenChange={(open) => {
