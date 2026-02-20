@@ -102,6 +102,18 @@ export function useEquipment(userId: string | undefined) {
     return { error, data };
   };
 
+  const deleteCategory = async (id: string) => {
+    const { error } = await supabase
+      .from('categories')
+      .delete()
+      .eq('id', id);
+    
+    if (!error) {
+      setCategories(prev => prev.filter(cat => cat.id !== id));
+    }
+    return { error };
+  };
+
   return {
     equipment,
     categories,
@@ -111,6 +123,7 @@ export function useEquipment(userId: string | undefined) {
     deleteEquipment,
     bulkInsert,
     addCategory,
+    deleteCategory,
     refresh: fetchEquipment
   };
 }

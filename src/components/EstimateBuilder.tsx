@@ -558,8 +558,8 @@ export function EstimateBuilder({
       rowIndex++;
     });
     
-    // Общий итог (суммируем все строки с формулами)
-    wsData.push(['', '', '', '', '', 'ИТОГО:', { f: `SUM(G6:G${rowIndex-1})` }, '', '']);
+    // Общий итог (используем уже посчитанное значение)
+    wsData.push(['', '', '', '', '', 'ИТОГО:', total, '', '']);
     
     // Создаем worksheet
     const ws = XLSX.utils.aoa_to_sheet(wsData);

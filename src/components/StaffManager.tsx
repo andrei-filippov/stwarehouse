@@ -32,6 +32,7 @@ export function StaffManager({ staff, onAdd, onUpdate, onDelete }: StaffManagerP
   const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showInactive, setShowInactive] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const filteredStaff = staff.filter(s => {
     const matchesSearch = 
@@ -69,8 +70,30 @@ export function StaffManager({ staff, onAdd, onUpdate, onDelete }: StaffManagerP
     handleClose();
   };
 
+  // Управление выбором сотрудников
+  const toggleSelection = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const selectAll = () => {
+    setSelectedIds(new Set(filteredStaff.map(s => s.id)));
+  };
+
+  const deselectAll = () => {
+    setSelectedIds(new Set());
+  };
+
+  const selectedStaff = filteredStaff.filter(s => selectedIds.has(s.id));
+
   // Экспорт списка в PDF через html2canvas (поддержка кириллицы)
   const exportToPDF = async () => {
+    const staffToExport = selectedStaff.length > 0 ? selectedStaff : filteredStaff;
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
@@ -94,8 +117,9 @@ export function StaffManager({ staff, onAdd, onUpdate, onDelete }: StaffManagerP
       <body>
         <h1>СПИСОК ПЕРСОНАЛА</h1>
         <div class="info">
-          Всего: ${filteredStaff.length} человек | 
+          Всего: ${staffToExport.length} человек | 
           Дата формирования: ${new Date().toLocaleDateString('ru-RU')}
+          ${selectedStaff.length > 0 ? ' (выбранные)' : ''}
         </div>
         <table>
           <thead>
@@ -105,19 +129,19 @@ export function StaffManager({ staff, onAdd, onUpdate, onDelete }: StaffManagerP
               <th>Должность</th>
               <th>Телефон</th>
               <th>Email</th>
-              <th>Дата рождения</th>
+              <th>Автомобиль</th>
               <th>Статус</th>
             </tr>
           </thead>
           <tbody>
-            ${filteredStaff.map((s, idx) => `
+            ${staffToExport.map((s, idx) => `
               <tr class="${s.is_active ? '' : 'inactive'}">
                 <td>${idx + 1}</td>
                 <td>${s.full_name}</td>
                 <td>${s.position}</td>
                 <td>${s.phone || '-'}</td>
                 <td>${s.email || '-'}</td>
-                <td>${s.birth_date ? new Date(s.birth_date).toLocaleDateString('ru-RU') : '-'}</td>
+                <td>${s.car_info || '-'}</td>
                 <td>${s.is_active ? 'Активен' : 'Уволен'}</td>
               </tr>
             `).join('')}
@@ -130,7 +154,6 @@ export function StaffManager({ staff, onAdd, onUpdate, onDelete }: StaffManagerP
     printWindow.document.write(html);
     printWindow.document.close();
     
-    // Автоматически открываем диалог печати
     setTimeout(() => {
       printWindow.print();
     }, 500);
@@ -138,6 +161,7 @@ export function StaffManager({ staff, onAdd, onUpdate, onDelete }: StaffManagerP
 
   // Экспорт полных данных (с паспортами)
   const exportFullDataPDF = async () => {
+    const staffToExport = selectedStaff.length > 0 ? selectedStaff : filteredStaff;
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
@@ -161,7 +185,9 @@ export function StaffManager({ staff, onAdd, onUpdate, onDelete }: StaffManagerP
       <body>
         <h1>ПОЛНЫЕ ДАННЫЕ ПЕРСОНАЛА</h1>
         <div class="info">
+          Всего: ${staffToExport.length} человек | 
           Дата: ${new Date().toLocaleDateString('ru-RU')}
+          ${selectedStaff.length > 0 ? ' (выбранные)' : ''}
         </div>
         <table>
           <thead>
@@ -174,10 +200,11 @@ export function StaffManager({ staff, onAdd, onUpdate, onDelete }: StaffManagerP
               <th>Дата выдачи</th>
               <th>Телефон</th>
               <th>Дата рожд.</th>
+              <th>Автомобиль</th>
             </tr>
           </thead>
           <tbody>
-            ${filteredStaff.map((s, idx) => `
+            ${staffToExport.map((s, idx) => `
               <tr>
                 <td>${idx + 1}</td>
                 <td>${s.full_name}</td>
@@ -187,6 +214,7 @@ export function StaffManager({ staff, onAdd, onUpdate, onDelete }: StaffManagerP
                 <td>${s.passport_issue_date ? new Date(s.passport_issue_date).toLocaleDateString('ru-RU') : '-'}</td>
                 <td>${s.phone || '-'}</td>
                 <td>${s.birth_date ? new Date(s.birth_date).toLocaleDateString('ru-RU') : '-'}</td>
+                <td>${s.car_info || '-'}</td>
               </tr>
             `).join('')}
           </tbody>
@@ -217,14 +245,19 @@ export function StaffManager({ staff, onAdd, onUpdate, onDelete }: StaffManagerP
                 Активных: {activeCount} | Уволенных: {inactiveCount}
               </p>
             </div>
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-2 flex-wrap items-center">
+              {selectedIds.size > 0 && (
+                <Badge variant="secondary" className="mr-2">
+                  Выбрано: {selectedIds.size}
+                </Badge>
+              )}
               <Button variant="outline" onClick={exportToPDF}>
                 <FileText className="w-4 h-4 mr-2" />
-                Список (PDF)
+                {selectedIds.size > 0 ? 'Экспорт выбранных' : 'Список (PDF)'}
               </Button>
               <Button variant="outline" onClick={exportFullDataPDF}>
                 <Download className="w-4 h-4 mr-2" />
-                Полные данные (PDF)
+                Полные данные
               </Button>
               <Button onClick={handleOpenNew}>
                 <Plus className="w-4 h-4 mr-2" />
@@ -262,11 +295,18 @@ export function StaffManager({ staff, onAdd, onUpdate, onDelete }: StaffManagerP
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-10">
+                    <Checkbox 
+                      checked={selectedIds.size === filteredStaff.length && filteredStaff.length > 0}
+                      onCheckedChange={(checked) => checked ? selectAll() : deselectAll()}
+                    />
+                  </TableHead>
                   <TableHead className="w-12">#</TableHead>
                   <TableHead>ФИО</TableHead>
                   <TableHead>Должность</TableHead>
                   <TableHead>Телефон</TableHead>
                   <TableHead className="hidden sm:table-cell">Email</TableHead>
+                  <TableHead className="hidden md:table-cell">Автомобиль</TableHead>
                   <TableHead className="w-24">Статус</TableHead>
                   <TableHead className="text-right">Действия</TableHead>
                 </TableRow>
@@ -274,13 +314,19 @@ export function StaffManager({ staff, onAdd, onUpdate, onDelete }: StaffManagerP
               <TableBody>
                 {filteredStaff.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={9} className="text-center py-8 text-gray-500">
                       Сотрудники не найдены
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredStaff.map((s, idx) => (
                     <TableRow key={s.id} className={!s.is_active ? 'bg-gray-50' : ''}>
+                      <TableCell>
+                        <Checkbox 
+                          checked={selectedIds.has(s.id)}
+                          onCheckedChange={() => toggleSelection(s.id)}
+                        />
+                      </TableCell>
                       <TableCell>{idx + 1}</TableCell>
                       <TableCell className="font-medium">
                         {s.full_name}
@@ -293,6 +339,7 @@ export function StaffManager({ staff, onAdd, onUpdate, onDelete }: StaffManagerP
                       <TableCell>{s.position}</TableCell>
                       <TableCell>{s.phone || '-'}</TableCell>
                       <TableCell className="hidden sm:table-cell">{s.email || '-'}</TableCell>
+                      <TableCell className="hidden md:table-cell">{s.car_info || '-'}</TableCell>
                       <TableCell>
                         {s.is_active ? (
                           <Badge className="bg-green-100 text-green-800">Активен</Badge>
@@ -363,6 +410,7 @@ function StaffForm({ initialData, onSubmit, onCancel }: StaffFormProps) {
     passport_number: initialData?.passport_number || '',
     passport_issued_by: initialData?.passport_issued_by || '',
     passport_issue_date: initialData?.passport_issue_date || '',
+    car_info: initialData?.car_info || '',
     notes: initialData?.notes || '',
     is_active: initialData?.is_active ?? true
   });
@@ -474,6 +522,16 @@ function StaffForm({ initialData, onSubmit, onCancel }: StaffFormProps) {
             value={formData.passport_issued_by}
             onChange={(e) => setFormData({ ...formData, passport_issued_by: e.target.value })}
             placeholder="Отделом УФМС России по г. Москве"
+          />
+        </div>
+
+        <div className="space-y-2 mt-4">
+          <Label htmlFor="car_info">Автомобиль</Label>
+          <Input
+            id="car_info"
+            value={formData.car_info}
+            onChange={(e) => setFormData({ ...formData, car_info: e.target.value })}
+            placeholder="Ford Focus, А123БС777"
           />
         </div>
       </div>

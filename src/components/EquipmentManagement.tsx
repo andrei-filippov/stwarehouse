@@ -19,6 +19,7 @@ interface EquipmentManagerProps {
   onDelete: (id: string) => Promise<{ error: any }>;
   onBulkInsert: (items: (Omit<Equipment, 'id' | 'created_at' | 'updated_at'> & { user_id: string })[]) => Promise<{ error: any; count?: number }>;
   onAddCategory: (name: string) => Promise<{ error: any; data?: any }>;
+  onDeleteCategory: (id: string) => Promise<{ error: any }>;
 }
 
 export function EquipmentManager({ 
@@ -29,7 +30,8 @@ export function EquipmentManager({
   onUpdate, 
   onDelete,
   onBulkInsert,
-  onAddCategory
+  onAddCategory,
+  onDeleteCategory
 }: EquipmentManagerProps) {
   const [search, setSearch] = useState('');
   const [editingItem, setEditingItem] = useState<Equipment | null>(null);
@@ -160,8 +162,27 @@ export function EquipmentManager({
                         <span className="font-semibold">{category}</span>
                         <Badge variant="secondary">{items.length}</Badge>
                       </div>
-                      <div className="text-sm text-gray-500">
-                        {items.reduce((sum, i) => sum + i.quantity, 0)} ед.
+                      <div className="flex items-center gap-3">
+                        <div className="text-sm text-gray-500">
+                          {items.reduce((sum, i) => sum + i.quantity, 0)} ед.
+                        </div>
+                        {items.length === 0 && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const cat = categories.find(c => c.name === category);
+                              if (cat && confirm(`Удалить категорию "${category}"?`)) {
+                                onDeleteCategory(cat.id);
+                              }
+                            }}
+                            title="Удалить пустую категорию"
+                          >
+                            <Trash2 className="w-4 h-4 text-red-400 hover:text-red-600" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                     

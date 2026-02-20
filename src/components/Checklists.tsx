@@ -595,7 +595,11 @@ function ChecklistView({
   onExportPDF: () => void;
 }) {
   const handleToggle = async (item: ChecklistItem) => {
-    await onUpdateItem(checklist.id, item.id!, { is_checked: !item.is_checked });
+    if (!item.id) {
+      console.error('Item has no id:', item);
+      return;
+    }
+    await onUpdateItem(checklist.id, item.id, { is_checked: !item.is_checked });
   };
 
   const grouped = checklist.items?.reduce((acc, item) => {

@@ -16,6 +16,7 @@ import { StaffManager } from './components/StaffManager';
 import { GoalsManager } from './components/GoalsManager';
 import { PDFSettings } from './components/PDFSettings';
 import { EventCalendar } from './components/EventCalendar';
+import { Analytics } from './components/Analytics';
 import { Button } from './components/ui/button';
 import { 
   Package, 
@@ -31,16 +32,17 @@ import {
 } from 'lucide-react';
 import type { PDFSettings as PDFSettingsType } from './types';
 
-type Tab = 'equipment' | 'estimates' | 'templates' | 'calendar' | 'checklists' | 'staff' | 'goals' | 'settings';
+type Tab = 'equipment' | 'estimates' | 'templates' | 'calendar' | 'checklists' | 'staff' | 'goals' | 'analytics' | 'settings';
 
 function App() {
   const { user, profile, loading: authLoading, signIn, signUp, signOut } = useAuth();
-  const { equipment, categories, addEquipment, updateEquipment, deleteEquipment, bulkInsert, addCategory } = useEquipment(user?.id);
+  const { equipment, categories, addEquipment, updateEquipment, deleteEquipment, bulkInsert, addCategory, deleteCategory } = useEquipment(user?.id);
   const { estimates, createEstimate, updateEstimate, deleteEstimate } = useEstimates(user?.id);
   const { templates, createTemplate, updateTemplate, deleteTemplate } = useTemplates(user?.id);
   const { checklists, rules, createRule, deleteRule, createChecklist, updateChecklistItem, deleteChecklist } = useChecklists(user?.id, estimates);
   const { staff, addStaff, updateStaff, deleteStaff } = useStaff(user?.id);
   const { tasks, addTask, updateTask, deleteTask } = useGoals(user?.id);
+  const analyticsData = { equipment, estimates, staff };
   
   const [activeTab, setActiveTab] = useState<Tab>('equipment');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -83,6 +85,7 @@ function App() {
     { id: 'checklists' as Tab, label: 'Чек-листы', icon: ClipboardCheck },
     { id: 'staff' as Tab, label: 'Персонал', icon: Users },
     { id: 'goals' as Tab, label: 'Задачи', icon: Target },
+    { id: 'analytics' as Tab, label: 'Аналитика', icon: BarChart3 },
     { id: 'settings' as Tab, label: 'Настройки PDF', icon: Settings },
   ];
 
@@ -208,6 +211,7 @@ function App() {
             onDelete={deleteEquipment}
             onBulkInsert={bulkInsert}
             onAddCategory={addCategory}
+            onDeleteCategory={deleteCategory}
           />
         )}
 
@@ -273,6 +277,10 @@ function App() {
             onUpdate={updateTask}
             onDelete={deleteTask}
           />
+        )}
+
+        {activeTab === 'analytics' && (
+          <Analytics {...analyticsData} />
         )}
 
         {activeTab === 'settings' && (
