@@ -11,15 +11,16 @@ import {
   PieChart,
   Activity
 } from 'lucide-react';
-import type { Equipment, Estimate, Staff } from '../types';
+import type { Customer, Equipment, Estimate, Staff } from '../types';
 
 interface AnalyticsProps {
   equipment: Equipment[];
   estimates: Estimate[];
   staff: Staff[];
+  customers: Customer[];
 }
 
-export function Analytics({ equipment, estimates, staff }: AnalyticsProps) {
+export function Analytics({ equipment, estimates, staff, customers }: AnalyticsProps) {
   const [period, setPeriod] = useState<'all' | 'year' | 'month'>('all');
 
   // Фильтруем сметы по периоду
@@ -169,6 +170,24 @@ export function Analytics({ equipment, estimates, staff }: AnalyticsProps) {
     
     return { total: staff.length, active, inactive, withCar };
   }, [staff]);
+
+  // === ЗАКАЗЧИКИ ===
+
+  const customerStats = useMemo(() => {
+    const stats: Record<string, { name: string; revenue: number; count: number }> = {};
+    
+    filteredEstimates.forEach(e => {
+      const name = e.customer_name || 'Не указан';
+      if (!stats[name]) {
+        stats[name] = { name, revenue: 0, count: 0 };
+      }
+      stats[name].revenue += e.total || 0;
+      stats[name].count += 1;
+    });
+    
+    return Object.values(stats)
+      .sort((a, b) => b.revenue - a.revenue);
+  }, [filteredEstimates]);
 
   const formatCurrency = (val: number) => 
     val.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 });
@@ -414,6 +433,35 @@ export function Analytics({ equipment, estimates, staff }: AnalyticsProps) {
               <p className="text-sm text-gray-500">Средняя цена за ед.</p>
               <p className="text-xl font-medium">{formatCurrency(warehouseStats.avgPrice)}</p>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Аналитика по заказчикам */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Users className="w-5 h-5" />
+            Топ заказчиков
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {customerStats.slice(0, 5).map((c, i) => (
+              <div key={i} className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-gray-500 w-6">{i + 1}</span>
+                  <div>
+                    <p className="text-sm font-medium">{c.name}</p>
+                    <p className="text-xs text-gray-500">{c.count} смет</p>
+                  </div>
+                </div>
+                <span className="text-sm font-medium">{formatCurrency(c.revenue)}</span>
+              </div>
+            ))}
+            {customerStats.length === 0 && (
+              <p className="text-center text-gray-500 py-4">Нет данных</p>
+            )}
           </div>
         </CardContent>
       </Card>

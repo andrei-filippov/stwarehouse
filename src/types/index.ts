@@ -36,6 +36,8 @@ export type Estimate = {
   venue: string;
   event_date: string;
   total: number;
+  customer_id?: string;
+  customer_name?: string;
   created_at?: string;
   updated_at?: string;
   items?: EstimateItem[];
@@ -122,6 +124,28 @@ export type ChecklistItem = {
   is_checked: boolean; // отмечено ли
   source_rule_id?: string; // откуда пришло (из какого правила)
   notes?: string;
+};
+
+// Заказчик
+export type Customer = {
+  id: string;
+  user_id?: string;
+  name: string;
+  type: 'company' | 'ip' | 'individual';
+  inn?: string;
+  kpp?: string;
+  ogrn?: string;
+  legal_address?: string;
+  contact_person?: string;
+  phone?: string;
+  email?: string;
+  bank_name?: string;
+  bank_bik?: string;
+  bank_account?: string;
+  bank_corr_account?: string;
+  notes?: string;
+  created_at?: string;
+  updated_at?: string;
 };
 
 // Сотрудник

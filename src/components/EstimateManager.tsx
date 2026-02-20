@@ -12,6 +12,7 @@ interface EstimateManagerProps {
   estimates: Estimate[];
   equipment: any[];
   templates: Template[];
+  customers: any[];
   pdfSettings: PDFSettings;
   onCreate: (estimate: any, items: any[]) => Promise<{ error: any; data?: any }>;
   onUpdate: (id: string, estimate: any, items: any[]) => Promise<{ error: any }>;
@@ -22,6 +23,7 @@ export function EstimateManager({
   estimates,
   equipment,
   templates,
+  customers,
   pdfSettings,
   onCreate,
   onUpdate,
@@ -87,6 +89,7 @@ export function EstimateManager({
         equipment={equipment}
         estimates={estimates}
         templates={templates}
+        customers={customers}
         estimate={editingEstimate}
         selectedTemplate={selectedTemplate}
         pdfSettings={pdfSettings}
@@ -131,6 +134,7 @@ export function EstimateManager({
             <TableHeader>
               <TableRow>
                 <TableHead>Мероприятие</TableHead>
+                <TableHead>Заказчик</TableHead>
                 <TableHead>Площадка</TableHead>
                 <TableHead>Дата</TableHead>
                 <TableHead>Позиций</TableHead>
@@ -142,6 +146,7 @@ export function EstimateManager({
               {estimates.map((estimate) => (
                 <TableRow key={estimate.id}>
                   <TableCell className="font-medium">{estimate.event_name}</TableCell>
+                  <TableCell>{estimate.customer_name || '-'}</TableCell>
                   <TableCell>{estimate.venue || '-'}</TableCell>
                   <TableCell>{estimate.event_date}</TableCell>
                   <TableCell>{estimate.items?.length || 0}</TableCell>

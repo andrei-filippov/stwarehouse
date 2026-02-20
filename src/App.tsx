@@ -7,6 +7,7 @@ import { useTemplates } from './hooks/useTemplates';
 import { useChecklists } from './hooks/useChecklists';
 import { useStaff } from './hooks/useStaff';
 import { useGoals } from './hooks/useGoals';
+import { useCustomers } from './hooks/useCustomers';
 import { Auth } from './components/Auth';
 import { EquipmentManager } from './components/EquipmentManagement';
 import { EstimateManager } from './components/EstimateManager';
@@ -17,9 +18,11 @@ import { GoalsManager } from './components/GoalsManager';
 import { PDFSettings } from './components/PDFSettings';
 import { EventCalendar } from './components/EventCalendar';
 import { Analytics } from './components/Analytics';
+import { CustomersManager } from './components/CustomersManager';
 import { Button } from './components/ui/button';
 import { 
   BarChart3,
+  Building2,
   Package, 
   FileText, 
   Layout, 
@@ -33,7 +36,7 @@ import {
 } from 'lucide-react';
 import type { PDFSettings as PDFSettingsType } from './types';
 
-type Tab = 'equipment' | 'estimates' | 'templates' | 'calendar' | 'checklists' | 'staff' | 'goals' | 'analytics' | 'settings';
+type Tab = 'equipment' | 'estimates' | 'templates' | 'calendar' | 'checklists' | 'staff' | 'goals' | 'analytics' | 'customers' | 'settings';
 
 function App() {
   const { user, profile, loading: authLoading, signIn, signUp, signOut } = useAuth();
@@ -43,7 +46,8 @@ function App() {
   const { checklists, rules, createRule, deleteRule, createChecklist, updateChecklistItem, deleteChecklist } = useChecklists(user?.id, estimates);
   const { staff, addStaff, updateStaff, deleteStaff } = useStaff(user?.id);
   const { tasks, addTask, updateTask, deleteTask } = useGoals(user?.id);
-  const analyticsData = { equipment, estimates, staff };
+  const { customers, addCustomer, updateCustomer, deleteCustomer } = useCustomers(user?.id);
+  const analyticsData = { equipment, estimates, staff, customers };
   
   const [activeTab, setActiveTab] = useState<Tab>('equipment');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -87,6 +91,7 @@ function App() {
     { id: 'staff' as Tab, label: 'Персонал', icon: Users },
     { id: 'goals' as Tab, label: 'Задачи', icon: Target },
     { id: 'analytics' as Tab, label: 'Аналитика', icon: BarChart3 },
+    { id: 'customers' as Tab, label: 'Заказчики', icon: Building2 },
     { id: 'settings' as Tab, label: 'Настройки PDF', icon: Settings },
   ];
 
@@ -221,6 +226,7 @@ function App() {
             estimates={estimates}
             equipment={equipment}
             templates={templates}
+            customers={customers}
             pdfSettings={pdfSettings}
             onCreate={(estimate, items) => createEstimate(estimate, items, profile?.name)}
             onUpdate={updateEstimate}
@@ -282,6 +288,16 @@ function App() {
 
         {activeTab === 'analytics' && (
           <Analytics {...analyticsData} />
+        )}
+
+        {activeTab === 'customers' && (
+          <CustomersManager
+            customers={customers}
+            userId={user?.id}
+            onAdd={addCustomer}
+            onUpdate={updateCustomer}
+            onDelete={deleteCustomer}
+          />
         )}
 
         {activeTab === 'settings' && (

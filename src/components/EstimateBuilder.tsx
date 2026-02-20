@@ -13,7 +13,7 @@ import {
   Layout,
   FileSpreadsheet
 } from 'lucide-react';
-import type { Equipment, Estimate, EstimateItem, PDFSettings, Template } from '../types';
+import type { Customer, Equipment, Estimate, EstimateItem, PDFSettings, Template } from '../types';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
@@ -30,6 +30,7 @@ interface EstimateBuilderProps {
   equipment: Equipment[];
   estimates: Estimate[];
   templates: Template[];
+  customers: Customer[];
   estimate?: Estimate | null;
   selectedTemplate?: Template | null;
   pdfSettings: PDFSettings;
@@ -41,6 +42,7 @@ export function EstimateBuilder({
   equipment, 
   estimates,
   templates,
+  customers,
   estimate, 
   selectedTemplate,
   pdfSettings, 
@@ -50,6 +52,7 @@ export function EstimateBuilder({
   const [eventName, setEventName] = useState('');
   const [venue, setVenue] = useState('');
   const [eventDate, setEventDate] = useState('');
+  const [customerId, setCustomerId] = useState<string>('');
   const [items, setItems] = useState<EstimateItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -62,6 +65,7 @@ export function EstimateBuilder({
       setEventName(estimate.event_name || '');
       setVenue(estimate.venue || '');
       setEventDate(estimate.event_date || '');
+      setCustomerId(estimate.customer_id || '');
       setItems(estimate.items || []);
     } else if (selectedTemplate && equipment.length > 0) {
       // Автоматически применяем выбранный шаблон только когда оборудование загружено
@@ -361,13 +365,18 @@ export function EstimateBuilder({
     return categoryItems.reduce((sum, item) => sum + (item.price * item.quantity * (item.coefficient || 1)), 0);
   };
 
+  // Выбранный заказчик
+  const selectedCustomer = customers.find(c => c.id === customerId);
+
   // Сохранение
   const handleSave = async () => {
     const estimateData = {
       event_name: eventName,
       venue,
       event_date: eventDate,
-      total
+      total,
+      customer_id: customerId || null,
+      customer_name: selectedCustomer?.name || null
     };
     await onSave(estimateData, items);
     onClose();
@@ -512,6 +521,7 @@ export function EstimateBuilder({
     
     // Заголовок сметы
     wsData.push(['', 'Коммерческое предложение:', '', '', '', '', '', '', '']);
+    wsData.push(['', `Заказчик: ${selectedCustomer?.name || 'не указан'}`, '', '', '', '', '', '', '']);
     wsData.push(['', `Дата и место проведения: ${eventDate || 'не указана'}`, '', '', '', '', '', '', '']);
     wsData.push(['', `Место проведения: ${venue || 'не указано'}`, '', '', '', '', '', '', '']);
     wsData.push(['', '', '', '', '', '', '', '', '']);
@@ -519,7 +529,7 @@ export function EstimateBuilder({
     // Шапка таблицы
     wsData.push(['№', 'Наименование', 'Ед. изм.', 'Кол-во', 'Цена, руб.', 'Коэфф.', 'Стоимость, руб.', '', '']);
     
-    let rowIndex = 6; // Начало данных (для формул Excel - 1-based)
+    let rowIndex = 7; // Начало данных (для формул Excel - 1-based)
     
     groupedItems.forEach(([category, categoryItems]) => {
       // Заголовок категории
@@ -744,6 +754,16 @@ export function EstimateBuilder({
             </h2>
             
             <div className="space-y-2">
+              <select
+                className="w-full border rounded-md p-2 text-sm"
+                value={customerId}
+                onChange={(e) => setCustomerId(e.target.value)}
+              >
+                <option value="">Выберите заказчика</option>
+                {customers.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
               <Input
                 placeholder="Название мероприятия *"
                 value={eventName}
