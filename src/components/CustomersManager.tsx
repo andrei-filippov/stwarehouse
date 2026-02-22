@@ -340,15 +340,6 @@ async function fetchCompanyByInn(inn: string): Promise<any> {
 }
 
 function CustomerForm({ initialData, onSubmit, onCancel, submitting }: CustomerFormProps) {
-  // Проверяем ключ при загрузке
-  useEffect(() => {
-    console.log('CustomerForm mounted, API key check:', {
-      exists: !!DADATA_API_KEY,
-      length: DADATA_API_KEY?.length,
-      isValid: DADATA_API_KEY && DADATA_API_KEY !== 'your_dadata_api_key_here' && DADATA_API_KEY.length > 10
-    });
-  }, []);
-
   const [formData, setFormData] = useState({
     name: initialData?.name || '',
     type: initialData?.type || 'company',
