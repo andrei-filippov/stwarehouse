@@ -19,8 +19,6 @@ import { PDFSettings } from './components/PDFSettings';
 import { EventCalendar } from './components/EventCalendar';
 import { Analytics } from './components/Analytics';
 import { CustomersManager } from './components/CustomersManager';
-import { AccessDenied } from './components/AccessDenied';
-import { AdminPanel } from './components/AdminPanel';
 import { Button } from './components/ui/button';
 import { Spinner } from './components/ui/spinner';
 import { 
@@ -34,16 +32,22 @@ import {
   Calendar,
   ClipboardCheck,
   Users,
-  Target,
-  Shield
+  Target
 } from 'lucide-react';
 import type { PDFSettings as PDFSettingsType } from './types';
-import { hasTabAccess, canEdit, canDelete, canExport, getRoleLabel, type UserRole, type UserPermissions, ALL_TABS } from './lib/permissions';
 
-type Tab = 'equipment' | 'estimates' | 'templates' | 'calendar' | 'checklists' | 'staff' | 'goals' | 'analytics' | 'customers' | 'settings' | 'admin';
+type Tab = 'equipment' | 'estimates' | 'templates' | 'calendar' | 'checklists' | 'staff' | 'goals' | 'analytics' | 'customers' | 'settings';
+
+// Простая система ролей без permissions
+const ROLE_TABS: Record<string, Tab[]> = {
+  admin: ['equipment', 'estimates', 'templates', 'calendar', 'checklists', 'staff', 'goals', 'analytics', 'customers', 'settings'],
+  manager: ['equipment', 'estimates', 'templates', 'calendar', 'checklists', 'goals', 'analytics', 'customers'],
+  warehouse: ['equipment', 'checklists', 'calendar'],
+  accountant: ['estimates', 'analytics', 'customers', 'calendar'],
+};
 
 function App() {
-  const { user, profile, permissions, loading: authLoading, signIn, signUp, signOut } = useAuth();
+  const { user, profile, loading: authLoading, signIn, signUp, signOut } = useAuth();
   const { equipment, categories, loading: equipmentLoading, addEquipment, updateEquipment, deleteEquipment, bulkInsert, addCategory, deleteCategory } = useEquipment(user?.id);
   const { estimates, loading: estimatesLoading, createEstimate, updateEstimate, deleteEstimate } = useEstimates(user?.id);
   const { templates, loading: templatesLoading, createTemplate, updateTemplate, deleteTemplate } = useTemplates(user?.id);
@@ -92,6 +96,9 @@ function App() {
     return <Auth onSignIn={signIn} onSignUp={signUp} />;
   }
 
+  const userRole = profile?.role || 'manager';
+  const allowedTabs = ROLE_TABS[userRole] || ROLE_TABS.manager;
+
   const allNavItems = [
     { id: 'equipment' as Tab, label: 'Оборудование', icon: Package },
     { id: 'estimates' as Tab, label: 'Сметы', icon: FileText },
@@ -103,18 +110,9 @@ function App() {
     { id: 'analytics' as Tab, label: 'Аналитика', icon: BarChart3 },
     { id: 'customers' as Tab, label: 'Заказчики', icon: Building2 },
     { id: 'settings' as Tab, label: 'Настройки PDF', icon: Settings },
-    { id: 'admin' as Tab, label: 'Админ', icon: Shield },
   ];
 
-  // Фильтруем вкладки на основе прав пользователя из БД
-  const navItems = allNavItems.filter(item => hasTabAccess(permissions, item.id));
-  
-  // Если текущая вкладка недоступна, переключаем на первую доступную
-  useEffect(() => {
-    if (!hasTabAccess(permissions, activeTab) && navItems.length > 0) {
-      setActiveTab(navItems[0].id);
-    }
-  }, [permissions, activeTab, navItems]);
+  const navItems = allNavItems.filter(item => allowedTabs.includes(item.id));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 pb-20 md:pb-0">
@@ -136,12 +134,7 @@ function App() {
               <div className="w-8 h-8 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center">
                 <User className="w-4 h-4" />
               </div>
-              <div className="flex flex-col items-start">
-                <span className="max-w-[150px] truncate font-medium">{profile?.name || user?.email}</span>
-                {userRole && (
-                  <span className="text-xs text-gray-400">{getRoleLabel(userRole)}</span>
-                )}
-              </div>
+              <span className="max-w-[150px] truncate">{profile?.name || user?.email}</span>
             </div>
             <Button variant="ghost" size="sm" onClick={signOut} className="px-2 md:px-3 rounded-lg hover:bg-red-50 hover:text-red-600 transition-colors">
               <LogOut className="w-4 h-4 md:mr-2" />
@@ -176,67 +169,9 @@ function App() {
         </div>
       </nav>
 
-      {/* Mobile Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t md:hidden z-50 shadow-lg">
-        <div className="flex justify-around items-center h-16">
-          {navItems.slice(0, 5).map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
-                  isActive ? 'text-blue-600' : 'text-gray-500'
-                }`}
-              >
-                <Icon className="w-5 h-5 mb-0.5" />
-                <span className="text-[10px]">{item.label.slice(0, 8)}</span>
-              </button>
-            );
-          })}
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="flex flex-col items-center justify-center flex-1 h-full text-gray-500"
-          >
-            {mobileMenuOpen ? <X className="w-5 h-5 mb-0.5" /> : <Menu className="w-5 h-5 mb-0.5" />}
-            <span className="text-[10px]">Ещё</span>
-          </button>
-        </div>
-      </nav>
-
-      {/* Mobile Menu Overlay */}
-      {mobileMenuOpen && (
-        <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setMobileMenuOpen(false)}>
-          <div className="absolute bottom-16 left-0 right-0 bg-white rounded-t-2xl p-4 shadow-2xl" onClick={e => e.stopPropagation()}>
-            <div className="w-12 h-1 bg-gray-300 rounded-full mx-auto mb-4" />
-            <div className="space-y-2">
-              {navItems.slice(5).map((item) => {
-                const Icon = item.icon;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      setActiveTab(item.id);
-                      setMobileMenuOpen(false);
-                    }}
-                    className={`flex items-center gap-3 w-full p-3 rounded-xl transition-all ${
-                      activeTab === item.id ? 'bg-blue-50 text-blue-600 shadow-sm' : 'text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    <Icon className="w-5 h-5" />
-                    <span>{item.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-3 md:px-4 py-4 md:py-6">
-        {activeTab === 'equipment' && (hasTabAccess(permissions, 'equipment') ? (
+        {activeTab === 'equipment' && (
           <EquipmentManager
             equipment={equipment}
             categories={categories}
@@ -249,9 +184,9 @@ function App() {
             onDeleteCategory={deleteCategory}
             loading={equipmentLoading}
           />
-        ) : <AccessDenied role={profile?.role as UserRole} />)}
+        )}
 
-        {activeTab === 'estimates' && (hasTabAccess(permissions, 'estimates') ? (
+        {activeTab === 'estimates' && (
           <EstimateManager
             estimates={estimates}
             equipment={equipment}
@@ -263,9 +198,9 @@ function App() {
             onDelete={deleteEstimate}
             loading={estimatesLoading}
           />
-        ) : <AccessDenied role={profile?.role as UserRole} />)}
+        )}
 
-        {activeTab === 'templates' && (hasTabAccess(permissions, 'templates') ? (
+        {activeTab === 'templates' && (
           <TemplatesManager
             templates={templates}
             categories={categories}
@@ -275,16 +210,16 @@ function App() {
             onDelete={deleteTemplate}
             loading={templatesLoading}
           />
-        ) : <AccessDenied role={profile?.role as UserRole} />)}
+        )}
 
-        {activeTab === 'calendar' && (hasTabAccess(permissions, 'calendar') ? (
+        {activeTab === 'calendar' && (
           <EventCalendar
             estimates={estimates}
             equipment={equipment}
           />
-        ) : <AccessDenied role={profile?.role as UserRole} />)}
+        )}
 
-        {activeTab === 'checklists' && (hasTabAccess(permissions, 'checklists') ? (
+        {activeTab === 'checklists' && (
           <ChecklistsManager
             estimates={estimates}
             equipment={equipment}
@@ -298,9 +233,9 @@ function App() {
             onDeleteChecklist={deleteChecklist}
             loading={checklistsLoading}
           />
-        ) : <AccessDenied role={profile?.role as UserRole} />)}
+        )}
 
-        {activeTab === 'staff' && (hasTabAccess(permissions, 'staff') ? (
+        {activeTab === 'staff' && (
           <StaffManager
             staff={staff}
             onAdd={addStaff}
@@ -308,9 +243,9 @@ function App() {
             onDelete={deleteStaff}
             loading={staffLoading}
           />
-        ) : <AccessDenied role={profile?.role as UserRole} requiredRole="Администратор" />)}
+        )}
 
-        {activeTab === 'goals' && (hasTabAccess(permissions, 'goals') ? (
+        {activeTab === 'goals' && (
           <GoalsManager
             tasks={tasks}
             staff={staff}
@@ -319,13 +254,13 @@ function App() {
             onDelete={deleteTask}
             loading={goalsLoading}
           />
-        ) : <AccessDenied role={profile?.role as UserRole} />)}
+        )}
 
-        {activeTab === 'analytics' && (hasTabAccess(permissions, 'analytics') ? (
+        {activeTab === 'analytics' && (
           <Analytics {...analyticsData} />
-        ) : <AccessDenied role={profile?.role as UserRole} />)}
+        )}
 
-        {activeTab === 'customers' && (hasTabAccess(permissions, 'customers') ? (
+        {activeTab === 'customers' && (
           <CustomersManager
             customers={customers}
             userId={user?.id}
@@ -335,17 +270,10 @@ function App() {
             loading={customersLoading}
             error={customersError}
           />
-        ) : <AccessDenied role={profile?.role as UserRole} />)}
+        )}
 
-        {activeTab === 'settings' && (hasTabAccess(permissions, 'settings') ? (
+        {activeTab === 'settings' && (
           <PDFSettings settings={pdfSettings} onSave={savePdfSettings} />
-        ) : <AccessDenied role={profile?.role as UserRole} requiredRole="Администратор" />)}
-
-        {activeTab === 'admin' && (
-          <div className="p-8 text-center">
-            <h2 className="text-2xl font-bold mb-4">Админ-панель</h2>
-            <p>Функция временно недоступна</p>
-          </div>
         )}
       </main>
     </div>
