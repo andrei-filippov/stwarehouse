@@ -3,7 +3,7 @@ export type Task = {
   user_id?: string;
   title: string;
   description?: string;
-  category: 'repair' | 'check' | 'wiring' | 'moving' | 'purchase' | 'other';
+  category: 'repair' | 'check' | 'wiring' | 'purchase' | 'other';
   priority: 'low' | 'medium' | 'high' | 'urgent';
   status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
   due_date: string; // YYYY-MM-DD
@@ -35,8 +35,7 @@ export type TaskStatus = {
 export const TASK_CATEGORIES: TaskCategory[] = [
   { value: 'repair', label: 'Ремонт', icon: '🔧', color: 'bg-red-100 text-red-800' },
   { value: 'check', label: 'Проверка', icon: '✓', color: 'bg-blue-100 text-blue-800' },
-  { value: 'wiring', label: 'Распайка', icon: '🔌', color: 'bg-yellow-100 text-yellow-800' },
-  { value: 'moving', label: 'Переноска', icon: '📦', color: 'bg-purple-100 text-purple-800' },
+  { value: 'wiring', label: 'Изготовление', icon: '🔌', color: 'bg-yellow-100 text-yellow-800' },
   { value: 'purchase', label: 'Закупка', icon: '🛒', color: 'bg-green-100 text-green-800' },
   { value: 'other', label: 'Другое', icon: '📝', color: 'bg-gray-100 text-gray-800' },
 ];
