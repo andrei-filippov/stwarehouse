@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Badge } from './ui/badge';
 import { Checkbox } from './ui/checkbox';
 import { Switch } from './ui/switch';
-import { Shield, Users, Search, Save, Check, X } from 'lucide-react';
+import { Shield, Users, Search, Save } from 'lucide-react';
 import { Input } from './ui/input';
 import { Spinner } from './ui/spinner';
 import { supabase } from '../lib/supabase';
@@ -42,21 +41,18 @@ export function AdminPanel() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      // Получаем профили
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('*');
 
       if (profilesError) throw profilesError;
 
-      // Получаем права всех пользователей
       const { data: permissions, error: permsError } = await supabase
         .from('user_permissions')
         .select('*');
 
       if (permsError) throw permsError;
 
-      // Объединяем данные
       const combinedUsers: UserWithPermissions[] = (profiles || []).map((profile: Profile) => {
         const userPerms = permissions?.find((p: UserPermissions) => p.user_id === profile.id);
         return {
@@ -179,7 +175,6 @@ export function AdminPanel() {
           </div>
         </CardHeader>
         <CardContent>
-          {/* Шаблоны */}
           <div className="mb-6">
             <h3 className="text-sm font-medium text-gray-700 mb-3">Быстрое применение шаблонов</h3>
             <div className="flex flex-wrap gap-2">
@@ -192,7 +187,6 @@ export function AdminPanel() {
             </div>
           </div>
 
-          {/* Список пользователей */}
           <div className="border-t pt-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold flex items-center gap-2">
@@ -235,7 +229,6 @@ export function AdminPanel() {
                           <code className="text-xs text-gray-400">{user.id.slice(0, 8)}...</code>
                         </div>
                         <div className="flex items-center gap-2">
-                          {/* Шаблоны */}
                           <select
                             className="text-sm border rounded-lg px-2 py-1"
                             onChange={(e) => applyTemplate(user.id, e.target.value as UserRole)}
@@ -248,31 +241,7 @@ export function AdminPanel() {
                             <option value="accountant">Бухгалтер</option>
                           </select>
                           
-                          {editingUser === user.id ? (
-                            <>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => setEditingUser(null)}
-                              >
-                                <X className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                onClick={() => savePermissions(user.id)}
-                                disabled={saving === user.id}
-                              >
-                                {saving === user.id ? (
-                                  <Spinner className="w-4 h-4" />
-                                ) : (
-                                  <>
-                                    <Save className="w-4 h-4 mr-1" />
-                                    Сохранить
-                                  </>
-                                )}
-                              </Button>
-                            </>
-                          ) : (
+                          {editingUser !== user.id ? (
                             <Button
                               size="sm"
                               variant="outline"
@@ -280,13 +249,26 @@ export function AdminPanel() {
                             >
                               Настроить
                             </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              onClick={() => savePermissions(user.id)}
+                              disabled={saving === user.id}
+                            >
+                              {saving === user.id ? (
+                                <Spinner className="w-4 h-4" />
+                              ) : (
+                                <>
+                                  <Save className="w-4 h-4 mr-1" />
+                                  Сохранить
+                                </>
+                              )}
+                            </Button>
                           )}
                         </div>
                       </div>
 
-                      {/* Разрешения */}
                       <div className="space-y-3">
-                        {/* Вкладки */}
                         <div>
                           <p className="text-xs text-gray-500 mb-2">Доступные вкладки:</p>
                           <div className="flex flex-wrap gap-2">
@@ -313,7 +295,6 @@ export function AdminPanel() {
                           </div>
                         </div>
 
-                        {/* Доп. права */}
                         <div className="flex gap-4 pt-2 border-t">
                           <label className="flex items-center gap-2 text-sm cursor-pointer">
                             <Switch
