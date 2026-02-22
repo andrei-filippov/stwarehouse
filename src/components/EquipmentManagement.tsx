@@ -1,99 +1,141 @@
-import { useState, useEffect, useCallback, useMemo, memo } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Badge } from './ui/badge';
-import { Spinner } from './ui/spinner';
-import { Plus, Upload, Download, Trash2, Edit, Search, FolderPlus, ChevronDown, ChevronUp, Package } from 'lucide-react';
+import { Plus, Upload, Download, Trash2, Edit, Search, FolderPlus, ChevronDown, ChevronUp } from 'lucide-react';
 import type { Equipment } from '../types';
-import { EquipmentImportDialog } from './EquipmentImportDialog';
+import Papa from 'papaparse';
+import * as XLSX from 'xlsx';
 
 interface EquipmentManagerProps {
   equipment: Equipment[];
   categories: { id: string; name: string }[];
-  userId: string | undefined;
-  onAdd: (item: Omit<Equipment, 'id' | 'created_at' | 'updated_at'> & { user_id: string }) => Promise<{ error: any }>;
+  onAdd: (item: Omit<Equipment, 'id' | 'created_at' | 'updated_at'>) => Promise<{ error: any }>;
   onUpdate: (id: string, updates: Partial<Equipment>) => Promise<{ error: any }>;
   onDelete: (id: string) => Promise<{ error: any }>;
-  onBulkInsert: (items: (Omit<Equipment, 'id' | 'created_at' | 'updated_at'> & { user_id: string })[]) => Promise<{ error: any; count?: number }>;
+  onBulkInsert: (items: Omit<Equipment, 'id' | 'created_at' | 'updated_at'>[]) => Promise<{ error: any; count?: number }>;
   onAddCategory: (name: string) => Promise<{ error: any; data?: any }>;
-  onDeleteCategory: (id: string) => Promise<{ error: any }>;
-  loading?: boolean;
 }
 
-export const EquipmentManager = memo(function EquipmentManager({ 
+export function EquipmentManager({ 
   equipment, 
   categories, 
-  userId,
   onAdd, 
   onUpdate, 
   onDelete,
   onBulkInsert,
-  onAddCategory,
-  onDeleteCategory,
-  loading
+  onAddCategory
 }: EquipmentManagerProps) {
   const [search, setSearch] = useState('');
   const [editingItem, setEditingItem] = useState<Equipment | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [importData, setImportData] = useState<any[]>([]);
+  const [importPreview, setImportPreview] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
-  const [submitting, setSubmitting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Мемоизация фильтрации и группировки
-  const filteredEquipment = useMemo(() => {
-    if (!search.trim()) return equipment;
-    const searchLower = search.toLowerCase();
-    return equipment.filter(item =>
-      item.name.toLowerCase().includes(searchLower) ||
-      item.category.toLowerCase().includes(searchLower) ||
-      (item.description && item.description.toLowerCase().includes(searchLower))
-    );
-  }, [equipment, search]);
+  // Фильтрация оборудования
+  const filteredEquipment = equipment.filter(item =>
+    item.name.toLowerCase().includes(search.toLowerCase()) ||
+    item.category.toLowerCase().includes(search.toLowerCase()) ||
+    (item.description && item.description.toLowerCase().includes(search.toLowerCase()))
+  );
 
-  const groupedByCategory = useMemo(() => {
-    return filteredEquipment.reduce((acc, item) => {
-      if (!acc[item.category]) {
-        acc[item.category] = [];
-      }
-      acc[item.category].push(item);
-      return acc;
-    }, {} as Record<string, Equipment[]>);
-  }, [filteredEquipment]);
+  // Группировка по категориям
+  const groupedByCategory = filteredEquipment.reduce((acc, item) => {
+    if (!acc[item.category]) {
+      acc[item.category] = [];
+    }
+    acc[item.category].push(item);
+    return acc;
+  }, {} as Record<string, Equipment[]>);
 
-  const sortedCategories = useMemo(() => Object.keys(groupedByCategory).sort(), [groupedByCategory]);
+  // Сортировка категорий
+  const sortedCategories = Object.keys(groupedByCategory).sort();
 
-  const toggleCategory = useCallback((category: string) => {
-    setExpandedCategories(prev => {
-      const newExpanded = new Set(prev);
-      if (newExpanded.has(category)) {
-        newExpanded.delete(category);
-      } else {
-        newExpanded.add(category);
-      }
-      return newExpanded;
-    });
-  }, []);
+  // Переключение разворачивания категории
+  const toggleCategory = (category: string) => {
+    const newExpanded = new Set(expandedCategories);
+    if (newExpanded.has(category)) {
+      newExpanded.delete(category);
+    } else {
+      newExpanded.add(category);
+    }
+    setExpandedCategories(newExpanded);
+  };
 
-  const expandAll = useCallback(() => {
+  // Развернуть все
+  const expandAll = () => {
     setExpandedCategories(new Set(sortedCategories));
-  }, [sortedCategories]);
+  };
 
-  const collapseAll = useCallback(() => {
+  // Свернуть все
+  const collapseAll = () => {
     setExpandedCategories(new Set());
-  }, []);
+  };
 
-  const handleImportSuccess = useCallback(() => {
-    setIsImportDialogOpen(false);
-  }, []);
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  // Оптимизированный экспорт с динамическим импортом
-  const exportToExcel = useCallback(async () => {
-    const XLSX = await import('xlsx');
+    const reader = new FileReader();
     
+    reader.onload = (event) => {
+      const data = event.target?.result;
+      
+      if (file.name.endsWith('.csv')) {
+        Papa.parse(data as string, {
+          header: true,
+          skipEmptyLines: true,
+          complete: (results) => {
+            processImportData(results.data);
+          }
+        });
+      } else {
+        const workbook = XLSX.read(data, { type: 'binary' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        processImportData(jsonData);
+      }
+    };
+
+    if (file.name.endsWith('.csv')) {
+      reader.readAsText(file);
+    } else {
+      reader.readAsBinaryString(file);
+    }
+  };
+
+  const processImportData = (data: any[]) => {
+    const processed = data.map((row: any) => ({
+      name: row.name || row.Название || row['Наименование'] || '',
+      category: row.category || row.Категория || row['Категория'] || 'Общее',
+      quantity: parseInt(row.quantity || row.Количество || row['Кол-во'] || 0),
+      price: parseFloat(row.price || row.Цена || row['Стоимость'] || 0),
+      description: row.description || row.Описание || '',
+      unit: row.unit || row['Ед.изм'] || row['Единица'] || 'шт'
+    })).filter(item => item.name);
+
+    setImportData(processed);
+    setImportPreview(true);
+  };
+
+  const handleImport = async () => {
+    const { error } = await onBulkInsert(importData);
+    if (!error) {
+      setIsImportDialogOpen(false);
+      setImportPreview(false);
+      setImportData([]);
+    }
+  };
+
+  const exportToExcel = () => {
     const data = equipment.map(item => ({
       'Название': item.name,
       'Категория': item.category,
@@ -107,57 +149,34 @@ export const EquipmentManager = memo(function EquipmentManager({
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Оборудование');
     XLSX.writeFile(wb, 'оборудование.xlsx');
-  }, [equipment]);
-
-  const handleSubmit = useCallback(async (data: any) => {
-    setSubmitting(true);
-    if (editingItem) {
-      const { error } = await onUpdate(editingItem.id, data);
-      if (!error) setEditingItem(null);
-    } else {
-      if (!userId) return;
-      const itemData = { ...data, user_id: userId };
-      const { error } = await onAdd(itemData);
-      if (!error) setIsAddDialogOpen(false);
-    }
-    setSubmitting(false);
-  }, [editingItem, userId, onUpdate, onAdd]);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Spinner className="w-8 h-8" />
-      </div>
-    );
-  }
+  };
 
   return (
     <div className="space-y-4">
-      <Card className="shadow-sm hover:shadow-md transition-shadow rounded-xl">
-        <CardHeader className="pb-4">
+      <Card>
+        <CardHeader>
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-            <CardTitle className="text-xl flex items-center gap-2">
-              <Package className="w-5 h-5" />
-              Оборудование
-            </CardTitle>
+            <CardTitle className="text-lg md:text-xl">Оборудование</CardTitle>
             <div className="flex gap-1.5 md:gap-2 flex-wrap">
-              <Button variant="outline" size="sm" onClick={expandAll} className="rounded-lg shadow-sm hover:shadow-md transition-all">
-                <span className="hidden md:inline mr-2">Развернуть все</span>
+              <Button variant="outline" size="sm" onClick={expandAll} className="text-xs md:text-sm px-2 md:px-3">
+                <span className="hidden md:inline mr-2">Развернуть</span>
                 <span className="md:hidden">+</span>
+                <span className="hidden sm:inline">все</span>
               </Button>
-              <Button variant="outline" size="sm" onClick={collapseAll} className="rounded-lg shadow-sm hover:shadow-md transition-all">
-                <span className="hidden md:inline mr-2">Свернуть все</span>
+              <Button variant="outline" size="sm" onClick={collapseAll} className="text-xs md:text-sm px-2 md:px-3">
+                <span className="hidden md:inline mr-2">Свернуть</span>
                 <span className="md:hidden">-</span>
+                <span className="hidden sm:inline">все</span>
               </Button>
-              <Button variant="outline" size="sm" onClick={() => setIsImportDialogOpen(true)} className="rounded-lg shadow-sm hover:shadow-md transition-all">
+              <Button variant="outline" size="sm" onClick={() => setIsImportDialogOpen(true)} className="px-2 md:px-3">
                 <Upload className="w-4 h-4 md:mr-2" />
                 <span className="hidden md:inline">Импорт</span>
               </Button>
-              <Button variant="outline" size="sm" onClick={exportToExcel} className="rounded-lg shadow-sm hover:shadow-md transition-all">
+              <Button variant="outline" size="sm" onClick={exportToExcel} className="px-2 md:px-3">
                 <Download className="w-4 h-4 md:mr-2" />
                 <span className="hidden md:inline">Excel</span>
               </Button>
-              <Button size="sm" onClick={() => setIsAddDialogOpen(true)} className="rounded-lg shadow-sm hover:shadow-md transition-all">
+              <Button size="sm" onClick={() => setIsAddDialogOpen(true)} className="px-2 md:px-3">
                 <Plus className="w-4 h-4 md:mr-2" />
                 <span className="hidden md:inline">Добавить</span>
               </Button>
@@ -171,11 +190,12 @@ export const EquipmentManager = memo(function EquipmentManager({
               placeholder="Поиск оборудования..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-10 rounded-lg"
+              className="pl-10"
             />
           </div>
 
-          <div className="space-y-3">
+          {/* Группировка по категориям */}
+          <div className="space-y-4">
             {sortedCategories.length === 0 ? (
               <p className="text-center text-gray-500 py-8">Нет оборудования</p>
             ) : (
@@ -184,37 +204,18 @@ export const EquipmentManager = memo(function EquipmentManager({
                 const isExpanded = expandedCategories.has(category);
                 
                 return (
-                  <Card key={category} className="overflow-hidden shadow-sm hover:shadow-md transition-all rounded-xl border">
+                  <Card key={category} className="overflow-hidden">
                     <div 
-                      className="bg-gradient-to-r from-gray-50 to-gray-100 p-3 flex items-center justify-between cursor-pointer hover:from-gray-100 hover:to-gray-200 transition-all"
+                      className="bg-gray-50 p-3 flex items-center justify-between cursor-pointer hover:bg-gray-100"
                       onClick={() => toggleCategory(category)}
                     >
                       <div className="flex items-center gap-2">
-                        {isExpanded ? <ChevronDown className="w-5 h-5 text-gray-500" /> : <ChevronUp className="w-5 h-5 text-gray-500" />}
-                        <span className="font-semibold text-gray-800">{category}</span>
-                        <Badge variant="secondary" className="rounded-md">{items.length}</Badge>
+                        {isExpanded ? <ChevronDown className="w-5 h-5" /> : <ChevronUp className="w-5 h-5" />}
+                        <span className="font-semibold">{category}</span>
+                        <Badge variant="secondary">{items.length}</Badge>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <div className="text-sm text-gray-500">
-                          {items.reduce((sum, i) => sum + i.quantity, 0)} ед.
-                        </div>
-                        {items.length === 0 && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0 rounded-lg hover:bg-red-100"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const cat = categories.find(c => c.name === category);
-                              if (cat && confirm(`Удалить категорию "${category}"?`)) {
-                                onDeleteCategory(cat.id);
-                              }
-                            }}
-                            title="Удалить пустую категорию"
-                          >
-                            <Trash2 className="w-4 h-4 text-red-400 hover:text-red-600" />
-                          </Button>
-                        )}
+                      <div className="text-sm text-gray-500">
+                        {items.reduce((sum, i) => sum + i.quantity, 0)} ед.
                       </div>
                     </div>
                     
@@ -224,7 +225,7 @@ export const EquipmentManager = memo(function EquipmentManager({
                         <div className="hidden md:block">
                           <Table>
                             <TableHeader>
-                              <TableRow className="bg-gray-50 hover:bg-gray-50">
+                              <TableRow>
                                 <TableHead>Название</TableHead>
                                 <TableHead>Описание</TableHead>
                                 <TableHead className="w-24">Кол-во</TableHead>
@@ -235,7 +236,7 @@ export const EquipmentManager = memo(function EquipmentManager({
                             </TableHeader>
                             <TableBody>
                               {items.map((item) => (
-                                <TableRow key={item.id} className="hover:bg-blue-50/50 transition-colors">
+                                <TableRow key={item.id}>
                                   <TableCell>
                                     <div>
                                       <p className="font-medium">{item.name}</p>
@@ -248,14 +249,13 @@ export const EquipmentManager = memo(function EquipmentManager({
                                   </TableCell>
                                   <TableCell>{item.quantity}</TableCell>
                                   <TableCell>{item.unit || 'шт'}</TableCell>
-                                  <TableCell className="font-medium">{item.price.toLocaleString('ru-RU')} ₽</TableCell>
+                                  <TableCell>{item.price.toLocaleString('ru-RU')} ₽</TableCell>
                                   <TableCell>
                                     <div className="flex justify-end gap-1">
                                       <Button 
                                         variant="ghost" 
                                         size="sm"
                                         onClick={() => setEditingItem(item)}
-                                        className="rounded-lg hover:bg-blue-100"
                                       >
                                         <Edit className="w-4 h-4" />
                                       </Button>
@@ -263,7 +263,6 @@ export const EquipmentManager = memo(function EquipmentManager({
                                         variant="ghost" 
                                         size="sm"
                                         onClick={() => onDelete(item.id)}
-                                        className="rounded-lg hover:bg-red-100"
                                       >
                                         <Trash2 className="w-4 h-4 text-red-500" />
                                       </Button>
@@ -276,19 +275,19 @@ export const EquipmentManager = memo(function EquipmentManager({
                         </div>
                         
                         {/* Mobile Cards */}
-                        <div className="md:hidden space-y-2 p-3">
+                        <div className="md:hidden space-y-2 p-2">
                           {items.map((item) => (
-                            <Card key={item.id} className="p-3 shadow-sm hover:shadow-md transition-all rounded-lg">
+                            <Card key={item.id} className="p-3">
                               <div className="flex justify-between items-start mb-2">
                                 <div className="flex-1 min-w-0">
                                   <p className="font-medium text-sm truncate">{item.name}</p>
-                                  <p className="text-xs text-gray-500 mt-0.5 truncate">{item.description || '—'}</p>
+                                  <p className="text-xs text-gray-500 mt-0.5">{item.description || '—'}</p>
                                 </div>
                                 <div className="flex gap-1 ml-2">
                                   <Button 
                                     variant="ghost" 
                                     size="sm"
-                                    className="h-8 w-8 p-0 rounded-lg hover:bg-blue-100"
+                                    className="h-8 w-8 p-0"
                                     onClick={() => setEditingItem(item)}
                                   >
                                     <Edit className="w-4 h-4" />
@@ -296,18 +295,18 @@ export const EquipmentManager = memo(function EquipmentManager({
                                   <Button 
                                     variant="ghost" 
                                     size="sm"
-                                    className="h-8 w-8 p-0 rounded-lg hover:bg-red-100"
+                                    className="h-8 w-8 p-0"
                                     onClick={() => onDelete(item.id)}
                                   >
                                     <Trash2 className="w-4 h-4 text-red-500" />
                                   </Button>
                                 </div>
                               </div>
-                              <div className="flex justify-between items-center text-sm pt-2 border-t">
+                              <div className="flex justify-between items-center text-sm">
                                 <div className="flex gap-3 text-gray-600">
                                   <span>{item.quantity} {item.unit || 'шт'}</span>
                                 </div>
-                                <span className="font-semibold text-green-700">{item.price.toLocaleString('ru-RU')} ₽</span>
+                                <span className="font-semibold">{item.price.toLocaleString('ru-RU')} ₽</span>
                               </div>
                             </Card>
                           ))}
@@ -322,37 +321,101 @@ export const EquipmentManager = memo(function EquipmentManager({
         </CardContent>
       </Card>
 
-      <EquipmentImportDialog
-        isOpen={isImportDialogOpen}
-        onClose={handleImportSuccess}
-        categories={categories}
-        userId={userId}
-        onBulkInsert={onBulkInsert}
-        onAddCategory={onAddCategory}
-      />
+      {/* Диалог импорта */}
+      <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Импорт оборудования</DialogTitle>
+          </DialogHeader>
+          
+          {!importPreview ? (
+            <div className="space-y-4">
+              <p className="text-sm text-gray-500">
+                Загрузите Excel или CSV файл со столбцами: Название, Категория, Количество, Ед.изм, Цена, Описание
+              </p>
+              <Input
+                type="file"
+                accept=".csv,.xlsx,.xls"
+                onChange={handleFileUpload}
+                ref={fileInputRef}
+              />
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-sm">Найдено записей: {importData.length}</p>
+              <div className="max-h-96 overflow-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Название</TableHead>
+                      <TableHead>Категория</TableHead>
+                      <TableHead>Кол-во</TableHead>
+                      <TableHead>Ед.</TableHead>
+                      <TableHead>Цена</TableHead>
+                      <TableHead>Описание</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {importData.slice(0, 10).map((item, idx) => (
+                      <TableRow key={idx}>
+                        <TableCell>{item.name}</TableCell>
+                        <TableCell>{item.category}</TableCell>
+                        <TableCell>{item.quantity}</TableCell>
+                        <TableCell>{item.unit || 'шт'}</TableCell>
+                        <TableCell>{item.price}</TableCell>
+                        <TableCell>{item.description || '—'}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                {importData.length > 10 && (
+                  <p className="text-center text-sm text-gray-500 mt-2">
+                    ... и ещё {importData.length - 10} записей
+                  </p>
+                )}
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => {
+                  setImportPreview(false);
+                  setImportData([]);
+                }}>
+                  Отмена
+                </Button>
+                <Button onClick={handleImport}>
+                  Импортировать {importData.length} записей
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
+      {/* Диалог добавления/редактирования */}
       <Dialog open={isAddDialogOpen || !!editingItem} onOpenChange={(open) => {
         if (!open) {
           setIsAddDialogOpen(false);
           setEditingItem(null);
         }
       }}>
-        <DialogContent className="max-w-lg rounded-xl" aria-describedby="equipment-dialog-desc">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>
               {editingItem ? 'Редактировать оборудование' : 'Добавить оборудование'}
             </DialogTitle>
-            <DialogDescription id="equipment-dialog-desc">
-              {editingItem ? 'Измените данные оборудования' : 'Заполните данные нового оборудования'}
-            </DialogDescription>
           </DialogHeader>
           <EquipmentForm 
             categories={categories}
-            userId={userId}
             initialData={editingItem}
-            onSubmit={handleSubmit}
+            onSubmit={async (data) => {
+              if (editingItem) {
+                const { error } = await onUpdate(editingItem.id, data);
+                if (!error) setEditingItem(null);
+              } else {
+                const { error } = await onAdd(data);
+                if (!error) setIsAddDialogOpen(false);
+              }
+            }}
             onAddCategory={onAddCategory}
-            submitting={submitting}
           />
         </DialogContent>
       </Dialog>
@@ -360,16 +423,15 @@ export const EquipmentManager = memo(function EquipmentManager({
   );
 }
 
+// Форма оборудования
 interface EquipmentFormProps {
   categories: { id: string; name: string }[];
-  userId: string | undefined;
   initialData?: Partial<Equipment> | null;
   onSubmit: (data: any) => Promise<void>;
   onAddCategory: (name: string) => Promise<{ error: any; data?: any }>;
-  submitting: boolean;
 }
 
-function EquipmentForm({ categories, userId, initialData, onSubmit, onAddCategory, submitting }: EquipmentFormProps) {
+function EquipmentForm({ categories, initialData, onSubmit, onAddCategory }: EquipmentFormProps) {
   const [formData, setFormData] = useState({
     name: '',
     category: '',
@@ -383,8 +445,10 @@ function EquipmentForm({ categories, userId, initialData, onSubmit, onAddCategor
   const [isCustomUnit, setIsCustomUnit] = useState(false);
   const [customUnit, setCustomUnit] = useState('');
 
+  // Статический массив единиц измерения
   const UNIT_OPTIONS = ['шт', 'комплект', 'услуга', 'человек', 'п.м.'];
 
+  // Обновляем formData при изменении initialData (для редактирования)
   useEffect(() => {
     if (initialData) {
       setFormData({
@@ -395,6 +459,7 @@ function EquipmentForm({ categories, userId, initialData, onSubmit, onAddCategor
         description: initialData.description || '',
         unit: initialData.unit || 'шт'
       });
+      // Проверяем, является ли единица измерения кастомной
       if (initialData.unit && !UNIT_OPTIONS.includes(initialData.unit)) {
         setIsCustomUnit(true);
         setCustomUnit(initialData.unit);
@@ -402,6 +467,20 @@ function EquipmentForm({ categories, userId, initialData, onSubmit, onAddCategor
         setIsCustomUnit(false);
         setCustomUnit('');
       }
+    } else {
+      // Сброс формы при добавлении нового
+      setFormData({
+        name: '',
+        category: '',
+        quantity: '',
+        price: '',
+        description: '',
+        unit: 'шт'
+      });
+      setIsCustomUnit(false);
+      setCustomUnit('');
+      setIsAddingCategory(false);
+      setNewCategoryName('');
     }
   }, [initialData?.id]);
 
@@ -421,24 +500,18 @@ function EquipmentForm({ categories, userId, initialData, onSubmit, onAddCategor
     }
   };
 
-  const handleSubmitForm = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.name.trim()) return;
-    if (!formData.category) return;
-    const finalUnit = isCustomUnit && customUnit.trim() ? customUnit.trim() : (formData.unit || 'шт');
-    const data = {
-      name: formData.name.trim(),
-      category: formData.category,
-      quantity: parseInt(formData.quantity) || 0,
-      price: parseFloat(formData.price) || 0,
-      description: formData.description || '',
-      unit: finalUnit
-    };
-    onSubmit(data);
-  };
-
   return (
-    <form onSubmit={handleSubmitForm} className="space-y-4">
+    <form 
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSubmit({
+          ...formData,
+          quantity: parseInt(formData.quantity) || 0,
+          price: parseFloat(formData.price) || 0
+        });
+      }}
+      className="space-y-4"
+    >
       <div className="space-y-2">
         <Label>Название *</Label>
         <Input
@@ -446,7 +519,6 @@ function EquipmentForm({ categories, userId, initialData, onSubmit, onAddCategor
           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
           placeholder="Например: Микшер Yamaha MG16"
           required
-          className="rounded-lg"
         />
       </div>
 
@@ -458,7 +530,6 @@ function EquipmentForm({ categories, userId, initialData, onSubmit, onAddCategor
             variant="ghost" 
             size="sm"
             onClick={() => setIsAddingCategory(!isAddingCategory)}
-            className="rounded-lg"
           >
             <FolderPlus className="w-4 h-4 mr-1" />
             {isAddingCategory ? 'Отмена' : 'Новая категория'}
@@ -472,15 +543,14 @@ function EquipmentForm({ categories, userId, initialData, onSubmit, onAddCategor
               onChange={(e) => setNewCategoryName(e.target.value)}
               placeholder="Название новой категории"
               onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddCategory())}
-              className="rounded-lg"
             />
-            <Button type="button" onClick={handleAddCategory} className="rounded-lg">
+            <Button type="button" onClick={handleAddCategory}>
               Добавить
             </Button>
           </div>
         ) : (
           <select
-            className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+            className="w-full border rounded-md p-2"
             value={formData.category}
             onChange={(e) => setFormData({ ...formData, category: e.target.value })}
             required
@@ -501,7 +571,6 @@ function EquipmentForm({ categories, userId, initialData, onSubmit, onAddCategor
             min="0"
             value={formData.quantity}
             onChange={(e) => handleNumberChange('quantity', e.target.value)}
-            className="rounded-lg"
           />
         </div>
         <div className="space-y-2">
@@ -512,7 +581,15 @@ function EquipmentForm({ categories, userId, initialData, onSubmit, onAddCategor
                 value={customUnit}
                 onChange={(e) => setCustomUnit(e.target.value)}
                 placeholder="Введите единицу"
-                className="rounded-lg"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (customUnit.trim()) {
+                      setFormData(prev => ({ ...prev, unit: customUnit.trim() }));
+                    }
+                    setIsCustomUnit(false);
+                  }
+                }}
               />
               <Button 
                 type="button" 
@@ -524,14 +601,13 @@ function EquipmentForm({ categories, userId, initialData, onSubmit, onAddCategor
                   }
                   setIsCustomUnit(false);
                 }}
-                className="rounded-lg"
               >
                 OK
               </Button>
             </div>
           ) : (
             <select
-              className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+              className="w-full border rounded-md p-2"
               value={UNIT_OPTIONS.includes(formData.unit) ? formData.unit : 'custom'}
               onChange={(e) => {
                 if (e.target.value === 'custom') {
@@ -557,7 +633,6 @@ function EquipmentForm({ categories, userId, initialData, onSubmit, onAddCategor
             step="0.01"
             value={formData.price}
             onChange={(e) => handleNumberChange('price', e.target.value)}
-            className="rounded-lg"
           />
         </div>
       </div>
@@ -565,15 +640,14 @@ function EquipmentForm({ categories, userId, initialData, onSubmit, onAddCategor
       <div className="space-y-2">
         <Label>Описание</Label>
         <textarea
-          className="w-full border rounded-lg p-2 min-h-[80px] resize-y focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+          className="w-full border rounded-md p-2 min-h-[80px] resize-y"
           value={formData.description}
           onChange={(e) => setFormData({ ...formData, description: e.target.value })}
           placeholder="Технические характеристики, примечания..."
         />
       </div>
 
-      <Button type="submit" className="w-full rounded-lg" disabled={submitting}>
-        {submitting && <Spinner className="w-4 h-4 mr-2" />}
+      <Button type="submit" className="w-full">
         {initialData ? 'Сохранить' : 'Добавить'}
       </Button>
     </form>
