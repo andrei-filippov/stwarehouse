@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
 import type { Equipment, Category } from '../types';
 
@@ -11,25 +12,42 @@ export function useEquipment(userId: string | undefined) {
     if (!userId) return;
     setLoading(true);
     
-    const { data, error } = await supabase
-      .from('equipment')
-      .select('*')
-      .order('name');
-    
-    if (!error && data) {
-      setEquipment(data as Equipment[]);
+    try {
+      const { data, error } = await supabase
+        .from('equipment')
+        .select('*')
+        .order('name');
+      
+      if (error) {
+        if (error.code !== '42P01') {
+          toast.error('Ошибка при загрузке оборудования', { description: error.message });
+        }
+      } else if (data) {
+        setEquipment(data as Equipment[]);
+      }
+    } catch (err) {
+      console.error('Unexpected error:', err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [userId]);
 
   const fetchCategories = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('categories')
-      .select('*')
-      .order('name');
-    
-    if (!error && data) {
-      setCategories(data as Category[]);
+    try {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*')
+        .order('name');
+      
+      if (error) {
+        if (error.code !== '42P01') {
+          console.error('Error fetching categories:', error);
+        }
+      } else if (data) {
+        setCategories(data as Category[]);
+      }
+    } catch (err) {
+      console.error('Unexpected error:', err);
     }
   }, []);
 
@@ -39,82 +57,131 @@ export function useEquipment(userId: string | undefined) {
   }, [fetchEquipment, fetchCategories]);
 
   const addEquipment = async (item: Omit<Equipment, 'id' | 'created_at' | 'updated_at'> & { user_id: string }) => {
-    const { data, error } = await supabase
-      .from('equipment')
-      .insert([item])
-      .select()
-      .single();
-    
-    if (!error && data) {
-      setEquipment(prev => [...prev, data as Equipment]);
+    try {
+      const { data, error } = await supabase
+        .from('equipment')
+        .insert([item])
+        .select()
+        .single();
+      
+      if (error) {
+        if (error.code === '42P01') {
+          toast.error('Таблица оборудования не найдена', { 
+            description: 'Пожалуйста, выполните SQL скрипт supabase_schema.sql' 
+          });
+        } else {
+          toast.error('Ошибка при добавлении оборудования', { description: error.message });
+        }
+      } else if (data) {
+        setEquipment(prev => [...prev, data as Equipment]);
+        toast.success('Оборудование добавлено', { description: item.name });
+      }
+      return { error };
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      return { error: err };
     }
-    return { error };
   };
 
   const updateEquipment = async (id: string, updates: Partial<Equipment>) => {
-    const { error } = await supabase
-      .from('equipment')
-      .update({ ...updates, updated_at: new Date().toISOString() })
-      .eq('id', id);
-    
-    if (!error) {
-      setEquipment(prev => prev.map(item => 
-        item.id === id ? { ...item, ...updates } : item
-      ));
+    try {
+      const { error } = await supabase
+        .from('equipment')
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq('id', id);
+      
+      if (error) {
+        toast.error('Ошибка при обновлении оборудования', { description: error.message });
+      } else {
+        setEquipment(prev => prev.map(item => 
+          item.id === id ? { ...item, ...updates } : item
+        ));
+        toast.success('Оборудование обновлено');
+      }
+      return { error };
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      return { error: err };
     }
-    return { error };
   };
 
   const deleteEquipment = async (id: string) => {
-    const { error } = await supabase
-      .from('equipment')
-      .delete()
-      .eq('id', id);
-    
-    if (error) {
-      toast.error('Ошибка при удалении оборудования', { description: error.message });
-    } else {
-      setEquipment(prev => prev.filter(item => item.id !== id));
-      toast.success('Оборудование удалено');
+    try {
+      const { error } = await supabase
+        .from('equipment')
+        .delete()
+        .eq('id', id);
+      
+      if (error) {
+        toast.error('Ошибка при удалении оборудования', { description: error.message });
+      } else {
+        setEquipment(prev => prev.filter(item => item.id !== id));
+        toast.success('Оборудование удалено');
+      }
+      return { error };
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      return { error: err };
     }
-    return { error };
   };
 
   const bulkInsert = async (items: (Omit<Equipment, 'id' | 'created_at' | 'updated_at'> & { user_id: string })[]) => {
-    const { data, error } = await supabase
-      .from('equipment')
-      .insert(items)
-      .select();
-    
-    if (!error && data) {
-      setEquipment(prev => [...prev, ...(data as Equipment[])]);
+    try {
+      const { data, error } = await supabase
+        .from('equipment')
+        .insert(items)
+        .select();
+      
+      if (error) {
+        toast.error('Ошибка при импорте оборудования', { description: error.message });
+      } else if (data) {
+        setEquipment(prev => [...prev, ...(data as Equipment[])]);
+        toast.success('Оборудование импортировано', { description: `${data.length} позиций` });
+      }
+      return { error, count: data?.length || 0 };
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      return { error: err, count: 0 };
     }
-    return { error, count: data?.length || 0 };
   };
 
   const addCategory = async (name: string) => {
-    const { data, error } = await supabase
-      .from('categories')
-      .insert([{ name }])
-      .select()
-      .single();
-    
-    if (!error && data) {
-      setCategories(prev => [...prev, data as Category]);
+    try {
+      const { data, error } = await supabase
+        .from('categories')
+        .insert([{ name }])
+        .select()
+        .single();
+      
+      if (error) {
+        toast.error('Ошибка при добавлении категории', { description: error.message });
+      } else if (data) {
+        setCategories(prev => [...prev, data as Category]);
+      }
+      return { error, data };
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      return { error: err, data: null };
     }
-    return { error, data };
   };
 
   const deleteCategory = async (id: string) => {
-    const { error } = await supabase
-      .from('categories')
-      .delete()
-      .eq('id', id);
-    
-    if (!error) {
-      setCategories(prev => prev.filter(cat => cat.id !== id));
+    try {
+      const { error } = await supabase
+        .from('categories')
+        .delete()
+        .eq('id', id);
+      
+      if (error) {
+        toast.error('Ошибка при удалении категории', { description: error.message });
+      } else {
+        setCategories(prev => prev.filter(cat => cat.id !== id));
+      }
+      return { error };
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      return { error: err };
     }
-    return { error };
   };
 
   return {

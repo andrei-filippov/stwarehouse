@@ -46,7 +46,7 @@ function App() {
   const { checklists, rules, loading: checklistsLoading, createRule, deleteRule, createChecklist, updateChecklistItem, deleteChecklist } = useChecklists(user?.id, estimates);
   const { staff, loading: staffLoading, addStaff, updateStaff, deleteStaff } = useStaff(user?.id);
   const { tasks, loading: goalsLoading, addTask, updateTask, deleteTask } = useGoals(user?.id);
-  const { customers, loading: customersLoading, addCustomer, updateCustomer, deleteCustomer } = useCustomers(user?.id);
+  const { customers, loading: customersLoading, error: customersError, addCustomer, updateCustomer, deleteCustomer } = useCustomers(user?.id);
   const analyticsData = { equipment, estimates, staff, customers };
   
   const [activeTab, setActiveTab] = useState<Tab>('equipment');
@@ -313,6 +313,7 @@ function App() {
             onUpdate={updateCustomer}
             onDelete={deleteCustomer}
             loading={customersLoading}
+            error={customersError}
           />
         )}
 

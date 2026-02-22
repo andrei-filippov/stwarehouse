@@ -10,7 +10,14 @@ export function useAuth() {
 
   useEffect(() => {
     // Получаем текущую сессию
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        console.error('Auth session error:', error);
+        // При ошибке сессии (например, невалидный refresh token) разлогиниваем
+        if (error.message?.includes('refresh_token') || error.message?.includes('Refresh Token')) {
+          supabase.auth.signOut();
+        }
+      }
       setUser(session?.user ?? null);
       if (session?.user) {
         fetchProfile(session.user.id);
@@ -20,7 +27,20 @@ export function useAuth() {
     });
 
     // Подписываемся на изменения авторизации
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Auth state changed:', event);
+      
+      if (event === 'TOKEN_REFRESHED') {
+        console.log('Token refreshed successfully');
+      }
+      
+      if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
+        setUser(null);
+        setProfile(null);
+        setLoading(false);
+        return;
+      }
+
       setUser(session?.user ?? null);
       if (session?.user) {
         fetchProfile(session.user.id);
@@ -34,46 +54,69 @@ export function useAuth() {
   }, []);
 
   const fetchProfile = async (userId: string) => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
-    
-    if (!error && data) {
-      setProfile(data as Profile);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+      
+      if (error) {
+        console.error('Profile fetch error:', error);
+      } else if (data) {
+        setProfile(data as Profile);
+      }
+    } catch (err) {
+      console.error('Unexpected error fetching profile:', err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error };
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      return { error };
+    } catch (err) {
+      console.error('Sign in error:', err);
+      return { error: err as Error };
+    }
   };
 
   const signUp = async (email: string, password: string, name: string) => {
-    const { data, error } = await supabase.auth.signUp({ 
-      email, 
-      password,
-      options: {
-        data: { name }
-      }
-    });
-    
-    if (!error && data.user) {
-      // Создаем профиль
-      await supabase.from('profiles').insert({
-        id: data.user.id,
-        name,
-        role: 'manager'
+    try {
+      const { data, error } = await supabase.auth.signUp({ 
+        email, 
+        password,
+        options: {
+          data: { name }
+        }
       });
+      
+      if (!error && data.user) {
+        // Создаем профиль
+        await supabase.from('profiles').insert({
+          id: data.user.id,
+          name,
+          role: 'manager'
+        });
+      }
+      
+      return { error };
+    } catch (err) {
+      console.error('Sign up error:', err);
+      return { error: err as Error };
     }
-    
-    return { error };
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      setProfile(null);
+    } catch (err) {
+      console.error('Sign out error:', err);
+    }
   };
 
   return {

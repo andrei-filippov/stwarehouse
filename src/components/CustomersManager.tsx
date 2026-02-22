@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Badge } from './ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Spinner } from './ui/spinner';
-import { Plus, Edit, Trash2, Search, Building2, User, Phone, Mail } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Building2, User, Phone, Mail, AlertCircle } from 'lucide-react';
 import type { Customer } from '../types';
 
 interface CustomersManagerProps {
@@ -18,9 +18,10 @@ interface CustomersManagerProps {
   onUpdate: (id: string, updates: Partial<Customer>) => Promise<{ error: any }>;
   onDelete: (id: string) => Promise<{ error: any }>;
   loading?: boolean;
+  error?: string | null;
 }
 
-export function CustomersManager({ customers, userId, onAdd, onUpdate, onDelete, loading }: CustomersManagerProps) {
+export function CustomersManager({ customers, userId, onAdd, onUpdate, onDelete, loading, error }: CustomersManagerProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -72,6 +73,23 @@ export function CustomersManager({ customers, userId, onAdd, onUpdate, onDelete,
       <div className="flex items-center justify-center h-64">
         <Spinner className="w-8 h-8" />
       </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className="shadow-sm rounded-xl p-8">
+        <div className="flex flex-col items-center justify-center text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+            <AlertCircle className="w-8 h-8 text-red-600" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Ошибка загрузки</h3>
+          <p className="text-gray-600 max-w-md mb-4">{error}</p>
+          <p className="text-sm text-gray-500">
+            Пожалуйста, выполните SQL скрипт <code className="bg-gray-100 px-1 py-0.5 rounded">supabase_schema.sql</code> в Supabase Dashboard
+          </p>
+        </div>
+      </Card>
     );
   }
 
