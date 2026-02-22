@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
 import type { Task } from '../types/goals';
 
@@ -17,7 +18,9 @@ export function useGoals(userId: string | undefined) {
       .order('due_date', { ascending: true })
       .order('priority', { ascending: false });
     
-    if (!error && data) {
+    if (error) {
+      toast.error('Ошибка при загрузке задач', { description: error.message });
+    } else if (data) {
       setTasks(data as Task[]);
     }
     setLoading(false);
@@ -33,7 +36,6 @@ export function useGoals(userId: string | undefined) {
       user_id: userId
     };
     
-    // Добавляем только если значения есть
     if (task.description) taskData.description = task.description;
     if (task.category) taskData.category = task.category;
     if (task.priority) taskData.priority = task.priority;
@@ -47,10 +49,11 @@ export function useGoals(userId: string | undefined) {
       .select()
       .single();
     
-    if (!error && data) {
+    if (error) {
+      toast.error('Ошибка при добавлении задачи', { description: error.message });
+    } else if (data) {
       setTasks(prev => [...prev, data as Task]);
-    } else {
-      console.error('Error adding task:', error);
+      toast.success('Задача добавлена', { description: task.title });
     }
     return { error, data };
   };
@@ -67,10 +70,15 @@ export function useGoals(userId: string | undefined) {
       .update(updateData)
       .eq('id', id);
     
-    if (!error) {
+    if (error) {
+      toast.error('Ошибка при обновлении задачи', { description: error.message });
+    } else {
       setTasks(prev => prev.map(t => 
         t.id === id ? { ...t, ...updates } : t
       ));
+      if (updates.status === 'completed') {
+        toast.success('Задача выполнена!');
+      }
     }
     return { error };
   };
@@ -81,13 +89,15 @@ export function useGoals(userId: string | undefined) {
       .delete()
       .eq('id', id);
     
-    if (!error) {
+    if (error) {
+      toast.error('Ошибка при удалении задачи', { description: error.message });
+    } else {
       setTasks(prev => prev.filter(t => t.id !== id));
+      toast.success('Задача удалена');
     }
     return { error };
   };
 
-  // Получить статистику
   const getStats = () => {
     const today = new Date().toISOString().split('T')[0];
     return {

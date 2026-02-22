@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
 import type { Template, TemplateItem } from '../types';
 
@@ -18,7 +19,9 @@ export function useTemplates(userId: string | undefined) {
       `)
       .order('name');
     
-    if (!error && data) {
+    if (error) {
+      toast.error('Ошибка при загрузке шаблонов', { description: error.message });
+    } else if (data) {
       setTemplates(data as Template[]);
     }
     setLoading(false);
@@ -36,11 +39,11 @@ export function useTemplates(userId: string | undefined) {
       .single();
     
     if (templateError || !templateData) {
+      toast.error('Ошибка при создании шаблона', { description: templateError?.message });
       return { error: templateError };
     }
 
     if (items.length > 0) {
-      // Очищаем данные перед сохранением (убираем id и equipment_id если их нет в БД)
       const itemsWithTemplateId = items.map(item => ({
         template_id: templateData.id,
         category: item.category,
@@ -53,12 +56,13 @@ export function useTemplates(userId: string | undefined) {
         .insert(itemsWithTemplateId);
       
       if (itemsError) {
-        console.error('Error inserting template items:', itemsError);
+        toast.error('Ошибка при добавлении позиций шаблона', { description: itemsError.message });
         return { error: itemsError };
       }
     }
 
     await fetchTemplates();
+    toast.success('Шаблон создан', { description: template.name });
     return { error: null, data: templateData };
   };
 
@@ -68,7 +72,10 @@ export function useTemplates(userId: string | undefined) {
       .update(updates)
       .eq('id', id);
     
-    if (error) return { error };
+    if (error) {
+      toast.error('Ошибка при обновлении шаблона', { description: error.message });
+      return { error };
+    }
 
     if (items) {
       await supabase.from('template_items').delete().eq('template_id', id);
@@ -85,6 +92,7 @@ export function useTemplates(userId: string | undefined) {
     }
 
     await fetchTemplates();
+    toast.success('Шаблон обновлен');
     return { error: null };
   };
 
@@ -94,8 +102,11 @@ export function useTemplates(userId: string | undefined) {
       .delete()
       .eq('id', id);
     
-    if (!error) {
+    if (error) {
+      toast.error('Ошибка при удалении шаблона', { description: error.message });
+    } else {
       setTemplates(prev => prev.filter(t => t.id !== id));
+      toast.success('Шаблон удален');
     }
     return { error };
   };

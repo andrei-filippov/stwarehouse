@@ -71,8 +71,11 @@ export function useEquipment(userId: string | undefined) {
       .delete()
       .eq('id', id);
     
-    if (!error) {
+    if (error) {
+      toast.error('Ошибка при удалении оборудования', { description: error.message });
+    } else {
       setEquipment(prev => prev.filter(item => item.id !== id));
+      toast.success('Оборудование удалено');
     }
     return { error };
   };

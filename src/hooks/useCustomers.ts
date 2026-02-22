@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
 import type { Customer } from '../types';
 
@@ -15,7 +16,9 @@ export function useCustomers(userId: string | undefined) {
       .select('*')
       .order('name');
     
-    if (!error && data) {
+    if (error) {
+      toast.error('Ошибка при загрузке заказчиков', { description: error.message });
+    } else if (data) {
       setCustomers(data as Customer[]);
     }
     setLoading(false);
@@ -32,8 +35,11 @@ export function useCustomers(userId: string | undefined) {
       .select()
       .single();
     
-    if (!error && data) {
+    if (error) {
+      toast.error('Ошибка при добавлении заказчика', { description: error.message });
+    } else if (data) {
       setCustomers(prev => [...prev, data as Customer]);
+      toast.success('Заказчик добавлен', { description: customer.name });
     }
     return { error, data };
   };
@@ -44,10 +50,13 @@ export function useCustomers(userId: string | undefined) {
       .update({ ...updates, updated_at: new Date().toISOString() })
       .eq('id', id);
     
-    if (!error) {
+    if (error) {
+      toast.error('Ошибка при обновлении заказчика', { description: error.message });
+    } else {
       setCustomers(prev => prev.map(c => 
         c.id === id ? { ...c, ...updates } : c
       ));
+      toast.success('Заказчик обновлен');
     }
     return { error };
   };
@@ -58,8 +67,11 @@ export function useCustomers(userId: string | undefined) {
       .delete()
       .eq('id', id);
     
-    if (!error) {
+    if (error) {
+      toast.error('Ошибка при удалении заказчика', { description: error.message });
+    } else {
       setCustomers(prev => prev.filter(c => c.id !== id));
+      toast.success('Заказчик удален');
     }
     return { error };
   };

@@ -79,6 +79,13 @@ export type PDFSettings = {
   stamp: string | null;
 };
 
+// Глобальные расширения
+declare global {
+  interface Window {
+    XLSX: any;
+  }
+}
+
 // Правило: связывает оборудование с необходимыми инструментами
 export type ChecklistRule = {
   id: string;

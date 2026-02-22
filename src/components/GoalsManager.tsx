@@ -27,15 +27,18 @@ import type { Staff } from '../types';
 import { format, parseISO, isPast, isToday, isTomorrow, addDays } from 'date-fns';
 import { ru } from 'date-fns/locale';
 
+import { Spinner } from './ui/spinner';
+
 interface GoalsManagerProps {
   tasks: Task[];
   staff: Staff[];
   onAdd: (task: Omit<Task, 'id' | 'created_at' | 'updated_at'>) => Promise<{ error: any }>;
   onUpdate: (id: string, updates: Partial<Task>) => Promise<{ error: any }>;
   onDelete: (id: string) => Promise<{ error: any }>;
+  loading?: boolean;
 }
 
-export function GoalsManager({ tasks, staff, onAdd, onUpdate, onDelete }: GoalsManagerProps) {
+export function GoalsManager({ tasks, staff, onAdd, onUpdate, onDelete, loading }: GoalsManagerProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [filterStatus, setFilterStatus] = useState<Task['status'] | 'all'>('all');
@@ -180,6 +183,14 @@ export function GoalsManager({ tasks, staff, onAdd, onUpdate, onDelete }: GoalsM
       </div>
     );
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Spinner className="w-8 h-8" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">

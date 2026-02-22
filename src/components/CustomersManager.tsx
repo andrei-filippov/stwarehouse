@@ -7,7 +7,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Badge } from './ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { Plus, Edit, Trash2, Search, Building2, User } from 'lucide-react';
+import { Spinner } from './ui/spinner';
+import { Plus, Edit, Trash2, Search, Building2, User, Phone, Mail } from 'lucide-react';
 import type { Customer } from '../types';
 
 interface CustomersManagerProps {
@@ -16,12 +17,14 @@ interface CustomersManagerProps {
   onAdd: (customer: Omit<Customer, 'id' | 'created_at' | 'updated_at'> & { user_id: string }) => Promise<{ error: any }>;
   onUpdate: (id: string, updates: Partial<Customer>) => Promise<{ error: any }>;
   onDelete: (id: string) => Promise<{ error: any }>;
+  loading?: boolean;
 }
 
-export function CustomersManager({ customers, userId, onAdd, onUpdate, onDelete }: CustomersManagerProps) {
+export function CustomersManager({ customers, userId, onAdd, onUpdate, onDelete, loading }: CustomersManagerProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const filteredCustomers = customers.filter(c => 
     c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -40,12 +43,14 @@ export function CustomersManager({ customers, userId, onAdd, onUpdate, onDelete 
   };
 
   const handleSubmit = async (data: any) => {
+    setSubmitting(true);
     if (editingCustomer) {
       await onUpdate(editingCustomer.id, data);
     } else {
       if (!userId) return;
       await onAdd({ ...data, user_id: userId });
     }
+    setSubmitting(false);
     setIsDialogOpen(false);
   };
 
@@ -62,16 +67,24 @@ export function CustomersManager({ customers, userId, onAdd, onUpdate, onDelete 
     return type === 'individual' ? <User className="w-4 h-4" /> : <Building2 className="w-4 h-4" />;
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Spinner className="w-8 h-8" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
-      <Card>
-        <CardHeader>
+      <Card className="shadow-sm hover:shadow-md transition-shadow rounded-xl">
+        <CardHeader className="pb-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <CardTitle>Заказчики</CardTitle>
+              <CardTitle className="text-xl">Заказчики</CardTitle>
               <p className="text-sm text-gray-500 mt-1">Всего: {customers.length}</p>
             </div>
-            <Button onClick={handleOpenNew}>
+            <Button onClick={handleOpenNew} className="shadow-sm hover:shadow-md transition-all rounded-lg">
               <Plus className="w-4 h-4 mr-2" />
               Добавить
             </Button>
@@ -84,18 +97,19 @@ export function CustomersManager({ customers, userId, onAdd, onUpdate, onDelete 
               placeholder="Поиск по названию, ИНН, контакту..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
+              className="pl-10 rounded-lg"
             />
           </div>
 
-          <div className="border rounded-lg overflow-hidden">
+          {/* Desktop Table */}
+          <div className="hidden md:block border rounded-xl overflow-hidden shadow-sm">
             <Table>
               <TableHeader>
-                <TableRow>
+                <TableRow className="bg-gray-50 hover:bg-gray-50">
                   <TableHead>Название / Контакт</TableHead>
-                  <TableHead className="hidden sm:table-cell">Тип</TableHead>
-                  <TableHead className="hidden md:table-cell">ИНН</TableHead>
-                  <TableHead className="hidden lg:table-cell">Телефон</TableHead>
+                  <TableHead>Тип</TableHead>
+                  <TableHead>ИНН</TableHead>
+                  <TableHead>Телефон</TableHead>
                   <TableHead className="text-right">Действия</TableHead>
                 </TableRow>
               </TableHeader>
@@ -108,7 +122,7 @@ export function CustomersManager({ customers, userId, onAdd, onUpdate, onDelete 
                   </TableRow>
                 ) : (
                   filteredCustomers.map((customer) => (
-                    <TableRow key={customer.id}>
+                    <TableRow key={customer.id} className="hover:bg-blue-50/50 transition-colors">
                       <TableCell>
                         <div className="flex items-center gap-2">
                           {getTypeIcon(customer.type)}
@@ -120,17 +134,27 @@ export function CustomersManager({ customers, userId, onAdd, onUpdate, onDelete 
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="hidden sm:table-cell">
-                        <Badge variant="outline">{getTypeLabel(customer.type)}</Badge>
+                      <TableCell>
+                        <Badge variant="outline" className="rounded-md">{getTypeLabel(customer.type)}</Badge>
                       </TableCell>
-                      <TableCell className="hidden md:table-cell">{customer.inn || '-'}</TableCell>
-                      <TableCell className="hidden lg:table-cell">{customer.phone || '-'}</TableCell>
+                      <TableCell>{customer.inn || '-'}</TableCell>
+                      <TableCell>{customer.phone || '-'}</TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="sm" onClick={() => handleOpenEdit(customer)}>
+                        <div className="flex justify-end gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => handleOpenEdit(customer)}
+                            className="rounded-lg hover:bg-blue-100"
+                          >
                             <Edit className="w-4 h-4" />
                           </Button>
-                          <Button variant="ghost" size="sm" onClick={() => onDelete(customer.id)}>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => onDelete(customer.id)}
+                            className="rounded-lg hover:bg-red-100"
+                          >
                             <Trash2 className="w-4 h-4 text-red-500" />
                           </Button>
                         </div>
@@ -141,12 +165,75 @@ export function CustomersManager({ customers, userId, onAdd, onUpdate, onDelete 
               </TableBody>
             </Table>
           </div>
+
+          {/* Mobile Cards */}
+          <div className="md:hidden space-y-3">
+            {filteredCustomers.length === 0 ? (
+              <p className="text-center py-8 text-gray-500">Заказчики не найдены</p>
+            ) : (
+              filteredCustomers.map((customer) => (
+                <Card key={customer.id} className="p-4 shadow-sm hover:shadow-md transition-all rounded-xl">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <div className="p-2 bg-blue-50 rounded-lg">
+                        {getTypeIcon(customer.type)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">{customer.name}</p>
+                        {customer.contact_person && (
+                          <p className="text-xs text-gray-500 truncate">{customer.contact_person}</p>
+                        )}
+                        <Badge variant="outline" className="mt-1 text-xs rounded-md">{getTypeLabel(customer.type)}</Badge>
+                      </div>
+                    </div>
+                    <div className="flex gap-1 ml-2">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        className="h-8 w-8 p-0 rounded-lg hover:bg-blue-100"
+                        onClick={() => handleOpenEdit(customer)}
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        className="h-8 w-8 p-0 rounded-lg hover:bg-red-100"
+                        onClick={() => onDelete(customer.id)}
+                      >
+                        <Trash2 className="w-4 h-4 text-red-500" />
+                      </Button>
+                    </div>
+                  </div>
+                  {(customer.phone || customer.email || customer.inn) && (
+                    <div className="mt-3 pt-3 border-t text-sm space-y-1">
+                      {customer.phone && (
+                        <div className="flex items-center gap-2 text-gray-600">
+                          <Phone className="w-3 h-3" />
+                          <span>{customer.phone}</span>
+                        </div>
+                      )}
+                      {customer.email && (
+                        <div className="flex items-center gap-2 text-gray-600">
+                          <Mail className="w-3 h-3" />
+                          <span className="truncate">{customer.email}</span>
+                        </div>
+                      )}
+                      {customer.inn && (
+                        <p className="text-xs text-gray-500">ИНН: {customer.inn}</p>
+                      )}
+                    </div>
+                  )}
+                </Card>
+              ))
+            )}
+          </div>
         </CardContent>
       </Card>
 
       {/* Диалог добавления/редактирования */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" aria-describedby="customer-dialog-desc">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl" aria-describedby="customer-dialog-desc">
           <DialogHeader>
             <DialogTitle>{editingCustomer ? 'Редактировать' : 'Добавить'} заказчика</DialogTitle>
             <DialogDescription id="customer-dialog-desc">
@@ -157,6 +244,7 @@ export function CustomersManager({ customers, userId, onAdd, onUpdate, onDelete 
             initialData={editingCustomer} 
             onSubmit={handleSubmit}
             onCancel={() => setIsDialogOpen(false)}
+            submitting={submitting}
           />
         </DialogContent>
       </Dialog>
@@ -168,9 +256,10 @@ interface CustomerFormProps {
   initialData: Customer | null;
   onSubmit: (data: any) => void;
   onCancel: () => void;
+  submitting: boolean;
 }
 
-function CustomerForm({ initialData, onSubmit, onCancel }: CustomerFormProps) {
+function CustomerForm({ initialData, onSubmit, onCancel, submitting }: CustomerFormProps) {
   const [formData, setFormData] = useState({
     name: initialData?.name || '',
     type: initialData?.type || 'company',
@@ -191,7 +280,6 @@ function CustomerForm({ initialData, onSubmit, onCancel }: CustomerFormProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim()) {
-      alert('Введите название');
       return;
     }
     onSubmit(formData);
@@ -200,17 +288,17 @@ function CustomerForm({ initialData, onSubmit, onCancel }: CustomerFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <Tabs defaultValue="main">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-3 rounded-lg">
           <TabsTrigger value="main">Основное</TabsTrigger>
           <TabsTrigger value="contacts">Контакты</TabsTrigger>
           <TabsTrigger value="bank">Банк</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="main" className="space-y-4">
+        <TabsContent value="main" className="space-y-4 mt-4">
           <div className="space-y-2">
             <Label>Тип</Label>
             <select
-              className="w-full border rounded-md p-2"
+              className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
               value={formData.type}
               onChange={(e) => setFormData({ ...formData, type: e.target.value })}
             >
@@ -227,6 +315,7 @@ function CustomerForm({ initialData, onSubmit, onCancel }: CustomerFormProps) {
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder={formData.type === 'individual' ? 'Иванов Иван Иванович' : 'ООО "Ромашка"'}
               required
+              className="rounded-lg"
             />
           </div>
 
@@ -237,6 +326,7 @@ function CustomerForm({ initialData, onSubmit, onCancel }: CustomerFormProps) {
                 value={formData.inn}
                 onChange={(e) => setFormData({ ...formData, inn: e.target.value })}
                 placeholder="1234567890"
+                className="rounded-lg"
               />
             </div>
             <div className="space-y-2">
@@ -245,6 +335,7 @@ function CustomerForm({ initialData, onSubmit, onCancel }: CustomerFormProps) {
                 value={formData.kpp}
                 onChange={(e) => setFormData({ ...formData, kpp: e.target.value })}
                 placeholder="123456789"
+                className="rounded-lg"
               />
             </div>
           </div>
@@ -255,6 +346,7 @@ function CustomerForm({ initialData, onSubmit, onCancel }: CustomerFormProps) {
               value={formData.ogrn}
               onChange={(e) => setFormData({ ...formData, ogrn: e.target.value })}
               placeholder="1234567890123"
+              className="rounded-lg"
             />
           </div>
 
@@ -264,17 +356,19 @@ function CustomerForm({ initialData, onSubmit, onCancel }: CustomerFormProps) {
               value={formData.legal_address}
               onChange={(e) => setFormData({ ...formData, legal_address: e.target.value })}
               placeholder="660000, г.Красноярск, ул.Ленина, д.1"
+              className="rounded-lg"
             />
           </div>
         </TabsContent>
 
-        <TabsContent value="contacts" className="space-y-4">
+        <TabsContent value="contacts" className="space-y-4 mt-4">
           <div className="space-y-2">
             <Label>Контактное лицо</Label>
             <Input
               value={formData.contact_person}
               onChange={(e) => setFormData({ ...formData, contact_person: e.target.value })}
               placeholder="ФИО ответственного лица"
+              className="rounded-lg"
             />
           </div>
 
@@ -285,6 +379,7 @@ function CustomerForm({ initialData, onSubmit, onCancel }: CustomerFormProps) {
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 placeholder="+7 (391) 123-45-67"
+                className="rounded-lg"
               />
             </div>
             <div className="space-y-2">
@@ -294,6 +389,7 @@ function CustomerForm({ initialData, onSubmit, onCancel }: CustomerFormProps) {
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 placeholder="info@company.ru"
+                className="rounded-lg"
               />
             </div>
           </div>
@@ -301,7 +397,7 @@ function CustomerForm({ initialData, onSubmit, onCancel }: CustomerFormProps) {
           <div className="space-y-2">
             <Label>Примечания</Label>
             <textarea
-              className="w-full border rounded-md p-2 min-h-[80px]"
+              className="w-full border rounded-lg p-2 min-h-[80px] resize-y focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               placeholder="Дополнительная информация..."
@@ -309,13 +405,14 @@ function CustomerForm({ initialData, onSubmit, onCancel }: CustomerFormProps) {
           </div>
         </TabsContent>
 
-        <TabsContent value="bank" className="space-y-4">
+        <TabsContent value="bank" className="space-y-4 mt-4">
           <div className="space-y-2">
             <Label>Наименование банка</Label>
             <Input
               value={formData.bank_name}
               onChange={(e) => setFormData({ ...formData, bank_name: e.target.value })}
               placeholder="ПАО СБЕРБАНК РОССИИ"
+              className="rounded-lg"
             />
           </div>
 
@@ -326,6 +423,7 @@ function CustomerForm({ initialData, onSubmit, onCancel }: CustomerFormProps) {
                 value={formData.bank_bik}
                 onChange={(e) => setFormData({ ...formData, bank_bik: e.target.value })}
                 placeholder="040407627"
+                className="rounded-lg"
               />
             </div>
             <div className="space-y-2">
@@ -334,6 +432,7 @@ function CustomerForm({ initialData, onSubmit, onCancel }: CustomerFormProps) {
                 value={formData.bank_corr_account}
                 onChange={(e) => setFormData({ ...formData, bank_corr_account: e.target.value })}
                 placeholder="30101810800000000627"
+                className="rounded-lg"
               />
             </div>
           </div>
@@ -344,16 +443,18 @@ function CustomerForm({ initialData, onSubmit, onCancel }: CustomerFormProps) {
               value={formData.bank_account}
               onChange={(e) => setFormData({ ...formData, bank_account: e.target.value })}
               placeholder="40802810100000001234"
+              className="rounded-lg"
             />
           </div>
         </TabsContent>
       </Tabs>
 
       <div className="flex justify-end gap-2 pt-4">
-        <Button type="button" variant="outline" onClick={onCancel}>
+        <Button type="button" variant="outline" onClick={onCancel} className="rounded-lg" disabled={submitting}>
           Отмена
         </Button>
-        <Button type="submit">
+        <Button type="submit" className="rounded-lg" disabled={submitting}>
+          {submitting && <Spinner className="w-4 h-4 mr-2" />}
           {initialData ? 'Сохранить' : 'Добавить'}
         </Button>
       </div>

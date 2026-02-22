@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, Package } from 'lucide-react';
 import { useAuth } from './hooks/useAuth';
 import { useEquipment } from './hooks/useEquipment';
 import { useEstimates } from './hooks/useEstimates';
@@ -20,10 +20,10 @@ import { EventCalendar } from './components/EventCalendar';
 import { Analytics } from './components/Analytics';
 import { CustomersManager } from './components/CustomersManager';
 import { Button } from './components/ui/button';
+import { Spinner } from './components/ui/spinner';
 import { 
   BarChart3,
   Building2,
-  Package, 
   FileText, 
   Layout, 
   Settings, 
@@ -40,13 +40,13 @@ type Tab = 'equipment' | 'estimates' | 'templates' | 'calendar' | 'checklists' |
 
 function App() {
   const { user, profile, loading: authLoading, signIn, signUp, signOut } = useAuth();
-  const { equipment, categories, addEquipment, updateEquipment, deleteEquipment, bulkInsert, addCategory, deleteCategory } = useEquipment(user?.id);
-  const { estimates, createEstimate, updateEstimate, deleteEstimate } = useEstimates(user?.id);
-  const { templates, createTemplate, updateTemplate, deleteTemplate } = useTemplates(user?.id);
-  const { checklists, rules, createRule, deleteRule, createChecklist, updateChecklistItem, deleteChecklist } = useChecklists(user?.id, estimates);
-  const { staff, addStaff, updateStaff, deleteStaff } = useStaff(user?.id);
-  const { tasks, addTask, updateTask, deleteTask } = useGoals(user?.id);
-  const { customers, addCustomer, updateCustomer, deleteCustomer } = useCustomers(user?.id);
+  const { equipment, categories, loading: equipmentLoading, addEquipment, updateEquipment, deleteEquipment, bulkInsert, addCategory, deleteCategory } = useEquipment(user?.id);
+  const { estimates, loading: estimatesLoading, createEstimate, updateEstimate, deleteEstimate } = useEstimates(user?.id);
+  const { templates, loading: templatesLoading, createTemplate, updateTemplate, deleteTemplate } = useTemplates(user?.id);
+  const { checklists, rules, loading: checklistsLoading, createRule, deleteRule, createChecklist, updateChecklistItem, deleteChecklist } = useChecklists(user?.id, estimates);
+  const { staff, loading: staffLoading, addStaff, updateStaff, deleteStaff } = useStaff(user?.id);
+  const { tasks, loading: goalsLoading, addTask, updateTask, deleteTask } = useGoals(user?.id);
+  const { customers, loading: customersLoading, addCustomer, updateCustomer, deleteCustomer } = useCustomers(user?.id);
   const analyticsData = { equipment, estimates, staff, customers };
   
   const [activeTab, setActiveTab] = useState<Tab>('equipment');
@@ -61,7 +61,6 @@ function App() {
     stamp: null
   });
 
-  // Загрузка настроек PDF из localStorage
   useEffect(() => {
     const saved = localStorage.getItem('pdfSettings');
     if (saved) {
@@ -75,7 +74,14 @@ function App() {
   };
 
   if (authLoading) {
-    return <div className="flex items-center justify-center h-screen">Загрузка...</div>;
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="bg-white p-8 rounded-2xl shadow-xl flex flex-col items-center">
+          <Spinner className="w-10 h-10 mb-4" />
+          <p className="text-gray-600 font-medium">Загрузка...</p>
+        </div>
+      </div>
+    );
   }
 
   if (!user) {
@@ -96,12 +102,12 @@ function App() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20 md:pb-0">
-      {/* Header - Desktop & Mobile */}
-      <header className="bg-white border-b shadow-sm sticky top-0 z-40">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 pb-20 md:pb-0">
+      {/* Header */}
+      <header className="bg-white/80 backdrop-blur-md border-b shadow-sm sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-3 md:px-4 py-3 md:py-4 flex justify-between items-center">
           <div className="flex items-center gap-2 md:gap-3">
-            <div className="w-8 h-8 md:w-10 md:h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 md:w-10 md:h-10 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-xl flex items-center justify-center shadow-md">
               <Package className="w-5 h-5 md:w-6 md:h-6 text-white" />
             </div>
             <div>
@@ -112,10 +118,12 @@ function App() {
           
           <div className="flex items-center gap-2 md:gap-4">
             <div className="flex items-center gap-2 text-sm text-gray-600 hidden sm:flex">
-              <User className="w-4 h-4" />
+              <div className="w-8 h-8 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center">
+                <User className="w-4 h-4" />
+              </div>
               <span className="max-w-[150px] truncate">{profile?.name || user?.email}</span>
             </div>
-            <Button variant="ghost" size="sm" onClick={signOut} className="px-2 md:px-3">
+            <Button variant="ghost" size="sm" onClick={signOut} className="px-2 md:px-3 rounded-lg hover:bg-red-50 hover:text-red-600 transition-colors">
               <LogOut className="w-4 h-4 md:mr-2" />
               <span className="hidden md:inline">Выйти</span>
             </Button>
@@ -124,7 +132,7 @@ function App() {
       </header>
 
       {/* Desktop Navigation */}
-      <nav className="bg-white border-b hidden md:block">
+      <nav className="bg-white/80 backdrop-blur-md border-b hidden md:block sticky top-[65px] z-30">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex gap-1 overflow-x-auto">
             {navItems.map((item) => {
@@ -133,9 +141,9 @@ function App() {
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-all whitespace-nowrap rounded-t-lg hover:bg-gray-50 ${
                     activeTab === item.id
-                      ? 'border-blue-600 text-blue-600'
+                      ? 'border-blue-600 text-blue-600 bg-blue-50/50'
                       : 'border-transparent text-gray-600 hover:text-gray-900'
                   }`}
                 >
@@ -149,7 +157,7 @@ function App() {
       </nav>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t md:hidden z-50">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t md:hidden z-50 shadow-lg">
         <div className="flex justify-around items-center h-16">
           {navItems.slice(0, 5).map((item) => {
             const Icon = item.icon;
@@ -158,7 +166,7 @@ function App() {
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                className={`flex flex-col items-center justify-center flex-1 h-full ${
+                className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
                   isActive ? 'text-blue-600' : 'text-gray-500'
                 }`}
               >
@@ -180,7 +188,8 @@ function App() {
       {/* Mobile Menu Overlay */}
       {mobileMenuOpen && (
         <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setMobileMenuOpen(false)}>
-          <div className="absolute bottom-16 left-0 right-0 bg-white rounded-t-xl p-4" onClick={e => e.stopPropagation()}>
+          <div className="absolute bottom-16 left-0 right-0 bg-white rounded-t-2xl p-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="w-12 h-1 bg-gray-300 rounded-full mx-auto mb-4" />
             <div className="space-y-2">
               {navItems.slice(5).map((item) => {
                 const Icon = item.icon;
@@ -191,8 +200,8 @@ function App() {
                       setActiveTab(item.id);
                       setMobileMenuOpen(false);
                     }}
-                    className={`flex items-center gap-3 w-full p-3 rounded-lg ${
-                      activeTab === item.id ? 'bg-blue-50 text-blue-600' : 'text-gray-700'
+                    className={`flex items-center gap-3 w-full p-3 rounded-xl transition-all ${
+                      activeTab === item.id ? 'bg-blue-50 text-blue-600 shadow-sm' : 'text-gray-700 hover:bg-gray-50'
                     }`}
                   >
                     <Icon className="w-5 h-5" />
@@ -218,6 +227,7 @@ function App() {
             onBulkInsert={bulkInsert}
             onAddCategory={addCategory}
             onDeleteCategory={deleteCategory}
+            loading={equipmentLoading}
           />
         )}
 
@@ -231,6 +241,7 @@ function App() {
             onCreate={(estimate, items) => createEstimate(estimate, items, profile?.name)}
             onUpdate={updateEstimate}
             onDelete={deleteEstimate}
+            loading={estimatesLoading}
           />
         )}
 
@@ -242,6 +253,7 @@ function App() {
             onCreate={createTemplate}
             onUpdate={updateTemplate}
             onDelete={deleteTemplate}
+            loading={templatesLoading}
           />
         )}
 
@@ -264,6 +276,7 @@ function App() {
             onCreateChecklist={createChecklist}
             onUpdateChecklistItem={updateChecklistItem}
             onDeleteChecklist={deleteChecklist}
+            loading={checklistsLoading}
           />
         )}
 
@@ -273,6 +286,7 @@ function App() {
             onAdd={addStaff}
             onUpdate={updateStaff}
             onDelete={deleteStaff}
+            loading={staffLoading}
           />
         )}
 
@@ -283,6 +297,7 @@ function App() {
             onAdd={addTask}
             onUpdate={updateTask}
             onDelete={deleteTask}
+            loading={goalsLoading}
           />
         )}
 
@@ -297,6 +312,7 @@ function App() {
             onAdd={addCustomer}
             onUpdate={updateCustomer}
             onDelete={deleteCustomer}
+            loading={customersLoading}
           />
         )}
 

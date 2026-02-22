@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Badge } from './ui/badge';
 import { Checkbox } from './ui/checkbox';
+import { Spinner } from './ui/spinner';
 import { 
   Plus, 
   Trash2, 
@@ -14,25 +15,29 @@ import {
   Download, 
   Users,
   Search,
-  FileText
+  FileText,
+  Phone,
+  Mail,
+  Calendar,
+  Car
 } from 'lucide-react';
 import type { Staff } from '../types';
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
 
 interface StaffManagerProps {
   staff: Staff[];
   onAdd: (staff: Omit<Staff, 'id' | 'created_at' | 'updated_at'>) => Promise<{ error: any }>;
   onUpdate: (id: string, updates: Partial<Staff>) => Promise<{ error: any }>;
   onDelete: (id: string) => Promise<{ error: any }>;
+  loading?: boolean;
 }
 
-export function StaffManager({ staff, onAdd, onUpdate, onDelete }: StaffManagerProps) {
+export function StaffManager({ staff, onAdd, onUpdate, onDelete, loading }: StaffManagerProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showInactive, setShowInactive] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [submitting, setSubmitting] = useState(false);
 
   const filteredStaff = staff.filter(s => {
     const matchesSearch = 
@@ -62,15 +67,16 @@ export function StaffManager({ staff, onAdd, onUpdate, onDelete }: StaffManagerP
   };
 
   const handleSubmit = async (data: any) => {
+    setSubmitting(true);
     if (editingStaff) {
       await onUpdate(editingStaff.id, data);
     } else {
       await onAdd(data);
     }
+    setSubmitting(false);
     handleClose();
   };
 
-  // Управление выбором сотрудников
   const toggleSelection = (id: string) => {
     const newSelected = new Set(selectedIds);
     if (newSelected.has(id)) {
@@ -91,7 +97,6 @@ export function StaffManager({ staff, onAdd, onUpdate, onDelete }: StaffManagerP
 
   const selectedStaff = filteredStaff.filter(s => selectedIds.has(s.id));
 
-  // Экспорт списка в PDF через html2canvas (поддержка кириллицы)
   const exportToPDF = async () => {
     const staffToExport = selectedStaff.length > 0 ? selectedStaff : filteredStaff;
     const printWindow = window.open('', '_blank');
@@ -129,7 +134,6 @@ export function StaffManager({ staff, onAdd, onUpdate, onDelete }: StaffManagerP
               <th>Должность</th>
               <th>Телефон</th>
               <th>Email</th>
-              <th>Автомобиль</th>
               <th>Статус</th>
             </tr>
           </thead>
@@ -141,7 +145,6 @@ export function StaffManager({ staff, onAdd, onUpdate, onDelete }: StaffManagerP
                 <td>${s.position}</td>
                 <td>${s.phone || '-'}</td>
                 <td>${s.email || '-'}</td>
-                <td>${s.car_info || '-'}</td>
                 <td>${s.is_active ? 'Активен' : 'Уволен'}</td>
               </tr>
             `).join('')}
@@ -159,7 +162,6 @@ export function StaffManager({ staff, onAdd, onUpdate, onDelete }: StaffManagerP
     }, 500);
   };
 
-  // Экспорт полных данных (с паспортами)
   const exportFullDataPDF = async () => {
     const staffToExport = selectedStaff.length > 0 ? selectedStaff : filteredStaff;
     const printWindow = window.open('', '_blank');
@@ -196,11 +198,8 @@ export function StaffManager({ staff, onAdd, onUpdate, onDelete }: StaffManagerP
               <th>ФИО</th>
               <th>Должность</th>
               <th>Паспорт</th>
-              <th>Выдан</th>
-              <th>Дата выдачи</th>
               <th>Телефон</th>
               <th>Дата рожд.</th>
-              <th>Автомобиль</th>
             </tr>
           </thead>
           <tbody>
@@ -210,11 +209,8 @@ export function StaffManager({ staff, onAdd, onUpdate, onDelete }: StaffManagerP
                 <td>${s.full_name}</td>
                 <td>${s.position}</td>
                 <td class="passport">${s.passport_series || ''} ${s.passport_number || ''}</td>
-                <td>${s.passport_issued_by || '-'}</td>
-                <td>${s.passport_issue_date ? new Date(s.passport_issue_date).toLocaleDateString('ru-RU') : '-'}</td>
                 <td>${s.phone || '-'}</td>
                 <td>${s.birth_date ? new Date(s.birth_date).toLocaleDateString('ru-RU') : '-'}</td>
-                <td>${s.car_info || '-'}</td>
               </tr>
             `).join('')}
           </tbody>
@@ -231,13 +227,21 @@ export function StaffManager({ staff, onAdd, onUpdate, onDelete }: StaffManagerP
     }, 500);
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Spinner className="w-8 h-8" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
-      <Card>
-        <CardHeader>
+      <Card className="shadow-sm hover:shadow-md transition-shadow rounded-xl">
+        <CardHeader className="pb-4">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
             <div>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-xl">
                 <Users className="w-5 h-5" />
                 Персонал
               </CardTitle>
@@ -247,19 +251,20 @@ export function StaffManager({ staff, onAdd, onUpdate, onDelete }: StaffManagerP
             </div>
             <div className="flex gap-2 flex-wrap items-center">
               {selectedIds.size > 0 && (
-                <Badge variant="secondary" className="mr-2">
+                <Badge variant="secondary" className="mr-2 rounded-lg">
                   Выбрано: {selectedIds.size}
                 </Badge>
               )}
-              <Button variant="outline" onClick={exportToPDF}>
+              <Button variant="outline" onClick={exportToPDF} className="rounded-lg shadow-sm hover:shadow-md transition-all">
                 <FileText className="w-4 h-4 mr-2" />
-                {selectedIds.size > 0 ? 'Экспорт выбранных' : 'Список (PDF)'}
+                <span className="hidden sm:inline">{selectedIds.size > 0 ? 'Экспорт выбранных' : 'Список (PDF)'}</span>
+                <span className="sm:hidden">PDF</span>
               </Button>
-              <Button variant="outline" onClick={exportFullDataPDF}>
+              <Button variant="outline" onClick={exportFullDataPDF} className="rounded-lg shadow-sm hover:shadow-md transition-all hidden sm:flex">
                 <Download className="w-4 h-4 mr-2" />
                 Полные данные
               </Button>
-              <Button onClick={handleOpenNew}>
+              <Button onClick={handleOpenNew} className="shadow-sm hover:shadow-md transition-all rounded-lg">
                 <Plus className="w-4 h-4 mr-2" />
                 Добавить
               </Button>
@@ -275,7 +280,7 @@ export function StaffManager({ staff, onAdd, onUpdate, onDelete }: StaffManagerP
                 placeholder="Поиск по ФИО, должности, телефону..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
+                className="pl-10 rounded-lg"
               />
             </div>
             <div className="flex items-center gap-2">
@@ -284,17 +289,17 @@ export function StaffManager({ staff, onAdd, onUpdate, onDelete }: StaffManagerP
                 checked={showInactive}
                 onCheckedChange={(checked) => setShowInactive(checked as boolean)}
               />
-              <Label htmlFor="showInactive" className="cursor-pointer">
+              <Label htmlFor="showInactive" className="cursor-pointer text-sm">
                 Показывать уволенных
               </Label>
             </div>
           </div>
 
-          {/* Таблица */}
-          <div className="border rounded-lg overflow-hidden">
+          {/* Desktop Table */}
+          <div className="hidden md:block border rounded-xl overflow-hidden shadow-sm">
             <Table>
               <TableHeader>
-                <TableRow>
+                <TableRow className="bg-gray-50 hover:bg-gray-50">
                   <TableHead className="w-10">
                     <Checkbox 
                       checked={selectedIds.size === filteredStaff.length && filteredStaff.length > 0}
@@ -305,8 +310,7 @@ export function StaffManager({ staff, onAdd, onUpdate, onDelete }: StaffManagerP
                   <TableHead>ФИО</TableHead>
                   <TableHead>Должность</TableHead>
                   <TableHead>Телефон</TableHead>
-                  <TableHead className="hidden sm:table-cell">Email</TableHead>
-                  <TableHead className="hidden md:table-cell">Автомобиль</TableHead>
+                  <TableHead>Email</TableHead>
                   <TableHead className="w-24">Статус</TableHead>
                   <TableHead className="text-right">Действия</TableHead>
                 </TableRow>
@@ -314,13 +318,13 @@ export function StaffManager({ staff, onAdd, onUpdate, onDelete }: StaffManagerP
               <TableBody>
                 {filteredStaff.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={8} className="text-center py-8 text-gray-500">
                       Сотрудники не найдены
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredStaff.map((s, idx) => (
-                    <TableRow key={s.id} className={!s.is_active ? 'bg-gray-50' : ''}>
+                    <TableRow key={s.id} className={`hover:bg-blue-50/50 transition-colors ${!s.is_active ? 'bg-gray-50' : ''}`}>
                       <TableCell>
                         <Checkbox 
                           checked={selectedIds.has(s.id)}
@@ -338,21 +342,21 @@ export function StaffManager({ staff, onAdd, onUpdate, onDelete }: StaffManagerP
                       </TableCell>
                       <TableCell>{s.position}</TableCell>
                       <TableCell>{s.phone || '-'}</TableCell>
-                      <TableCell className="hidden sm:table-cell">{s.email || '-'}</TableCell>
-                      <TableCell className="hidden md:table-cell">{s.car_info || '-'}</TableCell>
+                      <TableCell>{s.email || '-'}</TableCell>
                       <TableCell>
                         {s.is_active ? (
-                          <Badge className="bg-green-100 text-green-800">Активен</Badge>
+                          <Badge className="bg-green-100 text-green-800 rounded-md">Активен</Badge>
                         ) : (
-                          <Badge variant="secondary">Уволен</Badge>
+                          <Badge variant="secondary" className="rounded-md">Уволен</Badge>
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
+                        <div className="flex justify-end gap-1">
                           <Button 
                             variant="ghost" 
                             size="sm"
                             onClick={() => handleOpenEdit(s)}
+                            className="rounded-lg hover:bg-blue-100"
                           >
                             <Edit className="w-4 h-4" />
                           </Button>
@@ -360,6 +364,7 @@ export function StaffManager({ staff, onAdd, onUpdate, onDelete }: StaffManagerP
                             variant="ghost" 
                             size="sm"
                             onClick={() => onDelete(s.id)}
+                            className="rounded-lg hover:bg-red-100"
                           >
                             <Trash2 className="w-4 h-4 text-red-500" />
                           </Button>
@@ -371,12 +376,83 @@ export function StaffManager({ staff, onAdd, onUpdate, onDelete }: StaffManagerP
               </TableBody>
             </Table>
           </div>
+
+          {/* Mobile Cards */}
+          <div className="md:hidden space-y-3">
+            {filteredStaff.length === 0 ? (
+              <p className="text-center py-8 text-gray-500">Сотрудники не найдены</p>
+            ) : (
+              filteredStaff.map((s, idx) => (
+                <Card key={s.id} className={`p-4 shadow-sm hover:shadow-md transition-all rounded-xl ${!s.is_active ? 'opacity-70' : ''}`}>
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <Checkbox 
+                        checked={selectedIds.has(s.id)}
+                        onCheckedChange={() => toggleSelection(s.id)}
+                        className="mt-1"
+                      />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium truncate">{s.full_name}</p>
+                          {s.is_active ? (
+                            <Badge className="bg-green-100 text-green-800 text-xs rounded-md">Активен</Badge>
+                          ) : (
+                            <Badge variant="secondary" className="text-xs rounded-md">Уволен</Badge>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-600">{s.position}</p>
+                        {s.birth_date && (
+                          <p className="text-xs text-gray-500">
+                            {new Date().getFullYear() - new Date(s.birth_date).getFullYear()} лет
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex gap-1 ml-2">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        className="h-8 w-8 p-0 rounded-lg hover:bg-blue-100"
+                        onClick={() => handleOpenEdit(s)}
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        className="h-8 w-8 p-0 rounded-lg hover:bg-red-100"
+                        onClick={() => onDelete(s.id)}
+                      >
+                        <Trash2 className="w-4 h-4 text-red-500" />
+                      </Button>
+                    </div>
+                  </div>
+                  {(s.phone || s.email) && (
+                    <div className="mt-3 pt-3 border-t text-sm space-y-1">
+                      {s.phone && (
+                        <div className="flex items-center gap-2 text-gray-600">
+                          <Phone className="w-3 h-3" />
+                          <span>{s.phone}</span>
+                        </div>
+                      )}
+                      {s.email && (
+                        <div className="flex items-center gap-2 text-gray-600">
+                          <Mail className="w-3 h-3" />
+                          <span className="truncate">{s.email}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </Card>
+              ))
+            )}
+          </div>
         </CardContent>
       </Card>
 
       {/* Диалог добавления/редактирования */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl">
           <DialogHeader>
             <DialogTitle>
               {editingStaff ? 'Редактировать сотрудника' : 'Новый сотрудник'}
@@ -386,6 +462,7 @@ export function StaffManager({ staff, onAdd, onUpdate, onDelete }: StaffManagerP
             initialData={editingStaff}
             onSubmit={handleSubmit}
             onCancel={handleClose}
+            submitting={submitting}
           />
         </DialogContent>
       </Dialog>
@@ -397,9 +474,10 @@ interface StaffFormProps {
   initialData: Staff | null;
   onSubmit: (data: any) => void;
   onCancel: () => void;
+  submitting: boolean;
 }
 
-function StaffForm({ initialData, onSubmit, onCancel }: StaffFormProps) {
+function StaffForm({ initialData, onSubmit, onCancel, submitting }: StaffFormProps) {
   const [formData, setFormData] = useState({
     full_name: initialData?.full_name || '',
     position: initialData?.position || '',
@@ -422,7 +500,6 @@ function StaffForm({ initialData, onSubmit, onCancel }: StaffFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {/* Основная информация */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2 md:col-span-2">
           <Label htmlFor="full_name">ФИО *</Label>
@@ -432,6 +509,7 @@ function StaffForm({ initialData, onSubmit, onCancel }: StaffFormProps) {
             onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
             placeholder="Иванов Иван Иванович"
             required
+            className="rounded-lg"
           />
         </div>
 
@@ -443,6 +521,7 @@ function StaffForm({ initialData, onSubmit, onCancel }: StaffFormProps) {
             onChange={(e) => setFormData({ ...formData, position: e.target.value })}
             placeholder="Звукорежиссер"
             required
+            className="rounded-lg"
           />
         </div>
 
@@ -453,6 +532,7 @@ function StaffForm({ initialData, onSubmit, onCancel }: StaffFormProps) {
             value={formData.phone}
             onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
             placeholder="+7 (999) 123-45-67"
+            className="rounded-lg"
           />
         </div>
 
@@ -464,6 +544,7 @@ function StaffForm({ initialData, onSubmit, onCancel }: StaffFormProps) {
             value={formData.email}
             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
             placeholder="email@example.com"
+            className="rounded-lg"
           />
         </div>
 
@@ -474,11 +555,11 @@ function StaffForm({ initialData, onSubmit, onCancel }: StaffFormProps) {
             type="date"
             value={formData.birth_date}
             onChange={(e) => setFormData({ ...formData, birth_date: e.target.value })}
+            className="rounded-lg"
           />
         </div>
       </div>
 
-      {/* Паспортные данные */}
       <div className="border-t pt-4">
         <h4 className="font-medium mb-3">Паспортные данные</h4>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -490,6 +571,7 @@ function StaffForm({ initialData, onSubmit, onCancel }: StaffFormProps) {
               onChange={(e) => setFormData({ ...formData, passport_series: e.target.value })}
               placeholder="4515"
               maxLength={4}
+              className="rounded-lg"
             />
           </div>
 
@@ -501,6 +583,7 @@ function StaffForm({ initialData, onSubmit, onCancel }: StaffFormProps) {
               onChange={(e) => setFormData({ ...formData, passport_number: e.target.value })}
               placeholder="123456"
               maxLength={6}
+              className="rounded-lg"
             />
           </div>
 
@@ -511,6 +594,7 @@ function StaffForm({ initialData, onSubmit, onCancel }: StaffFormProps) {
               type="date"
               value={formData.passport_issue_date}
               onChange={(e) => setFormData({ ...formData, passport_issue_date: e.target.value })}
+              className="rounded-lg"
             />
           </div>
         </div>
@@ -521,7 +605,8 @@ function StaffForm({ initialData, onSubmit, onCancel }: StaffFormProps) {
             id="passport_issued_by"
             value={formData.passport_issued_by}
             onChange={(e) => setFormData({ ...formData, passport_issued_by: e.target.value })}
-            placeholder="Отделом УФМС России по г. Москве"
+            placeholder="Отделом УФМС России"
+            className="rounded-lg"
           />
         </div>
 
@@ -532,11 +617,11 @@ function StaffForm({ initialData, onSubmit, onCancel }: StaffFormProps) {
             value={formData.car_info}
             onChange={(e) => setFormData({ ...formData, car_info: e.target.value })}
             placeholder="Ford Focus, А123БС777"
+            className="rounded-lg"
           />
         </div>
       </div>
 
-      {/* Примечания */}
       <div className="space-y-2">
         <Label htmlFor="notes">Примечания</Label>
         <Input
@@ -544,10 +629,10 @@ function StaffForm({ initialData, onSubmit, onCancel }: StaffFormProps) {
           value={formData.notes}
           onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
           placeholder="Дополнительная информация..."
+          className="rounded-lg"
         />
       </div>
 
-      {/* Статус */}
       <div className="flex items-center gap-2">
         <Checkbox
           id="is_active"
@@ -559,12 +644,12 @@ function StaffForm({ initialData, onSubmit, onCancel }: StaffFormProps) {
         </Label>
       </div>
 
-      {/* Кнопки */}
       <div className="flex gap-3 pt-4 border-t">
-        <Button type="submit" className="flex-1">
+        <Button type="submit" className="flex-1 rounded-lg" disabled={submitting}>
+          {submitting && <Spinner className="w-4 h-4 mr-2" />}
           {initialData ? 'Сохранить изменения' : 'Добавить сотрудника'}
         </Button>
-        <Button type="button" variant="outline" onClick={onCancel}>
+        <Button type="button" variant="outline" onClick={onCancel} className="rounded-lg" disabled={submitting}>
           Отмена
         </Button>
       </div>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
 import type { Estimate, EstimateItem } from '../types';
 
@@ -18,7 +19,9 @@ export function useEstimates(userId: string | undefined) {
       `)
       .order('created_at', { ascending: false });
     
-    if (!error && data) {
+    if (error) {
+      toast.error('Ошибка при загрузке смет', { description: error.message });
+    } else if (data) {
       setEstimates(data as Estimate[]);
     }
     setLoading(false);
@@ -37,6 +40,7 @@ export function useEstimates(userId: string | undefined) {
       .single();
     
     if (estimateError || !estimateData) {
+      toast.error('Ошибка при создании сметы', { description: estimateError?.message });
       return { error: estimateError };
     }
 
@@ -54,20 +58,18 @@ export function useEstimates(userId: string | undefined) {
         estimate_id: estimateData.id
       }));
       
-      console.log('Inserting estimate items:', itemsWithEstimateId);
-      
       const { error: itemsError } = await supabase
         .from('estimate_items')
         .insert(itemsWithEstimateId);
       
       if (itemsError) {
-        console.error('Error creating estimate items:', itemsError);
-        console.error('Items data:', itemsWithEstimateId);
+        toast.error('Ошибка при добавлении позиций сметы', { description: itemsError.message });
         return { error: itemsError };
       }
     }
 
     await fetchEstimates();
+    toast.success('Смета создана', { description: estimate.name });
     return { error: null, data: estimateData };
   };
 
@@ -79,6 +81,7 @@ export function useEstimates(userId: string | undefined) {
       .eq('id', id);
     
     if (estimateError) {
+      toast.error('Ошибка при обновлении сметы', { description: estimateError.message });
       return { error: estimateError };
     }
 
@@ -106,13 +109,14 @@ export function useEstimates(userId: string | undefined) {
           .insert(cleanItems);
         
         if (itemsError) {
-          console.error('Error updating estimate items:', itemsError);
+          toast.error('Ошибка при обновлении позиций сметы', { description: itemsError.message });
           return { error: itemsError };
         }
       }
     }
 
     await fetchEstimates();
+    toast.success('Смета обновлена');
     return { error: null };
   };
 
@@ -122,8 +126,11 @@ export function useEstimates(userId: string | undefined) {
       .delete()
       .eq('id', id);
     
-    if (!error) {
+    if (error) {
+      toast.error('Ошибка при удалении сметы', { description: error.message });
+    } else {
       setEstimates(prev => prev.filter(e => e.id !== id));
+      toast.success('Смета удалена');
     }
     return { error };
   };

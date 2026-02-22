@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
 import type { Staff } from '../types';
 
@@ -15,7 +16,9 @@ export function useStaff(userId: string | undefined) {
       .select('id, full_name, position, phone, email, birth_date, passport_series, passport_number, passport_issued_by, passport_issue_date, notes, is_active, created_at, updated_at')
       .order('full_name');
     
-    if (!error && data) {
+    if (error) {
+      toast.error('Ошибка при загрузке персонала', { description: error.message });
+    } else if (data) {
       setStaff(data as Staff[]);
     }
     setLoading(false);
@@ -50,10 +53,11 @@ export function useStaff(userId: string | undefined) {
       .select()
       .single();
     
-    if (!error && data) {
+    if (error) {
+      toast.error('Ошибка при добавлении сотрудника', { description: error.message });
+    } else if (data) {
       setStaff(prev => [...prev, data as Staff]);
-    } else {
-      console.error('Error adding staff:', error);
+      toast.success('Сотрудник добавлен', { description: staffData.full_name });
     }
     return { error, data };
   };
@@ -64,10 +68,13 @@ export function useStaff(userId: string | undefined) {
       .update({ ...updates, updated_at: new Date().toISOString() })
       .eq('id', id);
     
-    if (!error) {
+    if (error) {
+      toast.error('Ошибка при обновлении сотрудника', { description: error.message });
+    } else {
       setStaff(prev => prev.map(s => 
         s.id === id ? { ...s, ...updates } : s
       ));
+      toast.success('Сотрудник обновлен');
     }
     return { error };
   };
@@ -78,8 +85,11 @@ export function useStaff(userId: string | undefined) {
       .delete()
       .eq('id', id);
     
-    if (!error) {
+    if (error) {
+      toast.error('Ошибка при удалении сотрудника', { description: error.message });
+    } else {
       setStaff(prev => prev.filter(s => s.id !== id));
+      toast.success('Сотрудник удален');
     }
     return { error };
   };

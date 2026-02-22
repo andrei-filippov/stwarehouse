@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
+import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
-import type { Checklist, ChecklistRule, Estimate, EstimateItem } from '../types';
+import type { Checklist, ChecklistRule, Estimate, EstimateItem, ChecklistItem, ChecklistRuleItem } from '../types';
 
 export function useChecklists(userId: string | undefined, estimates: Estimate[]) {
   const [checklists, setChecklists] = useState<Checklist[]>([]);
   const [rules, setRules] = useState<ChecklistRule[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Загрузка правил
   const fetchRules = useCallback(async () => {
     if (!userId) return;
     
@@ -19,12 +19,13 @@ export function useChecklists(userId: string | undefined, estimates: Estimate[])
       `)
       .order('name');
     
-    if (!error && data) {
+    if (error) {
+      toast.error('Ошибка при загрузке правил', { description: error.message });
+    } else if (data) {
       setRules(data as ChecklistRule[]);
     }
   }, [userId]);
 
-  // Загрузка чек-листов
   const fetchChecklists = useCallback(async () => {
     if (!userId) return;
     setLoading(true);
@@ -37,7 +38,9 @@ export function useChecklists(userId: string | undefined, estimates: Estimate[])
       `)
       .order('created_at', { ascending: false });
     
-    if (!error && data) {
+    if (error) {
+      toast.error('Ошибка при загрузке чек-листов', { description: error.message });
+    } else if (data) {
       setChecklists(data as Checklist[]);
     }
     setLoading(false);
@@ -48,7 +51,6 @@ export function useChecklists(userId: string | undefined, estimates: Estimate[])
     fetchChecklists();
   }, [fetchRules, fetchChecklists]);
 
-  // Создать правило
   const createRule = async (rule: Omit<ChecklistRule, 'id' | 'created_at'>, items: Omit<ChecklistRuleItem, 'id' | 'rule_id'>[]) => {
     const { data: ruleData, error: ruleError } = await supabase
       .from('checklist_rules')
@@ -62,7 +64,7 @@ export function useChecklists(userId: string | undefined, estimates: Estimate[])
       .single();
     
     if (ruleError || !ruleData) {
-      console.error('Error creating rule:', ruleError);
+      toast.error('Ошибка при создании правила', { description: ruleError?.message });
       return { error: ruleError };
     }
 
@@ -80,33 +82,34 @@ export function useChecklists(userId: string | undefined, estimates: Estimate[])
         .insert(itemsWithRuleId);
       
       if (itemsError) {
-        console.error('Error creating rule items:', itemsError);
+        toast.error('Ошибка при добавлении пунктов правила', { description: itemsError.message });
         return { error: itemsError };
       }
     }
 
     await fetchRules();
+    toast.success('Правило создано', { description: rule.name });
     return { error: null, data: ruleData };
   };
 
-  // Удалить правило
   const deleteRule = async (id: string) => {
     const { error } = await supabase
       .from('checklist_rules')
       .delete()
       .eq('id', id);
     
-    if (!error) {
+    if (error) {
+      toast.error('Ошибка при удалении правила', { description: error.message });
+    } else {
       setRules(prev => prev.filter(r => r.id !== id));
+      toast.success('Правило удалено');
     }
     return { error };
   };
 
-  // Генерировать чек-лист на основе сметы и правил
   const generateChecklist = async (estimate: Estimate): Promise<ChecklistItem[]> => {
     const items: ChecklistItem[] = [];
     
-    // 1. Добавляем оборудование из сметы (без цен)
     estimate.items?.forEach(estimateItem => {
       items.push({
         name: estimateItem.name,
@@ -118,7 +121,6 @@ export function useChecklists(userId: string | undefined, estimates: Estimate[])
       });
     });
     
-    // 2. Для каждого элемента сметы ищем подходящие правила и добавляем доп. оборудование
     estimate.items?.forEach(estimateItem => {
       const applicableRules = rules.filter(rule => {
         if (rule.condition_type === 'category') {
@@ -130,13 +132,11 @@ export function useChecklists(userId: string | undefined, estimates: Estimate[])
 
       applicableRules.forEach(rule => {
         rule.items?.forEach(ruleItem => {
-          // Проверяем, не добавили ли уже такой пункт
           const existingIndex = items.findIndex(i => 
             i.name.toLowerCase() === ruleItem.name.toLowerCase()
           );
 
           if (existingIndex >= 0) {
-            // Увеличиваем количество
             items[existingIndex].quantity += ruleItem.quantity * estimateItem.quantity;
           } else {
             items.push({
@@ -155,13 +155,11 @@ export function useChecklists(userId: string | undefined, estimates: Estimate[])
     return items;
   };
 
-  // Создать чек-лист для сметы
   const createChecklist = async (estimate: Estimate, customItems?: ChecklistItem[], notes?: string) => {
     try {
       const generatedItems = await generateChecklist(estimate);
       const allItems = [...generatedItems, ...(customItems || [])];
 
-      // Подготавливаем данные чек-листа
       const checklistData: any = {
         estimate_id: estimate.id,
         user_id: userId,
@@ -169,12 +167,10 @@ export function useChecklists(userId: string | undefined, estimates: Estimate[])
         notes: notes || null
       };
       
-      // Добавляем дату только если она есть
       if (estimate.event_date) {
         checklistData.event_date = estimate.event_date;
       }
 
-      // Сначала создаем сам чек-лист
       const { data, error } = await supabase
         .from('checklists')
         .insert([checklistData])
@@ -182,11 +178,10 @@ export function useChecklists(userId: string | undefined, estimates: Estimate[])
         .single();
 
       if (error || !data) {
-        console.error('Error creating checklist:', error);
+        toast.error('Ошибка при создании чек-листа', { description: error?.message });
         return { error };
       }
 
-      // Создаем пункты чек-листа отдельно
       if (allItems.length > 0) {
         const itemsWithChecklistId = allItems.map(item => ({
           checklist_id: data.id,
@@ -202,29 +197,30 @@ export function useChecklists(userId: string | undefined, estimates: Estimate[])
         const { error: itemsError } = await supabase.from('checklist_items').insert(itemsWithChecklistId);
         
         if (itemsError) {
-          console.error('Error creating checklist items:', itemsError);
-          // Удаляем чек-лист если не удалось добавить пункты
           await supabase.from('checklists').delete().eq('id', data.id);
+          toast.error('Ошибка при добавлении пунктов чек-листа', { description: itemsError.message });
           return { error: itemsError };
         }
       }
 
       await fetchChecklists();
+      toast.success('Чек-лист создан', { description: checklistData.event_name });
       return { error: null, data };
     } catch (err) {
-      console.error('Exception creating checklist:', err);
+      toast.error('Ошибка при создании чек-листа');
       return { error: err };
     }
   };
 
-  // Обновить пункт чек-листа (отметить выполнено)
   const updateChecklistItem = async (checklistId: string, itemId: string, updates: Partial<ChecklistItem>) => {
     const { error } = await supabase
       .from('checklist_items')
       .update(updates)
       .eq('id', itemId);
 
-    if (!error) {
+    if (error) {
+      toast.error('Ошибка при обновлении пункта', { description: error.message });
+    } else {
       setChecklists(prev => prev.map(cl => {
         if (cl.id === checklistId) {
           return {
@@ -241,15 +237,17 @@ export function useChecklists(userId: string | undefined, estimates: Estimate[])
     return { error };
   };
 
-  // Удалить чек-лист
   const deleteChecklist = async (id: string) => {
     const { error } = await supabase
       .from('checklists')
       .delete()
       .eq('id', id);
     
-    if (!error) {
+    if (error) {
+      toast.error('Ошибка при удалении чек-листа', { description: error.message });
+    } else {
       setChecklists(prev => prev.filter(c => c.id !== id));
+      toast.success('Чек-лист удален');
     }
     return { error };
   };

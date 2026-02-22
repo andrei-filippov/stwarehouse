@@ -23,6 +23,8 @@ import type { Checklist, ChecklistRule, ChecklistItem, Estimate } from '../types
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+import { Spinner } from './ui/spinner';
+
 interface ChecklistsProps {
   estimates: Estimate[];
   equipment: { id: string; name: string; category: string; price?: number }[];
@@ -34,6 +36,7 @@ interface ChecklistsProps {
   onCreateChecklist: (estimate: Estimate, customItems?: ChecklistItem[], notes?: string) => Promise<{ error: any }>;
   onUpdateChecklistItem: (checklistId: string, itemId: string, updates: Partial<ChecklistItem>) => Promise<{ error: any }>;
   onDeleteChecklist: (id: string) => Promise<{ error: any }>;
+  loading?: boolean;
 }
 
 export function ChecklistsManager({
@@ -46,7 +49,8 @@ export function ChecklistsManager({
   onDeleteRule,
   onCreateChecklist,
   onUpdateChecklistItem,
-  onDeleteChecklist
+  onDeleteChecklist,
+  loading
 }: ChecklistsProps) {
   const [activeTab, setActiveTab] = useState('checklists');
   const [selectedChecklist, setSelectedChecklist] = useState<Checklist | null>(null);
@@ -54,6 +58,14 @@ export function ChecklistsManager({
   const [isRuleDialogOpen, setIsRuleDialogOpen] = useState(false);
   const [isChecklistDialogOpen, setIsChecklistDialogOpen] = useState(false);
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Spinner className="w-8 h-8" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
