@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, memo } from 'react';
+﻿import { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -43,7 +43,7 @@ export const EquipmentManager = memo(function EquipmentManager({
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
 
-  // Мемоизация фильтрации и группировки
+  // ╨Ь╨╡╨╝╨╛╨╕╨╖╨░╤Ж╨╕╤П ╤Д╨╕╨╗╤М╤В╤А╨░╤Ж╨╕╨╕ ╨╕ ╨│╤А╤Г╨┐╨┐╨╕╤А╨╛╨▓╨║╨╕
   const filteredEquipment = useMemo(() => {
     if (!search.trim()) return equipment;
     const searchLower = search.toLowerCase();
@@ -90,23 +90,23 @@ export const EquipmentManager = memo(function EquipmentManager({
     setIsImportDialogOpen(false);
   }, []);
 
-  // Оптимизированный экспорт с динамическим импортом
+  // ╨Ю╨┐╤В╨╕╨╝╨╕╨╖╨╕╤А╨╛╨▓╨░╨╜╨╜╤Л╨╣ ╤Н╨║╤Б╨┐╨╛╤А╤В ╤Б ╨┤╨╕╨╜╨░╨╝╨╕╤З╨╡╤Б╨║╨╕╨╝ ╨╕╨╝╨┐╨╛╤А╤В╨╛╨╝
   const exportToExcel = useCallback(async () => {
     const XLSX = await import('xlsx');
     
     const data = equipment.map(item => ({
-      'Название': item.name,
-      'Категория': item.category,
-      'Количество': item.quantity,
-      'Ед.изм': item.unit || 'шт',
-      'Цена': item.price,
-      'Описание': item.description
+      '╨Э╨░╨╖╨▓╨░╨╜╨╕╨╡': item.name,
+      '╨Ъ╨░╤В╨╡╨│╨╛╤А╨╕╤П': item.category,
+      '╨Ъ╨╛╨╗╨╕╤З╨╡╤Б╤В╨▓╨╛': item.quantity,
+      '╨Х╨┤.╨╕╨╖╨╝': item.unit || '╤И╤В',
+      '╨ж╨╡╨╜╨░': item.price,
+      '╨Ю╨┐╨╕╤Б╨░╨╜╨╕╨╡': item.description
     }));
 
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Оборудование');
-    XLSX.writeFile(wb, 'оборудование.xlsx');
+    XLSX.utils.book_append_sheet(wb, ws, '╨Ю╨▒╨╛╤А╤Г╨┤╨╛╨▓╨░╨╜╨╕╨╡');
+    XLSX.writeFile(wb, '╨╛╨▒╨╛╤А╤Г╨┤╨╛╨▓╨░╨╜╨╕╨╡.xlsx');
   }, [equipment]);
 
   const handleSubmit = useCallback(async (data: any) => {
@@ -138,20 +138,20 @@ export const EquipmentManager = memo(function EquipmentManager({
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
             <CardTitle className="text-xl flex items-center gap-2">
               <Package className="w-5 h-5" />
-              Оборудование
+              ╨Ю╨▒╨╛╤А╤Г╨┤╨╛╨▓╨░╨╜╨╕╨╡
             </CardTitle>
             <div className="flex gap-1.5 md:gap-2 flex-wrap">
               <Button variant="outline" size="sm" onClick={expandAll} className="rounded-lg shadow-sm hover:shadow-md transition-all">
-                <span className="hidden md:inline mr-2">Развернуть все</span>
+                <span className="hidden md:inline mr-2">╨а╨░╨╖╨▓╨╡╤А╨╜╤Г╤В╤М ╨▓╤Б╨╡</span>
                 <span className="md:hidden">+</span>
               </Button>
               <Button variant="outline" size="sm" onClick={collapseAll} className="rounded-lg shadow-sm hover:shadow-md transition-all">
-                <span className="hidden md:inline mr-2">Свернуть все</span>
+                <span className="hidden md:inline mr-2">╨б╨▓╨╡╤А╨╜╤Г╤В╤М ╨▓╤Б╨╡</span>
                 <span className="md:hidden">-</span>
               </Button>
               <Button variant="outline" size="sm" onClick={() => setIsImportDialogOpen(true)} className="rounded-lg shadow-sm hover:shadow-md transition-all">
                 <Upload className="w-4 h-4 md:mr-2" />
-                <span className="hidden md:inline">Импорт</span>
+                <span className="hidden md:inline">╨Ш╨╝╨┐╨╛╤А╤В</span>
               </Button>
               <Button variant="outline" size="sm" onClick={exportToExcel} className="rounded-lg shadow-sm hover:shadow-md transition-all">
                 <Download className="w-4 h-4 md:mr-2" />
@@ -159,7 +159,7 @@ export const EquipmentManager = memo(function EquipmentManager({
               </Button>
               <Button size="sm" onClick={() => setIsAddDialogOpen(true)} className="rounded-lg shadow-sm hover:shadow-md transition-all">
                 <Plus className="w-4 h-4 md:mr-2" />
-                <span className="hidden md:inline">Добавить</span>
+                <span className="hidden md:inline">╨Ф╨╛╨▒╨░╨▓╨╕╤В╤М</span>
               </Button>
             </div>
           </div>
@@ -168,7 +168,7 @@ export const EquipmentManager = memo(function EquipmentManager({
           <div className="relative mb-4">
             <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
             <Input
-              placeholder="Поиск оборудования..."
+              placeholder="╨Я╨╛╨╕╤Б╨║ ╨╛╨▒╨╛╤А╤Г╨┤╨╛╨▓╨░╨╜╨╕╤П..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-10 rounded-lg"
@@ -177,7 +177,7 @@ export const EquipmentManager = memo(function EquipmentManager({
 
           <div className="space-y-3">
             {sortedCategories.length === 0 ? (
-              <p className="text-center text-gray-500 py-8">Нет оборудования</p>
+              <p className="text-center text-gray-500 py-8">╨Э╨╡╤В ╨╛╨▒╨╛╤А╤Г╨┤╨╛╨▓╨░╨╜╨╕╤П</p>
             ) : (
               sortedCategories.map(category => {
                 const items = groupedByCategory[category];
@@ -196,7 +196,7 @@ export const EquipmentManager = memo(function EquipmentManager({
                       </div>
                       <div className="flex items-center gap-3">
                         <div className="text-sm text-gray-500">
-                          {items.reduce((sum, i) => sum + i.quantity, 0)} ед.
+                          {items.reduce((sum, i) => sum + i.quantity, 0)} ╨╡╨┤.
                         </div>
                         {items.length === 0 && (
                           <Button
@@ -206,11 +206,11 @@ export const EquipmentManager = memo(function EquipmentManager({
                             onClick={(e) => {
                               e.stopPropagation();
                               const cat = categories.find(c => c.name === category);
-                              if (cat && confirm(`Удалить категорию "${category}"?`)) {
+                              if (cat && confirm(`╨г╨┤╨░╨╗╨╕╤В╤М ╨║╨░╤В╨╡╨│╨╛╤А╨╕╤О "${category}"?`)) {
                                 onDeleteCategory(cat.id);
                               }
                             }}
-                            title="Удалить пустую категорию"
+                            title="╨г╨┤╨░╨╗╨╕╤В╤М ╨┐╤Г╤Б╤В╤Г╤О ╨║╨░╤В╨╡╨│╨╛╤А╨╕╤О"
                           >
                             <Trash2 className="w-4 h-4 text-red-400 hover:text-red-600" />
                           </Button>
@@ -225,12 +225,12 @@ export const EquipmentManager = memo(function EquipmentManager({
                           <Table>
                             <TableHeader>
                               <TableRow className="bg-gray-50 hover:bg-gray-50">
-                                <TableHead>Название</TableHead>
-                                <TableHead>Описание</TableHead>
-                                <TableHead className="w-24">Кол-во</TableHead>
-                                <TableHead className="w-20">Ед.</TableHead>
-                                <TableHead className="w-32">Цена</TableHead>
-                                <TableHead className="w-24 text-right">Действия</TableHead>
+                                <TableHead>╨Э╨░╨╖╨▓╨░╨╜╨╕╨╡</TableHead>
+                                <TableHead>╨Ю╨┐╨╕╤Б╨░╨╜╨╕╨╡</TableHead>
+                                <TableHead className="w-24">╨Ъ╨╛╨╗-╨▓╨╛</TableHead>
+                                <TableHead className="w-20">╨Х╨┤.</TableHead>
+                                <TableHead className="w-32">╨ж╨╡╨╜╨░</TableHead>
+                                <TableHead className="w-24 text-right">╨Ф╨╡╨╣╤Б╤В╨▓╨╕╤П</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -243,12 +243,12 @@ export const EquipmentManager = memo(function EquipmentManager({
                                   </TableCell>
                                   <TableCell>
                                     <p className="text-sm text-gray-600 max-w-xs truncate" title={item.description}>
-                                      {item.description || '—'}
+                                      {item.description || 'тАФ'}
                                     </p>
                                   </TableCell>
                                   <TableCell>{item.quantity}</TableCell>
-                                  <TableCell>{item.unit || 'шт'}</TableCell>
-                                  <TableCell className="font-medium">{item.price.toLocaleString('ru-RU')} ₽</TableCell>
+                                  <TableCell>{item.unit || '╤И╤В'}</TableCell>
+                                  <TableCell className="font-medium">{item.price.toLocaleString('ru-RU')} тВ╜</TableCell>
                                   <TableCell>
                                     <div className="flex justify-end gap-1">
                                       <Button 
@@ -282,7 +282,7 @@ export const EquipmentManager = memo(function EquipmentManager({
                               <div className="flex justify-between items-start mb-2">
                                 <div className="flex-1 min-w-0">
                                   <p className="font-medium text-sm truncate">{item.name}</p>
-                                  <p className="text-xs text-gray-500 mt-0.5 truncate">{item.description || '—'}</p>
+                                  <p className="text-xs text-gray-500 mt-0.5 truncate">{item.description || 'тАФ'}</p>
                                 </div>
                                 <div className="flex gap-1 ml-2">
                                   <Button 
@@ -305,9 +305,9 @@ export const EquipmentManager = memo(function EquipmentManager({
                               </div>
                               <div className="flex justify-between items-center text-sm pt-2 border-t">
                                 <div className="flex gap-3 text-gray-600">
-                                  <span>{item.quantity} {item.unit || 'шт'}</span>
+                                  <span>{item.quantity} {item.unit || '╤И╤В'}</span>
                                 </div>
-                                <span className="font-semibold text-green-700">{item.price.toLocaleString('ru-RU')} ₽</span>
+                                <span className="font-semibold text-green-700">{item.price.toLocaleString('ru-RU')} тВ╜</span>
                               </div>
                             </Card>
                           ))}
@@ -340,10 +340,10 @@ export const EquipmentManager = memo(function EquipmentManager({
         <DialogContent className="max-w-lg rounded-xl" aria-describedby="equipment-dialog-desc">
           <DialogHeader>
             <DialogTitle>
-              {editingItem ? 'Редактировать оборудование' : 'Добавить оборудование'}
+              {editingItem ? '╨а╨╡╨┤╨░╨║╤В╨╕╤А╨╛╨▓╨░╤В╤М ╨╛╨▒╨╛╤А╤Г╨┤╨╛╨▓╨░╨╜╨╕╨╡' : '╨Ф╨╛╨▒╨░╨▓╨╕╤В╤М ╨╛╨▒╨╛╤А╤Г╨┤╨╛╨▓╨░╨╜╨╕╨╡'}
             </DialogTitle>
             <DialogDescription id="equipment-dialog-desc">
-              {editingItem ? 'Измените данные оборудования' : 'Заполните данные нового оборудования'}
+              {editingItem ? '╨Ш╨╖╨╝╨╡╨╜╨╕╤В╨╡ ╨┤╨░╨╜╨╜╤Л╨╡ ╨╛╨▒╨╛╤А╤Г╨┤╨╛╨▓╨░╨╜╨╕╤П' : '╨Ч╨░╨┐╨╛╨╗╨╜╨╕╤В╨╡ ╨┤╨░╨╜╨╜╤Л╨╡ ╨╜╨╛╨▓╨╛╨│╨╛ ╨╛╨▒╨╛╤А╤Г╨┤╨╛╨▓╨░╨╜╨╕╤П'}
             </DialogDescription>
           </DialogHeader>
           <EquipmentForm 
@@ -376,14 +376,14 @@ function EquipmentForm({ categories, userId, initialData, onSubmit, onAddCategor
     quantity: '',
     price: '',
     description: '',
-    unit: 'шт'
+    unit: '╤И╤В'
   });
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [isCustomUnit, setIsCustomUnit] = useState(false);
   const [customUnit, setCustomUnit] = useState('');
 
-  const UNIT_OPTIONS = ['шт', 'комплект', 'услуга', 'человек', 'п.м.'];
+  const UNIT_OPTIONS = ['╤И╤В', '╨║╨╛╨╝╨┐╨╗╨╡╨║╤В', '╤Г╤Б╨╗╤Г╨│╨░', '╤З╨╡╨╗╨╛╨▓╨╡╨║', '╨┐.╨╝.'];
 
   useEffect(() => {
     if (initialData) {
@@ -393,7 +393,7 @@ function EquipmentForm({ categories, userId, initialData, onSubmit, onAddCategor
         quantity: initialData.quantity?.toString() || '',
         price: initialData.price?.toString() || '',
         description: initialData.description || '',
-        unit: initialData.unit || 'шт'
+        unit: initialData.unit || '╤И╤В'
       });
       if (initialData.unit && !UNIT_OPTIONS.includes(initialData.unit)) {
         setIsCustomUnit(true);
@@ -425,7 +425,7 @@ function EquipmentForm({ categories, userId, initialData, onSubmit, onAddCategor
     e.preventDefault();
     if (!formData.name.trim()) return;
     if (!formData.category) return;
-    const finalUnit = isCustomUnit && customUnit.trim() ? customUnit.trim() : (formData.unit || 'шт');
+    const finalUnit = isCustomUnit && customUnit.trim() ? customUnit.trim() : (formData.unit || '╤И╤В');
     const data = {
       name: formData.name.trim(),
       category: formData.category,
@@ -440,11 +440,11 @@ function EquipmentForm({ categories, userId, initialData, onSubmit, onAddCategor
   return (
     <form onSubmit={handleSubmitForm} className="space-y-4">
       <div className="space-y-2">
-        <Label>Название *</Label>
+        <Label>╨Э╨░╨╖╨▓╨░╨╜╨╕╨╡ *</Label>
         <Input
           value={formData.name}
           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          placeholder="Например: Микшер Yamaha MG16"
+          placeholder="╨Э╨░╨┐╤А╨╕╨╝╨╡╤А: ╨Ь╨╕╨║╤И╨╡╤А Yamaha MG16"
           required
           className="rounded-lg"
         />
@@ -452,7 +452,7 @@ function EquipmentForm({ categories, userId, initialData, onSubmit, onAddCategor
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <Label>Категория *</Label>
+          <Label>╨Ъ╨░╤В╨╡╨│╨╛╤А╨╕╤П *</Label>
           <Button 
             type="button" 
             variant="ghost" 
@@ -461,7 +461,7 @@ function EquipmentForm({ categories, userId, initialData, onSubmit, onAddCategor
             className="rounded-lg"
           >
             <FolderPlus className="w-4 h-4 mr-1" />
-            {isAddingCategory ? 'Отмена' : 'Новая категория'}
+            {isAddingCategory ? '╨Ю╤В╨╝╨╡╨╜╨░' : '╨Э╨╛╨▓╨░╤П ╨║╨░╤В╨╡╨│╨╛╤А╨╕╤П'}
           </Button>
         </div>
         
@@ -470,12 +470,12 @@ function EquipmentForm({ categories, userId, initialData, onSubmit, onAddCategor
             <Input
               value={newCategoryName}
               onChange={(e) => setNewCategoryName(e.target.value)}
-              placeholder="Название новой категории"
+              placeholder="╨Э╨░╨╖╨▓╨░╨╜╨╕╨╡ ╨╜╨╛╨▓╨╛╨╣ ╨║╨░╤В╨╡╨│╨╛╤А╨╕╨╕"
               onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddCategory())}
               className="rounded-lg"
             />
             <Button type="button" onClick={handleAddCategory} className="rounded-lg">
-              Добавить
+              ╨Ф╨╛╨▒╨░╨▓╨╕╤В╤М
             </Button>
           </div>
         ) : (
@@ -485,7 +485,7 @@ function EquipmentForm({ categories, userId, initialData, onSubmit, onAddCategor
             onChange={(e) => setFormData({ ...formData, category: e.target.value })}
             required
           >
-            <option value="">Выберите категорию</option>
+            <option value="">╨Т╤Л╨▒╨╡╤А╨╕╤В╨╡ ╨║╨░╤В╨╡╨│╨╛╤А╨╕╤О</option>
             {categories.map(cat => (
               <option key={cat.id} value={cat.name}>{cat.name}</option>
             ))}
@@ -495,7 +495,7 @@ function EquipmentForm({ categories, userId, initialData, onSubmit, onAddCategor
 
       <div className="grid grid-cols-3 gap-4">
         <div className="space-y-2">
-          <Label>Количество</Label>
+          <Label>╨Ъ╨╛╨╗╨╕╤З╨╡╤Б╤В╨▓╨╛</Label>
           <Input
             type="number"
             min="0"
@@ -505,13 +505,13 @@ function EquipmentForm({ categories, userId, initialData, onSubmit, onAddCategor
           />
         </div>
         <div className="space-y-2">
-          <Label>Ед. изм.</Label>
+          <Label>╨Х╨┤. ╨╕╨╖╨╝.</Label>
           {isCustomUnit ? (
             <div className="flex gap-2">
               <Input
                 value={customUnit}
                 onChange={(e) => setCustomUnit(e.target.value)}
-                placeholder="Введите единицу"
+                placeholder="╨Т╨▓╨╡╨┤╨╕╤В╨╡ ╨╡╨┤╨╕╨╜╨╕╤Ж╤Г"
                 className="rounded-lg"
               />
               <Button 
@@ -545,12 +545,12 @@ function EquipmentForm({ categories, userId, initialData, onSubmit, onAddCategor
               {UNIT_OPTIONS.map(u => (
                 <option key={u} value={u}>{u}</option>
               ))}
-              <option value="custom">+ Своя единица</option>
+              <option value="custom">+ ╨б╨▓╨╛╤П ╨╡╨┤╨╕╨╜╨╕╤Ж╨░</option>
             </select>
           )}
         </div>
         <div className="space-y-2">
-          <Label>Цена (₽)</Label>
+          <Label>╨ж╨╡╨╜╨░ (тВ╜)</Label>
           <Input
             type="number"
             min="0"
@@ -563,18 +563,18 @@ function EquipmentForm({ categories, userId, initialData, onSubmit, onAddCategor
       </div>
 
       <div className="space-y-2">
-        <Label>Описание</Label>
+        <Label>╨Ю╨┐╨╕╤Б╨░╨╜╨╕╨╡</Label>
         <textarea
           className="w-full border rounded-lg p-2 min-h-[80px] resize-y focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
           value={formData.description}
           onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-          placeholder="Технические характеристики, примечания..."
+          placeholder="╨в╨╡╤Е╨╜╨╕╤З╨╡╤Б╨║╨╕╨╡ ╤Е╨░╤А╨░╨║╤В╨╡╤А╨╕╤Б╤В╨╕╨║╨╕, ╨┐╤А╨╕╨╝╨╡╤З╨░╨╜╨╕╤П..."
         />
       </div>
 
       <Button type="submit" className="w-full rounded-lg" disabled={submitting}>
         {submitting && <Spinner className="w-4 h-4 mr-2" />}
-        {initialData ? 'Сохранить' : 'Добавить'}
+        {initialData ? '╨б╨╛╤Е╤А╨░╨╜╨╕╤В╤М' : '╨Ф╨╛╨▒╨░╨▓╨╕╤В╤М'}
       </Button>
     </form>
   );
