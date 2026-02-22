@@ -54,7 +54,7 @@ function App() {
   const { customers, loading: customersLoading, error: customersError, addCustomer, updateCustomer, deleteCustomer } = useCustomers(user?.id);
   const analyticsData = { equipment, estimates, staff, customers };
   
-  const [activeTab, setActiveTab] = useState<Tab>('equipment');
+  const [activeTab, setActiveTab] = useState<Tab | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [pdfSettings, setPdfSettings] = useState<PDFSettingsType>({
     logo: null,
@@ -96,13 +96,11 @@ function App() {
 
   // При загрузке профиля устанавливаем первую доступную вкладку
   useEffect(() => {
-    if (profile && !hasAccess(userRole, activeTab)) {
-      const firstAccessible = navItems[0]?.id;
-      if (firstAccessible) {
-        setActiveTab(firstAccessible);
-      }
+    if (profile && navItems.length > 0 && !activeTab) {
+      // При первой загрузке устанавливаем первую доступную вкладку
+      setActiveTab(navItems[0].id);
     }
-  }, [profile, userRole]);
+  }, [profile, navItems, activeTab]);
 
   const savePdfSettings = (settings: PDFSettingsType) => {
     setPdfSettings(settings);
@@ -184,6 +182,12 @@ function App() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-3 md:px-4 py-4 md:py-6">
+        {!activeTab && (
+          <div className="flex items-center justify-center h-64">
+            <Spinner className="w-8 h-8" />
+          </div>
+        )}
+        
         {activeTab === 'equipment' && (
           <EquipmentManager
             equipment={equipment}
