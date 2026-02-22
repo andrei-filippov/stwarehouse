@@ -21,6 +21,7 @@ import { Analytics } from './components/Analytics';
 import { CustomersManager } from './components/CustomersManager';
 import { AdminPanel } from './components/AdminPanel';
 import { Button } from './components/ui/button';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './components/ui/sheet';
 import { Spinner } from './components/ui/spinner';
 import { 
   BarChart3,
@@ -160,7 +161,74 @@ function App() {
                 <span className="text-xs text-gray-400">{getRoleLabel(userRole)}</span>
               </div>
             </div>
-            <Button variant="ghost" size="sm" onClick={signOut} className="px-2 md:px-3 rounded-lg hover:bg-red-50 hover:text-red-600 transition-colors">
+            {/* Mobile Menu Button */}
+            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+              <SheetTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="md:hidden px-2 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  <Menu className="w-5 h-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-[280px] p-0">
+                <SheetHeader className="p-4 border-b">
+                  <SheetTitle className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-xl flex items-center justify-center">
+                      <Package className="w-5 h-5 text-white" />
+                    </div>
+                    <span className="text-lg font-bold">СкладОборуд</span>
+                  </SheetTitle>
+                </SheetHeader>
+                <nav className="flex flex-col p-2 gap-1">
+                  {navItems.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => {
+                          setActiveTab(item.id);
+                          setMobileMenuOpen(false);
+                        }}
+                        className={`flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-all ${
+                          activeTab === item.id
+                            ? 'bg-blue-50 text-blue-600'
+                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                        }`}
+                      >
+                        <Icon className="w-5 h-5" />
+                        {item.label}
+                      </button>
+                    );
+                  })}
+                </nav>
+                <div className="mt-auto p-4 border-t">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center">
+                      <User className="w-5 h-5" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-medium text-sm">{profile?.name || user?.email}</span>
+                      <span className="text-xs text-gray-400">{getRoleLabel(userRole)}</span>
+                    </div>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    className="w-full rounded-lg hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      signOut();
+                    }}
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Выйти
+                  </Button>
+                </div>
+              </SheetContent>
+            </Sheet>
+
+            <Button variant="ghost" size="sm" onClick={signOut} className="px-2 md:px-3 rounded-lg hover:bg-red-50 hover:text-red-600 transition-colors hidden md:flex">
               <LogOut className="w-4 h-4 md:mr-2" />
               <span className="hidden md:inline">Выйти</span>
             </Button>
