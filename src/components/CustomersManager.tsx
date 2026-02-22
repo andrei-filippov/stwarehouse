@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -280,6 +280,14 @@ interface CustomerFormProps {
 // Проверка наличия API ключа
 const DADATA_API_KEY = import.meta.env.VITE_DADATA_API_KEY;
 
+// Отладка - вывод в консоль
+console.log('Dadata API Key check:', {
+  exists: !!DADATA_API_KEY,
+  length: DADATA_API_KEY?.length,
+  isPlaceholder: DADATA_API_KEY === 'your_dadata_api_key_here',
+  firstChars: DADATA_API_KEY ? DADATA_API_KEY.substring(0, 4) + '...' : 'none'
+});
+
 // Функция для запроса данных по ИНН через API Dadata
 async function fetchCompanyByInn(inn: string): Promise<any> {
   // Очистка ИНН от пробелов
@@ -332,6 +340,15 @@ async function fetchCompanyByInn(inn: string): Promise<any> {
 }
 
 function CustomerForm({ initialData, onSubmit, onCancel, submitting }: CustomerFormProps) {
+  // Проверяем ключ при загрузке
+  useEffect(() => {
+    console.log('CustomerForm mounted, API key check:', {
+      exists: !!DADATA_API_KEY,
+      length: DADATA_API_KEY?.length,
+      isValid: DADATA_API_KEY && DADATA_API_KEY !== 'your_dadata_api_key_here' && DADATA_API_KEY.length > 10
+    });
+  }, []);
+
   const [formData, setFormData] = useState({
     name: initialData?.name || '',
     type: initialData?.type || 'company',
@@ -440,17 +457,20 @@ function CustomerForm({ initialData, onSubmit, onCancel, submitting }: CustomerF
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label>ИНН</Label>
-                {!DADATA_API_KEY || DADATA_API_KEY === 'your_dadata_api_key_here' ? (
-                  <span className="text-xs text-orange-500 flex items-center gap-1">
-                    <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
-                    API не настроен
-                  </span>
-                ) : (
-                  <span className="text-xs text-green-500 flex items-center gap-1">
-                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                    API активен
-                  </span>
-                )}
+                {(() => {
+                  const isConfigured = DADATA_API_KEY && DADATA_API_KEY !== 'your_dadata_api_key_here' && DADATA_API_KEY.length > 10;
+                  return isConfigured ? (
+                    <span className="text-xs text-green-500 flex items-center gap-1" title={`Ключ: ${DADATA_API_KEY?.substring(0, 8)}...`}>
+                      <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                      API активен
+                    </span>
+                  ) : (
+                    <span className="text-xs text-orange-500 flex items-center gap-1" title="Добавьте VITE_DADATA_API_KEY в Environment Variables Vercel">
+                      <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
+                      API не настроен
+                    </span>
+                  );
+                })()}
               </div>
               <div className="flex gap-2">
                 <Input
@@ -465,9 +485,9 @@ function CustomerForm({ initialData, onSubmit, onCancel, submitting }: CustomerF
                   variant="outline"
                   size="sm"
                   onClick={handleInnLookup}
-                  disabled={isLoadingInn || formData.inn.length < 10 || !DADATA_API_KEY || DADATA_API_KEY === 'your_dadata_api_key_here'}
+                  disabled={isLoadingInn || formData.inn.length < 10 || !DADATA_API_KEY || DADATA_API_KEY === 'your_dadata_api_key_here' || DADATA_API_KEY.length < 10}
                   className="rounded-lg whitespace-nowrap"
-                  title={!DADATA_API_KEY || DADATA_API_KEY === 'your_dadata_api_key_here' ? 'Добавьте API ключ в .env файл' : ''}
+                  title={!DADATA_API_KEY || DADATA_API_KEY === 'your_dadata_api_key_here' ? 'Добавьте VITE_DADATA_API_KEY в Environment Variables Vercel' : ''}
                 >
                   {isLoadingInn ? (
                     <Spinner className="w-4 h-4" />
@@ -483,8 +503,8 @@ function CustomerForm({ initialData, onSubmit, onCancel, submitting }: CustomerF
                 <p className="text-xs text-red-500">{innError}</p>
               )}
               <p className="text-xs text-gray-400">
-                {!DADATA_API_KEY || DADATA_API_KEY === 'your_dadata_api_key_here' 
-                  ? 'Добавьте VITE_DADATA_API_KEY в .env и перезапустите сервер (npm run dev)' 
+                {!DADATA_API_KEY || DADATA_API_KEY === 'your_dadata_api_key_here' || DADATA_API_KEY.length < 10
+                  ? '⚠️ Добавьте VITE_DADATA_API_KEY в Settings → Environment Variables на Vercel, затем redeploy' 
                   : 'Введите ИНН и нажмите "Заполнить" для автозаполнения данных'}
               </p>
             </div>
