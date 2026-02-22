@@ -75,6 +75,11 @@ function App() {
 
   // Получаем роль пользователя
   const userRole = (profile?.role || 'manager') as UserRole;
+  
+  // Отладка
+  console.log('Profile:', profile);
+  console.log('UserRole:', userRole);
+  console.log('NavItems:', navItems.map(n => n.id));
 
   // Список всех вкладок
   const allNavItems = [
