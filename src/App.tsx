@@ -54,7 +54,7 @@ function App() {
   const { customers, loading: customersLoading, error: customersError, addCustomer, updateCustomer, deleteCustomer } = useCustomers(user?.id);
   const analyticsData = { equipment, estimates, staff, customers };
   
-  const [activeTab, setActiveTab] = useState<Tab | null>(null);
+  const [activeTab, setActiveTab] = useState<Tab>('equipment');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [pdfSettings, setPdfSettings] = useState<PDFSettingsType>({
     logo: null,
@@ -73,15 +73,7 @@ function App() {
     }
   }, []);
 
-  // Получаем роль пользователя
-  const userRole = (profile?.role || 'manager') as UserRole;
-  
-  // Отладка
-  console.log('Profile:', profile);
-  console.log('UserRole:', userRole);
-  console.log('NavItems:', navItems.map(n => n.id));
-
-  // Список всех вкладок
+  // Список всех вкладок (определяем до использования)
   const allNavItems = [
     { id: 'equipment' as Tab, label: 'Оборудование', icon: Package },
     { id: 'estimates' as Tab, label: 'Сметы', icon: FileText },
@@ -96,14 +88,19 @@ function App() {
     { id: 'admin' as Tab, label: 'Админ', icon: Shield },
   ];
 
+  // Получаем роль пользователя (по умолчанию пока профиль не загрузился - нет доступа)
+  const userRole = (profile?.role || 'manager') as UserRole;
+  
   // Фильтруем доступные вкладки
   const navItems = allNavItems.filter(item => hasAccess(userRole, item.id));
 
-  // При загрузке профиля устанавливаем первую доступную вкладку
+  // При загрузке профиля переключаем на первую доступную вкладку (если текущая недоступна)
   useEffect(() => {
-    if (profile && navItems.length > 0 && !activeTab) {
-      // При первой загрузке устанавливаем первую доступную вкладку
-      setActiveTab(navItems[0].id);
+    if (profile && navItems.length > 0) {
+      const currentTabAccessible = navItems.some(item => item.id === activeTab);
+      if (!currentTabAccessible) {
+        setActiveTab(navItems[0].id);
+      }
     }
   }, [profile, navItems, activeTab]);
 
@@ -187,12 +184,6 @@ function App() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-3 md:px-4 py-4 md:py-6">
-        {!activeTab && (
-          <div className="flex items-center justify-center h-64">
-            <Spinner className="w-8 h-8" />
-          </div>
-        )}
-        
         {activeTab === 'equipment' && (
           <EquipmentManager
             equipment={equipment}

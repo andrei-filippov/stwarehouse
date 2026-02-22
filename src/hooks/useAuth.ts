@@ -54,6 +54,7 @@ export function useAuth() {
 
   const fetchProfile = async (userId: string) => {
     try {
+      console.log('Fetching profile for user:', userId);
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -63,7 +64,10 @@ export function useAuth() {
       if (error) {
         console.error('Profile fetch error:', error);
       } else if (data) {
+        console.log('Profile loaded:', data);
         setProfile(data as Profile);
+      } else {
+        console.log('No profile found for user:', userId);
       }
     } catch (err) {
       console.error('Unexpected error fetching profile:', err);
