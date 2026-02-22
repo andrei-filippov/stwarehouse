@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Card, CardContent } from './ui/card';
@@ -14,9 +14,7 @@ import {
   FileSpreadsheet
 } from 'lucide-react';
 import type { Customer, Equipment, Estimate, EstimateItem, PDFSettings, Template } from '../types';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import * as XLSX from 'xlsx';
+// XLSX загружается динамически при необходимости
 
 interface EquipmentAvailability {
   equipment: Equipment;
@@ -515,7 +513,7 @@ export function EstimateBuilder({
 
   // Экспорт Excel с поддержкой кириллицы
   // Экспорт в Excel в стиле файла сметы
-  const exportExcel = () => {
+  const exportExcel = useCallback(async () => {
     // Создаем массив строк для Excel (AOA - array of arrays)
     const wsData: any[][] = [];
     
@@ -571,6 +569,9 @@ export function EstimateBuilder({
     // Общий итог (используем уже посчитанное значение)
     wsData.push(['', '', '', '', '', 'ИТОГО:', total, '', '']);
     
+    // Динамический импорт XLSX
+    const XLSX = await import('xlsx');
+    
     // Создаем worksheet
     const ws = XLSX.utils.aoa_to_sheet(wsData);
     
@@ -595,7 +596,7 @@ export function EstimateBuilder({
     const fileName = `Смета ${eventName || 'без названия'} ${eventDate || ''}.xlsx`.trim();
     
     XLSX.writeFile(wb, fileName);
-  };
+  }, [eventName, eventDate, groupedItems, total, items, customerId, customers]);
 
   // Печать через браузер
   const handlePrint = () => {

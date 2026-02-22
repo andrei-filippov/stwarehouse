@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback, memo } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
@@ -12,13 +12,13 @@ interface EventCalendarProps {
   equipment: Equipment[];
 }
 
-export function EventCalendar({ estimates, equipment }: EventCalendarProps) {
+export const EventCalendar = memo(function EventCalendar({ estimates, equipment }: EventCalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedEstimate, setSelectedEstimate] = useState<Estimate | null>(null);
 
   // Функция для генерации ссылки Google Calendar
-  const generateGoogleCalendarUrl = (estimate: Estimate) => {
+  const generateGoogleCalendarUrl = useCallback((estimate: Estimate) => {
     const title = encodeURIComponent(estimate.event_name);
     const location = encodeURIComponent(estimate.venue || '');
     
@@ -42,7 +42,7 @@ export function EventCalendar({ estimates, equipment }: EventCalendarProps) {
     const dates = date ? `${date}/${date}` : '';
     
     return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dates}&details=${details}&location=${location}`;
-  };
+  }, []);
 
   // Получаем все дни месяца (включая дни соседних месяцев для полной сетки)
   const days = useMemo(() => {
@@ -77,7 +77,7 @@ export function EventCalendar({ estimates, equipment }: EventCalendarProps) {
   }, [selectedDate, estimatesByDate]);
 
   // Проверка доступности оборудования на выбранную дату
-  const getEquipmentAvailability = (date: Date) => {
+  const getEquipmentAvailability = useCallback((date: Date) => {
     const dateStr = format(date, 'yyyy-MM-dd');
     const dayEstimates = estimatesByDate.get(dateStr) || [];
     
@@ -102,7 +102,7 @@ export function EventCalendar({ estimates, equipment }: EventCalendarProps) {
         isFullyBooked: available <= 0
       };
     });
-  };
+  }, [estimatesByDate, equipment]);
 
   const weekDays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
@@ -339,4 +339,4 @@ export function EventCalendar({ estimates, equipment }: EventCalendarProps) {
       </Dialog>
     </div>
   );
-}
+});

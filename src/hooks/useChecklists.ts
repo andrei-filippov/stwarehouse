@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
 import type { Checklist, ChecklistRule, Estimate, EstimateItem, ChecklistItem, ChecklistRuleItem } from '../types';
@@ -46,10 +46,15 @@ export function useChecklists(userId: string | undefined, estimates: Estimate[])
     setLoading(false);
   }, [userId]);
 
+  // Загружаем правила только при изменении userId (один раз при входе)
   useEffect(() => {
     fetchRules();
+  }, [fetchRules]);
+
+  // Загружаем чек-листы отдельно, независимо от estimates
+  useEffect(() => {
     fetchChecklists();
-  }, [fetchRules, fetchChecklists]);
+  }, [fetchChecklists]);
 
   const createRule = async (rule: Omit<ChecklistRule, 'id' | 'created_at'>, items: Omit<ChecklistRuleItem, 'id' | 'rule_id'>[]) => {
     const { data: ruleData, error: ruleError } = await supabase

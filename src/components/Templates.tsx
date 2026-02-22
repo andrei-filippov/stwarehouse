@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, memo } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -17,7 +17,7 @@ interface TemplatesManagerProps {
   onDelete: (id: string) => Promise<{ error: any }>;
 }
 
-export function TemplatesManager({
+export const TemplatesManager = memo(function TemplatesManager({
   templates,
   categories,
   equipment,
@@ -28,29 +28,29 @@ export function TemplatesManager({
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const handleOpenNew = () => {
+  const handleOpenNew = useCallback(() => {
     setEditingTemplate(null);
     setIsDialogOpen(true);
-  };
+  }, []);
 
-  const handleOpenEdit = (template: Template) => {
+  const handleOpenEdit = useCallback((template: Template) => {
     setEditingTemplate(template);
     setIsDialogOpen(true);
-  };
+  }, []);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setIsDialogOpen(false);
     setEditingTemplate(null);
-  };
+  }, []);
 
-  const handleSubmit = async (data: any, items: any[]) => {
+  const handleSubmit = useCallback(async (data: any, items: any[]) => {
     if (editingTemplate) {
       await onUpdate(editingTemplate.id, data, items);
     } else {
       await onCreate(data, items);
     }
     handleClose();
-  };
+  }, [editingTemplate, onUpdate, onCreate, handleClose]);
 
   return (
     <div className="space-y-4">
@@ -133,7 +133,7 @@ export function TemplatesManager({
       </Dialog>
     </div>
   );
-}
+});
 
 interface TemplateFormProps {
   categories: { id: string; name: string }[];
@@ -170,7 +170,7 @@ function TemplateForm({ categories, equipment, template, onSubmit, onCancel }: T
     setQuantityInput('1');
   }, [template?.id]);
 
-  const addItem = () => {
+  const addItem = useCallback(() => {
     if (!newItem.equipment_name) return;
     const itemToAdd: TemplateItem = {
       id: crypto.randomUUID(),
@@ -182,28 +182,28 @@ function TemplateForm({ categories, equipment, template, onSubmit, onCancel }: T
     setItems([...items, itemToAdd]);
     setNewItem({ category: '', equipment_id: '', equipment_name: '', default_quantity: 1 });
     setQuantityInput('1');
-  };
+  }, [newItem, quantityInput, items]);
 
-  const removeItem = (index: number) => {
+  const removeItem = useCallback((index: number) => {
     setItems(items.filter((_, i) => i !== index));
-  };
+  }, [items]);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
       addItem();
     }
-  };
+  }, [addItem]);
 
-  const handleQuantityChange = (value: string) => {
+  const handleQuantityChange = useCallback((value: string) => {
     setQuantityInput(value);
     const num = parseInt(value);
     if (!isNaN(num) && num > 0) {
       setNewItem(prev => ({ ...prev, default_quantity: num }));
     }
-  };
+  }, []);
 
-  const handleEquipmentSelect = (equipmentId: string) => {
+  const handleEquipmentSelect = useCallback((equipmentId: string) => {
     const selected = equipment.find(e => e.id === equipmentId);
     if (selected) {
       setNewItem({
@@ -215,7 +215,7 @@ function TemplateForm({ categories, equipment, template, onSubmit, onCancel }: T
     } else {
       setNewItem({ category: '', equipment_id: '', equipment_name: '', default_quantity: 1 });
     }
-  };
+  }, [equipment]);
 
   return (
     <div className="space-y-6">

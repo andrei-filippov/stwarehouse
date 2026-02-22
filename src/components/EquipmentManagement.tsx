@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -24,7 +24,7 @@ interface EquipmentManagerProps {
   loading?: boolean;
 }
 
-export function EquipmentManager({ 
+export const EquipmentManager = memo(function EquipmentManager({ 
   equipment, 
   categories, 
   userId,
@@ -43,73 +43,73 @@ export function EquipmentManager({
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
 
-  const filteredEquipment = equipment.filter(item =>
-    item.name.toLowerCase().includes(search.toLowerCase()) ||
-    item.category.toLowerCase().includes(search.toLowerCase()) ||
-    (item.description && item.description.toLowerCase().includes(search.toLowerCase()))
-  );
+  // Мемоизация фильтрации и группировки
+  const filteredEquipment = useMemo(() => {
+    if (!search.trim()) return equipment;
+    const searchLower = search.toLowerCase();
+    return equipment.filter(item =>
+      item.name.toLowerCase().includes(searchLower) ||
+      item.category.toLowerCase().includes(searchLower) ||
+      (item.description && item.description.toLowerCase().includes(searchLower))
+    );
+  }, [equipment, search]);
 
-  const groupedByCategory = filteredEquipment.reduce((acc, item) => {
-    if (!acc[item.category]) {
-      acc[item.category] = [];
-    }
-    acc[item.category].push(item);
-    return acc;
-  }, {} as Record<string, Equipment[]>);
+  const groupedByCategory = useMemo(() => {
+    return filteredEquipment.reduce((acc, item) => {
+      if (!acc[item.category]) {
+        acc[item.category] = [];
+      }
+      acc[item.category].push(item);
+      return acc;
+    }, {} as Record<string, Equipment[]>);
+  }, [filteredEquipment]);
 
-  const sortedCategories = Object.keys(groupedByCategory).sort();
+  const sortedCategories = useMemo(() => Object.keys(groupedByCategory).sort(), [groupedByCategory]);
 
-  const toggleCategory = (category: string) => {
-    const newExpanded = new Set(expandedCategories);
-    if (newExpanded.has(category)) {
-      newExpanded.delete(category);
-    } else {
-      newExpanded.add(category);
-    }
-    setExpandedCategories(newExpanded);
-  };
+  const toggleCategory = useCallback((category: string) => {
+    setExpandedCategories(prev => {
+      const newExpanded = new Set(prev);
+      if (newExpanded.has(category)) {
+        newExpanded.delete(category);
+      } else {
+        newExpanded.add(category);
+      }
+      return newExpanded;
+    });
+  }, []);
 
-  const expandAll = () => {
+  const expandAll = useCallback(() => {
     setExpandedCategories(new Set(sortedCategories));
-  };
+  }, [sortedCategories]);
 
-  const collapseAll = () => {
+  const collapseAll = useCallback(() => {
     setExpandedCategories(new Set());
-  };
+  }, []);
 
-  const handleImportSuccess = () => {
+  const handleImportSuccess = useCallback(() => {
     setIsImportDialogOpen(false);
-  };
+  }, []);
 
-  const exportToExcel = () => {
-    const XLSX = window.XLSX;
-    if (!XLSX) {
-      import('xlsx').then(module => {
-        window.XLSX = module;
-        doExport();
-      });
-    } else {
-      doExport();
-    }
+  // Оптимизированный экспорт с динамическим импортом
+  const exportToExcel = useCallback(async () => {
+    const XLSX = await import('xlsx');
     
-    function doExport() {
-      const data = equipment.map(item => ({
-        'Название': item.name,
-        'Категория': item.category,
-        'Количество': item.quantity,
-        'Ед.изм': item.unit || 'шт',
-        'Цена': item.price,
-        'Описание': item.description
-      }));
+    const data = equipment.map(item => ({
+      'Название': item.name,
+      'Категория': item.category,
+      'Количество': item.quantity,
+      'Ед.изм': item.unit || 'шт',
+      'Цена': item.price,
+      'Описание': item.description
+    }));
 
-      const ws = XLSX.utils.json_to_sheet(data);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Оборудование');
-      XLSX.writeFile(wb, 'оборудование.xlsx');
-    }
-  };
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Оборудование');
+    XLSX.writeFile(wb, 'оборудование.xlsx');
+  }, [equipment]);
 
-  const handleSubmit = async (data: any) => {
+  const handleSubmit = useCallback(async (data: any) => {
     setSubmitting(true);
     if (editingItem) {
       const { error } = await onUpdate(editingItem.id, data);
@@ -121,7 +121,7 @@ export function EquipmentManager({
       if (!error) setIsAddDialogOpen(false);
     }
     setSubmitting(false);
-  };
+  }, [editingItem, userId, onUpdate, onAdd]);
 
   if (loading) {
     return (

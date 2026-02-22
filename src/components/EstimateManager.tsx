@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, memo } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
@@ -19,7 +19,7 @@ interface EstimateManagerProps {
   onDelete: (id: string) => Promise<{ error: any }>;
 }
 
-export function EstimateManager({
+export const EstimateManager = memo(function EstimateManager({
   estimates,
   equipment,
   templates,
@@ -35,26 +35,26 @@ export function EstimateManager({
   const [editingEstimate, setEditingEstimate] = useState<Estimate | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
 
-  const handleEdit = (estimate: Estimate) => {
+  const handleEdit = useCallback((estimate: Estimate) => {
     setEditingEstimate(estimate);
     setSelectedTemplate(null);
     setIsBuilderOpen(true);
-  };
+  }, []);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setIsBuilderOpen(false);
     setEditingEstimate(null);
     setSelectedTemplate(null);
-  };
+  }, []);
 
-  const handleCreateFromTemplate = (template: Template) => {
+  const handleCreateFromTemplate = useCallback((template: Template) => {
     setSelectedTemplate(template);
     setEditingEstimate(null);
     setIsBuilderOpen(true);
     setIsTemplateDialogOpen(false);
-  };
+  }, []);
 
-  const handleImportFromExcel = (estimateData: { event_name: string; venue: string; event_date: string }, items: EstimateItem[]) => {
+  const handleImportFromExcel = useCallback((estimateData: { event_name: string; venue: string; event_date: string }, items: EstimateItem[]) => {
     setSelectedTemplate(null);
     setEditingEstimate({
       id: 'new',
@@ -66,22 +66,22 @@ export function EstimateManager({
     } as Estimate);
     setIsImportDialogOpen(false);
     setIsBuilderOpen(true);
-  };
+  }, []);
 
-  const handleCreateNew = () => {
+  const handleCreateNew = useCallback(() => {
     setSelectedTemplate(null);
     setEditingEstimate(null);
     setIsBuilderOpen(true);
-  };
+  }, []);
 
-  const handleSave = async (estimateData: any, items: any[]) => {
+  const handleSave = useCallback(async (estimateData: any, items: any[]) => {
     if (editingEstimate && editingEstimate.id !== 'new') {
       await onUpdate(editingEstimate.id, estimateData, items);
     } else {
       await onCreate(estimateData, items);
     }
     handleClose();
-  };
+  }, [editingEstimate, onUpdate, onCreate, handleClose]);
 
   if (isBuilderOpen) {
     return (
@@ -213,4 +213,4 @@ export function EstimateManager({
       />
     </div>
   );
-}
+});

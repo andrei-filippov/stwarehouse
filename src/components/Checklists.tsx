@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, memo } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -20,8 +20,6 @@ import {
   ListPlus
 } from 'lucide-react';
 import type { Checklist, ChecklistRule, ChecklistItem, Estimate } from '../types';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 
 import { Spinner } from './ui/spinner';
 
@@ -39,7 +37,7 @@ interface ChecklistsProps {
   loading?: boolean;
 }
 
-export function ChecklistsManager({
+export const ChecklistsManager = memo(function ChecklistsManager({
   estimates,
   equipment,
   categories,
@@ -54,10 +52,49 @@ export function ChecklistsManager({
 }: ChecklistsProps) {
   const [activeTab, setActiveTab] = useState('checklists');
   const [selectedChecklist, setSelectedChecklist] = useState<Checklist | null>(null);
-  const [selectedEstimate, setSelectedEstimate] = useState<Estimate | null>(null);
   const [isRuleDialogOpen, setIsRuleDialogOpen] = useState(false);
   const [isChecklistDialogOpen, setIsChecklistDialogOpen] = useState(false);
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
+
+  const handleExportChecklist = useCallback((checklist: Checklist) => {
+    exportChecklistToPDF(checklist);
+  }, []);
+
+  const handleTabChange = useCallback((value: string) => {
+    setActiveTab(value);
+  }, []);
+
+  const handleOpenRuleDialog = useCallback(() => {
+    setIsRuleDialogOpen(true);
+  }, []);
+
+  const handleCloseRuleDialog = useCallback(() => {
+    setIsRuleDialogOpen(false);
+  }, []);
+
+  const handleOpenChecklistDialog = useCallback(() => {
+    setIsChecklistDialogOpen(true);
+  }, []);
+
+  const handleCloseChecklistDialog = useCallback(() => {
+    setIsChecklistDialogOpen(false);
+  }, []);
+
+  const handleOpenCalculator = useCallback(() => {
+    setIsCalculatorOpen(true);
+  }, []);
+
+  const handleCloseCalculator = useCallback(() => {
+    setIsCalculatorOpen(false);
+  }, []);
+
+  const handleSelectChecklist = useCallback((checklist: Checklist) => {
+    setSelectedChecklist(checklist);
+  }, []);
+
+  const handleDeselectChecklist = useCallback(() => {
+    setSelectedChecklist(null);
+  }, []);
 
   if (loading) {
     return (
@@ -69,7 +106,7 @@ export function ChecklistsManager({
 
   return (
     <div className="space-y-4">
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="checklists" className="flex items-center gap-2">
             <ClipboardCheck className="w-4 h-4" />
@@ -87,7 +124,7 @@ export function ChecklistsManager({
             <CardHeader className="p-4 md:p-6">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                 <CardTitle className="text-base md:text-lg">Чек-листы</CardTitle>
-                <Button onClick={() => setIsChecklistDialogOpen(true)} size="sm" className="w-full sm:w-auto">
+                <Button onClick={handleOpenChecklistDialog} size="sm" className="w-full sm:w-auto">
                   <Plus className="w-4 h-4 mr-2" />
                   Создать
                 </Button>
@@ -105,7 +142,7 @@ export function ChecklistsManager({
                     <Card 
                       key={checklist.id} 
                       className="cursor-pointer hover:shadow-md"
-                      onClick={() => setSelectedChecklist(checklist)}
+                      onClick={() => handleSelectChecklist(checklist)}
                     >
                       <CardContent className="p-3 md:p-4">
                         <div className="flex justify-between items-start gap-2">
@@ -125,7 +162,7 @@ export function ChecklistsManager({
                               className="h-8 w-8 p-0"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                exportChecklistToPDF(checklist);
+                                handleExportChecklist(checklist);
                               }}
                             >
                               <Download className="w-4 h-4" />
@@ -159,12 +196,12 @@ export function ChecklistsManager({
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                 <CardTitle className="text-base md:text-lg">Правила</CardTitle>
                 <div className="flex gap-2 w-full sm:w-auto">
-                  <Button variant="outline" onClick={() => setIsCalculatorOpen(true)} size="sm" className="flex-1 sm:flex-none">
+                  <Button variant="outline" onClick={handleOpenCalculator} size="sm" className="flex-1 sm:flex-none">
                     <Wrench className="w-4 h-4 mr-2" />
                     <span className="hidden md:inline">Калькулятор</span>
                     <span className="md:hidden">Кальк.</span>
                   </Button>
-                  <Button onClick={() => setIsRuleDialogOpen(true)} size="sm" className="flex-1 sm:flex-none">
+                  <Button onClick={handleOpenRuleDialog} size="sm" className="flex-1 sm:flex-none">
                     <Plus className="w-4 h-4 mr-2" />
                     <span className="hidden md:inline">Новое правило</span>
                     <span className="md:hidden">Добавить</span>
@@ -233,27 +270,8 @@ export function ChecklistsManager({
           <RuleForm 
             equipment={equipment}
             categories={categories}
-            onSubmit={async (data, items) => {
-              await onCreateRule(data, items);
-              setIsRuleDialogOpen(false);
-            }}
-            onCancel={() => setIsRuleDialogOpen(false)}
-          />
-        </DialogContent>
-      </Dialog>
-
-      {/* Диалог калькулятора */}
-      <Dialog open={isCalculatorOpen} onOpenChange={setIsCalculatorOpen}>
-        <DialogContent className="max-w-lg w-[95%] md:w-full">
-          <DialogHeader>
-            <DialogTitle>Калькулятор ферм и кабелей</DialogTitle>
-          </DialogHeader>
-          <TrussCalculator 
-            onAddItems={(items) => {
-              // Can be used to add items to a rule or checklist
-              setIsCalculatorOpen(false);
-            }}
-            onCancel={() => setIsCalculatorOpen(false)}
+            onSubmit={onCreateRule}
+            onCancel={handleCloseRuleDialog}
           />
         </DialogContent>
       </Dialog>
@@ -266,17 +284,14 @@ export function ChecklistsManager({
           </DialogHeader>
           <ChecklistCreateForm
             estimates={estimates}
-            onSubmit={async (estimate, customItems, notes) => {
-              await onCreateChecklist(estimate, customItems, notes);
-              setIsChecklistDialogOpen(false);
-            }}
-            onCancel={() => setIsChecklistDialogOpen(false)}
+            onSubmit={onCreateChecklist}
+            onCancel={handleCloseChecklistDialog}
           />
         </DialogContent>
       </Dialog>
 
       {/* Диалог просмотра чек-листа */}
-      <Dialog open={!!selectedChecklist} onOpenChange={() => setSelectedChecklist(null)}>
+      <Dialog open={!!selectedChecklist} onOpenChange={handleDeselectChecklist}>
         <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -288,14 +303,13 @@ export function ChecklistsManager({
             <ChecklistView 
               checklist={selectedChecklist}
               onUpdateItem={onUpdateChecklistItem}
-              onExportPDF={() => exportChecklistToPDF(selectedChecklist)}
             />
           )}
         </DialogContent>
       </Dialog>
     </div>
   );
-}
+});
 
 // Форма создания правила
 function RuleForm({ 
@@ -317,15 +331,15 @@ function RuleForm({
   const [items, setItems] = useState<Array<{ name: string; quantity: number; category: string; is_required: boolean }>>([]);
   const [newItem, setNewItem] = useState({ name: '', quantity: 1, category: 'tool', is_required: true });
 
-  const addItem = () => {
+  const addItem = useCallback(() => {
     if (!newItem.name) return;
-    setItems([...items, { ...newItem }]);
+    setItems(prev => [...prev, { ...newItem }]);
     setNewItem({ name: '', quantity: 1, category: 'tool', is_required: true });
-  };
+  }, [newItem]);
 
-  const removeItem = (index: number) => {
-    setItems(items.filter((_, i) => i !== index));
-  };
+  const removeItem = useCallback((index: number) => {
+    setItems(prev => prev.filter((_, i) => i !== index));
+  }, []);
 
   const itemCategories = [
     { value: 'tool', label: 'Инструмент' },
@@ -334,25 +348,25 @@ function RuleForm({
     { value: 'other', label: 'Другое' }
   ];
 
-  const handleConditionTypeChange = (type: 'category' | 'equipment') => {
+  const handleConditionTypeChange = useCallback((type: 'category' | 'equipment') => {
     setConditionType(type);
     setConditionValue('');
     setSelectedEquipmentId('');
     setSelectedCategory('');
-  };
+  }, []);
 
-  const handleEquipmentSelect = (equipmentId: string) => {
+  const handleEquipmentSelect = useCallback((equipmentId: string) => {
     setSelectedEquipmentId(equipmentId);
     const eq = equipment.find(e => e.id === equipmentId);
     if (eq) {
       setConditionValue(eq.name);
     }
-  };
+  }, [equipment]);
 
-  const handleCategorySelect = (categoryName: string) => {
+  const handleCategorySelect = useCallback((categoryName: string) => {
     setSelectedCategory(categoryName);
     setConditionValue(categoryName);
-  };
+  }, []);
 
   return (
     <div className="space-y-4">
@@ -431,7 +445,7 @@ function RuleForm({
             <Input
               placeholder="Название"
               value={newItem.name}
-              onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
+              onChange={(e) => setNewItem(prev => ({ ...prev, name: e.target.value }))}
             />
           </div>
           <div className="col-span-2">
@@ -440,11 +454,11 @@ function RuleForm({
               min={1}
               placeholder="Кол-во"
               value={newItem.quantity}
-              onChange={(e) => setNewItem({ ...newItem, quantity: parseInt(e.target.value) || 1 })}
+              onChange={(e) => setNewItem(prev => ({ ...prev, quantity: parseInt(e.target.value) || 1 }))}
             />
           </div>
           <div className="col-span-3">
-            <Select value={newItem.category} onValueChange={(v) => setNewItem({ ...newItem, category: v })}>
+            <Select value={newItem.category} onValueChange={(v) => setNewItem(prev => ({ ...prev, category: v }))}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -511,9 +525,9 @@ function ChecklistCreateForm({
 
   const selectedEstimate = estimates.find(e => e.id === selectedEstimateId);
 
-  const addCustomItem = () => {
+  const addCustomItem = useCallback(() => {
     if (!newItemName) return;
-    setCustomItems([...customItems, {
+    setCustomItems(prev => [...prev, {
       name: newItemName,
       quantity: 1,
       category: 'other',
@@ -521,7 +535,11 @@ function ChecklistCreateForm({
       is_checked: false
     }]);
     setNewItemName('');
-  };
+  }, [newItemName]);
+
+  const removeCustomItem = useCallback((idx: number) => {
+    setCustomItems(prev => prev.filter((_, i) => i !== idx));
+  }, []);
 
   return (
     <div className="space-y-4">
@@ -555,7 +573,7 @@ function ChecklistCreateForm({
             placeholder="Например: Запасные батарейки"
             value={newItemName}
             onChange={(e) => setNewItemName(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && addCustomItem()}
+            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addCustomItem())}
           />
           <Button onClick={addCustomItem} size="sm">
             <ListPlus className="w-4 h-4" />
@@ -565,7 +583,7 @@ function ChecklistCreateForm({
           {customItems.map((item, idx) => (
             <div key={idx} className="flex justify-between items-center bg-gray-50 p-2 rounded text-sm">
               <span>{item.name}</span>
-              <Button variant="ghost" size="sm" onClick={() => setCustomItems(customItems.filter((_, i) => i !== idx))}>
+              <Button variant="ghost" size="sm" onClick={() => removeCustomItem(idx)}>
                 <Trash2 className="w-3 h-3 text-red-500" />
               </Button>
             </div>
@@ -600,11 +618,9 @@ function ChecklistCreateForm({
 function ChecklistView({ 
   checklist, 
   onUpdateItem,
-  onExportPDF
 }: { 
   checklist: Checklist; 
   onUpdateItem: (checklistId: string, itemId: string, updates: Partial<ChecklistItem>) => Promise<{ error: any }>;
-  onExportPDF: () => void;
 }) {
   // Локальное состояние для мгновенного обновления UI
   const [localItems, setLocalItems] = useState<Record<string, boolean>>(() => {
@@ -624,7 +640,7 @@ function ChecklistView({
     setLocalItems(updated);
   }, [checklist.items]);
 
-  const handleToggle = async (item: ChecklistItem) => {
+  const handleToggle = useCallback(async (item: ChecklistItem) => {
     if (!item.id) {
       console.error('Item has no id:', item);
       return;
@@ -636,13 +652,13 @@ function ChecklistView({
     
     // Отправляем на сервер
     await onUpdateItem(checklist.id, item.id, { is_checked: newValue });
-  };
+  }, [localItems, checklist.id, onUpdateItem]);
 
   // Используем локальное состояние или пропсы
-  const isChecked = (item: ChecklistItem) => {
+  const isChecked = useCallback((item: ChecklistItem) => {
     if (!item.id) return item.is_checked;
     return localItems[item.id] ?? item.is_checked;
-  };
+  }, [localItems]);
 
   const grouped = checklist.items?.reduce((acc, item) => {
     if (!acc[item.category]) acc[item.category] = [];
@@ -668,10 +684,6 @@ function ChecklistView({
           <p className="text-sm text-gray-500">Дата: {new Date(checklist.event_date).toLocaleDateString('ru-RU')}</p>
           <p className="text-sm font-medium">Готово: {progress} / {total}</p>
         </div>
-        <Button variant="outline" size="sm" onClick={onExportPDF}>
-          <Download className="w-4 h-4 mr-2" />
-          PDF
-        </Button>
       </div>
 
       {checklist.notes && (
@@ -803,233 +815,4 @@ function exportChecklistToPDF(checklist: Checklist) {
   setTimeout(() => {
     printWindow.print();
   }, 500);
-}
-
-// Калькулятор ферм и кабелей
-function TrussCalculator({ onAddItems, onCancel }: { onAddItems: (items: { name: string; quantity: number; category: string; is_required: boolean }[]) => void, onCancel: () => void }) {
-  const [trussType, setTrussType] = useState<'square' | 'triangle' | 'flat'>('square');
-  const [length, setLength] = useState(6); // метры
-  const [segments, setSegments] = useState(3);
-  const [lightFixtures, setLightFixtures] = useState(4); // количество приборов для DMX
-  const [calcMode, setCalcMode] = useState<'truss' | 'dmx'>('truss');
-  
-  // Количество стыков (joints)
-  const joints = Math.max(0, segments - 1);
-  
-  // Расчет компонентов фермы
-  const calculateTruss = () => {
-    const items: { name: string; quantity: number; category: string; is_required: boolean }[] = [];
-    
-    if (joints === 0) return items;
-    
-    // Коннекторы и компоненты в зависимости от типа фермы
-    switch (trussType) {
-      case 'square':
-        // Квадратная: 4 коннектора, 8 пальцев, 8 шплинтов на стык
-        items.push({ name: 'Коннектор фермы квадратный (комплект)', quantity: joints * 4, category: 'accessory', is_required: true });
-        items.push({ name: 'Палец коннектора фермы', quantity: joints * 8, category: 'accessory', is_required: true });
-        items.push({ name: 'Шплинт коннектора фермы', quantity: joints * 8, category: 'accessory', is_required: true });
-        break;
-      case 'triangle':
-        // Треугольная: 3 коннектора, 6 пальцев, 6 шплинтов на стык
-        items.push({ name: 'Коннектор фермы треугольный (комплект)', quantity: joints * 3, category: 'accessory', is_required: true });
-        items.push({ name: 'Палец коннектора фермы', quantity: joints * 6, category: 'accessory', is_required: true });
-        items.push({ name: 'Шплинт коннектора фермы', quantity: joints * 6, category: 'accessory', is_required: true });
-        break;
-      case 'flat':
-        // Плоская: 2 коннектора, 4 пальца, 4 шплинта на стык
-        items.push({ name: 'Коннектор фермы плоский (комплект)', quantity: joints * 2, category: 'accessory', is_required: true });
-        items.push({ name: 'Палец коннектора фермы', quantity: joints * 4, category: 'accessory', is_required: true });
-        items.push({ name: 'Шплинт коннектора фермы', quantity: joints * 4, category: 'accessory', is_required: true });
-        break;
-    }
-    
-    // Тросы безопасности - по 2 на секцию
-    items.push({ name: 'Стальной трос безопасности 3мм', quantity: segments * 2, category: 'accessory', is_required: true });
-    items.push({ name: 'Карабин стальной', quantity: segments * 2, category: 'accessory', is_required: true });
-    
-    // Подъемные точки - каждые 3 метра
-    const liftPoints = Math.max(1, Math.ceil(length / 3));
-    items.push({ name: 'Подъемная стропа 1т', quantity: liftPoints, category: 'accessory', is_required: true });
-    items.push({ name: 'Шекель 1т', quantity: liftPoints * 2, category: 'accessory', is_required: true });
-    
-    return items;
-  };
-  
-  // Расчет DMX коммутации
-  const calculateDMX = () => {
-    const items: { name: string; quantity: number; category: string; is_required: boolean }[] = [];
-    
-    if (lightFixtures <= 0 || length <= 0) return items;
-    
-    // Расстояние между приборами
-    const spacing = lightFixtures > 1 ? (length / lightFixtures) : 0;
-    
-    // Количество кабелей: приборы × 2 - 2 (последний не нуждается в проходе)
-    const cableRuns = Math.max(1, lightFixtures * 2 - 2);
-    
-    // Длина каждого отрезка с запасом 20%
-    const segmentLength = Math.ceil(spacing * 1.2);
-    
-    items.push({ name: `DMX кабель (${segmentLength}м)`, quantity: cableRuns, category: 'cable', is_required: true });
-    items.push({ name: 'DMX терминатор', quantity: lightFixtures, category: 'accessory', is_required: true });
-    items.push({ name: `Расстояние между приборами: ~${spacing.toFixed(1)}м`, quantity: 0, category: 'other', is_required: false });
-    
-    return items;
-  };
-  
-  const result = calcMode === 'truss' ? calculateTruss() : calculateDMX();
-  
-  return (
-    <div className="space-y-4">
-      {/* Переключатель режима */}
-      <div className="space-y-2">
-        <Label>Режим расчета</Label>
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            variant={calcMode === 'truss' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setCalcMode('truss')}
-            className="flex-1"
-          >
-            Фермы
-          </Button>
-          <Button
-            type="button"
-            variant={calcMode === 'dmx' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setCalcMode('dmx')}
-            className="flex-1"
-          >
-            DMX коммутация
-          </Button>
-        </div>
-      </div>
-
-      {calcMode === 'truss' ? (
-        <>
-          <div className="space-y-2">
-            <Label>Тип фермы</Label>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant={trussType === 'square' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setTrussType('square')}
-                className="flex-1"
-              >
-                Квадратная
-              </Button>
-              <Button
-                type="button"
-                variant={trussType === 'triangle' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setTrussType('triangle')}
-                className="flex-1"
-              >
-                Треугольная
-              </Button>
-              <Button
-                type="button"
-                variant={trussType === 'flat' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setTrussType('flat')}
-                className="flex-1"
-              >
-                Плоская
-              </Button>
-            </div>
-            <p className="text-xs text-gray-500">
-              {trussType === 'square' && '4 коннектора, 8 пальцев, 8 шплинтов на стык'}
-              {trussType === 'triangle' && '3 коннектора, 6 пальцев, 6 шплинтов на стык'}
-              {trussType === 'flat' && '2 коннектора, 4 пальца, 4 шплинта на стык'}
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Длина фермы (м)</Label>
-              <Input
-                type="number"
-                min={1}
-                max={100}
-                value={length}
-                onChange={(e) => setLength(parseInt(e.target.value) || 1)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Количество секций</Label>
-              <Input
-                type="number"
-                min={2}
-                max={50}
-                value={segments}
-                onChange={(e) => setSegments(parseInt(e.target.value) || 2)}
-              />
-            </div>
-          </div>
-
-          <div className="bg-blue-50 p-2 rounded text-sm">
-            <strong>Стыков: {joints}</strong>
-          </div>
-        </>
-      ) : (
-        <>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Длина фермы (м)</Label>
-              <Input
-                type="number"
-                min={1}
-                max={100}
-                value={length}
-                onChange={(e) => setLength(parseInt(e.target.value) || 1)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Количество приборов</Label>
-              <Input
-                type="number"
-                min={1}
-                max={100}
-                value={lightFixtures}
-                onChange={(e) => setLightFixtures(parseInt(e.target.value) || 1)}
-              />
-            </div>
-          </div>
-
-          {lightFixtures > 0 && length > 0 && (
-            <div className="bg-blue-50 p-2 rounded text-sm space-y-1">
-              <p><strong>Расстояние между приборами:</strong> ~{(length / lightFixtures).toFixed(1)} м</p>
-              <p><strong>Отрезков кабеля:</strong> {Math.max(1, lightFixtures * 2 - 2)} шт</p>
-            </div>
-          )}
-        </>
-      )}
-      
-      <div className="border rounded-lg p-3 bg-gray-50">
-        <h4 className="font-medium mb-2">Результат расчета:</h4>
-        <div className="space-y-1 text-sm">
-          {result.filter(item => item.quantity > 0).map((item, idx) => (
-            <div key={idx} className="flex justify-between">
-              <span>{item.name}</span>
-              <span className="font-medium">× {item.quantity}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-      
-      <div className="flex gap-3 pt-2">
-        <Button 
-          onClick={() => onAddItems(result.filter(item => item.quantity > 0))}
-          className="flex-1"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Добавить в правило
-        </Button>
-        <Button variant="outline" onClick={onCancel}>Закрыть</Button>
-      </div>
-    </div>
-  );
 }

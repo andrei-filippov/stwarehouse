@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback, memo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { 
@@ -20,7 +20,7 @@ interface AnalyticsProps {
   customers: Customer[];
 }
 
-export function Analytics({ equipment, estimates, staff, customers }: AnalyticsProps) {
+export const Analytics = memo(function Analytics({ equipment, estimates, staff, customers }: AnalyticsProps) {
   const [period, setPeriod] = useState<'all' | 'year' | 'month'>('all');
 
   // Фильтруем сметы по периоду
@@ -189,8 +189,8 @@ export function Analytics({ equipment, estimates, staff, customers }: AnalyticsP
       .sort((a, b) => b.revenue - a.revenue);
   }, [filteredEstimates]);
 
-  const formatCurrency = (val: number) => 
-    val.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 });
+  const formatCurrency = useCallback((val: number) => 
+    val.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }), []);
 
   return (
     <div className="space-y-6">
@@ -467,4 +467,4 @@ export function Analytics({ equipment, estimates, staff, customers }: AnalyticsP
       </Card>
     </div>
   );
-}
+});

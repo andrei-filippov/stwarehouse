@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useCallback, memo } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -21,7 +21,7 @@ interface CustomersManagerProps {
   error?: string | null;
 }
 
-export function CustomersManager({ customers, userId, onAdd, onUpdate, onDelete, loading, error }: CustomersManagerProps) {
+export const CustomersManager = memo(function CustomersManager({ customers, userId, onAdd, onUpdate, onDelete, loading, error }: CustomersManagerProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -33,17 +33,17 @@ export function CustomersManager({ customers, userId, onAdd, onUpdate, onDelete,
     c.contact_person?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleOpenNew = () => {
+  const handleOpenNew = useCallback(() => {
     setEditingCustomer(null);
     setIsDialogOpen(true);
-  };
+  }, []);
 
-  const handleOpenEdit = (customer: Customer) => {
+  const handleOpenEdit = useCallback((customer: Customer) => {
     setEditingCustomer(customer);
     setIsDialogOpen(true);
-  };
+  }, []);
 
-  const handleSubmit = async (data: any) => {
+  const handleSubmit = useCallback(async (data: any) => {
     setSubmitting(true);
     if (editingCustomer) {
       await onUpdate(editingCustomer.id, data);
@@ -53,20 +53,20 @@ export function CustomersManager({ customers, userId, onAdd, onUpdate, onDelete,
     }
     setSubmitting(false);
     setIsDialogOpen(false);
-  };
+  }, [editingCustomer, userId, onAdd, onUpdate]);
 
-  const getTypeLabel = (type: string) => {
+  const getTypeLabel = useCallback((type: string) => {
     switch (type) {
       case 'company': return 'Компания';
       case 'ip': return 'ИП';
       case 'individual': return 'Физ.лицо';
       default: return type;
     }
-  };
+  }, []);
 
-  const getTypeIcon = (type: string) => {
+  const getTypeIcon = useCallback((type: string) => {
     return type === 'individual' ? <User className="w-4 h-4" /> : <Building2 className="w-4 h-4" />;
-  };
+  }, []);
 
   if (loading) {
     return (
@@ -268,7 +268,7 @@ export function CustomersManager({ customers, userId, onAdd, onUpdate, onDelete,
       </Dialog>
     </div>
   );
-}
+});
 
 interface CustomerFormProps {
   initialData: Customer | null;

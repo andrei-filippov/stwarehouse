@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback, memo } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -40,7 +40,7 @@ interface GoalsManagerProps {
 
 type FilterType = 'all' | 'today' | 'in_progress' | 'pending' | 'completed' | 'overdue';
 
-export function GoalsManager({ tasks, staff, onAdd, onUpdate, onDelete, loading }: GoalsManagerProps) {
+export const GoalsManager = memo(function GoalsManager({ tasks, staff, onAdd, onUpdate, onDelete, loading }: GoalsManagerProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -148,17 +148,17 @@ export function GoalsManager({ tasks, staff, onAdd, onUpdate, onDelete, loading 
     return groups;
   }, [filteredTasks]);
 
-  const handleOpenNew = () => {
+  const handleOpenNew = useCallback(() => {
     setEditingTask(null);
     setIsDialogOpen(true);
-  };
+  }, []);
 
-  const handleOpenEdit = (task: Task) => {
+  const handleOpenEdit = useCallback((task: Task) => {
     setEditingTask(task);
     setIsDialogOpen(true);
-  };
+  }, []);
 
-  const handleSubmit = async (data: any) => {
+  const handleSubmit = useCallback(async (data: any) => {
     if (editingTask) {
       await onUpdate(editingTask.id, data);
     } else {
@@ -166,18 +166,18 @@ export function GoalsManager({ tasks, staff, onAdd, onUpdate, onDelete, loading 
     }
     setIsDialogOpen(false);
     setEditingTask(null);
-  };
+  }, [editingTask, onAdd, onUpdate]);
 
-  const handleToggleStatus = async (task: Task) => {
+  const handleToggleStatus = useCallback(async (task: Task) => {
     const newStatus = task.status === 'completed' ? 'pending' : 'completed';
     await onUpdate(task.id, { status: newStatus });
-  };
+  }, [onUpdate]);
 
-  const getCategoryLabel = (value: string) => TASK_CATEGORIES.find(c => c.value === value)?.label || value;
-  const getPriorityLabel = (value: string) => TASK_PRIORITIES.find(p => p.value === value)?.label || value;
-  const getStatusLabel = (value: string) => TASK_STATUSES.find(s => s.value === value)?.label || value;
+  const getCategoryLabel = useCallback((value: string) => TASK_CATEGORIES.find(c => c.value === value)?.label || value, []);
+  const getPriorityLabel = useCallback((value: string) => TASK_PRIORITIES.find(p => p.value === value)?.label || value, []);
+  const getStatusLabel = useCallback((value: string) => TASK_STATUSES.find(s => s.value === value)?.label || value, []);
 
-  const getPriorityColor = (priority: string) => {
+  const getPriorityColor = useCallback((priority: string) => {
     const colors: Record<string, string> = {
       low: 'bg-gray-100 text-gray-600',
       medium: 'bg-blue-100 text-blue-600',
@@ -185,9 +185,9 @@ export function GoalsManager({ tasks, staff, onAdd, onUpdate, onDelete, loading 
       urgent: 'bg-red-100 text-red-600',
     };
     return colors[priority] || 'bg-gray-100';
-  };
+  }, []);
 
-  const getCategoryColor = (category: string) => {
+  const getCategoryColor = useCallback((category: string) => {
     const colors: Record<string, string> = {
       repair: 'bg-red-100 text-red-800',
       check: 'bg-blue-100 text-blue-800',
@@ -196,9 +196,9 @@ export function GoalsManager({ tasks, staff, onAdd, onUpdate, onDelete, loading 
       other: 'bg-gray-100 text-gray-800',
     };
     return colors[category] || 'bg-gray-100';
-  };
+  }, []);
 
-  const getFilterLabel = (filter: FilterType): string => {
+  const getFilterLabel = useCallback((filter: FilterType): string => {
     const labels: Record<FilterType, string> = {
       all: 'Все задачи',
       today: 'На сегодня',
@@ -208,9 +208,9 @@ export function GoalsManager({ tasks, staff, onAdd, onUpdate, onDelete, loading 
       overdue: 'Просрочено',
     };
     return labels[filter];
-  };
+  }, []);
 
-  const renderTaskGroup = (title: string, tasks: Task[], colorClass: string = '') => {
+  const renderTaskGroup = useCallback((title: string, tasks: Task[], colorClass: string = '') => {
     if (tasks.length === 0) return null;
     
     return (
@@ -238,7 +238,7 @@ export function GoalsManager({ tasks, staff, onAdd, onUpdate, onDelete, loading 
         </div>
       </div>
     );
-  };
+  }, [staff, userProfiles, handleToggleStatus, handleOpenEdit, onDelete, getCategoryColor, getPriorityColor, getCategoryLabel, getPriorityLabel]);
 
   if (loading) {
     return (
@@ -387,7 +387,7 @@ export function GoalsManager({ tasks, staff, onAdd, onUpdate, onDelete, loading 
       </Dialog>
     </div>
   );
-}
+});
 
 interface StatCardProps {
   title: string;
@@ -442,7 +442,7 @@ function TaskCard({
   const isOverdue = !isCompleted && task.due_date < new Date().toISOString().split('T')[0];
 
   return (
-    <div className={`flex items-start gap-3 p-3 rounded-lg border transition-all ${
+    <div className={`flex items-start gap-3 p-3 rounded-lg border transition-colors ${
       isCompleted ? 'bg-gray-50 opacity-60' : isOverdue ? 'bg-red-50 border-red-200' : 'bg-white hover:bg-gray-50'
     }`}>
       <Checkbox 
@@ -482,7 +482,7 @@ function TaskCard({
               {assignedStaff && (
                 <div className="flex items-center gap-1 text-xs text-gray-500">
                   <User className="w-3 h-3" />
-                  <span>Исполнитель: {assignedStaff.name}</span>
+                  <span>Исполнитель: {assignedStaff.full_name}</span>
                 </div>
               )}
             </div>
@@ -508,7 +508,7 @@ function TaskCard({
   );
 }
 
-// TaskForm компонент остаётся без изменений
+// TaskForm компонент
 interface TaskFormProps {
   initialData: Task | null;
   staff: Staff[];
@@ -602,7 +602,7 @@ function TaskForm({ initialData, staff, onSubmit, onCancel }: TaskFormProps) {
           >
             <option value="">Не назначен</option>
             {staff.map(s => (
-              <option key={s.id} value={s.id}>{s.name}</option>
+              <option key={s.id} value={s.id}>{s.full_name}</option>
             ))}
           </select>
         </div>

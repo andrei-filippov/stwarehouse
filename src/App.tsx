@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense, memo, useCallback, useMemo } from 'react';
 import { Menu, X, Package } from 'lucide-react';
 import { useAuth } from './hooks/useAuth';
 import { useEquipment } from './hooks/useEquipment';
@@ -10,16 +10,19 @@ import { useGoals } from './hooks/useGoals';
 import { useCustomers } from './hooks/useCustomers';
 import { Auth } from './components/Auth';
 import { EquipmentManager } from './components/EquipmentManagement';
-import { EstimateManager } from './components/EstimateManager';
-import { TemplatesManager } from './components/Templates';
-import { ChecklistsManager } from './components/Checklists';
-import { StaffManager } from './components/StaffManager';
-import { GoalsManager } from './components/GoalsManager';
-import { PDFSettings } from './components/PDFSettings';
-import { EventCalendar } from './components/EventCalendar';
-import { Analytics } from './components/Analytics';
-import { CustomersManager } from './components/CustomersManager';
-import { AdminPanel } from './components/AdminPanel';
+
+// Lazy loading для тяжёлых компонентов
+const EstimateManager = lazy(() => import('./components/EstimateManager').then(m => ({ default: m.EstimateManager })));
+const TemplatesManager = lazy(() => import('./components/Templates').then(m => ({ default: m.TemplatesManager })));
+const ChecklistsManager = lazy(() => import('./components/Checklists').then(m => ({ default: m.ChecklistsManager })));
+const StaffManager = lazy(() => import('./components/StaffManager').then(m => ({ default: m.StaffManager })));
+const GoalsManager = lazy(() => import('./components/GoalsManager').then(m => ({ default: m.GoalsManager })));
+const PDFSettings = lazy(() => import('./components/PDFSettings').then(m => ({ default: m.PDFSettings })));
+const EventCalendar = lazy(() => import('./components/EventCalendar').then(m => ({ default: m.EventCalendar })));
+const Analytics = lazy(() => import('./components/Analytics').then(m => ({ default: m.Analytics })));
+const CustomersManager = lazy(() => import('./components/CustomersManager').then(m => ({ default: m.CustomersManager })));
+const AdminPanel = lazy(() => import('./components/AdminPanel').then(m => ({ default: m.AdminPanel }));
+const AccessDenied = lazy(() => import('./components/AccessDenied').then(m => ({ default: m.AccessDenied })));
 import { Button } from './components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './components/ui/sheet';
 import { Spinner } from './components/ui/spinner';
@@ -278,103 +281,107 @@ function App() {
           />
         )}
 
-        {activeTab === 'estimates' && (
-          <EstimateManager
-            estimates={estimates}
-            equipment={equipment}
-            templates={templates}
-            customers={customers}
-            pdfSettings={pdfSettings}
-            onCreate={(estimate, items) => createEstimate(estimate, items, profile?.name)}
-            onUpdate={updateEstimate}
-            onDelete={deleteEstimate}
-            loading={estimatesLoading}
-          />
-        )}
+        <Suspense fallback={<div className="flex justify-center py-12"><Spinner className="w-8 h-8" /></div>}>
+          {activeTab === 'estimates' && (
+            <EstimateManager
+              estimates={estimates}
+              equipment={equipment}
+              templates={templates}
+              customers={customers}
+              pdfSettings={pdfSettings}
+              onCreate={(estimate, items) => createEstimate(estimate, items, profile?.name)}
+              onUpdate={updateEstimate}
+              onDelete={deleteEstimate}
+              loading={estimatesLoading}
+            />
+          )}
 
-        {activeTab === 'templates' && (
-          <TemplatesManager
-            templates={templates}
-            categories={categories}
-            equipment={equipment}
-            onCreate={createTemplate}
-            onUpdate={updateTemplate}
-            onDelete={deleteTemplate}
-            loading={templatesLoading}
-          />
-        )}
+          {activeTab === 'templates' && (
+            <TemplatesManager
+              templates={templates}
+              categories={categories}
+              equipment={equipment}
+              onCreate={createTemplate}
+              onUpdate={updateTemplate}
+              onDelete={deleteTemplate}
+              loading={templatesLoading}
+            />
+          )}
 
-        {activeTab === 'calendar' && (
-          <EventCalendar
-            estimates={estimates}
-            equipment={equipment}
-          />
-        )}
+          {activeTab === 'calendar' && (
+            <EventCalendar
+              estimates={estimates}
+              equipment={equipment}
+            />
+          )}
 
-        {activeTab === 'checklists' && (
-          <ChecklistsManager
-            estimates={estimates}
-            equipment={equipment}
-            categories={categories}
-            checklists={checklists}
-            rules={rules}
-            onCreateRule={createRule}
-            onDeleteRule={deleteRule}
-            onCreateChecklist={createChecklist}
-            onUpdateChecklistItem={updateChecklistItem}
-            onDeleteChecklist={deleteChecklist}
-            loading={checklistsLoading}
-          />
-        )}
+          {activeTab === 'checklists' && (
+            <ChecklistsManager
+              estimates={estimates}
+              equipment={equipment}
+              categories={categories}
+              checklists={checklists}
+              rules={rules}
+              onCreateRule={createRule}
+              onDeleteRule={deleteRule}
+              onCreateChecklist={createChecklist}
+              onUpdateChecklistItem={updateChecklistItem}
+              onDeleteChecklist={deleteChecklist}
+              loading={checklistsLoading}
+            />
+          )}
 
-        {activeTab === 'staff' && (
-          <StaffManager
-            staff={staff}
-            onAdd={addStaff}
-            onUpdate={updateStaff}
-            onDelete={deleteStaff}
-            loading={staffLoading}
-          />
-        )}
+          {activeTab === 'staff' && (
+            <StaffManager
+              staff={staff}
+              onAdd={addStaff}
+              onUpdate={updateStaff}
+              onDelete={deleteStaff}
+              loading={staffLoading}
+            />
+          )}
 
-        {activeTab === 'goals' && (
-          <GoalsManager
-            tasks={tasks}
-            staff={staff}
-            onAdd={addTask}
-            onUpdate={updateTask}
-            onDelete={deleteTask}
-            loading={goalsLoading}
-          />
-        )}
+          {activeTab === 'goals' && (
+            <GoalsManager
+              tasks={tasks}
+              staff={staff}
+              onAdd={addTask}
+              onUpdate={updateTask}
+              onDelete={deleteTask}
+              loading={goalsLoading}
+            />
+          )}
 
-        {activeTab === 'analytics' && (
-          <Analytics {...analyticsData} />
-        )}
+          {activeTab === 'analytics' && (
+            <Analytics {...analyticsData} />
+          )}
 
-        {activeTab === 'customers' && (
-          <CustomersManager
-            customers={customers}
-            userId={user?.id}
-            onAdd={addCustomer}
-            onUpdate={updateCustomer}
-            onDelete={deleteCustomer}
-            loading={customersLoading}
-            error={customersError}
-          />
-        )}
+          {activeTab === 'customers' && (
+            <CustomersManager
+              customers={customers}
+              userId={user?.id}
+              onAdd={addCustomer}
+              onUpdate={updateCustomer}
+              onDelete={deleteCustomer}
+              loading={customersLoading}
+              error={customersError}
+            />
+          )}
 
-        {activeTab === 'settings' && (
-          <PDFSettings settings={pdfSettings} onSave={savePdfSettings} />
-        )}
+          {activeTab === 'settings' && (
+            <PDFSettings settings={pdfSettings} onSave={savePdfSettings} />
+          )}
 
-        {activeTab === 'admin' && (
-          checkAccess('admin') ? (
-            <AdminPanel currentUserId={user?.id} />
-          ) : (
-            <AccessDenied role={userRole} requiredRole="Администратор" />
-          )
-        )}
+          {activeTab === 'admin' && (
+            checkAccess('admin') ? (
+              <AdminPanel currentUserId={user?.id} />
+            ) : (
+              <Suspense fallback={<div className="py-8 text-center">Загрузка...</div>}>
+                <AccessDenied role={userRole} requiredRole="Администратор" />
+              </Suspense>
+            )
+          )}
+        </Suspense>
       </main>
     </div>
   );

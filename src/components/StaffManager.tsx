@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, memo } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -31,7 +31,7 @@ interface StaffManagerProps {
   loading?: boolean;
 }
 
-export function StaffManager({ staff, onAdd, onUpdate, onDelete, loading }: StaffManagerProps) {
+export const StaffManager = memo(function StaffManager({ staff, onAdd, onUpdate, onDelete, loading }: StaffManagerProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -51,22 +51,22 @@ export function StaffManager({ staff, onAdd, onUpdate, onDelete, loading }: Staf
   const activeCount = staff.filter(s => s.is_active).length;
   const inactiveCount = staff.filter(s => !s.is_active).length;
 
-  const handleOpenNew = () => {
+  const handleOpenNew = useCallback(() => {
     setEditingStaff(null);
     setIsDialogOpen(true);
-  };
+  }, []);
 
-  const handleOpenEdit = (s: Staff) => {
+  const handleOpenEdit = useCallback((s: Staff) => {
     setEditingStaff(s);
     setIsDialogOpen(true);
-  };
+  }, []);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setIsDialogOpen(false);
     setEditingStaff(null);
-  };
+  }, []);
 
-  const handleSubmit = async (data: any) => {
+  const handleSubmit = useCallback(async (data: any) => {
     setSubmitting(true);
     if (editingStaff) {
       await onUpdate(editingStaff.id, data);
@@ -75,29 +75,31 @@ export function StaffManager({ staff, onAdd, onUpdate, onDelete, loading }: Staf
     }
     setSubmitting(false);
     handleClose();
-  };
+  }, [editingStaff, onUpdate, onAdd, handleClose]);
 
-  const toggleSelection = (id: string) => {
-    const newSelected = new Set(selectedIds);
-    if (newSelected.has(id)) {
-      newSelected.delete(id);
-    } else {
-      newSelected.add(id);
-    }
-    setSelectedIds(newSelected);
-  };
+  const toggleSelection = useCallback((id: string) => {
+    setSelectedIds(prev => {
+      const newSelected = new Set(prev);
+      if (newSelected.has(id)) {
+        newSelected.delete(id);
+      } else {
+        newSelected.add(id);
+      }
+      return newSelected;
+    });
+  }, []);
 
-  const selectAll = () => {
+  const selectAll = useCallback(() => {
     setSelectedIds(new Set(filteredStaff.map(s => s.id)));
-  };
+  }, [filteredStaff]);
 
-  const deselectAll = () => {
+  const deselectAll = useCallback(() => {
     setSelectedIds(new Set());
-  };
+  }, []);
 
   const selectedStaff = filteredStaff.filter(s => selectedIds.has(s.id));
 
-  const exportToPDF = async () => {
+  const exportToPDF = useCallback(async () => {
     const staffToExport = selectedStaff.length > 0 ? selectedStaff : filteredStaff;
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
@@ -160,9 +162,9 @@ export function StaffManager({ staff, onAdd, onUpdate, onDelete, loading }: Staf
     setTimeout(() => {
       printWindow.print();
     }, 500);
-  };
+  }, [selectedStaff, filteredStaff]);
 
-  const exportFullDataPDF = async () => {
+  const exportFullDataPDF = useCallback(async () => {
     const staffToExport = selectedStaff.length > 0 ? selectedStaff : filteredStaff;
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
@@ -225,7 +227,7 @@ export function StaffManager({ staff, onAdd, onUpdate, onDelete, loading }: Staf
     setTimeout(() => {
       printWindow.print();
     }, 500);
-  };
+  }, [selectedStaff, filteredStaff]);
 
   if (loading) {
     return (
@@ -468,7 +470,7 @@ export function StaffManager({ staff, onAdd, onUpdate, onDelete, loading }: Staf
       </Dialog>
     </div>
   );
-}
+});
 
 interface StaffFormProps {
   initialData: Staff | null;
@@ -493,10 +495,10 @@ function StaffForm({ initialData, onSubmit, onCancel, submitting }: StaffFormPro
     is_active: initialData?.is_active ?? true
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     onSubmit(formData);
-  };
+  }, [onSubmit, formData]);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
