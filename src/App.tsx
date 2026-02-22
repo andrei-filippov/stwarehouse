@@ -343,7 +343,7 @@ function App() {
 
         {activeTab === 'admin' && (hasTabAccess(permissions, 'admin') ? (
           <AdminPanel />
-        ) : <AccessDenied role={profile?.role as UserRole} requiredRole="Администратор" />)
+        ) : <AccessDenied role={profile?.role as UserRole} requiredRole="Администратор" />)}
       </main>
     </div>
   );
