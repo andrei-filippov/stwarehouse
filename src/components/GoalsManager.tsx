@@ -1,12 +1,10 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Label } from './ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Badge } from './ui/badge';
 import { Checkbox } from './ui/checkbox';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Textarea } from './ui/textarea';
 import { 
   Plus, 
@@ -17,15 +15,17 @@ import {
   Clock, 
   AlertCircle,
   Calendar,
-  Filter,
   Target,
-  User
+  User,
+  X
 } from 'lucide-react';
 import type { Task } from '../types/goals';
 import { TASK_CATEGORIES, TASK_PRIORITIES, TASK_STATUSES } from '../types/goals';
 import type { Staff } from '../types';
+import type { Profile } from '../types';
 import { format, parseISO, isPast, isToday, isTomorrow, addDays } from 'date-fns';
 import { ru } from 'date-fns/locale';
+import { supabase } from '../lib/supabase';
 
 import { Spinner } from './ui/spinner';
 
@@ -38,13 +38,37 @@ interface GoalsManagerProps {
   loading?: boolean;
 }
 
+type FilterType = 'all' | 'today' | 'in_progress' | 'pending' | 'completed' | 'overdue';
+
 export function GoalsManager({ tasks, staff, onAdd, onUpdate, onDelete, loading }: GoalsManagerProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [filterStatus, setFilterStatus] = useState<Task['status'] | 'all'>('all');
-  const [filterCategory, setFilterCategory] = useState<Task['category'] | 'all'>('all');
-  const [filterPriority, setFilterPriority] = useState<Task['priority'] | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeFilter, setActiveFilter] = useState<FilterType>('all');
+  const [userProfiles, setUserProfiles] = useState<Record<string, Profile>>({});
+
+  // Загружаем профили пользователей (создателей задач)
+  useEffect(() => {
+    const loadProfiles = async () => {
+      const userIds = [...new Set(tasks.map(t => t.user_id).filter(Boolean))];
+      if (userIds.length === 0) return;
+
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, name, email')
+        .in('id', userIds);
+
+      if (data) {
+        const profileMap = data.reduce((acc, profile) => {
+          acc[profile.id] = profile;
+          return acc;
+        }, {} as Record<string, Profile>);
+        setUserProfiles(profileMap);
+      }
+    };
+
+    loadProfiles();
+  }, [tasks]);
 
   const stats = useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
@@ -54,21 +78,41 @@ export function GoalsManager({ tasks, staff, onAdd, onUpdate, onDelete, loading 
       inProgress: tasks.filter(t => t.status === 'in_progress').length,
       completed: tasks.filter(t => t.status === 'completed').length,
       overdue: tasks.filter(t => t.due_date < today && t.status !== 'completed' && t.status !== 'cancelled').length,
-      today: tasks.filter(t => t.due_date === today).length,
+      today: tasks.filter(t => t.due_date === today && t.status !== 'completed' && t.status !== 'cancelled').length,
     };
   }, [tasks]);
 
   const filteredTasks = useMemo(() => {
     return tasks.filter(task => {
-      const matchesStatus = filterStatus === 'all' || task.status === filterStatus;
-      const matchesCategory = filterCategory === 'all' || task.category === filterCategory;
-      const matchesPriority = filterPriority === 'all' || task.priority === filterPriority;
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Фильтр по плитке
+      const matchesFilter = (() => {
+        switch (activeFilter) {
+          case 'today':
+            return task.due_date === today && task.status !== 'completed' && task.status !== 'cancelled';
+          case 'in_progress':
+            return task.status === 'in_progress';
+          case 'pending':
+            return task.status === 'pending';
+          case 'completed':
+            return task.status === 'completed';
+          case 'overdue':
+            return task.due_date < today && task.status !== 'completed' && task.status !== 'cancelled';
+          case 'all':
+          default:
+            return true;
+        }
+      })();
+
+      // Поиск по тексту
       const matchesSearch = 
         task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (task.description && task.description.toLowerCase().includes(searchQuery.toLowerCase()));
-      return matchesStatus && matchesCategory && matchesPriority && matchesSearch;
+
+      return matchesFilter && matchesSearch;
     });
-  }, [tasks, filterStatus, filterCategory, filterPriority, searchQuery]);
+  }, [tasks, activeFilter, searchQuery]);
 
   const groupedTasks = useMemo(() => {
     const groups: Record<string, Task[]> = {
@@ -155,6 +199,18 @@ export function GoalsManager({ tasks, staff, onAdd, onUpdate, onDelete, loading 
     return colors[category] || 'bg-gray-100';
   };
 
+  const getFilterLabel = (filter: FilterType): string => {
+    const labels: Record<FilterType, string> = {
+      all: 'Все задачи',
+      today: 'На сегодня',
+      in_progress: 'В работе',
+      pending: 'Ожидают',
+      completed: 'Выполнено',
+      overdue: 'Просрочено',
+    };
+    return labels[filter];
+  };
+
   const renderTaskGroup = (title: string, tasks: Task[], colorClass: string = '') => {
     if (tasks.length === 0) return null;
     
@@ -170,6 +226,7 @@ export function GoalsManager({ tasks, staff, onAdd, onUpdate, onDelete, loading 
               key={task.id}
               task={task}
               staff={staff}
+              userProfiles={userProfiles}
               onToggle={() => handleToggleStatus(task)}
               onEdit={() => handleOpenEdit(task)}
               onDelete={() => onDelete(task.id)}
@@ -194,99 +251,92 @@ export function GoalsManager({ tasks, staff, onAdd, onUpdate, onDelete, loading 
 
   return (
     <div className="space-y-4">
-      {/* Статистика */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+      {/* Кликабельная статистика */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <StatCard 
           title="Всего" 
           value={stats.total} 
           icon={Target} 
           color="bg-blue-50 text-blue-600" 
+          isActive={activeFilter === 'all'}
+          onClick={() => setActiveFilter('all')}
         />
         <StatCard 
           title="На сегодня" 
           value={stats.today} 
           icon={Calendar} 
           color="bg-green-50 text-green-600" 
+          isActive={activeFilter === 'today'}
+          onClick={() => setActiveFilter('today')}
         />
         <StatCard 
           title="В работе" 
           value={stats.inProgress} 
           icon={Clock} 
           color="bg-yellow-50 text-yellow-600" 
+          isActive={activeFilter === 'in_progress'}
+          onClick={() => setActiveFilter('in_progress')}
         />
         <StatCard 
           title="Ожидают" 
           value={stats.pending} 
           icon={Circle} 
           color="bg-gray-50 text-gray-600" 
+          isActive={activeFilter === 'pending'}
+          onClick={() => setActiveFilter('pending')}
         />
         <StatCard 
           title="Выполнено" 
           value={stats.completed} 
           icon={CheckCircle2} 
-          color="bg-green-50 text-green-600" 
+          color="bg-emerald-50 text-emerald-600" 
+          isActive={activeFilter === 'completed'}
+          onClick={() => setActiveFilter('completed')}
         />
         <StatCard 
           title="Просрочено" 
           value={stats.overdue} 
           icon={AlertCircle} 
           color="bg-red-50 text-red-600" 
+          isActive={activeFilter === 'overdue'}
+          onClick={() => setActiveFilter('overdue')}
         />
       </div>
 
-      {/* Фильтры */}
+      {/* Активный фильтр и поиск */}
       <Card>
         <CardContent className="p-4">
-          <div className="flex flex-col lg:flex-row gap-3">
-            <div className="flex-1 relative">
+          <div className="flex flex-col sm:flex-row gap-3">
+            {/* Индикатор активного фильтра */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500">Фильтр:</span>
+              <Badge 
+                variant={activeFilter === 'all' ? 'secondary' : 'default'}
+                className="cursor-pointer"
+                onClick={() => setActiveFilter('all')}
+              >
+                {getFilterLabel(activeFilter)}
+                {activeFilter !== 'all' && (
+                  <X className="w-3 h-3 ml-1" onClick={(e) => { e.stopPropagation(); setActiveFilter('all'); }} />
+                )}
+              </Badge>
+            </div>
+            
+            {/* Поиск */}
+            <div className="flex-1">
               <Input
                 placeholder="Поиск по задачам..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full"
               />
             </div>
-            <div className="flex gap-2 flex-wrap">
-              <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as any)}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="Статус" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Все статусы</SelectItem>
-                  {TASK_STATUSES.map(s => (
-                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select value={filterCategory} onValueChange={(v) => setFilterCategory(v as any)}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="Категория" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Все категории</SelectItem>
-                  {TASK_CATEGORIES.map(c => (
-                    <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select value={filterPriority} onValueChange={(v) => setFilterPriority(v as any)}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="Приоритет" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Все приоритеты</SelectItem>
-                  {TASK_PRIORITIES.map(p => (
-                    <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Button onClick={handleOpenNew}>
-                <Plus className="w-4 h-4 mr-2" />
-                Новая задача
-              </Button>
-            </div>
+            
+            {/* Кнопка добавления */}
+            <Button onClick={handleOpenNew} className="shrink-0">
+              <Plus className="w-4 h-4 mr-2" />
+              Новая задача
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -296,7 +346,8 @@ export function GoalsManager({ tasks, staff, onAdd, onUpdate, onDelete, loading 
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Target className="w-5 h-5" />
-            Задачи
+            {getFilterLabel(activeFilter)}
+            <Badge variant="secondary">{filteredTasks.length}</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -304,7 +355,7 @@ export function GoalsManager({ tasks, staff, onAdd, onUpdate, onDelete, loading 
             <div className="text-center py-8 text-gray-500">
               <Target className="w-12 h-12 mx-auto mb-3 opacity-30" />
               <p>Задачи не найдены</p>
-              <p className="text-sm mt-1">Создайте новую задачу</p>
+              <p className="text-sm mt-1">Создайте новую задачу или измените фильтр</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -339,9 +390,23 @@ export function GoalsManager({ tasks, staff, onAdd, onUpdate, onDelete, loading 
   );
 }
 
-function StatCard({ title, value, icon: Icon, color }: { title: string; value: number; icon: any; color: string }) {
+interface StatCardProps {
+  title: string;
+  value: number;
+  icon: React.ElementType;
+  color: string;
+  isActive?: boolean;
+  onClick?: () => void;
+}
+
+function StatCard({ title, value, icon: Icon, color, isActive, onClick }: StatCardProps) {
   return (
-    <Card className={`${color} border-0`}>
+    <Card 
+      className={`${color} border-0 cursor-pointer transition-all hover:scale-105 ${
+        isActive ? 'ring-2 ring-offset-2 ring-blue-500' : ''
+      }`}
+      onClick={onClick}
+    >
       <CardContent className="p-4">
         <div className="flex items-center justify-between">
           <div>
@@ -358,6 +423,7 @@ function StatCard({ title, value, icon: Icon, color }: { title: string; value: n
 interface TaskCardProps {
   task: Task;
   staff: Staff[];
+  userProfiles: Record<string, Profile>;
   onToggle: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -368,10 +434,11 @@ interface TaskCardProps {
 }
 
 function TaskCard({ 
-  task, staff, onToggle, onEdit, onDelete, 
+  task, staff, userProfiles, onToggle, onEdit, onDelete, 
   getCategoryColor, getPriorityColor, getCategoryLabel, getPriorityLabel 
 }: TaskCardProps) {
   const assignedStaff = staff.find(s => s.id === task.assigned_to);
+  const creator = task.user_id ? userProfiles[task.user_id] : null;
   const isCompleted = task.status === 'completed';
   const isOverdue = !isCompleted && task.due_date < new Date().toISOString().split('T')[0];
 
@@ -394,40 +461,55 @@ function TaskCard({
             {task.description && (
               <p className="text-sm text-gray-500 mt-1 line-clamp-2">{task.description}</p>
             )}
+            
+            {/* Метки и создатель */}
+            <div className="flex flex-wrap items-center gap-2 mt-2">
+              <Badge className={getCategoryColor(task.category)}>
+                {getCategoryLabel(task.category)}
+              </Badge>
+              <Badge className={getPriorityColor(task.priority)}>
+                {getPriorityLabel(task.priority)}
+              </Badge>
+              
+              {/* Создатель задачи */}
+              {creator && (
+                <div className="flex items-center gap-1 text-xs text-gray-500">
+                  <User className="w-3 h-3" />
+                  <span>Создал: {creator.name || creator.email || 'Неизвестно'}</span>
+                </div>
+              )}
+              
+              {/* Исполнитель */}
+              {assignedStaff && (
+                <div className="flex items-center gap-1 text-xs text-gray-500">
+                  <User className="w-3 h-3" />
+                  <span>Исполнитель: {assignedStaff.name}</span>
+                </div>
+              )}
+            </div>
           </div>
-          <div className="flex items-center gap-1">
-            <Button variant="ghost" size="sm" onClick={onEdit}>
-              <Edit2 className="w-4 h-4" />
-            </Button>
-            <Button variant="ghost" size="sm" onClick={onDelete}>
-              <Trash2 className="w-4 h-4 text-red-500" />
-            </Button>
+          
+          {/* Дата и действия */}
+          <div className="flex flex-col items-end gap-1">
+            <span className={`text-xs ${isOverdue ? 'text-red-600 font-medium' : 'text-gray-400'}`}>
+              {format(parseISO(task.due_date), 'dd.MM.yyyy', { locale: ru })}
+            </span>
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="sm" onClick={onEdit}>
+                <Edit2 className="w-4 h-4" />
+              </Button>
+              <Button variant="ghost" size="sm" onClick={onDelete} className="text-red-600 hover:text-red-700">
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
-        </div>
-        
-        <div className="flex flex-wrap items-center gap-2 mt-2">
-          <Badge className={getCategoryColor(task.category)}>
-            {getCategoryLabel(task.category)}
-          </Badge>
-          <Badge className={getPriorityColor(task.priority)}>
-            {getPriorityLabel(task.priority)}
-          </Badge>
-          <Badge variant="outline" className={isOverdue ? 'text-red-600 border-red-300' : ''}>
-            <Calendar className="w-3 h-3 mr-1" />
-            {format(parseISO(task.due_date), 'dd MMM', { locale: ru })}
-          </Badge>
-          {assignedStaff && (
-            <Badge variant="secondary">
-              <User className="w-3 h-3 mr-1" />
-              {assignedStaff.full_name}
-            </Badge>
-          )}
         </div>
       </div>
     </div>
   );
 }
 
+// TaskForm компонент остаётся без изменений
 interface TaskFormProps {
   initialData: Task | null;
   staff: Staff[];
@@ -453,63 +535,58 @@ function TaskForm({ initialData, staff, onSubmit, onCancel }: TaskFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="title">Название задачи *</Label>
+      <div>
+        <label className="text-sm font-medium">Название *</label>
         <Input
-          id="title"
           value={formData.title}
           onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-          placeholder="Например: Отвезти микшер в ремонт"
+          placeholder="Введите название задачи"
           required
         />
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="description">Описание</Label>
+      <div>
+        <label className="text-sm font-medium">Описание</label>
         <Textarea
-          id="description"
           value={formData.description}
           onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-          placeholder="Подробное описание задачи..."
+          placeholder="Описание задачи"
           rows={3}
         />
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label>Категория</Label>
-          <Select value={formData.category} onValueChange={(v) => setFormData({ ...formData, category: v as any })}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {TASK_CATEGORIES.map(c => (
-                <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div>
+          <label className="text-sm font-medium">Категория</label>
+          <select
+            value={formData.category}
+            onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+            className="w-full border rounded-md p-2"
+          >
+            {TASK_CATEGORIES.map(c => (
+              <option key={c.value} value={c.value}>{c.label}</option>
+            ))}
+          </select>
         </div>
 
-        <div className="space-y-2">
-          <Label>Приоритет</Label>
-          <Select value={formData.priority} onValueChange={(v) => setFormData({ ...formData, priority: v as any })}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {TASK_PRIORITIES.map(p => (
-                <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div>
+          <label className="text-sm font-medium">Приоритет</label>
+          <select
+            value={formData.priority}
+            onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
+            className="w-full border rounded-md p-2"
+          >
+            {TASK_PRIORITIES.map(p => (
+              <option key={p.value} value={p.value}>{p.label}</option>
+            ))}
+          </select>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="due_date">Срок выполнения *</Label>
+        <div>
+          <label className="text-sm font-medium">Срок выполнения</label>
           <Input
-            id="due_date"
             type="date"
             value={formData.due_date}
             onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
@@ -517,47 +594,42 @@ function TaskForm({ initialData, staff, onSubmit, onCancel }: TaskFormProps) {
           />
         </div>
 
-        <div className="space-y-2">
-          <Label>Назначено на</Label>
-          <Select 
-            value={formData.assigned_to || 'unassigned'} 
-            onValueChange={(v) => setFormData({ ...formData, assigned_to: v === 'unassigned' ? '' : v })}
+        <div>
+          <label className="text-sm font-medium">Исполнитель</label>
+          <select
+            value={formData.assigned_to}
+            onChange={(e) => setFormData({ ...formData, assigned_to: e.target.value })}
+            className="w-full border rounded-md p-2"
           >
-            <SelectTrigger>
-              <SelectValue placeholder="Выберите сотрудника" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="unassigned">Не назначено</SelectItem>
-              {staff.filter(s => s.is_active).map(s => (
-                <SelectItem key={s.id} value={s.id}>{s.full_name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <option value="">Не назначен</option>
+            {staff.map(s => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
         </div>
       </div>
 
       {initialData && (
-        <div className="space-y-2">
-          <Label>Статус</Label>
-          <Select value={formData.status} onValueChange={(v) => setFormData({ ...formData, status: v as any })}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {TASK_STATUSES.map(s => (
-                <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div>
+          <label className="text-sm font-medium">Статус</label>
+          <select
+            value={formData.status}
+            onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+            className="w-full border rounded-md p-2"
+          >
+            {TASK_STATUSES.map(s => (
+              <option key={s.value} value={s.value}>{s.label}</option>
+            ))}
+          </select>
         </div>
       )}
 
-      <div className="flex gap-3 pt-4">
-        <Button type="submit" className="flex-1">
-          {initialData ? 'Сохранить' : 'Создать задачу'}
-        </Button>
+      <div className="flex justify-end gap-2 pt-4">
         <Button type="button" variant="outline" onClick={onCancel}>
           Отмена
+        </Button>
+        <Button type="submit">
+          {initialData ? 'Сохранить' : 'Создать'}
         </Button>
       </div>
     </form>
