@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -39,24 +39,33 @@ export function EquipmentManager({
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Фильтрация оборудования
-  const filteredEquipment = equipment.filter(item =>
-    item.name.toLowerCase().includes(search.toLowerCase()) ||
-    item.category.toLowerCase().includes(search.toLowerCase()) ||
-    (item.description && item.description.toLowerCase().includes(search.toLowerCase()))
+  // Фильтрация оборудования (мемоизировано)
+  const filteredEquipment = useMemo(() =>
+    equipment.filter(item =>
+      item.name.toLowerCase().includes(search.toLowerCase()) ||
+      item.category.toLowerCase().includes(search.toLowerCase()) ||
+      (item.description && item.description.toLowerCase().includes(search.toLowerCase()))
+    ),
+    [equipment, search]
   );
 
-  // Группировка по категориям
-  const groupedByCategory = filteredEquipment.reduce((acc, item) => {
-    if (!acc[item.category]) {
-      acc[item.category] = [];
-    }
-    acc[item.category].push(item);
-    return acc;
-  }, {} as Record<string, Equipment[]>);
+  // Группировка по категориям (мемоизировано)
+  const groupedByCategory = useMemo(() =>
+    filteredEquipment.reduce((acc, item) => {
+      if (!acc[item.category]) {
+        acc[item.category] = [];
+      }
+      acc[item.category].push(item);
+      return acc;
+    }, {} as Record<string, Equipment[]>),
+    [filteredEquipment]
+  );
 
-  // Сортировка категорий
-  const sortedCategories = Object.keys(groupedByCategory).sort();
+  // Сортировка категорий (мемоизировано)
+  const sortedCategories = useMemo(() =>
+    Object.keys(groupedByCategory).sort(),
+    [groupedByCategory]
+  );
 
   // Переключение разворачивания категории
   const toggleCategory = (category: string) => {

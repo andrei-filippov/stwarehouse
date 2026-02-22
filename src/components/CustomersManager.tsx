@@ -1,4 +1,4 @@
-import { useState, useCallback, memo } from 'react';
+import { useState, useCallback, memo, useMemo } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -27,10 +27,13 @@ export const CustomersManager = memo(function CustomersManager({ customers, user
   const [searchQuery, setSearchQuery] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const filteredCustomers = customers.filter(c => 
-    c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.inn?.includes(searchQuery) ||
-    c.contact_person?.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredCustomers = useMemo(() =>
+    customers.filter(c => 
+      c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.inn?.includes(searchQuery) ||
+      c.contact_person?.toLowerCase().includes(searchQuery.toLowerCase())
+    ),
+    [customers, searchQuery]
   );
 
   const handleOpenNew = useCallback(() => {

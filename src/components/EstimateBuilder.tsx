@@ -339,9 +339,15 @@ export function EstimateBuilder({
     setItems(prev => [...prev, ...newItems]);
   };
 
-  // Подсчет итого с учетом коэффициента
-  const total = items.reduce((sum, item) => sum + (item.price * item.quantity * (item.coefficient || 1)), 0);
-  const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
+  // Подсчет итого с учетом коэффициента (мемоизировано)
+  const total = useMemo(() =>
+    items.reduce((sum, item) => sum + (item.price * item.quantity * (item.coefficient || 1)), 0),
+    [items]
+  );
+  const totalQuantity = useMemo(() =>
+    items.reduce((sum, item) => sum + item.quantity, 0),
+    [items]
+  );
 
   // Группировка по категориям
   const groupedItems = useMemo(() => {
@@ -358,13 +364,16 @@ export function EstimateBuilder({
     return Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b));
   }, [items]);
 
-  // Расчет суммы по категории
-  const getCategoryTotal = (categoryItems: EstimateItem[]) => {
+  // Расчет суммы по категории (мемоизировано)
+  const getCategoryTotal = useCallback((categoryItems: EstimateItem[]) => {
     return categoryItems.reduce((sum, item) => sum + (item.price * item.quantity * (item.coefficient || 1)), 0);
-  };
+  }, []);
 
-  // Выбранный заказчик
-  const selectedCustomer = customers.find(c => c.id === customerId);
+  // Выбранный заказчик (мемоизировано)
+  const selectedCustomer = useMemo(() =>
+    customers.find(c => c.id === customerId),
+    [customers, customerId]
+  );
 
   // Сохранение
   const handleSave = async () => {

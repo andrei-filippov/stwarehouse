@@ -1,4 +1,4 @@
-import { useState, useCallback, memo } from 'react';
+import { useState, useCallback, memo, useMemo } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -39,17 +39,20 @@ export const StaffManager = memo(function StaffManager({ staff, onAdd, onUpdate,
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
 
-  const filteredStaff = staff.filter(s => {
-    const matchesSearch = 
-      s.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.position.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (s.phone && s.phone.includes(searchQuery));
-    const matchesActive = showInactive || s.is_active;
-    return matchesSearch && matchesActive;
-  });
+  const filteredStaff = useMemo(() =>
+    staff.filter(s => {
+      const matchesSearch = 
+        s.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        s.position.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (s.phone && s.phone.includes(searchQuery));
+      const matchesActive = showInactive || s.is_active;
+      return matchesSearch && matchesActive;
+    }),
+    [staff, searchQuery, showInactive]
+  );
 
-  const activeCount = staff.filter(s => s.is_active).length;
-  const inactiveCount = staff.filter(s => !s.is_active).length;
+  const activeCount = useMemo(() => staff.filter(s => s.is_active).length, [staff]);
+  const inactiveCount = useMemo(() => staff.filter(s => !s.is_active).length, [staff]);
 
   const handleOpenNew = useCallback(() => {
     setEditingStaff(null);
