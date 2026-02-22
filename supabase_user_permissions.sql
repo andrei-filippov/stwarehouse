@@ -18,6 +18,10 @@ CREATE INDEX IF NOT EXISTS idx_user_permissions_user_id ON user_permissions(user
 -- RLS для user_permissions
 ALTER TABLE user_permissions ENABLE ROW LEVEL SECURITY;
 
+-- Удаляем старые политики если есть
+DROP POLICY IF EXISTS "Admins can manage all permissions" ON user_permissions;
+DROP POLICY IF EXISTS "Users can view own permissions" ON user_permissions;
+
 -- Только админы могут управлять разрешениями
 CREATE POLICY "Admins can manage all permissions"
   ON user_permissions FOR ALL
@@ -39,7 +43,12 @@ CREATE POLICY "Admins can manage all permissions"
 CREATE POLICY "Users can view own permissions"
   ON user_permissions FOR SELECT
   TO authenticated
-  USING (user_id = auth.uid());
+  USING (user_id = auth.uid() OR 
+    EXISTS (
+      SELECT 1 FROM profiles 
+      WHERE id = auth.uid() AND role = 'admin'
+    )
+  );
 
 -- Функция для получения эффективных разрешений пользователя
 CREATE OR REPLACE FUNCTION get_user_effective_permissions(p_user_id UUID)
