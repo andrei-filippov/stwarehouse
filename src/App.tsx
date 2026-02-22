@@ -73,6 +73,37 @@ function App() {
     }
   }, []);
 
+  // Получаем роль пользователя
+  const userRole = (profile?.role || 'manager') as UserRole;
+
+  // Список всех вкладок
+  const allNavItems = [
+    { id: 'equipment' as Tab, label: 'Оборудование', icon: Package },
+    { id: 'estimates' as Tab, label: 'Сметы', icon: FileText },
+    { id: 'templates' as Tab, label: 'Шаблоны', icon: Layout },
+    { id: 'calendar' as Tab, label: 'Календарь', icon: Calendar },
+    { id: 'checklists' as Tab, label: 'Чек-листы', icon: ClipboardCheck },
+    { id: 'staff' as Tab, label: 'Персонал', icon: Users },
+    { id: 'goals' as Tab, label: 'Задачи', icon: Target },
+    { id: 'analytics' as Tab, label: 'Аналитика', icon: BarChart3 },
+    { id: 'customers' as Tab, label: 'Заказчики', icon: Building2 },
+    { id: 'settings' as Tab, label: 'Настройки PDF', icon: Settings },
+    { id: 'admin' as Tab, label: 'Админ', icon: Shield },
+  ];
+
+  // Фильтруем доступные вкладки
+  const navItems = allNavItems.filter(item => hasAccess(userRole, item.id));
+
+  // При загрузке профиля устанавливаем первую доступную вкладку
+  useEffect(() => {
+    if (profile && !hasAccess(userRole, activeTab)) {
+      const firstAccessible = navItems[0]?.id;
+      if (firstAccessible) {
+        setActiveTab(firstAccessible);
+      }
+    }
+  }, [profile, userRole]);
+
   const savePdfSettings = (settings: PDFSettingsType) => {
     setPdfSettings(settings);
     localStorage.setItem('pdfSettings', JSON.stringify(settings));
@@ -92,24 +123,6 @@ function App() {
   if (!user) {
     return <Auth onSignIn={signIn} onSignUp={signUp} />;
   }
-
-  const userRole = (profile?.role || 'manager') as UserRole;
-
-  const allNavItems = [
-    { id: 'equipment' as Tab, label: 'Оборудование', icon: Package },
-    { id: 'estimates' as Tab, label: 'Сметы', icon: FileText },
-    { id: 'templates' as Tab, label: 'Шаблоны', icon: Layout },
-    { id: 'calendar' as Tab, label: 'Календарь', icon: Calendar },
-    { id: 'checklists' as Tab, label: 'Чек-листы', icon: ClipboardCheck },
-    { id: 'staff' as Tab, label: 'Персонал', icon: Users },
-    { id: 'goals' as Tab, label: 'Задачи', icon: Target },
-    { id: 'analytics' as Tab, label: 'Аналитика', icon: BarChart3 },
-    { id: 'customers' as Tab, label: 'Заказчики', icon: Building2 },
-    { id: 'settings' as Tab, label: 'Настройки PDF', icon: Settings },
-    { id: 'admin' as Tab, label: 'Админ', icon: Shield },
-  ];
-
-  const navItems = allNavItems.filter(item => hasAccess(userRole, item.id));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 pb-20 md:pb-0">
