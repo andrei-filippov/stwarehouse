@@ -1,103 +1,156 @@
--- Таблица для индивидуальных прав пользователей
--- Позволяет админу назначать конкретные вкладки каждому пользователю
+-- SQL для системы кастомных разрешений пользователей
+-- Админ может назначать роли и индивидуально настраивать доступ к вкладкам
 
+-- Таблица для хранения кастомных разрешений пользователей
 CREATE TABLE IF NOT EXISTS user_permissions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  allowed_tabs TEXT[] NOT NULL DEFAULT '{}',
-  can_edit BOOLEAN NOT NULL DEFAULT true,
-  can_delete BOOLEAN NOT NULL DEFAULT true,
-  can_export BOOLEAN NOT NULL DEFAULT true,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  UNIQUE(user_id)
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  tab_id TEXT NOT NULL,
+  allowed BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, tab_id)
 );
+
+-- Индекс для быстрого поиска
+CREATE INDEX IF NOT EXISTS idx_user_permissions_user_id ON user_permissions(user_id);
 
 -- RLS для user_permissions
 ALTER TABLE user_permissions ENABLE ROW LEVEL SECURITY;
 
--- Админ видит все права
-CREATE POLICY "Admin can view all permissions" ON user_permissions 
-  FOR SELECT TO authenticated 
-  USING (EXISTS (SELECT 1 FROM profiles WHERE profiles.id = auth.uid() AND profiles.role = 'admin'));
+-- Только админы могут управлять разрешениями
+CREATE POLICY "Admins can manage all permissions"
+  ON user_permissions FOR ALL
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles 
+      WHERE id = auth.uid() AND role = 'admin'
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM profiles 
+      WHERE id = auth.uid() AND role = 'admin'
+    )
+  );
 
--- Пользователь видит свои права
-CREATE POLICY "Users can view own permissions" ON user_permissions 
-  FOR SELECT TO authenticated 
-  USING (auth.uid() = user_id);
+-- Пользователи могут видеть только свои разрешения
+CREATE POLICY "Users can view own permissions"
+  ON user_permissions FOR SELECT
+  TO authenticated
+  USING (user_id = auth.uid());
 
--- Только админ может менять права
-CREATE POLICY "Admin can insert permissions" ON user_permissions 
-  FOR INSERT TO authenticated 
-  WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE profiles.id = auth.uid() AND profiles.role = 'admin'));
+-- Функция для получения эффективных разрешений пользователя
+CREATE OR REPLACE FUNCTION get_user_effective_permissions(p_user_id UUID)
+RETURNS TABLE (
+  tab_id TEXT,
+  allowed BOOLEAN,
+  source TEXT -- 'role' или 'custom'
+) AS $$
+DECLARE
+  v_role TEXT;
+BEGIN
+  -- Получаем роль пользователя
+  SELECT role INTO v_role FROM profiles WHERE id = p_user_id;
+  
+  -- Возвращаем все вкладки с их статусом доступа
+  RETURN QUERY
+  WITH all_tabs AS (
+    SELECT unnest(ARRAY[
+      'equipment', 'estimates', 'templates', 'calendar', 
+      'checklists', 'staff', 'goals', 'analytics', 
+      'customers', 'settings', 'admin'
+    ]) AS tab
+  ),
+  role_permissions AS (
+    SELECT 
+      t.tab,
+      CASE v_role
+        WHEN 'admin' THEN true
+        WHEN 'manager' THEN t.tab = ANY(ARRAY[
+          'equipment', 'estimates', 'templates', 'calendar', 
+          'checklists', 'goals', 'analytics', 'customers'
+        ])
+        WHEN 'warehouse' THEN t.tab = ANY(ARRAY[
+          'equipment', 'checklists', 'calendar'
+        ])
+        WHEN 'accountant' THEN t.tab = ANY(ARRAY[
+          'estimates', 'analytics', 'customers', 'calendar'
+        ])
+        ELSE false
+      END AS allowed
+    FROM all_tabs t
+  )
+  SELECT 
+    COALESCE(up.tab_id, rp.tab) AS tab_id,
+    COALESCE(up.allowed, rp.allowed) AS allowed,
+    CASE WHEN up.tab_id IS NOT NULL THEN 'custom' ELSE 'role' END AS source
+  FROM role_permissions rp
+  LEFT JOIN user_permissions up ON up.user_id = p_user_id AND up.tab_id = rp.tab
+  UNION
+  SELECT 
+    up.tab_id,
+    up.allowed,
+    'custom' AS source
+  FROM user_permissions up
+  WHERE up.user_id = p_user_id 
+    AND up.tab_id NOT IN (SELECT tab FROM all_tabs);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
-CREATE POLICY "Admin can update permissions" ON user_permissions 
-  FOR UPDATE TO authenticated 
-  USING (EXISTS (SELECT 1 FROM profiles WHERE profiles.id = auth.uid() AND profiles.role = 'admin'));
+-- Функция для проверки доступа
+CREATE OR REPLACE FUNCTION has_tab_access(p_user_id UUID, p_tab_id TEXT)
+RETURNS BOOLEAN AS $$
+DECLARE
+  v_allowed BOOLEAN;
+  v_role TEXT;
+BEGIN
+  -- Проверяем кастомное разрешение
+  SELECT allowed INTO v_allowed 
+  FROM user_permissions 
+  WHERE user_id = p_user_id AND tab_id = p_tab_id;
+  
+  -- Если есть кастомное разрешение - используем его
+  IF v_allowed IS NOT NULL THEN
+    RETURN v_allowed;
+  END IF;
+  
+  -- Иначе используем ролевую модель
+  SELECT role INTO v_role FROM profiles WHERE id = p_user_id;
+  
+  RETURN CASE v_role
+    WHEN 'admin' THEN true
+    WHEN 'manager' THEN p_tab_id = ANY(ARRAY[
+      'equipment', 'estimates', 'templates', 'calendar', 
+      'checklists', 'goals', 'analytics', 'customers'
+    ])
+    WHEN 'warehouse' THEN p_tab_id = ANY(ARRAY[
+      'equipment', 'checklists', 'calendar'
+    ])
+    WHEN 'accountant' THEN p_tab_id = ANY(ARRAY[
+      'estimates', 'analytics', 'customers', 'calendar'
+    ])
+    ELSE false
+  END;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
-CREATE POLICY "Admin can delete permissions" ON user_permissions 
-  FOR DELETE TO authenticated 
-  USING (EXISTS (SELECT 1 FROM profiles WHERE profiles.id = auth.uid() AND profiles.role = 'admin'));
-
--- Триггер для updated_at
-DROP TRIGGER IF EXISTS update_user_permissions_updated_at ON user_permissions;
-CREATE TRIGGER update_user_permissions_updated_at 
-  BEFORE UPDATE ON user_permissions 
-  FOR EACH ROW 
-  EXECUTE FUNCTION update_updated_at_column();
-
--- Функция для автоматического создания прав при регистрации
-CREATE OR REPLACE FUNCTION create_default_user_permissions()
+-- Триггер для обновления updated_at
+CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- Создаём права по умолчанию на основе роли
-  INSERT INTO user_permissions (user_id, allowed_tabs, can_edit, can_delete, can_export)
-  VALUES (
-    NEW.id,
-    CASE 
-      WHEN NEW.role = 'admin' THEN ARRAY['equipment', 'estimates', 'templates', 'calendar', 'checklists', 'staff', 'goals', 'analytics', 'customers', 'settings', 'admin']
-      WHEN NEW.role = 'manager' THEN ARRAY['equipment', 'estimates', 'templates', 'calendar', 'checklists', 'goals', 'analytics', 'customers']
-      WHEN NEW.role = 'warehouse' THEN ARRAY['equipment', 'checklists', 'calendar']
-      WHEN NEW.role = 'accountant' THEN ARRAY['estimates', 'analytics', 'customers', 'calendar']
-      ELSE ARRAY['equipment', 'calendar']
-    END,
-    NEW.role IN ('admin', 'manager', 'warehouse'),
-    NEW.role IN ('admin', 'manager'),
-    NEW.role IN ('admin', 'manager', 'accountant')
-  )
-  ON CONFLICT (user_id) DO UPDATE SET
-    allowed_tabs = EXCLUDED.allowed_tabs,
-    can_edit = EXCLUDED.can_edit,
-    can_delete = EXCLUDED.can_delete,
-    can_export = EXCLUDED.can_export,
-    updated_at = NOW();
-  
+  NEW.updated_at = NOW();
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
--- Триггер для автосоздания прав при создании профиля
-DROP TRIGGER IF EXISTS auto_create_permissions ON profiles;
-CREATE TRIGGER auto_create_permissions
-  AFTER INSERT OR UPDATE OF role ON profiles
-  FOR EACH ROW
-  EXECUTE FUNCTION create_default_user_permissions();
+DROP TRIGGER IF EXISTS update_user_permissions_updated_at ON user_permissions;
+CREATE TRIGGER update_user_permissions_updated_at
+  BEFORE UPDATE ON user_permissions
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- Создаём права для существующих пользователей
-INSERT INTO user_permissions (user_id, allowed_tabs, can_edit, can_delete, can_export)
-SELECT 
-  p.id,
-  CASE 
-    WHEN p.role = 'admin' THEN ARRAY['equipment', 'estimates', 'templates', 'calendar', 'checklists', 'staff', 'goals', 'analytics', 'customers', 'settings', 'admin']
-    WHEN p.role = 'manager' THEN ARRAY['equipment', 'estimates', 'templates', 'calendar', 'checklists', 'goals', 'analytics', 'customers']
-    WHEN p.role = 'warehouse' THEN ARRAY['equipment', 'checklists', 'calendar']
-    WHEN p.role = 'accountant' THEN ARRAY['estimates', 'analytics', 'customers', 'calendar']
-    ELSE ARRAY['equipment', 'calendar']
-  END,
-  p.role IN ('admin', 'manager', 'warehouse'),
-  p.role IN ('admin', 'manager'),
-  p.role IN ('admin', 'manager', 'accountant')
-FROM profiles p
-LEFT JOIN user_permissions up ON p.id = up.user_id
-WHERE up.id IS NULL
-ON CONFLICT (user_id) DO NOTHING;
+-- Комментарии
+COMMENT ON TABLE user_permissions IS 'Индивидуальные разрешения пользователей на доступ к вкладкам';
+COMMENT ON FUNCTION get_user_effective_permissions IS 'Получить эффективные разрешения пользователя (роль + кастомные)';
+COMMENT ON FUNCTION has_tab_access IS 'Проверить доступ пользователя к конкретной вкладке';

@@ -19,6 +19,7 @@ import { PDFSettings } from './components/PDFSettings';
 import { EventCalendar } from './components/EventCalendar';
 import { Analytics } from './components/Analytics';
 import { CustomersManager } from './components/CustomersManager';
+import { AdminPanel } from './components/AdminPanel';
 import { Button } from './components/ui/button';
 import { Spinner } from './components/ui/spinner';
 import { 
@@ -32,7 +33,8 @@ import {
   Calendar,
   ClipboardCheck,
   Users,
-  Target
+  Target,
+  Shield
 } from 'lucide-react';
 import type { PDFSettings as PDFSettingsType } from './types';
 
@@ -104,6 +106,7 @@ function App() {
     { id: 'analytics' as Tab, label: 'Аналитика', icon: BarChart3 },
     { id: 'customers' as Tab, label: 'Заказчики', icon: Building2 },
     { id: 'settings' as Tab, label: 'Настройки PDF', icon: Settings },
+    { id: 'admin' as Tab, label: 'Админ', icon: Shield },
   ];
 
   const navItems = allNavItems.filter(item => hasAccess(userRole, item.id));
@@ -271,6 +274,14 @@ function App() {
 
         {activeTab === 'settings' && (
           <PDFSettings settings={pdfSettings} onSave={savePdfSettings} />
+        )}
+
+        {activeTab === 'admin' && (
+          hasAccess(userRole, 'admin') ? (
+            <AdminPanel currentUserId={user?.id} />
+          ) : (
+            <AccessDenied role={userRole} requiredRole="Администратор" />
+          )
         )}
       </main>
     </div>
