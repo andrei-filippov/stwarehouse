@@ -1,74 +1,98 @@
-# React + TypeScript + Vite
+# СкладОборуд
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Система учета оборудования для event-индустрии. Управление оборудованием, сметами, персоналом, заказчиками и чек-листами.
 
-Currently, two official plugins are available:
+## Функции
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- 📦 **Управление оборудованием** — категории, количество, цены
+- 📄 **Сметы** — создание, редактирование, PDF экспорт
+- 👥 **Заказчики** — с автозаполнением по ИНН
+- 👨‍💼 **Персонал** — учет сотрудников, паспортные данные
+- ✅ **Чек-листы** — автогенерация на основе смет
+- 📊 **Аналитика** — статистика и отчеты
+- 📅 **Календарь** — планирование мероприятий
 
-## React Compiler
+## Быстрый старт
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### 1. Установка зависимостей
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
 ```
 
+### 2. Настройка окружения
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Скопируйте `.env.example` в `.env`:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+cp .env.example .env
 ```
+
+Заполните переменные:
+
+```env
+# Supabase (из Dashboard → Project Settings → API)
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your_anon_key
+
+# Dadata (для автозаполнения по ИНН)
+VITE_DADATA_API_KEY=your_dadata_api_key
+```
+
+### 3. Настройка базы данных
+
+В Supabase Dashboard выполните SQL скрипт `supabase_schema.sql`:
+
+1. Откройте SQL Editor
+2. Создайте New Query
+3. Вставьте содержимое `supabase_schema.sql`
+4. Нажмите Run
+
+### 4. Запуск
+
+```bash
+npm run dev
+```
+
+## Настройка автозаполнения по ИНН
+
+Для работы функции автозаполнения данных заказчика по ИНН:
+
+1. Зарегистрируйтесь на [dadata.ru](https://dadata.ru)
+2. Получите API ключ в личном кабинете
+3. Добавьте ключ в `.env`:
+   ```env
+   VITE_DADATA_API_KEY=your_api_key_here
+   ```
+4. Перезапустите приложение
+
+**Бесплатный тариф:** до 10 000 запросов в день.
+
+## Сборка для production
+
+```bash
+npm run build
+```
+
+Сборка будет создана в папке `dist/`.
+
+## Структура проекта
+
+```
+src/
+├── components/       # React компоненты
+├── hooks/           # Custom hooks (Supabase)
+├── lib/             # Утилиты и Supabase клиент
+├── types/           # TypeScript типы
+└── App.tsx          # Главный компонент
+```
+
+## Безопасность
+
+- Никогда не коммитьте `.env` файл
+- Храните API ключи в переменных окружения
+- Включен RLS (Row Level Security) в Supabase
+
+## Лицензия
+
+MIT

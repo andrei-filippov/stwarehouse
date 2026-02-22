@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Badge } from './ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Spinner } from './ui/spinner';
-import { Plus, Edit, Trash2, Search, Building2, User, Phone, Mail, AlertCircle } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Building2, User, Phone, Mail, AlertCircle, SearchIcon } from 'lucide-react';
 import type { Customer } from '../types';
 
 interface CustomersManagerProps {
@@ -277,6 +277,49 @@ interface CustomerFormProps {
   submitting: boolean;
 }
 
+// Функция для запроса данных по ИНН через API Dadata
+async function fetchCompanyByInn(inn: string): Promise<any> {
+  // Очистка ИНН от пробелов
+  const cleanInn = inn.replace(/\s/g, '');
+  
+  if (cleanInn.length !== 10 && cleanInn.length !== 12) {
+    throw new Error('ИНН должен содержать 10 или 12 цифр');
+  }
+
+  // API Dadata (бесплатно до 10 000 запросов)
+  // Для использования нужен API ключ от dadata.ru
+  const API_KEY = import.meta.env.VITE_DADATA_API_KEY;
+  
+  if (!API_KEY) {
+    throw new Error('API ключ Dadata не настроен. Добавьте VITE_DADATA_API_KEY в .env файл');
+  }
+
+  const response = await fetch('https://suggestions.dadata.ru/suggestions/api/4_1/rs/findById/party', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Authorization': `Token ${API_KEY}`
+    },
+    body: JSON.stringify({ 
+      query: cleanInn,
+      branch_type: 'MAIN' // Только головная организация
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error('Ошибка при запросе к API');
+  }
+
+  const data = await response.json();
+  
+  if (!data.suggestions || data.suggestions.length === 0) {
+    throw new Error('Организация с таким ИНН не найдена');
+  }
+
+  return data.suggestions[0].data;
+}
+
 function CustomerForm({ initialData, onSubmit, onCancel, submitting }: CustomerFormProps) {
   const [formData, setFormData] = useState({
     name: initialData?.name || '',
@@ -294,6 +337,9 @@ function CustomerForm({ initialData, onSubmit, onCancel, submitting }: CustomerF
     bank_corr_account: initialData?.bank_corr_account || '',
     notes: initialData?.notes || ''
   });
+  
+  const [isLoadingInn, setIsLoadingInn] = useState(false);
+  const [innError, setInnError] = useState<string | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -301,6 +347,48 @@ function CustomerForm({ initialData, onSubmit, onCancel, submitting }: CustomerF
       return;
     }
     onSubmit(formData);
+  };
+
+  const handleInnLookup = async () => {
+    if (!formData.inn || formData.inn.length < 10) {
+      setInnError('Введите корректный ИНН (10 или 12 цифр)');
+      return;
+    }
+
+    setIsLoadingInn(true);
+    setInnError(null);
+
+    try {
+      const companyData = await fetchCompanyByInn(formData.inn);
+      
+      // Определяем тип организации
+      const isIp = companyData.type === 'INDIVIDUAL';
+      
+      setFormData(prev => ({
+        ...prev,
+        type: isIp ? 'ip' : 'company',
+        name: companyData.name?.full || companyData.name?.short || prev.name,
+        kpp: companyData.kpp || prev.kpp,
+        ogrn: companyData.ogrn || prev.ogrn,
+        legal_address: companyData.address?.value || companyData.address?.unrestricted_value || prev.legal_address,
+        // Для ИП ФИО из руководителя
+        contact_person: isIp && companyData.fio ? 
+          `${companyData.fio.surname} ${companyData.fio.name} ${companyData.fio.patronymic || ''}`.trim() : 
+          prev.contact_person
+      }));
+
+    } catch (error: any) {
+      setInnError(error.message || 'Ошибка при получении данных');
+    } finally {
+      setIsLoadingInn(false);
+    }
+  };
+
+  const handleInnChange = (value: string) => {
+    // Разрешаем только цифры
+    const cleanValue = value.replace(/\D/g, '').slice(0, 12);
+    setFormData(prev => ({ ...prev, inn: cleanValue }));
+    setInnError(null);
   };
 
   return (
@@ -337,15 +425,41 @@ function CustomerForm({ initialData, onSubmit, onCancel, submitting }: CustomerF
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>ИНН</Label>
-              <Input
-                value={formData.inn}
-                onChange={(e) => setFormData({ ...formData, inn: e.target.value })}
-                placeholder="1234567890"
-                className="rounded-lg"
-              />
+              <div className="flex gap-2">
+                <Input
+                  value={formData.inn}
+                  onChange={(e) => handleInnChange(e.target.value)}
+                  placeholder="1234567890"
+                  className="rounded-lg flex-1"
+                  maxLength={12}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleInnLookup}
+                  disabled={isLoadingInn || formData.inn.length < 10}
+                  className="rounded-lg whitespace-nowrap"
+                >
+                  {isLoadingInn ? (
+                    <Spinner className="w-4 h-4" />
+                  ) : (
+                    <>
+                      <SearchIcon className="w-4 h-4 mr-1 hidden sm:inline" />
+                      <span>Заполнить</span>
+                    </>
+                  )}
+                </Button>
+              </div>
+              {innError && (
+                <p className="text-xs text-red-500">{innError}</p>
+              )}
+              <p className="text-xs text-gray-400">
+                Введите ИНН и нажмите "Заполнить" для автозаполнения данных
+              </p>
             </div>
             <div className="space-y-2">
               <Label>КПП</Label>
