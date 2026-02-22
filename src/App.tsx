@@ -36,15 +36,10 @@ import {
 } from 'lucide-react';
 import type { PDFSettings as PDFSettingsType } from './types';
 
-type Tab = 'equipment' | 'estimates' | 'templates' | 'calendar' | 'checklists' | 'staff' | 'goals' | 'analytics' | 'customers' | 'settings';
+type Tab = TabId;
 
-// Простая система ролей без permissions
-const ROLE_TABS: Record<string, Tab[]> = {
-  admin: ['equipment', 'estimates', 'templates', 'calendar', 'checklists', 'staff', 'goals', 'analytics', 'customers', 'settings'],
-  manager: ['equipment', 'estimates', 'templates', 'calendar', 'checklists', 'goals', 'analytics', 'customers'],
-  warehouse: ['equipment', 'checklists', 'calendar'],
-  accountant: ['estimates', 'analytics', 'customers', 'calendar'],
-};
+import { hasAccess, getRoleLabel, type UserRole, type TabId } from './lib/permissions';
+import { AccessDenied } from './components/AccessDenied';
 
 function App() {
   const { user, profile, loading: authLoading, signIn, signUp, signOut } = useAuth();
@@ -96,8 +91,7 @@ function App() {
     return <Auth onSignIn={signIn} onSignUp={signUp} />;
   }
 
-  const userRole = profile?.role || 'manager';
-  const allowedTabs = ROLE_TABS[userRole] || ROLE_TABS.manager;
+  const userRole = (profile?.role || 'manager') as UserRole;
 
   const allNavItems = [
     { id: 'equipment' as Tab, label: 'Оборудование', icon: Package },
@@ -112,7 +106,7 @@ function App() {
     { id: 'settings' as Tab, label: 'Настройки PDF', icon: Settings },
   ];
 
-  const navItems = allNavItems.filter(item => allowedTabs.includes(item.id));
+  const navItems = allNavItems.filter(item => hasAccess(userRole, item.id));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 pb-20 md:pb-0">
@@ -134,7 +128,10 @@ function App() {
               <div className="w-8 h-8 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center">
                 <User className="w-4 h-4" />
               </div>
-              <span className="max-w-[150px] truncate">{profile?.name || user?.email}</span>
+              <div className="flex flex-col items-start">
+                <span className="max-w-[150px] truncate font-medium">{profile?.name || user?.email}</span>
+                <span className="text-xs text-gray-400">{getRoleLabel(userRole)}</span>
+              </div>
             </div>
             <Button variant="ghost" size="sm" onClick={signOut} className="px-2 md:px-3 rounded-lg hover:bg-red-50 hover:text-red-600 transition-colors">
               <LogOut className="w-4 h-4 md:mr-2" />
