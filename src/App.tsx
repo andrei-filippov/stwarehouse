@@ -44,7 +44,7 @@ import { hasAccess, getRoleLabel, type UserRole, type TabId } from './lib/permis
 import { AccessDenied } from './components/AccessDenied';
 
 function App() {
-  const { user, profile, loading: authLoading, signIn, signUp, signOut } = useAuth();
+  const { user, profile, permissions, loading: authLoading, signIn, signUp, signOut } = useAuth();
   const { equipment, categories, loading: equipmentLoading, addEquipment, updateEquipment, deleteEquipment, bulkInsert, addCategory, deleteCategory } = useEquipment(user?.id);
   const { estimates, loading: estimatesLoading, createEstimate, updateEstimate, deleteEstimate } = useEstimates(user?.id);
   const { templates, loading: templatesLoading, createTemplate, updateTemplate, deleteTemplate } = useTemplates(user?.id);
@@ -88,21 +88,32 @@ function App() {
     { id: 'admin' as Tab, label: 'Админ', icon: Shield },
   ];
 
-  // Получаем роль пользователя (по умолчанию пока профиль не загрузился - нет доступа)
+  // Получаем роль пользователя
   const userRole = (profile?.role || 'manager') as UserRole;
   
+  // Проверка доступа с учётом кастомных разрешений
+  const checkAccess = (tabId: TabId): boolean => {
+    // Сначала проверяем кастомное разрешение
+    const customPerm = permissions?.find(p => p.tab_id === tabId);
+    if (customPerm) {
+      return customPerm.allowed;
+    }
+    // Если нет кастомного - используем роль
+    return hasAccess(userRole, tabId);
+  };
+  
   // Фильтруем доступные вкладки
-  const navItems = allNavItems.filter(item => hasAccess(userRole, item.id));
+  const navItems = allNavItems.filter(item => checkAccess(item.id));
 
   // При загрузке профиля переключаем на первую доступную вкладку (если текущая недоступна)
   useEffect(() => {
     if (profile && navItems.length > 0) {
-      const currentTabAccessible = navItems.some(item => item.id === activeTab);
+      const currentTabAccessible = checkAccess(activeTab);
       if (!currentTabAccessible) {
         setActiveTab(navItems[0].id);
       }
     }
-  }, [profile, navItems, activeTab]);
+  }, [profile, permissions, navItems, activeTab]);
 
   const savePdfSettings = (settings: PDFSettingsType) => {
     setPdfSettings(settings);
@@ -290,7 +301,7 @@ function App() {
         )}
 
         {activeTab === 'admin' && (
-          hasAccess(userRole, 'admin') ? (
+          checkAccess('admin') ? (
             <AdminPanel currentUserId={user?.id} />
           ) : (
             <AccessDenied role={userRole} requiredRole="Администратор" />

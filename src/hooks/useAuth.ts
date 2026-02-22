@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import type { User } from '@supabase/supabase-js';
 import type { Profile } from '../types';
+import type { UserPermission } from '../lib/permissions';
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [permissions, setPermissions] = useState<UserPermission[] | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -66,6 +68,8 @@ export function useAuth() {
       } else if (data) {
         console.log('Profile loaded:', data);
         setProfile(data as Profile);
+        // Загружаем кастомные разрешения
+        await fetchPermissions(userId);
       } else {
         console.log('No profile found for user:', userId);
       }
@@ -73,6 +77,24 @@ export function useAuth() {
       console.error('Unexpected error fetching profile:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPermissions = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('user_permissions')
+        .select('*')
+        .eq('user_id', userId);
+      
+      if (error) {
+        console.error('Permissions fetch error:', error);
+      } else {
+        console.log('Permissions loaded:', data);
+        setPermissions(data as UserPermission[]);
+      }
+    } catch (err) {
+      console.error('Unexpected error fetching permissions:', err);
     }
   };
 
@@ -117,6 +139,7 @@ export function useAuth() {
       await supabase.auth.signOut();
       setUser(null);
       setProfile(null);
+      setPermissions(null);
     } catch (err) {
       console.error('Sign out error:', err);
     }
@@ -125,6 +148,7 @@ export function useAuth() {
   return {
     user,
     profile,
+    permissions,
     loading,
     signIn,
     signUp,
