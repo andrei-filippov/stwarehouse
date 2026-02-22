@@ -11,17 +11,18 @@ import { useCustomers } from './hooks/useCustomers';
 import { Auth } from './components/Auth';
 import { EquipmentManager } from './components/EquipmentManagement';
 
-import { EstimateManager } from './components/EstimateManager';
-import { TemplatesManager } from './components/Templates';
-import { ChecklistsManager } from './components/Checklists';
-import { StaffManager } from './components/StaffManager';
-import { GoalsManager } from './components/GoalsManager';
-import { PDFSettings } from './components/PDFSettings';
-import { EventCalendar } from './components/EventCalendar';
-import { Analytics } from './components/Analytics';
-import { CustomersManager } from './components/CustomersManager';
-import { AdminPanel } from './components/AdminPanel';
-import { AccessDenied } from './components/AccessDenied';
+// Lazy loading для тяжёлых компонентов
+const EstimateManager = lazy(() => import('./components/EstimateManager').then(m => ({ default: m.EstimateManager })));
+const TemplatesManager = lazy(() => import('./components/Templates').then(m => ({ default: m.TemplatesManager })));
+const ChecklistsManager = lazy(() => import('./components/Checklists').then(m => ({ default: m.ChecklistsManager })));
+const StaffManager = lazy(() => import('./components/StaffManager').then(m => ({ default: m.StaffManager })));
+const GoalsManager = lazy(() => import('./components/GoalsManager').then(m => ({ default: m.GoalsManager })));
+const PDFSettings = lazy(() => import('./components/PDFSettings').then(m => ({ default: m.PDFSettings })));
+const EventCalendar = lazy(() => import('./components/EventCalendar').then(m => ({ default: m.EventCalendar })));
+const Analytics = lazy(() => import('./components/Analytics').then(m => ({ default: m.Analytics })));
+const CustomersManager = lazy(() => import('./components/CustomersManager').then(m => ({ default: m.CustomersManager })));
+const AdminPanel = lazy(() => import('./components/AdminPanel').then(m => ({ default: m.AdminPanel }));
+const AccessDenied = lazy(() => import('./components/AccessDenied').then(m => ({ default: m.AccessDenied })));
 import { Button } from './components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './components/ui/sheet';
 import { Spinner } from './components/ui/spinner';
@@ -44,6 +45,8 @@ import type { PDFSettings as PDFSettingsType } from './types';
 type Tab = TabId;
 
 import { hasAccess, getRoleLabel, type UserRole, type TabId } from './lib/permissions';
+import { AccessDenied } from './components/AccessDenied';
+
 function App() {
   const { user, profile, permissions, loading: authLoading, signIn, signUp, signOut } = useAuth();
   const { equipment, categories, loading: equipmentLoading, addEquipment, updateEquipment, deleteEquipment, bulkInsert, addCategory, deleteCategory } = useEquipment(user?.id);
@@ -74,39 +77,39 @@ function App() {
     }
   }, []);
 
-  // ╨б╨┐╨╕╤Б╨╛╨║ ╨▓╤Б╨╡╤Е ╨▓╨║╨╗╨░╨┤╨╛╨║ (╨╛╨┐╤А╨╡╨┤╨╡╨╗╤П╨╡╨╝ ╨┤╨╛ ╨╕╤Б╨┐╨╛╨╗╤М╨╖╨╛╨▓╨░╨╜╨╕╤П)
+  // Список всех вкладок (определяем до использования)
   const allNavItems = [
-    { id: 'equipment' as Tab, label: '╨Ю╨▒╨╛╤А╤Г╨┤╨╛╨▓╨░╨╜╨╕╨╡', icon: Package },
-    { id: 'estimates' as Tab, label: '╨б╨╝╨╡╤В╤Л', icon: FileText },
-    { id: 'templates' as Tab, label: '╨и╨░╨▒╨╗╨╛╨╜╤Л', icon: Layout },
-    { id: 'calendar' as Tab, label: '╨Ъ╨░╨╗╨╡╨╜╨┤╨░╤А╤М', icon: Calendar },
-    { id: 'checklists' as Tab, label: '╨з╨╡╨║-╨╗╨╕╤Б╤В╤Л', icon: ClipboardCheck },
-    { id: 'staff' as Tab, label: '╨Я╨╡╤А╤Б╨╛╨╜╨░╨╗', icon: Users },
-    { id: 'goals' as Tab, label: '╨Ч╨░╨┤╨░╤З╨╕', icon: Target },
-    { id: 'analytics' as Tab, label: '╨Р╨╜╨░╨╗╨╕╤В╨╕╨║╨░', icon: BarChart3 },
-    { id: 'customers' as Tab, label: '╨Ч╨░╨║╨░╨╖╤З╨╕╨║╨╕', icon: Building2 },
-    { id: 'settings' as Tab, label: '╨Э╨░╤Б╤В╤А╨╛╨╣╨║╨╕ PDF', icon: Settings },
-    { id: 'admin' as Tab, label: '╨Р╨┤╨╝╨╕╨╜', icon: Shield },
+    { id: 'equipment' as Tab, label: 'Оборудование', icon: Package },
+    { id: 'estimates' as Tab, label: 'Сметы', icon: FileText },
+    { id: 'templates' as Tab, label: 'Шаблоны', icon: Layout },
+    { id: 'calendar' as Tab, label: 'Календарь', icon: Calendar },
+    { id: 'checklists' as Tab, label: 'Чек-листы', icon: ClipboardCheck },
+    { id: 'staff' as Tab, label: 'Персонал', icon: Users },
+    { id: 'goals' as Tab, label: 'Задачи', icon: Target },
+    { id: 'analytics' as Tab, label: 'Аналитика', icon: BarChart3 },
+    { id: 'customers' as Tab, label: 'Заказчики', icon: Building2 },
+    { id: 'settings' as Tab, label: 'Настройки PDF', icon: Settings },
+    { id: 'admin' as Tab, label: 'Админ', icon: Shield },
   ];
 
-  // ╨Я╨╛╨╗╤Г╤З╨░╨╡╨╝ ╤А╨╛╨╗╤М ╨┐╨╛╨╗╤М╨╖╨╛╨▓╨░╤В╨╡╨╗╤П
+  // Получаем роль пользователя
   const userRole = (profile?.role || 'manager') as UserRole;
   
-  // ╨Я╤А╨╛╨▓╨╡╤А╨║╨░ ╨┤╨╛╤Б╤В╤Г╨┐╨░ ╤Б ╤Г╤З╤С╤В╨╛╨╝ ╨║╨░╤Б╤В╨╛╨╝╨╜╤Л╤Е ╤А╨░╨╖╤А╨╡╤И╨╡╨╜╨╕╨╣
+  // Проверка доступа с учётом кастомных разрешений
   const checkAccess = (tabId: TabId): boolean => {
-    // ╨б╨╜╨░╤З╨░╨╗╨░ ╨┐╤А╨╛╨▓╨╡╤А╤П╨╡╨╝ ╨║╨░╤Б╤В╨╛╨╝╨╜╨╛╨╡ ╤А╨░╨╖╤А╨╡╤И╨╡╨╜╨╕╨╡
+    // Сначала проверяем кастомное разрешение
     const customPerm = permissions?.find(p => p.tab_id === tabId);
     if (customPerm) {
       return customPerm.allowed;
     }
-    // ╨Х╤Б╨╗╨╕ ╨╜╨╡╤В ╨║╨░╤Б╤В╨╛╨╝╨╜╨╛╨│╨╛ - ╨╕╤Б╨┐╨╛╨╗╤М╨╖╤Г╨╡╨╝ ╤А╨╛╨╗╤М
+    // Если нет кастомного - используем роль
     return hasAccess(userRole, tabId);
   };
   
-  // ╨д╨╕╨╗╤М╤В╤А╤Г╨╡╨╝ ╨┤╨╛╤Б╤В╤Г╨┐╨╜╤Л╨╡ ╨▓╨║╨╗╨░╨┤╨║╨╕
+  // Фильтруем доступные вкладки
   const navItems = allNavItems.filter(item => checkAccess(item.id));
 
-  // ╨Я╤А╨╕ ╨╖╨░╨│╤А╤Г╨╖╨║╨╡ ╨┐╤А╨╛╤Д╨╕╨╗╤П ╨┐╨╡╤А╨╡╨║╨╗╤О╤З╨░╨╡╨╝ ╨╜╨░ ╨┐╨╡╤А╨▓╤Г╤О ╨┤╨╛╤Б╤В╤Г╨┐╨╜╤Г╤О ╨▓╨║╨╗╨░╨┤╨║╤Г (╨╡╤Б╨╗╨╕ ╤В╨╡╨║╤Г╤Й╨░╤П ╨╜╨╡╨┤╨╛╤Б╤В╤Г╨┐╨╜╨░)
+  // При загрузке профиля переключаем на первую доступную вкладку (если текущая недоступна)
   useEffect(() => {
     if (profile && navItems.length > 0) {
       const currentTabAccessible = checkAccess(activeTab);
@@ -126,7 +129,7 @@ function App() {
       <div className="flex flex-col items-center justify-center h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
         <div className="bg-white p-8 rounded-2xl shadow-xl flex flex-col items-center">
           <Spinner className="w-10 h-10 mb-4" />
-          <p className="text-gray-600 font-medium">╨Ч╨░╨│╤А╤Г╨╖╨║╨░...</p>
+          <p className="text-gray-600 font-medium">Загрузка...</p>
         </div>
       </div>
     );
@@ -146,8 +149,8 @@ function App() {
               <Package className="w-5 h-5 md:w-6 md:h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-lg md:text-xl font-bold text-gray-900">╨б╨║╨╗╨░╨┤╨Ю╨▒╨╛╤А╤Г╨┤</h1>
-              <p className="text-[10px] md:text-xs text-gray-500 hidden sm:block">╨б╨╕╤Б╤В╨╡╨╝╨░ ╤Г╤З╨╡╤В╨░ ╨╛╨▒╨╛╤А╤Г╨┤╨╛╨▓╨░╨╜╨╕╤П</p>
+              <h1 className="text-lg md:text-xl font-bold text-gray-900">СкладОборуд</h1>
+              <p className="text-[10px] md:text-xs text-gray-500 hidden sm:block">Система учета оборудования</p>
             </div>
           </div>
           
@@ -178,7 +181,7 @@ function App() {
                     <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-xl flex items-center justify-center">
                       <Package className="w-5 h-5 text-white" />
                     </div>
-                    <span className="text-lg font-bold">╨б╨║╨╗╨░╨┤╨Ю╨▒╨╛╤А╤Г╨┤</span>
+                    <span className="text-lg font-bold">СкладОборуд</span>
                   </SheetTitle>
                 </SheetHeader>
                 <nav className="flex flex-col p-2 gap-1">
@@ -222,7 +225,7 @@ function App() {
                     }}
                   >
                     <LogOut className="w-4 h-4 mr-2" />
-                    ╨Т╤Л╨╣╤В╨╕
+                    Выйти
                   </Button>
                 </div>
               </SheetContent>
@@ -230,7 +233,7 @@ function App() {
 
             <Button variant="ghost" size="sm" onClick={signOut} className="px-2 md:px-3 rounded-lg hover:bg-red-50 hover:text-red-600 transition-colors hidden md:flex">
               <LogOut className="w-4 h-4 md:mr-2" />
-              <span className="hidden md:inline">╨Т╤Л╨╣╤В╨╕</span>
+              <span className="hidden md:inline">Выйти</span>
             </Button>
           </div>
         </div>
@@ -372,7 +375,7 @@ function App() {
           checkAccess('admin') ? (
             <AdminPanel currentUserId={user?.id} />
           ) : (
-            <AccessDenied role={userRole} requiredRole="╨Р╨┤╨╝╨╕╨╜╨╕╤Б╤В╤А╨░╤В╨╛╤А" />
+            <AccessDenied role={userRole} requiredRole="Администратор" />
           )
         )}
       </main>
