@@ -8,13 +8,11 @@ export function useGoals(userId: string | undefined) {
   const [loading, setLoading] = useState(false);
 
   const fetchTasks = useCallback(async () => {
-    if (!userId) return;
     setLoading(true);
     
     const { data, error } = await supabase
       .from('goals')
       .select('*')
-      .eq('user_id', userId)
       .order('due_date', { ascending: true })
       .order('priority', { ascending: false });
     
@@ -24,16 +22,16 @@ export function useGoals(userId: string | undefined) {
       setTasks(data as Task[]);
     }
     setLoading(false);
-  }, [userId]);
+  }, []);
 
   useEffect(() => {
     fetchTasks();
-  }, [fetchTasks]);
+  }, []);
 
   const addTask = async (task: Omit<Task, 'id' | 'created_at' | 'updated_at'>) => {
     const taskData: any = {
       title: task.title,
-      user_id: userId
+      user_id: task.user_id || userId
     };
     
     if (task.description) taskData.description = task.description;
