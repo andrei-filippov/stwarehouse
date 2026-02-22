@@ -1,29 +1,45 @@
+import subprocess
 import re
 
-with open('src/App.tsx', 'r', encoding='utf-8-sig') as f:
-    content = f.read()
+# Get good version from 74e122bb
+content = subprocess.check_output(['git', 'show', '74e122bb:src/App.tsx'])
+text = content.decode('utf-8')
 
-# Replace lazy imports with regular imports
-old_pattern = r"// Lazy loading.*\nconst EstimateManager = lazy\(\(\) => import\('\./components/EstimateManager'\)\.then\(m => \(\{ default: m\.EstimateManager \}\)\)\);\nconst TemplatesManager = lazy\(\(\) => import\('\./components/Templates'\)\.then\(m => \(\{ default: m\.TemplatesManager \}\)\)\);\nconst ChecklistsManager = lazy\(\(\) => import\('\./components/Checklists'\)\.then\(m => \(\{ default: m\.ChecklistsManager \}\)\)\);\nconst StaffManager = lazy\(\(\) => import\('\./components/StaffManager'\)\.then\(m => \(\{ default: m\.StaffManager \}\)\)\);\nconst GoalsManager = lazy\(\(\) => import\('\./components/GoalsManager'\)\.then\(m => \(\{ default: m\.GoalsManager \}\)\)\);\nconst PDFSettings = lazy\(\(\) => import\('\./components/PDFSettings'\)\.then\(m => \(\{ default: m\.PDFSettings \}\)\)\);\nconst EventCalendar = lazy\(\(\) => import\('\./components/EventCalendar'\)\.then\(m => \(\{ default: m\.EventCalendar \}\)\)\);\nconst Analytics = lazy\(\(\) => import\('\./components/Analytics'\)\.then\(m => \(\{ default: m\.Analytics \}\)\)\);\nconst CustomersManager = lazy\(\(\) => import\('\./components/CustomersManager'\)\.then\(m => \(\{ default: m\.CustomersManager \}\)\)\);\nconst AdminPanel = lazy\(\(\) => import\('\./components/AdminPanel'\)\.then\(m => \(\{ default: m\.AdminPanel \}\)\)\);\nconst AccessDenied = lazy\(\(\) => import\('\./components/AccessDenied'\)\.then\(m => \(\{ default: m\.AccessDenied \}\)\)\);"
-
-new_imports = """import { EstimateManager } from './components/EstimateManager';
-import { TemplatesManager } from './components/Templates';
-import { ChecklistsManager } from './components/Checklists';
-import { StaffManager } from './components/StaffManager';
-import { GoalsManager } from './components/GoalsManager';
-import { PDFSettings } from './components/PDFSettings';
-import { EventCalendar } from './components/EventCalendar';
-import { Analytics } from './components/Analytics';
-import { CustomersManager } from './components/CustomersManager';
-import { AdminPanel } from './components/AdminPanel';
-import { AccessDenied } from './components/AccessDenied';"""
-
-content = re.sub(old_pattern, new_imports, content)
-
-# Remove duplicate AccessDenied import at the end
-content = re.sub(r"import \{ AccessDenied \} from '\./components/AccessDenied';\n\nfunction App", "function App", content)
-
-with open('src/App.tsx', 'w', encoding='utf-8') as f:
-    f.write(content)
-
-print('Fixed!')
+# Check if it has lazy imports
+if 'lazy' in text:
+    print('Has lazy imports - need to fix')
+    
+    # Replace lazy imports with regular imports
+    # Pattern for lazy imports
+    pattern = r"const (\w+) = lazy\(\(\) => import\('([^']+)'\)\.then\(m => \({ default: m\.(\w+) }\)\)\);"
+    
+    def replace_lazy(match):
+        export_name = match.group(3)
+        path = match.group(2)
+        return f"import {{ {export_name} }} from '{path}';"
+    
+    # Replace all lazy imports
+    new_text = re.sub(pattern, replace_lazy, text)
+    
+    # Remove lazy from react imports
+    new_text = new_text.replace("import { lazy, Suspense } from 'react';\n", "import { Suspense } from 'react';\n")
+    new_text = new_text.replace("import { lazy } from 'react';\n", "")
+    new_text = new_text.replace("import { lazy, ", "import { ")
+    
+    # Verify
+    if 'lazy' not in new_text:
+        print('Lazy imports removed successfully')
+    else:
+        print('WARNING: Still has lazy imports')
+        for i, line in enumerate(new_text.split('\n'), 1):
+            if 'lazy' in line:
+                print(f'  Line {i}: {line[:80]}')
+    
+    # Save
+    with open('src/App.tsx', 'w', encoding='utf-8') as f:
+        f.write(new_text)
+    print('Saved to src/App.tsx')
+else:
+    print('No lazy imports - already good')
+    with open('src/App.tsx', 'wb') as f:
+        f.write(content)

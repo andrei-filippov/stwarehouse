@@ -1,0 +1,5 @@
+Found at byte 1258
+Context bytes: b"ersManager';\r\nconst AdminPanel = lazy(() => import('./components/AdminPanel').then(m => ({ default: m.AdminPanel }));\r\nimport { AccessDenied"
+Decoded: ersManager';
+const AdminPanel = lazy(() => import('./components/AdminPanel').then(m => ({ default: m.AdminPanel }));
+import { AccessDenied

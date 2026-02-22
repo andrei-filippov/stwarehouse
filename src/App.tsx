@@ -12,17 +12,17 @@ import { Auth } from './components/Auth';
 import { EquipmentManager } from './components/EquipmentManagement';
 
 // Lazy loading для тяжёлых компонентов
-const EstimateManager = lazy(() => import('./components/EstimateManager').then(m => ({ default: m.EstimateManager })));
-const TemplatesManager = lazy(() => import('./components/Templates').then(m => ({ default: m.TemplatesManager })));
-const ChecklistsManager = lazy(() => import('./components/Checklists').then(m => ({ default: m.ChecklistsManager })));
-const StaffManager = lazy(() => import('./components/StaffManager').then(m => ({ default: m.StaffManager })));
-const GoalsManager = lazy(() => import('./components/GoalsManager').then(m => ({ default: m.GoalsManager })));
-const PDFSettings = lazy(() => import('./components/PDFSettings').then(m => ({ default: m.PDFSettings })));
-const EventCalendar = lazy(() => import('./components/EventCalendar').then(m => ({ default: m.EventCalendar })));
-const Analytics = lazy(() => import('./components/Analytics').then(m => ({ default: m.Analytics })));
-const CustomersManager = lazy(() => import('./components/CustomersManager').then(m => ({ default: m.CustomersManager })));
-const AdminPanel = lazy(() => import('./components/AdminPanel').then(m => ({ default: m.AdminPanel }));
-const AccessDenied = lazy(() => import('./components/AccessDenied').then(m => ({ default: m.AccessDenied })));
+import { EstimateManager } from './components/EstimateManager';
+import { TemplatesManager } from './components/Templates';
+import { ChecklistsManager } from './components/Checklists';
+import { StaffManager } from './components/StaffManager';
+import { GoalsManager } from './components/GoalsManager';
+import { PDFSettings } from './components/PDFSettings';
+import { EventCalendar } from './components/EventCalendar';
+import { Analytics } from './components/Analytics';
+import { CustomersManager } from './components/CustomersManager';
+import { AdminPanel } from './components/AdminPanel';
+import { AccessDenied } from './components/AccessDenied';
 import { Button } from './components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './components/ui/sheet';
 import { Spinner } from './components/ui/spinner';
@@ -45,7 +45,6 @@ import type { PDFSettings as PDFSettingsType } from './types';
 type Tab = TabId;
 
 import { hasAccess, getRoleLabel, type UserRole, type TabId } from './lib/permissions';
-import { AccessDenied } from './components/AccessDenied';
 
 function App() {
   const { user, profile, permissions, loading: authLoading, signIn, signUp, signOut } = useAuth();

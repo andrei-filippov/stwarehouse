@@ -1,0 +1,25 @@
+Line 77:   // ╨б╨┐╨╕╤Б╨╛╨║ ╨▓╤Б╨╡╤Е ╨▓╨║╨╗╨░╨┤╨╛╨║ (╨╛╨┐╤А╨╡╨┤╨╡╨╗╤П╨╡╨╝ ╨┤╨╛ ╨╕╤Б╨┐╨╛╨╗╤М╨╖╨╛╨▓╨░╨╜╨╕╤П)
+Line 79:     { id: 'equipment' as Tab, label: '╨Ю╨▒╨╛╤А╤Г╨┤╨╛╨▓╨░╨╜╨╕╨╡', icon: Package },
+Line 80:     { id: 'estimates' as Tab, label: '╨б╨╝╨╡╤В╤Л', icon: FileText },
+Line 81:     { id: 'templates' as Tab, label: '╨и╨░╨▒╨╗╨╛╨╜╤Л', icon: Layout },
+Line 82:     { id: 'calendar' as Tab, label: '╨Ъ╨░╨╗╨╡╨╜╨┤╨░╤А╤М', icon: Calendar },
+Line 83:     { id: 'checklists' as Tab, label: '╨з╨╡╨║-╨╗╨╕╤Б╤В╤Л', icon: ClipboardCheck },
+Line 84:     { id: 'staff' as Tab, label: '╨Я╨╡╤А╤Б╨╛╨╜╨░╨╗', icon: Users },
+Line 85:     { id: 'goals' as Tab, label: '╨Ч╨░╨┤╨░╤З╨╕', icon: Target },
+Line 86:     { id: 'analytics' as Tab, label: '╨Р╨╜╨░╨╗╨╕╤В╨╕╨║╨░', icon: BarChart3 },
+Line 87:     { id: 'customers' as Tab, label: '╨Ч╨░╨║╨░╨╖╤З╨╕╨║╨╕', icon: Building2 },
+Line 88:     { id: 'settings' as Tab, label: '╨Э╨░╤Б╤В╤А╨╛╨╣╨║╨╕ PDF', icon: Settings },
+Line 89:     { id: 'admin' as Tab, label: '╨Р╨┤╨╝╨╕╨╜', icon: Shield },
+Line 92:   // ╨Я╨╛╨╗╤Г╤З╨░╨╡╨╝ ╤А╨╛╨╗╤М ╨┐╨╛╨╗╤М╨╖╨╛╨▓╨░╤В╨╡╨╗╤П
+Line 95:   // ╨Я╤А╨╛╨▓╨╡╤А╨║╨░ ╨┤╨╛╤Б╤В╤Г╨┐╨░ ╤Б ╤Г╤З╤С╤В╨╛╨╝ ╨║╨░╤Б╤В╨╛╨╝╨╜╤Л╤Е ╤А╨░╨╖╤А╨╡╤И╨╡╨╜╨╕╨╣
+Line 97:     // ╨б╨╜╨░╤З╨░╨╗╨░ ╨┐╤А╨╛╨▓╨╡╤А╤П╨╡╨╝ ╨║╨░╤Б╤В╨╛╨╝╨╜╨╛╨╡ ╤А╨░╨╖╤А╨╡╤И╨╡╨╜╨╕╨╡
+Line 102:     // ╨Х╤Б╨╗╨╕ ╨╜╨╡╤В ╨║╨░╤Б╤В╨╛╨╝╨╜╨╛╨│╨╛ - ╨╕╤Б╨┐╨╛╨╗╤М╨╖╤Г╨╡╨╝ ╤А╨╛╨╗╤М
+Line 106:   // ╨д╨╕╨╗╤М╤В╤А╤Г╨╡╨╝ ╨┤╨╛╤Б╤В╤Г╨┐╨╜╤Л╨╡ ╨▓╨║╨╗╨░╨┤╨║╨╕
+Line 109:   // ╨Я╤А╨╕ ╨╖╨░╨│╤А╤Г╨╖╨║╨╡ ╨┐╤А╨╛╤Д╨╕╨╗╤П ╨┐╨╡╤А╨╡╨║╨╗╤О╤З╨░╨╡╨╝ ╨╜╨░ ╨┐╨╡╤А╨▓╤Г╤О ╨┤╨╛╤Б╤В╤Г╨┐╨╜╤Г╤О ╨▓╨║╨╗╨░╨┤╨║╤Г (╨╡╤Б╨╗╨╕ ╤В╨╡╨║╤Г╤Й╨░╤П ╨╜╨╡╨┤╨╛╤Б╤В╤Г╨┐╨╜╨░)
+Line 129:           <p className="text-gray-600 font-medium">╨Ч╨░╨│╤А╤Г╨╖╨║╨░...</p>
+Line 149:               <h1 className="text-lg md:text-xl font-bold text-gray-900">╨б╨║╨╗╨░╨┤╨Ю╨▒╨╛╤А╤Г╨┤</h1>
+Line 150:               <p className="text-[10px] md:text-xs text-gray-500 hidden sm:block">╨б╨╕╤Б╤В╨╡╨╝╨░ ╤Г╤З╨╡╤В╨░ ╨╛╨▒╨╛╤А╤Г╨┤╨╛╨▓╨░╨╜╨╕╤П</p>
+Line 181:                     <span className="text-lg font-bold">╨б╨║╨╗╨░╨┤╨Ю╨▒╨╛╤А╤Г╨┤</span>
+Line 225:                     ╨Т╤Л╨╣╤В╨╕
+Line 233:               <span className="hidden md:inline">╨Т╤Л╨╣╤В╨╕</span>
+Line 375:             <AccessDenied role={userRole} requiredRole="╨Р╨┤╨╝╨╕╨╜╨╕╤Б╤В╤А╨░╤В╨╛╤А" />
