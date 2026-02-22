@@ -63,20 +63,42 @@ export interface EffectivePermission {
 }
 
 /**
- * Получить всех пользователей с их ролями
+ * Получить всех пользователей с их ролями и email
  */
 export async function fetchAllUsers(): Promise<{ id: string; name: string; email: string; role: UserRole }[] | null> {
-  const { data, error } = await supabase
+  // Получаем профили
+  const { data: profiles, error: profilesError } = await supabase
     .from('profiles')
-    .select('id, name, email, role')
+    .select('id, name, role')
     .order('name');
   
-  if (error) {
-    console.error('Error fetching users:', error);
+  if (profilesError) {
+    console.error('Error fetching profiles:', profilesError);
     return null;
   }
+
+  // Получаем email из auth.users через RPC или отдельный запрос
+  const { data: users, error: usersError } = await supabase.auth.admin.listUsers();
   
-  return data as { id: string; name: string; email: string; role: UserRole }[];
+  // Если не удалось получить email (нет admin прав), возвращаем без email
+  if (usersError || !users) {
+    return profiles.map(p => ({
+      id: p.id,
+      name: p.name,
+      email: '', // Email скрыт
+      role: p.role as UserRole,
+    }));
+  }
+
+  // Соединяем профили с email
+  const userMap = new Map(users.users.map(u => [u.id, u.email]));
+  
+  return profiles.map(p => ({
+    id: p.id,
+    name: p.name,
+    email: userMap.get(p.id) || '',
+    role: p.role as UserRole,
+  }));
 }
 
 /**
