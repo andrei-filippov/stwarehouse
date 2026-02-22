@@ -51,11 +51,13 @@ CREATE POLICY "Users can view own permissions"
   );
 
 -- Функция для получения эффективных разрешений пользователя
+DROP FUNCTION IF EXISTS get_user_effective_permissions(UUID);
+
 CREATE OR REPLACE FUNCTION get_user_effective_permissions(p_user_id UUID)
 RETURNS TABLE (
   tab_id TEXT,
   allowed BOOLEAN,
-  source TEXT -- 'role' или 'custom'
+  source TEXT
 ) AS $$
 DECLARE
   v_role TEXT;
@@ -67,44 +69,36 @@ BEGIN
   RETURN QUERY
   WITH all_tabs AS (
     SELECT unnest(ARRAY[
-      'equipment', 'estimates', 'templates', 'calendar', 
+      'equipment'::text, 'estimates', 'templates', 'calendar', 
       'checklists', 'staff', 'goals', 'analytics', 
       'customers', 'settings', 'admin'
-    ]) AS tab
+    ]) AS tab_name
   ),
   role_permissions AS (
     SELECT 
-      t.tab,
+      t.tab_name,
       CASE v_role
         WHEN 'admin' THEN true
-        WHEN 'manager' THEN t.tab = ANY(ARRAY[
-          'equipment', 'estimates', 'templates', 'calendar', 
+        WHEN 'manager' THEN t.tab_name = ANY(ARRAY[
+          'equipment'::text, 'estimates', 'templates', 'calendar', 
           'checklists', 'goals', 'analytics', 'customers'
         ])
-        WHEN 'warehouse' THEN t.tab = ANY(ARRAY[
-          'equipment', 'checklists', 'calendar'
+        WHEN 'warehouse' THEN t.tab_name = ANY(ARRAY[
+          'equipment'::text, 'checklists', 'calendar'
         ])
-        WHEN 'accountant' THEN t.tab = ANY(ARRAY[
-          'estimates', 'analytics', 'customers', 'calendar'
+        WHEN 'accountant' THEN t.tab_name = ANY(ARRAY[
+          'estimates'::text, 'analytics', 'customers', 'calendar'
         ])
         ELSE false
-      END AS allowed
+      END AS role_allowed
     FROM all_tabs t
   )
   SELECT 
-    COALESCE(up.tab_id, rp.tab) AS tab_id,
-    COALESCE(up.allowed, rp.allowed) AS allowed,
-    CASE WHEN up.tab_id IS NOT NULL THEN 'custom' ELSE 'role' END AS source
+    rp.tab_name,
+    COALESCE(up.allowed, rp.role_allowed) AS effective_allowed,
+    CASE WHEN up.id IS NOT NULL THEN 'custom'::text ELSE 'role'::text END AS perm_source
   FROM role_permissions rp
-  LEFT JOIN user_permissions up ON up.user_id = p_user_id AND up.tab_id = rp.tab
-  UNION
-  SELECT 
-    up.tab_id,
-    up.allowed,
-    'custom' AS source
-  FROM user_permissions up
-  WHERE up.user_id = p_user_id 
-    AND up.tab_id NOT IN (SELECT tab FROM all_tabs);
+  LEFT JOIN user_permissions up ON up.user_id = p_user_id AND up.tab_id = rp.tab_name;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
