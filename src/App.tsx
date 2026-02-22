@@ -341,9 +341,12 @@ function App() {
           <PDFSettings settings={pdfSettings} onSave={savePdfSettings} />
         ) : <AccessDenied role={profile?.role as UserRole} requiredRole="Администратор" />)}
 
-        {activeTab === 'admin' && (hasTabAccess(permissions, 'admin') ? (
-          <AdminPanel />
-        ) : <AccessDenied role={profile?.role as UserRole} requiredRole="Администратор" />)}
+        {activeTab === 'admin' && (
+          <div className="p-8 text-center">
+            <h2 className="text-2xl font-bold mb-4">Админ-панель</h2>
+            <p>Функция временно недоступна</p>
+          </div>
+        )}
       </main>
     </div>
   );
