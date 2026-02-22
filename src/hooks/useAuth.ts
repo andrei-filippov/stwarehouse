@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import type { User } from '@supabase/supabase-js';
 import type { Profile } from '../types';
+import { fetchUserPermissions, type UserPermissions } from '../lib/permissions';
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [permissions, setPermissions] = useState<UserPermissions | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -13,7 +15,6 @@ export function useAuth() {
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (error) {
         console.error('Auth session error:', error);
-        // При ошибке сессии (например, невалидный refresh token) разлогиниваем
         if (error.message?.includes('refresh_token') || error.message?.includes('Refresh Token')) {
           supabase.auth.signOut();
         }
@@ -37,6 +38,7 @@ export function useAuth() {
       if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
         setUser(null);
         setProfile(null);
+        setPermissions(null);
         setLoading(false);
         return;
       }
@@ -46,6 +48,7 @@ export function useAuth() {
         fetchProfile(session.user.id);
       } else {
         setProfile(null);
+        setPermissions(null);
         setLoading(false);
       }
     });
@@ -65,11 +68,22 @@ export function useAuth() {
         console.error('Profile fetch error:', error);
       } else if (data) {
         setProfile(data as Profile);
+        // Загружаем права пользователя
+        const userPerms = await fetchUserPermissions(userId);
+        setPermissions(userPerms);
       }
     } catch (err) {
       console.error('Unexpected error fetching profile:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Функция для обновления прав (для админ-панели)
+  const refreshPermissions = async () => {
+    if (user?.id) {
+      const userPerms = await fetchUserPermissions(user.id);
+      setPermissions(userPerms);
     }
   };
 
@@ -100,6 +114,7 @@ export function useAuth() {
           name,
           role: 'manager'
         });
+        // Права создадутся автоматически через триггер
       }
       
       return { error };
@@ -114,6 +129,7 @@ export function useAuth() {
       await supabase.auth.signOut();
       setUser(null);
       setProfile(null);
+      setPermissions(null);
     } catch (err) {
       console.error('Sign out error:', err);
     }
@@ -122,9 +138,11 @@ export function useAuth() {
   return {
     user,
     profile,
+    permissions,
     loading,
     signIn,
     signUp,
-    signOut
+    signOut,
+    refreshPermissions,
   };
 }

@@ -230,7 +230,9 @@ ALTER TABLE checklists ENABLE ROW LEVEL SECURITY;
 ALTER TABLE checklist_items ENABLE ROW LEVEL SECURITY;
 
 -- Политики для profiles
+DROP POLICY IF EXISTS "Users can view own profile" ON profiles;
 CREATE POLICY "Users can view own profile" ON profiles FOR SELECT USING (auth.uid() = id);
+DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
 CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
 
 -- Политики для categories (доступно всем авторизованным)
@@ -331,22 +333,28 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Триггеры для обновления updated_at
+-- Триггеры для обновления updated_at (с удалением если существуют)
+DROP TRIGGER IF EXISTS update_equipment_updated_at ON equipment;
 CREATE TRIGGER update_equipment_updated_at BEFORE UPDATE ON equipment
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_customers_updated_at ON customers;
 CREATE TRIGGER update_customers_updated_at BEFORE UPDATE ON customers
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_estimates_updated_at ON estimates;
 CREATE TRIGGER update_estimates_updated_at BEFORE UPDATE ON estimates
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_staff_updated_at ON staff;
 CREATE TRIGGER update_staff_updated_at BEFORE UPDATE ON staff
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_goals_updated_at ON goals;
 CREATE TRIGGER update_goals_updated_at BEFORE UPDATE ON goals
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_checklists_updated_at ON checklists;
 CREATE TRIGGER update_checklists_updated_at BEFORE UPDATE ON checklists
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
