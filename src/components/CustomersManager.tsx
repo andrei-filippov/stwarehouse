@@ -277,6 +277,9 @@ interface CustomerFormProps {
   submitting: boolean;
 }
 
+// Проверка наличия API ключа
+const DADATA_API_KEY = import.meta.env.VITE_DADATA_API_KEY;
+
 // Функция для запроса данных по ИНН через API Dadata
 async function fetchCompanyByInn(inn: string): Promise<any> {
   // Очистка ИНН от пробелов
@@ -287,37 +290,45 @@ async function fetchCompanyByInn(inn: string): Promise<any> {
   }
 
   // API Dadata (бесплатно до 10 000 запросов)
-  // Для использования нужен API ключ от dadata.ru
-  const API_KEY = import.meta.env.VITE_DADATA_API_KEY;
-  
-  if (!API_KEY) {
-    throw new Error('API ключ Dadata не настроен. Добавьте VITE_DADATA_API_KEY в .env файл');
+  if (!DADATA_API_KEY || DADATA_API_KEY === 'your_dadata_api_key_here') {
+    throw new Error('API ключ Dadata не настроен. Добавьте VITE_DADATA_API_KEY в .env файл и перезапустите сервер');
   }
 
-  const response = await fetch('https://suggestions.dadata.ru/suggestions/api/4_1/rs/findById/party', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'Authorization': `Token ${API_KEY}`
-    },
-    body: JSON.stringify({ 
-      query: cleanInn,
-      branch_type: 'MAIN' // Только головная организация
-    })
-  });
+  try {
+    const response = await fetch('https://suggestions.dadata.ru/suggestions/api/4_1/rs/findById/party', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Token ${DADATA_API_KEY}`
+      },
+      body: JSON.stringify({ 
+        query: cleanInn,
+        branch_type: 'MAIN'
+      })
+    });
 
-  if (!response.ok) {
-    throw new Error('Ошибка при запросе к API');
+    if (response.status === 401) {
+      throw new Error('Неверный API ключ. Проверьте VITE_DADATA_API_KEY в .env файле');
+    }
+
+    if (!response.ok) {
+      throw new Error(`Ошибка API: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (!data.suggestions || data.suggestions.length === 0) {
+      throw new Error('Организация с таким ИНН не найдена');
+    }
+
+    return data.suggestions[0].data;
+  } catch (error: any) {
+    if (error.message?.includes('Failed to fetch')) {
+      throw new Error('Ошибка сети. Проверьте подключение к интернету');
+    }
+    throw error;
   }
-
-  const data = await response.json();
-  
-  if (!data.suggestions || data.suggestions.length === 0) {
-    throw new Error('Организация с таким ИНН не найдена');
-  }
-
-  return data.suggestions[0].data;
 }
 
 function CustomerForm({ initialData, onSubmit, onCancel, submitting }: CustomerFormProps) {
@@ -427,7 +438,20 @@ function CustomerForm({ initialData, onSubmit, onCancel, submitting }: CustomerF
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>ИНН</Label>
+              <div className="flex items-center justify-between">
+                <Label>ИНН</Label>
+                {!DADATA_API_KEY || DADATA_API_KEY === 'your_dadata_api_key_here' ? (
+                  <span className="text-xs text-orange-500 flex items-center gap-1">
+                    <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
+                    API не настроен
+                  </span>
+                ) : (
+                  <span className="text-xs text-green-500 flex items-center gap-1">
+                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                    API активен
+                  </span>
+                )}
+              </div>
               <div className="flex gap-2">
                 <Input
                   value={formData.inn}
@@ -441,8 +465,9 @@ function CustomerForm({ initialData, onSubmit, onCancel, submitting }: CustomerF
                   variant="outline"
                   size="sm"
                   onClick={handleInnLookup}
-                  disabled={isLoadingInn || formData.inn.length < 10}
+                  disabled={isLoadingInn || formData.inn.length < 10 || !DADATA_API_KEY || DADATA_API_KEY === 'your_dadata_api_key_here'}
                   className="rounded-lg whitespace-nowrap"
+                  title={!DADATA_API_KEY || DADATA_API_KEY === 'your_dadata_api_key_here' ? 'Добавьте API ключ в .env файл' : ''}
                 >
                   {isLoadingInn ? (
                     <Spinner className="w-4 h-4" />
@@ -458,7 +483,9 @@ function CustomerForm({ initialData, onSubmit, onCancel, submitting }: CustomerF
                 <p className="text-xs text-red-500">{innError}</p>
               )}
               <p className="text-xs text-gray-400">
-                Введите ИНН и нажмите "Заполнить" для автозаполнения данных
+                {!DADATA_API_KEY || DADATA_API_KEY === 'your_dadata_api_key_here' 
+                  ? 'Добавьте VITE_DADATA_API_KEY в .env и перезапустите сервер (npm run dev)' 
+                  : 'Введите ИНН и нажмите "Заполнить" для автозаполнения данных'}
               </p>
             </div>
             <div className="space-y-2">
