@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense, memo, useCallback, useMemo } from 'react';
+import { useState, useEffect, memo, useCallback, useMemo } from 'react';
 import { Menu, X, Package } from 'lucide-react';
 import { useAuth } from './hooks/useAuth';
 import { useEquipment } from './hooks/useEquipment';
@@ -281,107 +281,103 @@ function App() {
           />
         )}
 
-        <Suspense fallback={<div className="flex justify-center py-12"><Spinner className="w-8 h-8" /></div>}>
-          {activeTab === 'estimates' && (
-            <EstimateManager
-              estimates={estimates}
-              equipment={equipment}
-              templates={templates}
-              customers={customers}
-              pdfSettings={pdfSettings}
-              onCreate={(estimate, items) => createEstimate(estimate, items, profile?.name)}
-              onUpdate={updateEstimate}
-              onDelete={deleteEstimate}
-              loading={estimatesLoading}
-            />
-          )}
+        {activeTab === 'estimates' && (
+          <EstimateManager
+            estimates={estimates}
+            equipment={equipment}
+            templates={templates}
+            customers={customers}
+            pdfSettings={pdfSettings}
+            onCreate={(estimate, items) => createEstimate(estimate, items, profile?.name)}
+            onUpdate={updateEstimate}
+            onDelete={deleteEstimate}
+            loading={estimatesLoading}
+          />
+        )}
 
-          {activeTab === 'templates' && (
-            <TemplatesManager
-              templates={templates}
-              categories={categories}
-              equipment={equipment}
-              onCreate={createTemplate}
-              onUpdate={updateTemplate}
-              onDelete={deleteTemplate}
-              loading={templatesLoading}
-            />
-          )}
+        {activeTab === 'templates' && (
+          <TemplatesManager
+            templates={templates}
+            categories={categories}
+            equipment={equipment}
+            onCreate={createTemplate}
+            onUpdate={updateTemplate}
+            onDelete={deleteTemplate}
+            loading={templatesLoading}
+          />
+        )}
 
-          {activeTab === 'calendar' && (
-            <EventCalendar
-              estimates={estimates}
-              equipment={equipment}
-            />
-          )}
+        {activeTab === 'calendar' && (
+          <EventCalendar
+            estimates={estimates}
+            equipment={equipment}
+          />
+        )}
 
-          {activeTab === 'checklists' && (
-            <ChecklistsManager
-              estimates={estimates}
-              equipment={equipment}
-              categories={categories}
-              checklists={checklists}
-              rules={rules}
-              onCreateRule={createRule}
-              onDeleteRule={deleteRule}
-              onCreateChecklist={createChecklist}
-              onUpdateChecklistItem={updateChecklistItem}
-              onDeleteChecklist={deleteChecklist}
-              loading={checklistsLoading}
-            />
-          )}
+        {activeTab === 'checklists' && (
+          <ChecklistsManager
+            estimates={estimates}
+            equipment={equipment}
+            categories={categories}
+            checklists={checklists}
+            rules={rules}
+            onCreateRule={createRule}
+            onDeleteRule={deleteRule}
+            onCreateChecklist={createChecklist}
+            onUpdateChecklistItem={updateChecklistItem}
+            onDeleteChecklist={deleteChecklist}
+            loading={checklistsLoading}
+          />
+        )}
 
-          {activeTab === 'staff' && (
-            <StaffManager
-              staff={staff}
-              onAdd={addStaff}
-              onUpdate={updateStaff}
-              onDelete={deleteStaff}
-              loading={staffLoading}
-            />
-          )}
+        {activeTab === 'staff' && (
+          <StaffManager
+            staff={staff}
+            onAdd={addStaff}
+            onUpdate={updateStaff}
+            onDelete={deleteStaff}
+            loading={staffLoading}
+          />
+        )}
 
-          {activeTab === 'goals' && (
-            <GoalsManager
-              tasks={tasks}
-              staff={staff}
-              onAdd={addTask}
-              onUpdate={updateTask}
-              onDelete={deleteTask}
-              loading={goalsLoading}
-            />
-          )}
+        {activeTab === 'goals' && (
+          <GoalsManager
+            tasks={tasks}
+            staff={staff}
+            onAdd={addTask}
+            onUpdate={updateTask}
+            onDelete={deleteTask}
+            loading={goalsLoading}
+          />
+        )}
 
-          {activeTab === 'analytics' && (
-            <Analytics {...analyticsData} />
-          )}
+        {activeTab === 'analytics' && (
+          <Analytics {...analyticsData} />
+        )}
 
-          {activeTab === 'customers' && (
-            <CustomersManager
-              customers={customers}
-              userId={user?.id}
-              onAdd={addCustomer}
-              onUpdate={updateCustomer}
-              onDelete={deleteCustomer}
-              loading={customersLoading}
-              error={customersError}
-            />
-          )}
+        {activeTab === 'customers' && (
+          <CustomersManager
+            customers={customers}
+            userId={user?.id}
+            onAdd={addCustomer}
+            onUpdate={updateCustomer}
+            onDelete={deleteCustomer}
+            loading={customersLoading}
+            error={customersError}
+          />
+        )}
 
-          {activeTab === 'settings' && (
-            <PDFSettings settings={pdfSettings} onSave={savePdfSettings} />
-          )}
+        {activeTab === 'settings' && (
+          <PDFSettings settings={pdfSettings} onSave={savePdfSettings} />
+        )}
 
-          {activeTab === 'admin' && (
-            checkAccess('admin') ? (
-              <AdminPanel currentUserId={user?.id} />
-            ) : (
-              <Suspense fallback={<div className="py-8 text-center">Загрузка...</div>}>
-                <AccessDenied role={userRole} requiredRole="Администратор" />
-              </Suspense>
-            )
-          )}
-        </Suspense>
+        {activeTab === 'admin' && (
+          checkAccess('admin') ? (
+            <AdminPanel currentUserId={user?.id} />
+          ) : (
+            <AccessDenied role={userRole} requiredRole="Администратор" />
+          )
+        )}
       </main>
     </div>
   );
