@@ -793,8 +793,8 @@ export function EstimateBuilder({
         </div>
 
         {/* Правая колонка - Смета */}
-        <div className={`${activeMobileTab === 'estimate' ? 'flex' : 'hidden'} md:flex w-full md:w-1/2 flex-col print:w-full`}>
-          <div className="p-3 md:p-4 border-b space-y-3 md:space-y-4 print:hidden">
+        <div className={`${activeMobileTab === 'estimate' ? 'flex' : 'hidden'} md:flex w-full md:w-1/2 flex-col print:w-full h-full overflow-auto md:overflow-hidden`}>
+          <div className="p-3 md:p-4 border-b space-y-3 md:space-y-4 print:hidden shrink-0">
             <h2 className="font-semibold flex items-center gap-2 text-sm md:text-base">
               <FileText className="w-4 h-4 md:w-5 md:h-5" />
               Позиции сметы
@@ -1002,7 +1002,7 @@ export function EstimateBuilder({
             )}
           </div>
 
-          <div className="flex-1 overflow-auto p-4 print:hidden">
+          <div className="flex-1 md:overflow-auto p-4 print:hidden">
             {items.length === 0 ? (
               <div className="text-center text-gray-400 mt-10">
                 <p>Добавьте оборудование из списка слева</p>
