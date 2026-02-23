@@ -31,10 +31,11 @@ export function useEstimates(userId: string | undefined) {
     fetchEstimates();
   }, [fetchEstimates]);
 
-  const createEstimate = async (estimate: Omit<Estimate, 'id' | 'created_at' | 'updated_at'>, items: Omit<EstimateItem, 'id' | 'estimate_id'>[], creatorName?: string) => {
-    // Подготавливаем данные сметы с датами
+  const createEstimate = async (estimate: Omit<Estimate, 'id' | 'created_at' | 'updated_at'>, items: Omit<EstimateItem, 'id' | 'estimate_id'>[], userId: string, creatorName?: string) => {
+    // Подготавливаем данные сметы с датами и user_id
     const estimateToSave = {
       ...estimate,
+      user_id: userId,
       event_date: estimate.event_start_date || estimate.event_date,
       creator_name: creatorName
     };
@@ -80,13 +81,18 @@ export function useEstimates(userId: string | undefined) {
     return { error: null, data: estimateData };
   };
 
-  const updateEstimate = async (id: string, estimate: Partial<Estimate>, items?: EstimateItem[]) => {
+  const updateEstimate = async (id: string, estimate: Partial<Estimate>, items?: EstimateItem[], userId?: string) => {
     // Подготавливаем данные для обновления
-    const estimateToUpdate = {
+    const estimateToUpdate: any = {
       ...estimate,
       event_date: estimate.event_start_date || estimate.event_date,
       updated_at: new Date().toISOString()
     };
+    
+    // Добавляем user_id если передан (для новых записей)
+    if (userId) {
+      estimateToUpdate.user_id = userId;
+    }
     
     // Обновляем смету
     const { error: estimateError } = await supabase
