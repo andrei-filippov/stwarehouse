@@ -405,16 +405,26 @@ export function EstimateBuilder({
 
   // Сохранение
   const handleSave = async () => {
-    const estimateData = {
+    const startDate = eventStartDate || eventDate;
+    const endDate = eventEndDate || eventStartDate || eventDate;
+    
+    const estimateData: any = {
       event_name: eventName,
-      venue,
-      event_date: eventStartDate || eventDate, // Для обратной совместимости
-      event_start_date: eventStartDate || eventDate,
-      event_end_date: eventEndDate || eventStartDate || eventDate,
+      venue: venue || null,
+      event_date: startDate, // Для обратной совместимости
       total,
       customer_id: customerId || null,
       customer_name: selectedCustomer?.name || null
     };
+    
+    // Добавляем новые поля только если есть значения (не пустые строки)
+    if (startDate) {
+      estimateData.event_start_date = startDate;
+    }
+    if (endDate) {
+      estimateData.event_end_date = endDate;
+    }
+    
     await onSave(estimateData, items);
     onClose();
   };
