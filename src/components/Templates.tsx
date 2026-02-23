@@ -4,7 +4,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { Plus, Trash2, Edit, Copy } from 'lucide-react';
 import type { Template, TemplateItem } from '../types';
 
@@ -121,6 +121,7 @@ export const TemplatesManager = memo(function TemplatesManager({
             <DialogTitle>
               {editingTemplate ? 'Редактировать шаблон' : 'Новый шаблон'}
             </DialogTitle>
+            <DialogDescription>{editingTemplate ? 'Измените шаблон сметы' : 'Создайте шаблон для быстрого заполнения смет'}</DialogDescription>
           </DialogHeader>
           <TemplateForm
             categories={categories}

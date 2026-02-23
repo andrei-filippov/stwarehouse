@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, memo } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Package, FileText, CalendarPlus, ExternalLink } from 'lucide-react';
 import type { Estimate, Equipment } from '../types';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, addMonths, subMonths, startOfWeek, endOfWeek } from 'date-fns';
@@ -264,6 +264,7 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
             <DialogTitle>
               {selectedDate && format(selectedDate, 'd MMMM yyyy', { locale: ru })}
             </DialogTitle>
+            <DialogDescription>Сметы и занятость оборудования на выбранную дату</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
@@ -368,6 +369,7 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{selectedEstimate?.event_name}</DialogTitle>
+            <DialogDescription>Детальная информация о смете мероприятия</DialogDescription>
           </DialogHeader>
           {selectedEstimate && (
             <div className="space-y-4">

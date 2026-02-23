@@ -3,7 +3,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Badge } from './ui/badge';
 import { Checkbox } from './ui/checkbox';
@@ -462,6 +462,7 @@ export const StaffManager = memo(function StaffManager({ staff, onAdd, onUpdate,
             <DialogTitle>
               {editingStaff ? 'Редактировать сотрудника' : 'Новый сотрудник'}
             </DialogTitle>
+            <DialogDescription>{editingStaff ? 'Измените данные сотрудника' : 'Добавьте нового сотрудника в систему'}</DialogDescription>
           </DialogHeader>
           <StaffForm
             initialData={editingStaff}

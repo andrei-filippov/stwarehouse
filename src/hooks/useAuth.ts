@@ -29,10 +29,9 @@ export function useAuth() {
 
     // Подписываемся на изменения авторизации
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('Auth state changed:', event);
-      
-      if (event === 'TOKEN_REFRESHED') {
-        console.log('Token refreshed successfully');
+      // Пропускаем INITIAL_SESSION если уже есть пользователь (избегаем дублирования)
+      if (event === 'INITIAL_SESSION' && user) {
+        return;
       }
       
       if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
@@ -54,9 +53,15 @@ export function useAuth() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Ref для отслеживания загрузки профиля
+  const profileLoadingRef = { current: false };
+  
   const fetchProfile = async (userId: string) => {
+    // Предотвращаем параллельные запросы
+    if (profileLoadingRef.current) return;
+    profileLoadingRef.current = true;
+    
     try {
-      console.log('Fetching profile for user:', userId);
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -66,16 +71,14 @@ export function useAuth() {
       if (error) {
         console.error('Profile fetch error:', error);
       } else if (data) {
-        console.log('Profile loaded:', data);
         setProfile(data as Profile);
         // Загружаем кастомные разрешения
         await fetchPermissions(userId);
-      } else {
-        console.log('No profile found for user:', userId);
       }
     } catch (err) {
       console.error('Unexpected error fetching profile:', err);
     } finally {
+      profileLoadingRef.current = false;
       setLoading(false);
     }
   };

@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback, memo } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { Badge } from './ui/badge';
 import { Checkbox } from './ui/checkbox';
 import { Textarea } from './ui/textarea';
@@ -228,7 +228,7 @@ export const GoalsManager = memo(function GoalsManager({ tasks, staff, onAdd, on
               userProfiles={userProfiles}
               onToggle={() => handleToggleStatus(task)}
               onEdit={() => handleOpenEdit(task)}
-              onDelete={() => onDelete(task.id)}
+              onDelete={() => task.id && onDelete(task.id)}
               getCategoryColor={getCategoryColor}
               getPriorityColor={getPriorityColor}
               getCategoryLabel={getCategoryLabel}
@@ -371,11 +371,14 @@ export const GoalsManager = memo(function GoalsManager({ tasks, staff, onAdd, on
 
       {/* Диалог создания/редактирования */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl" aria-describedby="task-dialog-desc">
           <DialogHeader>
             <DialogTitle>
               {editingTask ? 'Редактировать задачу' : 'Новая задача'}
             </DialogTitle>
+            <DialogDescription id="task-dialog-desc">
+              {editingTask ? 'Измените данные задачи и сохраните изменения' : 'Заполните форму для создания новой задачи'}
+            </DialogDescription>
           </DialogHeader>
           <TaskForm
             initialData={editingTask}

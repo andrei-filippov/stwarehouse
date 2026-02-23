@@ -57,6 +57,11 @@ export function useGoals(userId: string | undefined) {
   };
 
   const updateTask = async (id: string, updates: Partial<Task>) => {
+    if (!id) {
+      toast.error('Ошибка: не указан ID задачи');
+      return { error: new Error('Task ID is required') };
+    }
+    
     const updateData: any = { ...updates, updated_at: new Date().toISOString() };
     
     if (updates.status === 'completed' && !updates.completed_at) {
@@ -82,6 +87,11 @@ export function useGoals(userId: string | undefined) {
   };
 
   const deleteTask = async (id: string) => {
+    if (!id) {
+      toast.error('Ошибка: не указан ID задачи');
+      return { error: new Error('Task ID is required') };
+    }
+    
     const { error } = await supabase
       .from('goals')
       .delete()

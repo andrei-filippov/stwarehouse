@@ -4,7 +4,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { Checkbox } from './ui/checkbox';
 import { Badge } from './ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
@@ -266,6 +266,7 @@ export const ChecklistsManager = memo(function ChecklistsManager({
         <DialogContent className="max-w-2xl w-[95%] md:w-full max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Новое правило</DialogTitle>
+            <DialogDescription>Создайте правило для автоматического формирования чек-листов</DialogDescription>
           </DialogHeader>
           <RuleForm 
             equipment={equipment}
@@ -281,6 +282,7 @@ export const ChecklistsManager = memo(function ChecklistsManager({
         <DialogContent className="max-w-2xl w-[95%] md:w-full max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Создать чек-лист</DialogTitle>
+            <DialogDescription>Создайте чек-лист на основе сметы</DialogDescription>
           </DialogHeader>
           <ChecklistCreateForm
             estimates={estimates}
@@ -298,6 +300,7 @@ export const ChecklistsManager = memo(function ChecklistsManager({
               <ClipboardCheck className="w-5 h-5" />
               {selectedChecklist?.event_name}
             </DialogTitle>
+            <DialogDescription>Просмотр и управление чек-листом мероприятия</DialogDescription>
           </DialogHeader>
           {selectedChecklist && (
             <ChecklistView 
@@ -316,6 +319,7 @@ export const ChecklistsManager = memo(function ChecklistsManager({
               <Wrench className="w-5 h-5" />
               Калькулятор инструментов
             </DialogTitle>
+            <DialogDescription>Рассчитайте необходимое количество комплектующих</DialogDescription>
           </DialogHeader>
           <CalculatorForm onClose={handleCloseCalculator} />
         </DialogContent>

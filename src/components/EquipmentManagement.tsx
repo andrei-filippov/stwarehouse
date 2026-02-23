@@ -4,7 +4,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { Badge } from './ui/badge';
 import { Plus, Upload, Download, Trash2, Edit, Search, FolderPlus, ChevronDown, ChevronUp, X } from 'lucide-react';
 import { toast } from 'sonner';
@@ -475,6 +475,7 @@ export function EquipmentManager({
         <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Импорт оборудования</DialogTitle>
+            <DialogDescription>Загрузите оборудование из Excel или CSV файла</DialogDescription>
           </DialogHeader>
           
           {!importPreview ? (
@@ -664,6 +665,7 @@ export function EquipmentManager({
             <DialogTitle>
               {editingItem ? 'Редактировать оборудование' : 'Добавить оборудование'}
             </DialogTitle>
+            <DialogDescription>{editingItem ? 'Измените данные оборудования' : 'Добавьте новое оборудование на склад'}</DialogDescription>
           </DialogHeader>
           <EquipmentForm 
             categories={categories}
