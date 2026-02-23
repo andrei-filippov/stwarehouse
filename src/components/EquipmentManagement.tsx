@@ -132,7 +132,11 @@ export function EquipmentManager({
   };
 
   const processImportData = (data: any[]) => {
-    console.log('Import data rows:', data.slice(0, 3)); // Логируем первые 3 строки для отладки
+    console.log('Import data rows:', data.slice(0, 5)); // Логируем первые 5 строк для отладки
+    if (data.length > 0) {
+      console.log('First row keys:', Object.keys(data[0]));
+      console.log('First row values:', data[0]);
+    }
     
     const processed = data.map((row: any) => {
       // Получаем ключи строки в нижнем регистре для поиска
