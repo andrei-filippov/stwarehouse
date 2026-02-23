@@ -176,3 +176,6 @@ export type Staff = {
   created_at?: string;
   updated_at?: string;
 };
+
+// Re-export Task as Goal for Dashboard
+export type { Task as Goal } from './goals';

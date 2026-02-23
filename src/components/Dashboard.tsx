@@ -323,44 +323,6 @@ export function Dashboard({
             </CardContent>
           </Card>
 
-          {/* Низкий запас */}
-          {lowStockItems.length > 0 && (
-            <Card className="border-red-200">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg flex items-center gap-2 text-red-600">
-                  <AlertCircle className="w-5 h-5" />
-                  Низкий запас
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {lowStockItems.map((item) => (
-                    <div 
-                      key={item.id}
-                      className="flex items-center justify-between p-2 bg-red-50 rounded"
-                    >
-                      <div>
-                        <p className="text-sm font-medium">{item.name}</p>
-                        <p className="text-xs text-gray-500">{item.category}</p>
-                      </div>
-                      <span className="px-2 py-1 bg-red-500 text-white text-xs rounded">
-                        {item.quantity} шт
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="w-full mt-2 text-red-600"
-                  onClick={() => onTabChange('equipment')}
-                >
-                  Проверить склад
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-
           {/* Быстрые действия */}
           <Card>
             <CardHeader className="pb-2">
