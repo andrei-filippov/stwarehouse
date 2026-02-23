@@ -23,7 +23,9 @@ import { Analytics } from './components/Analytics';
 import { CustomersManager } from './components/CustomersManager';
 import { AdminPanel } from './components/AdminPanel';
 import { AccessDenied } from './components/AccessDenied';
+import { BottomNav } from './components/BottomNav';
 import { Button } from './components/ui/button';
+import { CommandMenu } from './components/CommandMenu';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './components/ui/sheet';
 import { Spinner } from './components/ui/spinner';
 import { 
@@ -38,7 +40,8 @@ import {
   ClipboardCheck,
   Users,
   Target,
-  Shield
+  Shield,
+  Search
 } from 'lucide-react';
 import type { PDFSettings as PDFSettingsType } from './types';
 
@@ -152,6 +155,19 @@ function App() {
               <p className="text-[10px] md:text-xs text-gray-500 hidden sm:block">Система учета оборудования</p>
             </div>
           </div>
+
+          {/* Search Button (Desktop) */}
+          <Button
+            variant="outline"
+            className="hidden md:flex items-center gap-2 text-sm text-gray-500 bg-gray-50/50 border-gray-200 hover:bg-gray-100 hover:text-gray-900"
+            onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }))}
+          >
+            <Search className="w-4 h-4" />
+            <span className="text-sm">Поиск</span>
+            <kbd className="hidden lg:inline-flex h-5 select-none items-center gap-1 rounded border bg-gray-100 px-1.5 font-mono text-[10px] font-medium text-gray-500">
+              <span className="text-xs">⌘</span>K
+            </kbd>
+          </Button>
           
           <div className="flex items-center gap-2 md:gap-4">
             <div className="flex items-center gap-2 text-sm text-gray-600 hidden sm:flex">
@@ -263,8 +279,17 @@ function App() {
         </div>
       </nav>
 
+      {/* Global Search */}
+      <CommandMenu 
+        equipment={equipment}
+        estimates={estimates}
+        customers={customers}
+        availableTabs={navItems}
+        onTabChange={setActiveTab}
+      />
+
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-3 md:px-4 py-4 md:py-6">
+      <main className="max-w-7xl mx-auto px-3 md:px-4 py-4 md:py-6 pb-24 md:pb-6">
         {activeTab === 'equipment' && (
           <EquipmentManager
             equipment={equipment}
@@ -378,6 +403,14 @@ function App() {
           )
         )}
       </main>
+
+      {/* Mobile Bottom Navigation */}
+      <BottomNav 
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        availableTabs={navItems}
+        onSignOut={signOut}
+      />
     </div>
   );
 }
