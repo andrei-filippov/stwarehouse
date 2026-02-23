@@ -24,6 +24,8 @@ import { CustomersManager } from './components/CustomersManager';
 import { AdminPanel } from './components/AdminPanel';
 import { AccessDenied } from './components/AccessDenied';
 import { BottomNav } from './components/BottomNav';
+import { Sidebar } from './components/Sidebar';
+import { Dashboard } from './components/Dashboard';
 import { Button } from './components/ui/button';
 import { CommandMenu } from './components/CommandMenu';
 
@@ -60,7 +62,8 @@ function App() {
   const { customers, loading: customersLoading, error: customersError, addCustomer, updateCustomer, deleteCustomer } = useCustomers(user?.id);
   const analyticsData = { equipment, estimates, staff, customers };
   
-  const [activeTab, setActiveTab] = useState<Tab>('equipment');
+  const [activeTab, setActiveTab] = useState<Tab>('dashboard');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [pdfSettings, setPdfSettings] = useState<PDFSettingsType>({
     logo: null,
     companyName: '',
@@ -80,6 +83,7 @@ function App() {
 
   // Список всех вкладок (определяем до использования)
   const allNavItems = [
+    { id: 'dashboard' as Tab, label: 'Дашборд', icon: BarChart3 },
     { id: 'equipment' as Tab, label: 'Оборудование', icon: Package },
     { id: 'estimates' as Tab, label: 'Сметы', icon: FileText },
     { id: 'templates' as Tab, label: 'Шаблоны', icon: Layout },
@@ -141,82 +145,35 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 pb-20 md:pb-0">
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur-md border-b shadow-sm sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-3 md:px-4 py-3 md:py-4 flex justify-between items-center">
-          <div className="flex items-center gap-2 md:gap-3">
-            <div className="w-8 h-8 md:w-10 md:h-10 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-xl flex items-center justify-center shadow-md">
-              <Package className="w-5 h-5 md:w-6 md:h-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-lg md:text-xl font-bold text-gray-900">СкладОборуд</h1>
-              <p className="text-[10px] md:text-xs text-gray-500 hidden sm:block">Система учета оборудования</p>
-            </div>
+    <div className="min-h-screen bg-gray-50 flex">
+      {/* Desktop Sidebar */}
+      <div className="hidden md:block">
+        <Sidebar 
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          availableTabs={navItems}
+          onSignOut={signOut}
+          userName={profile?.name}
+          userRole={getRoleLabel(userRole)}
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+        />
+      </div>
+
+      {/* Mobile Header */}
+      <header className="md:hidden fixed top-0 left-0 right-0 bg-white border-b z-40 px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center">
+            <Package className="w-5 h-5 text-white" />
           </div>
-
-          {/* Search Button (Desktop) */}
-          <Button
-            variant="outline"
-            className="hidden md:flex items-center gap-2 text-sm text-gray-500 bg-gray-50/50 border-gray-200 hover:bg-gray-100 hover:text-gray-900"
-            onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }))}
-          >
-            <Search className="w-4 h-4" />
-            <span className="text-sm">Поиск</span>
-            <kbd className="hidden lg:inline-flex h-5 select-none items-center gap-1 rounded border bg-gray-100 px-1.5 font-mono text-[10px] font-medium text-gray-500">
-              <span className="text-xs">⌘</span>K
-            </kbd>
-          </Button>
-          
-          <div className="flex items-center gap-2 md:gap-4">
-            <div className="flex items-center gap-2 text-sm text-gray-600 hidden sm:flex">
-              <div className="w-8 h-8 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center">
-                <User className="w-4 h-4" />
-              </div>
-              <div className="flex flex-col items-start">
-                <span className="max-w-[150px] truncate font-medium">{profile?.name || user?.email}</span>
-                <span className="text-xs text-gray-400">{getRoleLabel(userRole)}</span>
-              </div>
-            </div>
-            {/* Mobile User Info (avatar only) */}
-            <div className="flex items-center gap-2 md:hidden">
-              <div className="w-8 h-8 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center">
-                <User className="w-4 h-4" />
-              </div>
-            </div>
-
-            <Button variant="ghost" size="sm" onClick={signOut} className="px-2 md:px-3 rounded-lg hover:bg-red-50 hover:text-red-600 transition-colors hidden md:flex">
-              <LogOut className="w-4 h-4 md:mr-2" />
-              <span className="hidden md:inline">Выйти</span>
-            </Button>
+          <span className="font-bold text-lg">СкладОборуд</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center">
+            <User className="w-4 h-4" />
           </div>
         </div>
       </header>
-
-      {/* Desktop Navigation */}
-      <nav className="bg-white/80 backdrop-blur-md border-b hidden md:block sticky top-[65px] z-30">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex gap-1 overflow-x-auto">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => setActiveTab(item.id)}
-                  className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-all whitespace-nowrap rounded-t-lg hover:bg-gray-50 ${
-                    activeTab === item.id
-                      ? 'border-blue-600 text-blue-600 bg-blue-50/50'
-                      : 'border-transparent text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  {item.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </nav>
 
       {/* Global Search */}
       <CommandMenu 
@@ -228,7 +185,19 @@ function App() {
       />
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-3 md:px-4 py-4 md:py-6 pb-24 md:pb-6">
+      <main className="flex-1 pt-16 md:pt-0 pb-20 md:pb-0 overflow-auto">
+        <div className="p-4 md:p-6 max-w-7xl mx-auto">
+        {activeTab === 'dashboard' && (
+          <Dashboard
+            equipment={equipment}
+            estimates={estimates}
+            customers={customers}
+            staff={staff}
+            goals={tasks}
+            onTabChange={setActiveTab}
+          />
+        )}
+
         {activeTab === 'equipment' && (
           <EquipmentManager
             equipment={equipment}
@@ -341,6 +310,7 @@ function App() {
             <AccessDenied role={userRole} requiredRole="Администратор" />
           )
         )}
+        </div>
       </main>
 
       {/* Mobile Bottom Navigation */}
