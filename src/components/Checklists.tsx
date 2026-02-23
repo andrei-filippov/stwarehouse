@@ -263,10 +263,10 @@ export const ChecklistsManager = memo(function ChecklistsManager({
 
       {/* Диалог создания правила */}
       <Dialog open={isRuleDialogOpen} onOpenChange={setIsRuleDialogOpen}>
-        <DialogContent className="max-w-2xl w-[95%] md:w-full max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl w-[95%] md:w-full max-h-[90vh] overflow-y-auto" aria-describedby="rule-dialog-desc">
           <DialogHeader>
             <DialogTitle>Новое правило</DialogTitle>
-            <DialogDescription>Создайте правило для автоматического формирования чек-листов</DialogDescription>
+            <DialogDescription id="rule-dialog-desc">Создайте правило для автоматического формирования чек-листов</DialogDescription>
           </DialogHeader>
           <RuleForm 
             equipment={equipment}
@@ -279,10 +279,10 @@ export const ChecklistsManager = memo(function ChecklistsManager({
 
       {/* Диалог создания чек-листа */}
       <Dialog open={isChecklistDialogOpen} onOpenChange={setIsChecklistDialogOpen}>
-        <DialogContent className="max-w-2xl w-[95%] md:w-full max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl w-[95%] md:w-full max-h-[90vh] overflow-y-auto" aria-describedby="checklist-dialog-desc">
           <DialogHeader>
             <DialogTitle>Создать чек-лист</DialogTitle>
-            <DialogDescription>Создайте чек-лист на основе сметы</DialogDescription>
+            <DialogDescription id="checklist-dialog-desc">Создайте чек-лист на основе сметы</DialogDescription>
           </DialogHeader>
           <ChecklistCreateForm
             estimates={estimates}
@@ -294,13 +294,13 @@ export const ChecklistsManager = memo(function ChecklistsManager({
 
       {/* Диалог просмотра чек-листа */}
       <Dialog open={!!selectedChecklist} onOpenChange={handleDeselectChecklist}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto" aria-describedby="view-checklist-desc">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ClipboardCheck className="w-5 h-5" />
               {selectedChecklist?.event_name}
             </DialogTitle>
-            <DialogDescription>Просмотр и управление чек-листом мероприятия</DialogDescription>
+            <DialogDescription id="view-checklist-desc">Просмотр и управление чек-листом мероприятия</DialogDescription>
           </DialogHeader>
           {selectedChecklist && (
             <ChecklistView 
@@ -313,13 +313,13 @@ export const ChecklistsManager = memo(function ChecklistsManager({
 
       {/* Диалог калькулятора */}
       <Dialog open={isCalculatorOpen} onOpenChange={setIsCalculatorOpen}>
-        <DialogContent className="max-w-lg w-[95%] md:w-full">
+        <DialogContent className="max-w-lg w-[95%] md:w-full" aria-describedby="calculator-dialog-desc">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Wrench className="w-5 h-5" />
               Калькулятор инструментов
             </DialogTitle>
-            <DialogDescription>Рассчитайте необходимое количество комплектующих</DialogDescription>
+            <DialogDescription id="calculator-dialog-desc">Рассчитайте необходимое количество комплектующих</DialogDescription>
           </DialogHeader>
           <CalculatorForm onClose={handleCloseCalculator} />
         </DialogContent>

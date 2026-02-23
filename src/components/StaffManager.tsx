@@ -457,12 +457,12 @@ export const StaffManager = memo(function StaffManager({ staff, onAdd, onUpdate,
 
       {/* Диалог добавления/редактирования */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl" aria-describedby="staff-dialog-desc">
           <DialogHeader>
             <DialogTitle>
               {editingStaff ? 'Редактировать сотрудника' : 'Новый сотрудник'}
             </DialogTitle>
-            <DialogDescription>{editingStaff ? 'Измените данные сотрудника' : 'Добавьте нового сотрудника в систему'}</DialogDescription>
+            <DialogDescription id="staff-dialog-desc">{editingStaff ? 'Измените данные сотрудника' : 'Добавьте нового сотрудника в систему'}</DialogDescription>
           </DialogHeader>
           <StaffForm
             initialData={editingStaff}

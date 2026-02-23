@@ -532,7 +532,12 @@ function TaskForm({ initialData, staff, onSubmit, onCancel }: TaskFormProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    // Конвертируем пустую строку в null для assigned_to
+    const submitData = {
+      ...formData,
+      assigned_to: formData.assigned_to || null,
+    };
+    onSubmit(submitData);
   };
 
   return (

@@ -116,12 +116,12 @@ export const TemplatesManager = memo(function TemplatesManager({
 
       {/* Диалог создания/редактирования шаблона */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" aria-describedby="template-dialog-desc">
           <DialogHeader>
             <DialogTitle>
               {editingTemplate ? 'Редактировать шаблон' : 'Новый шаблон'}
             </DialogTitle>
-            <DialogDescription>{editingTemplate ? 'Измените шаблон сметы' : 'Создайте шаблон для быстрого заполнения смет'}</DialogDescription>
+            <DialogDescription id="template-dialog-desc">{editingTemplate ? 'Измените шаблон сметы' : 'Создайте шаблон для быстрого заполнения смет'}</DialogDescription>
           </DialogHeader>
           <TemplateForm
             categories={categories}

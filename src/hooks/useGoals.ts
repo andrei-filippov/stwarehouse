@@ -62,7 +62,16 @@ export function useGoals(userId: string | undefined) {
       return { error: new Error('Task ID is required') };
     }
     
-    const updateData: any = { ...updates, updated_at: new Date().toISOString() };
+    // Фильтруем undefined и пустые строки для UUID полей
+    const updateData: any = { updated_at: new Date().toISOString() };
+    
+    if (updates.title !== undefined) updateData.title = updates.title;
+    if (updates.description !== undefined) updateData.description = updates.description;
+    if (updates.category !== undefined) updateData.category = updates.category;
+    if (updates.priority !== undefined) updateData.priority = updates.priority;
+    if (updates.status !== undefined) updateData.status = updates.status;
+    if (updates.due_date !== undefined) updateData.due_date = updates.due_date;
+    if (updates.assigned_to !== undefined) updateData.assigned_to = updates.assigned_to || null;
     
     if (updates.status === 'completed' && !updates.completed_at) {
       updateData.completed_at = new Date().toISOString();
