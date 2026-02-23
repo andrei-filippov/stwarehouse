@@ -450,7 +450,7 @@ export function EquipmentManager({
 
       {/* Диалог импорта */}
       <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Импорт оборудования</DialogTitle>
           </DialogHeader>
@@ -468,40 +468,57 @@ export function EquipmentManager({
               />
             </div>
           ) : (
-            <div className="space-y-4">
-              <p className="text-sm">Найдено записей: {importData.length}</p>
-              <div className="max-h-96 overflow-auto">
+            <div className="space-y-4 flex flex-col min-h-0">
+              <div className="flex items-center justify-between">
+                <p className="text-sm">Найдено записей: <strong>{importData.length}</strong></p>
+                {importData.length > 10 && (
+                  <p className="text-xs text-gray-500">Показано первые 10</p>
+                )}
+              </div>
+              
+              <div className="overflow-auto border rounded-lg">
                 <Table>
-                  <TableHeader>
+                  <TableHeader className="bg-gray-50 sticky top-0">
                     <TableRow>
-                      <TableHead>Название</TableHead>
-                      <TableHead>Категория</TableHead>
-                      <TableHead>Кол-во</TableHead>
-                      <TableHead>Ед.</TableHead>
-                      <TableHead>Цена</TableHead>
-                      <TableHead>Описание</TableHead>
+                      <TableHead className="w-[45%] min-w-[200px]">Название</TableHead>
+                      <TableHead className="w-[20%] min-w-[100px]">Категория</TableHead>
+                      <TableHead className="w-[10%] text-center">Кол-во</TableHead>
+                      <TableHead className="w-[10%] text-center">Ед.</TableHead>
+                      <TableHead className="w-[15%] text-right">Цена</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {importData.slice(0, 10).map((item, idx) => (
                       <TableRow key={idx}>
-                        <TableCell>{item.name}</TableCell>
-                        <TableCell>{item.category}</TableCell>
-                        <TableCell>{item.quantity}</TableCell>
-                        <TableCell>{item.unit || 'шт'}</TableCell>
-                        <TableCell>{item.price}</TableCell>
-                        <TableCell>{item.description || '—'}</TableCell>
+                        <TableCell className="max-w-[300px]">
+                          <div className="truncate" title={item.name}>
+                            {item.name}
+                          </div>
+                          {item.description && (
+                            <div className="text-xs text-gray-500 truncate" title={item.description}>
+                              {item.description}
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-sm">{item.category}</TableCell>
+                        <TableCell className="text-center">{item.quantity}</TableCell>
+                        <TableCell className="text-center text-sm text-gray-600">{item.unit || 'шт'}</TableCell>
+                        <TableCell className="text-right font-medium">
+                          {item.price ? `${parseFloat(item.price).toLocaleString('ru-RU')} ₽` : '—'}
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
-                {importData.length > 10 && (
-                  <p className="text-center text-sm text-gray-500 mt-2">
-                    ... и ещё {importData.length - 10} записей
-                  </p>
-                )}
               </div>
-              <div className="flex gap-2 justify-end">
+              
+              {importData.length > 10 && (
+                <p className="text-center text-xs text-gray-500">
+                  ... и ещё {importData.length - 10} записей
+                </p>
+              )}
+              
+              <div className="flex gap-2 justify-end pt-2 border-t mt-auto">
                 <Button variant="outline" onClick={() => {
                   setImportPreview(false);
                   setImportData([]);
