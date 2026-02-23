@@ -43,6 +43,7 @@ export function EquipmentManager({
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [importData, setImportData] = useState<any[]>([]);
   const [importPreview, setImportPreview] = useState(false);
+  const [selectedImportItems, setSelectedImportItems] = useState<Set<number>>(new Set());
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -160,7 +161,18 @@ export function EquipmentManager({
         console.log('Headers found:', headers);
         console.log('Data rows:', jsonData.slice(0, 3));
         
-        processImportData(jsonData);
+        // Определяем какие позиции уже существуют
+        const existingNames = new Set(equipment.map(e => e.name.toLowerCase().trim()));
+        const processed = processImportData(jsonData);
+        
+        // Выбираем только новые позиции по умолчанию
+        const newItemsIndexes = new Set<number>();
+        processed.forEach((item, index) => {
+          if (!existingNames.has(item.name.toLowerCase().trim())) {
+            newItemsIndexes.add(index);
+          }
+        });
+        setSelectedImportItems(newItemsIndexes);
       }
     };
 
@@ -171,8 +183,8 @@ export function EquipmentManager({
     }
   };
 
-  const processImportData = (data: any[]) => {
-    console.log('Import data rows:', data.slice(0, 5)); // Логируем первые 5 строк для отладки
+  const processImportData = (data: any[]): any[] => {
+    console.log('Import data rows:', data.slice(0, 5));
     if (data.length > 0) {
       console.log('First row keys:', Object.keys(data[0]));
       console.log('First row values:', data[0]);
@@ -218,6 +230,7 @@ export function EquipmentManager({
     
     setImportData(processed);
     setImportPreview(true);
+    return processed;
   };
 
   const handleImport = async () => {
@@ -226,8 +239,16 @@ export function EquipmentManager({
       return;
     }
     
+    if (selectedImportItems.size === 0) {
+      toast.error('Выберите хотя бы одну позицию для импорта');
+      return;
+    }
+    
+    // Фильтруем только выбранные позиции
+    const selectedData = importData.filter((_, index) => selectedImportItems.has(index));
+    
     // Добавляем user_id к каждому элементу
-    const dataWithUserId = importData.map(item => ({
+    const dataWithUserId = selectedData.map(item => ({
       ...item,
       user_id: userId
     }));
@@ -237,6 +258,7 @@ export function EquipmentManager({
       setIsImportDialogOpen(false);
       setImportPreview(false);
       setImportData([]);
+      setSelectedImportItems(new Set());
     }
   };
 
@@ -450,7 +472,7 @@ export function EquipmentManager({
 
       {/* Диалог импорта */}
       <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
+        <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Импорт оборудования</DialogTitle>
           </DialogHeader>
@@ -476,57 +498,153 @@ export function EquipmentManager({
                 )}
               </div>
               
-              <div className="overflow-auto border rounded-lg">
+              {/* Статистика и управление выбором */}
+              <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                <div className="flex items-center gap-4">
+                  <span className="text-sm">Всего: <strong>{importData.length}</strong></span>
+                  <span className="text-sm text-green-600">Выбрано: <strong>{selectedImportItems.size}</strong></span>
+                  {importData.length > 0 && (
+                    <span className="text-xs text-gray-500">
+                      ({importData.filter((_, i) => !selectedImportItems.has(i)).length} уже на складе)
+                    </span>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      const allIndexes = new Set(importData.map((_, i) => i));
+                      setSelectedImportItems(allIndexes);
+                    }}
+                  >
+                    Выбрать все
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setSelectedImportItems(new Set())}
+                  >
+                    Снять все
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      const existingNames = new Set(equipment.map(e => e.name.toLowerCase().trim()));
+                      const newIndexes = new Set<number>();
+                      importData.forEach((item, index) => {
+                        if (!existingNames.has(item.name.toLowerCase().trim())) {
+                          newIndexes.add(index);
+                        }
+                      });
+                      setSelectedImportItems(newIndexes);
+                    }}
+                  >
+                    Только новые
+                  </Button>
+                </div>
+              </div>
+              
+              {/* Таблица с прокруткой */}
+              <div className="overflow-auto border rounded-lg flex-1 max-h-[50vh]">
                 <Table>
-                  <TableHeader className="bg-gray-50 sticky top-0">
+                  <TableHeader className="bg-gray-50 sticky top-0 z-10">
                     <TableRow>
-                      <TableHead className="w-[45%] min-w-[200px]">Название</TableHead>
-                      <TableHead className="w-[20%] min-w-[100px]">Категория</TableHead>
-                      <TableHead className="w-[10%] text-center">Кол-во</TableHead>
-                      <TableHead className="w-[10%] text-center">Ед.</TableHead>
-                      <TableHead className="w-[15%] text-right">Цена</TableHead>
+                      <TableHead className="w-12 text-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedImportItems.size === importData.length && importData.length > 0}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedImportItems(new Set(importData.map((_, i) => i)));
+                            } else {
+                              setSelectedImportItems(new Set());
+                            }
+                          }}
+                          className="w-4 h-4"
+                        />
+                      </TableHead>
+                      <TableHead className="w-12 text-center">№</TableHead>
+                      <TableHead className="min-w-[250px]">Название</TableHead>
+                      <TableHead className="w-[150px]">Категория</TableHead>
+                      <TableHead className="w-20 text-center">Кол-во</TableHead>
+                      <TableHead className="w-20 text-center">Ед.</TableHead>
+                      <TableHead className="w-28 text-right">Цена</TableHead>
+                      <TableHead className="w-24 text-center">Статус</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {importData.slice(0, 10).map((item, idx) => (
-                      <TableRow key={idx}>
-                        <TableCell className="max-w-[300px]">
-                          <div className="truncate" title={item.name}>
-                            {item.name}
-                          </div>
-                          {item.description && (
-                            <div className="text-xs text-gray-500 truncate" title={item.description}>
-                              {item.description}
+                    {importData.map((item, idx) => {
+                      const isExisting = !selectedImportItems.has(idx) && 
+                        equipment.some(e => e.name.toLowerCase().trim() === item.name.toLowerCase().trim());
+                      
+                      return (
+                        <TableRow 
+                          key={idx} 
+                          className={isExisting ? 'bg-gray-50' : ''}
+                        >
+                          <TableCell className="text-center">
+                            <input
+                              type="checkbox"
+                              checked={selectedImportItems.has(idx)}
+                              onChange={(e) => {
+                                const newSet = new Set(selectedImportItems);
+                                if (e.target.checked) {
+                                  newSet.add(idx);
+                                } else {
+                                  newSet.delete(idx);
+                                }
+                                setSelectedImportItems(newSet);
+                              }}
+                              className="w-4 h-4"
+                            />
+                          </TableCell>
+                          <TableCell className="text-center text-sm text-gray-500">{idx + 1}</TableCell>
+                          <TableCell>
+                            <div className="font-medium" title={item.name}>
+                              {item.name}
                             </div>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-sm">{item.category}</TableCell>
-                        <TableCell className="text-center">{item.quantity}</TableCell>
-                        <TableCell className="text-center text-sm text-gray-600">{item.unit || 'шт'}</TableCell>
-                        <TableCell className="text-right font-medium">
-                          {item.price ? `${parseFloat(item.price).toLocaleString('ru-RU')} ₽` : '—'}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                            {item.description && (
+                              <div className="text-xs text-gray-500 truncate max-w-[300px]" title={item.description}>
+                                {item.description}
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-sm">{item.category}</TableCell>
+                          <TableCell className="text-center">{item.quantity}</TableCell>
+                          <TableCell className="text-center text-sm text-gray-600">{item.unit || 'шт'}</TableCell>
+                          <TableCell className="text-right font-medium">
+                            {item.price ? `${parseFloat(item.price).toLocaleString('ru-RU')} ₽` : '—'}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {isExisting ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-gray-200 text-gray-700">
+                                На складе
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-green-100 text-green-700">
+                                Новое
+                              </span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
-              
-              {importData.length > 10 && (
-                <p className="text-center text-xs text-gray-500">
-                  ... и ещё {importData.length - 10} записей
-                </p>
-              )}
               
               <div className="flex gap-2 justify-end pt-2 border-t mt-auto">
                 <Button variant="outline" onClick={() => {
                   setImportPreview(false);
                   setImportData([]);
+                  setSelectedImportItems(new Set());
                 }}>
                   Отмена
                 </Button>
-                <Button onClick={handleImport}>
-                  Импортировать {importData.length} записей
+                <Button onClick={handleImport} disabled={selectedImportItems.size === 0}>
+                  Импортировать {selectedImportItems.size} позиций
                 </Button>
               </div>
             </div>
