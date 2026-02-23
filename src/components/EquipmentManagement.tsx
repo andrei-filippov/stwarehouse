@@ -67,11 +67,14 @@ export function EquipmentManager({
     [filteredEquipment]
   );
 
-  // Сортировка категорий (мемоизировано)
-  const sortedCategories = useMemo(() =>
-    Object.keys(groupedByCategory).sort(),
-    [groupedByCategory]
-  );
+  // Получаем все категории из БД + категории из оборудования
+  const sortedCategories = useMemo(() => {
+    const allCategoryNames = new Set([
+      ...categories.map(c => c.name),
+      ...Object.keys(groupedByCategory)
+    ]);
+    return Array.from(allCategoryNames).sort();
+  }, [categories, groupedByCategory]);
 
   // Переключение разворачивания категории
   const toggleCategory = (category: string) => {
