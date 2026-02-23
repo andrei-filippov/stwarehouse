@@ -10,9 +10,12 @@ import {
   AlertCircle,
   Clock,
   CheckCircle2,
-  ArrowRight
+  ArrowRight,
+  Target,
+  Circle
 } from 'lucide-react';
 import type { Equipment, Estimate, Customer, Staff, Goal } from '../types';
+import { TASK_CATEGORIES, TASK_PRIORITIES } from '../types/goals';
 import { format, isToday, isTomorrow, isPast, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
 
@@ -81,6 +84,16 @@ export function Dashboard({
       .sort((a, b) => new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime())
       .slice(0, 3);
   }, [estimates]);
+
+  // Задачи на сегодня (активные - не выполнены и не отменены)
+  const todayTasks = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+    return goals?.filter(g => {
+      const isToday = g.due_date === today;
+      const isActive = g.status !== 'completed' && g.status !== 'cancelled';
+      return isToday && isActive;
+    }).slice(0, 5) || [];
+  }, [goals]);
 
   return (
     <div className="space-y-6">
@@ -225,6 +238,61 @@ export function Dashboard({
 
         {/* Правая колонка */}
         <div className="space-y-6">
+          {/* Задачи на сегодня */}
+          {todayTasks.length > 0 && (
+            <Card className="border-blue-200">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-lg flex items-center gap-2 text-blue-700">
+                  <Target className="w-5 h-5" />
+                  Задачи на сегодня
+                  <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-sm">
+                    {todayTasks.length}
+                  </span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {todayTasks.map((task) => (
+                    <div 
+                      key={task.id}
+                      className="flex items-start gap-2 p-2 bg-blue-50 rounded cursor-pointer hover:bg-blue-100 transition-colors"
+                      onClick={() => onTabChange('goals')}
+                    >
+                      <Circle className={`w-4 h-4 mt-0.5 shrink-0 ${
+                        task.priority === 'urgent' ? 'text-red-500' :
+                        task.priority === 'high' ? 'text-orange-500' :
+                        task.priority === 'medium' ? 'text-blue-500' : 'text-gray-400'
+                      }`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{task.title}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className={`text-xs px-1.5 py-0.5 rounded ${
+                            TASK_PRIORITIES.find(p => p.value === task.priority)?.color || 'bg-gray-100'
+                          }`}>
+                            {TASK_PRIORITIES.find(p => p.value === task.priority)?.label}
+                          </span>
+                          {task.category && (
+                            <span className="text-xs text-gray-500">
+                              {TASK_CATEGORIES.find(c => c.value === task.category)?.icon}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="w-full mt-2 text-blue-600"
+                  onClick={() => onTabChange('goals')}
+                >
+                  Все задачи <ArrowRight className="w-4 h-4 ml-1" />
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Недавние сметы */}
           <Card>
             <CardHeader className="pb-2">
