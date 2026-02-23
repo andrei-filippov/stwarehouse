@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Badge } from './ui/badge';
 import { Plus, Upload, Download, Trash2, Edit, Search, FolderPlus, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { toast } from 'sonner';
 import type { Equipment } from '../types';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
@@ -131,21 +132,63 @@ export function EquipmentManager({
   };
 
   const processImportData = (data: any[]) => {
-    const processed = data.map((row: any) => ({
-      name: row.name || row.Название || row['Наименование'] || '',
-      category: row.category || row.Категория || row['Категория'] || 'Общее',
-      quantity: parseInt(row.quantity || row.Количество || row['Кол-во'] || 0),
-      price: parseFloat(row.price || row.Цена || row['Стоимость'] || 0),
-      description: row.description || row.Описание || '',
-      unit: row.unit || row['Ед.изм'] || row['Единица'] || 'шт'
-    })).filter(item => item.name);
+    console.log('Import data rows:', data.slice(0, 3)); // Логируем первые 3 строки для отладки
+    
+    const processed = data.map((row: any) => {
+      // Получаем ключи строки в нижнем регистре для поиска
+      const keys = Object.keys(row);
+      const getValue = (...possibleNames: string[]) => {
+        for (const name of possibleNames) {
+          // Ищем точное совпадение
+          if (row[name] !== undefined && row[name] !== null && row[name] !== '') {
+            return row[name];
+          }
+          // Ищем без учета регистра
+          const key = keys.find(k => k.toLowerCase().trim() === name.toLowerCase().trim());
+          if (key && row[key] !== undefined && row[key] !== null && row[key] !== '') {
+            return row[key];
+          }
+        }
+        return undefined;
+      };
+      
+      // Расширенный список возможных названий колонок
+      const name = getValue('name', 'Название', 'Наименование', 'название', 'наименование', 'Товар', 'товар', 'Оборудование', 'оборудование', 'Item', 'item', 'Product', 'product');
+      const category = getValue('category', 'Категория', 'категория', 'Группа', 'группа', 'Type', 'type', 'Тип', 'тип', 'Раздел', 'раздел');
+      const quantity = getValue('quantity', 'Количество', 'количество', 'Кол-во', 'кол-во', 'Кол', 'кол', 'Qty', 'qty', 'Count', 'count');
+      const price = getValue('price', 'Цена', 'цена', 'Стоимость', 'стоимость', 'Price', 'price', 'Сумма', 'сумма', 'Cost', 'cost');
+      const description = getValue('description', 'Описание', 'описание', 'Desc', 'desc', 'Примечание', 'примечание', 'Комментарий', 'комментарий');
+      const unit = getValue('unit', 'Ед.изм', 'ед.изм', 'Единица', 'единица', 'Ед', 'ед', 'Unit', 'unit', 'Изм', 'изм');
+      
+      return {
+        name: name || '',
+        category: category || 'Общее',
+        quantity: parseInt(quantity) || 0,
+        price: parseFloat(price) || 0,
+        description: description || '',
+        unit: unit || 'шт'
+      };
+    }).filter(item => item.name && item.name.trim() !== '');
 
+    console.log('Processed items:', processed.length, processed.slice(0, 3));
+    
     setImportData(processed);
     setImportPreview(true);
   };
 
   const handleImport = async () => {
-    const { error } = await onBulkInsert(importData);
+    if (!userId) {
+      toast.error('Ошибка: пользователь не авторизован');
+      return;
+    }
+    
+    // Добавляем user_id к каждому элементу
+    const dataWithUserId = importData.map(item => ({
+      ...item,
+      user_id: userId
+    }));
+    
+    const { error } = await onBulkInsert(dataWithUserId);
     if (!error) {
       setIsImportDialogOpen(false);
       setImportPreview(false);
