@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { 
@@ -38,6 +38,21 @@ export function Dashboard({
   onTabChange,
   onOpenEstimate 
 }: DashboardProps) {
+  // Текущая дата для автообновления задач
+  const [currentDate, setCurrentDate] = useState(new Date());
+  
+  // Обновляем дату каждую минуту (для смены суток)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = new Date();
+      // Обновляем только если день изменился
+      if (now.getDate() !== currentDate.getDate()) {
+        setCurrentDate(now);
+      }
+    }, 60000); // каждую минуту
+    
+    return () => clearInterval(interval);
+  }, [currentDate]);
   
   // Статистика
   const stats = useMemo(() => ({
@@ -87,13 +102,13 @@ export function Dashboard({
 
   // Задачи на сегодня (активные - не выполнены и не отменены)
   const todayTasks = useMemo(() => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = currentDate.toISOString().split('T')[0];
     return goals?.filter(g => {
       const isToday = g.due_date === today;
       const isActive = g.status !== 'completed' && g.status !== 'cancelled';
       return isToday && isActive;
     }).slice(0, 5) || [];
-  }, [goals]);
+  }, [goals, currentDate]);
 
   return (
     <div className="space-y-6">
@@ -105,9 +120,9 @@ export function Dashboard({
         </div>
         <div className="text-right">
           <p className="text-2xl font-bold text-blue-600">
-            {format(new Date(), 'd MMMM', { locale: ru })}
+            {format(currentDate, 'd MMMM', { locale: ru })}
           </p>
-          <p className="text-gray-500">{format(new Date(), 'EEEE', { locale: ru })}</p>
+          <p className="text-gray-500">{format(currentDate, 'EEEE', { locale: ru })}</p>
         </div>
       </div>
 
