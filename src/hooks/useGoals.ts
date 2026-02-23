@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
 import { supabase } from '../lib/supabase';
 import type { Task } from '../types/goals';
 
@@ -116,7 +117,7 @@ export function useGoals(userId: string | undefined) {
   };
 
   const getStats = () => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = format(new Date(), 'yyyy-MM-dd');
     return {
       total: tasks.length,
       pending: tasks.filter(t => t.status === 'pending').length,

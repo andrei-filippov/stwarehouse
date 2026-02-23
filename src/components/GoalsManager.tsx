@@ -71,7 +71,7 @@ export const GoalsManager = memo(function GoalsManager({ tasks, staff, onAdd, on
   }, [tasks]);
 
   const stats = useMemo(() => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = format(new Date(), 'yyyy-MM-dd');
     return {
       total: tasks.length,
       pending: tasks.filter(t => t.status === 'pending').length,
@@ -84,7 +84,7 @@ export const GoalsManager = memo(function GoalsManager({ tasks, staff, onAdd, on
 
   const filteredTasks = useMemo(() => {
     return tasks.filter(task => {
-      const today = new Date().toISOString().split('T')[0];
+      const today = format(new Date(), 'yyyy-MM-dd');
       
       // Фильтр по плитке
       const matchesFilter = (() => {
@@ -125,9 +125,9 @@ export const GoalsManager = memo(function GoalsManager({ tasks, staff, onAdd, on
     };
 
     const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
-    const tomorrowStr = addDays(today, 1).toISOString().split('T')[0];
-    const weekLaterStr = addDays(today, 7).toISOString().split('T')[0];
+    const todayStr = format(today, 'yyyy-MM-dd');
+    const tomorrowStr = format(addDays(today, 1), 'yyyy-MM-dd');
+    const weekLaterStr = format(addDays(today, 7), 'yyyy-MM-dd');
 
     filteredTasks.forEach(task => {
       if (task.status === 'completed' || task.status === 'cancelled') {
@@ -442,7 +442,7 @@ function TaskCard({
   const assignedStaff = staff.find(s => s.id === task.assigned_to);
   const creator = task.user_id ? userProfiles[task.user_id] : null;
   const isCompleted = task.status === 'completed';
-  const isOverdue = !isCompleted && task.due_date < new Date().toISOString().split('T')[0];
+  const isOverdue = !isCompleted && task.due_date < format(new Date(), 'yyyy-MM-dd');
 
   return (
     <div className={`flex items-start gap-3 p-3 rounded-lg border transition-colors ${
@@ -526,7 +526,7 @@ function TaskForm({ initialData, staff, onSubmit, onCancel }: TaskFormProps) {
     category: initialData?.category || 'other',
     priority: initialData?.priority || 'medium',
     status: initialData?.status || 'pending',
-    due_date: initialData?.due_date || new Date().toISOString().split('T')[0],
+    due_date: initialData?.due_date || format(new Date(), 'yyyy-MM-dd'),
     assigned_to: initialData?.assigned_to || '',
   });
 
