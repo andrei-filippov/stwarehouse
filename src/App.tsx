@@ -1,5 +1,5 @@
 import { useState, useEffect, memo, useCallback, useMemo } from 'react';
-import { Package } from 'lucide-react';
+import { Package, Search } from 'lucide-react';
 import { useAuth } from './hooks/useAuth';
 import { useEquipment } from './hooks/useEquipment';
 import { useEstimates } from './hooks/useEstimates';
@@ -42,8 +42,7 @@ import {
   ClipboardCheck,
   Users,
   Target,
-  Shield,
-  Search
+  Shield
 } from 'lucide-react';
 import type { PDFSettings as PDFSettingsType } from './types';
 
