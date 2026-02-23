@@ -102,7 +102,8 @@ export function Dashboard({
 
   // Задачи на сегодня (активные - не выполнены и не отменены)
   const todayTasks = useMemo(() => {
-    const today = currentDate.toISOString().split('T')[0];
+    // Используем format для локальной даты (не UTC!)
+    const today = format(currentDate, 'yyyy-MM-dd');
     return goals?.filter(g => {
       const isToday = g.due_date === today;
       const isActive = g.status !== 'completed' && g.status !== 'cancelled';
