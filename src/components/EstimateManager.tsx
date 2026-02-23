@@ -3,7 +3,7 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
-import { Plus, Edit, Trash2, Layout, Copy, FileSpreadsheet } from 'lucide-react';
+import { Plus, Edit, Trash2, Layout, Copy, FileSpreadsheet, Users } from 'lucide-react';
 import type { Estimate, PDFSettings, Template, EstimateItem } from '../types';
 import { EstimateBuilder } from './EstimateBuilder';
 import { EstimateImportDialog } from './EstimateImportDialog';
@@ -130,53 +130,131 @@ export const EstimateManager = memo(function EstimateManager({
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Мероприятие</TableHead>
-                <TableHead>Заказчик</TableHead>
-                <TableHead>Площадка</TableHead>
-                <TableHead>Период</TableHead>
-                <TableHead>Позиций</TableHead>
-                <TableHead>Сумма</TableHead>
-                <TableHead>Действия</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {estimates.map((estimate) => (
-                <TableRow key={estimate.id}>
-                  <TableCell className="font-medium">{estimate.event_name}</TableCell>
-                  <TableCell>{estimate.customer_name || '-'}</TableCell>
-                  <TableCell>{estimate.venue || '-'}</TableCell>
-                  <TableCell>
-                    {new Date(estimate.event_start_date || estimate.event_date).toLocaleDateString('ru-RU')}
-                    {(estimate.event_end_date || estimate.event_date) !== (estimate.event_start_date || estimate.event_date) && 
-                      ` — ${new Date(estimate.event_end_date || estimate.event_date).toLocaleDateString('ru-RU')}`}
-                  </TableCell>
-                  <TableCell>{estimate.items?.length || 0}</TableCell>
-                  <TableCell>{estimate.total.toLocaleString('ru-RU')} ₽</TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => handleEdit(estimate)}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => onDelete(estimate.id)}
-                      >
-                        <Trash2 className="w-4 h-4 text-red-500" />
-                      </Button>
-                    </div>
-                  </TableCell>
+          {/* Desktop Table */}
+          <div className="hidden md:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Мероприятие</TableHead>
+                  <TableHead>Заказчик</TableHead>
+                  <TableHead>Площадка</TableHead>
+                  <TableHead>Период</TableHead>
+                  <TableHead>Позиций</TableHead>
+                  <TableHead>Сумма</TableHead>
+                  <TableHead>Действия</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {estimates.map((estimate) => (
+                  <TableRow key={estimate.id}>
+                    <TableCell className="font-medium">{estimate.event_name}</TableCell>
+                    <TableCell>{estimate.customer_name || '-'}</TableCell>
+                    <TableCell>{estimate.venue || '-'}</TableCell>
+                    <TableCell>
+                      {new Date(estimate.event_start_date || estimate.event_date).toLocaleDateString('ru-RU')}
+                      {(estimate.event_end_date || estimate.event_date) !== (estimate.event_start_date || estimate.event_date) && 
+                        ` — ${new Date(estimate.event_end_date || estimate.event_date).toLocaleDateString('ru-RU')}`}
+                    </TableCell>
+                    <TableCell>{estimate.items?.length || 0}</TableCell>
+                    <TableCell>{estimate.total.toLocaleString('ru-RU')} ₽</TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleEdit(estimate)}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => onDelete(estimate.id)}
+                        >
+                          <Trash2 className="w-4 h-4 text-red-500" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Mobile Cards */}
+          <div className="md:hidden space-y-3">
+            {estimates.map((estimate) => {
+              const isMultiDay = (estimate.event_end_date || estimate.event_date) !== (estimate.event_start_date || estimate.event_date);
+              return (
+                <Card 
+                  key={estimate.id} 
+                  className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => handleEdit(estimate)}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-base truncate">{estimate.event_name}</h3>
+                        <p className="text-sm text-gray-500 truncate">{estimate.venue || 'Без площадки'}</p>
+                      </div>
+                      <div className="flex gap-1 ml-2">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEdit(estimate);
+                          }}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDelete(estimate.id);
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4 text-red-500" />
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-sm text-gray-600">
+                        📅 {new Date(estimate.event_start_date || estimate.event_date).toLocaleDateString('ru-RU')}
+                      </span>
+                      {isMultiDay && (
+                        <span className="text-xs text-gray-500">
+                          — {new Date(estimate.event_end_date || estimate.event_date).toLocaleDateString('ru-RU')}
+                        </span>
+                      )}
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        {estimate.customer_name && (
+                          <span className="text-sm text-gray-600 flex items-center gap-1">
+                            <Users className="w-3 h-3" />
+                            {estimate.customer_name}
+                          </span>
+                        )}
+                        <span className="text-sm text-gray-500">
+                          {estimate.items?.length || 0} поз.
+                        </span>
+                      </div>
+                      <span className="font-bold text-lg text-blue-600">
+                        {estimate.total.toLocaleString('ru-RU')} ₽
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
         </CardContent>
       </Card>
 

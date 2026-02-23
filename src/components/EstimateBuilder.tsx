@@ -377,6 +377,17 @@ export function EstimateBuilder({
     [items]
   );
 
+  // Приоритет категорий в смете
+  const categoryPriority: Record<string, number> = {
+    'Звуковое оборудование (PA)': 1,
+    'Звуковое оборудование (Mixing console)': 2,
+    'Звуковое оборудование (Backline)': 3,
+    'Световое оборудование': 4,
+    'Сценическое оборудование': 5,
+    'Видео оборудование': 6,
+    'Услуги специалистов и транспорт': 999, // Всегда последняя
+  };
+
   // Группировка по категориям
   const groupedItems = useMemo(() => {
     const grouped = items.reduce((acc, item) => {
@@ -388,8 +399,12 @@ export function EstimateBuilder({
       return acc;
     }, {} as Record<string, EstimateItem[]>);
     
-    // Сортируем категории по алфавиту
-    return Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b));
+    // Сортируем категории по приоритету
+    return Object.entries(grouped).sort(([a], [b]) => {
+      const priorityA = categoryPriority[a] || 100;
+      const priorityB = categoryPriority[b] || 100;
+      return priorityA - priorityB;
+    });
   }, [items]);
 
   // Расчет суммы по категории (мемоизировано)
