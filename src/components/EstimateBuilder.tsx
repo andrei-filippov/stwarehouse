@@ -777,7 +777,7 @@ export function EstimateBuilder({
                     onClick={() => {
                       if (canAddMore) {
                         addItem(item);
-                        setActiveMobileTab('estimate');
+                        // Не переключаем вкладку автоматически, позволяем добавлять несколько позиций
                       }
                     }}
                   >
@@ -1085,8 +1085,8 @@ export function EstimateBuilder({
                                   </Button>
                                 </div>
                                 
-                                {/* Коэффициент - скрыт на очень маленьких экранах */}
-                                <div className="hidden sm:flex items-center gap-1">
+                                {/* Коэффициент */}
+                                <div className="flex items-center gap-1">
                                   <span className="text-xs text-gray-500">Кф:</span>
                                   <input
                                     type="number"
