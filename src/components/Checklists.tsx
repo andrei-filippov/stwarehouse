@@ -307,6 +307,19 @@ export const ChecklistsManager = memo(function ChecklistsManager({
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Диалог калькулятора */}
+      <Dialog open={isCalculatorOpen} onOpenChange={setIsCalculatorOpen}>
+        <DialogContent className="max-w-lg w-[95%] md:w-full">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wrench className="w-5 h-5" />
+              Калькулятор инструментов
+            </DialogTitle>
+          </DialogHeader>
+          <CalculatorForm onClose={handleCloseCalculator} />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 });
@@ -815,4 +828,145 @@ function exportChecklistToPDF(checklist: Checklist) {
   setTimeout(() => {
     printWindow.print();
   }, 500);
+}
+
+
+// Калькулятор для чек-листов
+function CalculatorForm({ onClose }: { onClose: () => void }) {
+  const [calculationType, setCalculationType] = useState<'cable' | 'stand'>('cable');
+  
+  // Для кабелей
+  const [distance, setDistance] = useState('');
+  const [reserve, setReserve] = useState('10');
+  const [cableResult, setCableResult] = useState<number | null>(null);
+  
+  // Для стоек/стендов
+  const [equipmentCount, setEquipmentCount] = useState('');
+  const [standResult, setStandResult] = useState<number | null>(null);
+
+  const calculateCable = () => {
+    const dist = parseFloat(distance);
+    const res = parseFloat(reserve) || 10;
+    if (dist > 0) {
+      const result = Math.ceil(dist * (1 + res / 100));
+      setCableResult(result);
+    }
+  };
+
+  const calculateStands = () => {
+    const count = parseInt(equipmentCount);
+    if (count > 0) {
+      // На каждые 2 единицы оборудования - 1 стойка
+      const result = Math.ceil(count / 2);
+      setStandResult(result);
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-2">
+        <Button
+          type="button"
+          variant={calculationType === 'cable' ? 'default' : 'outline'}
+          className="flex-1"
+          onClick={() => setCalculationType('cable')}
+        >
+          Кабель
+        </Button>
+        <Button
+          type="button"
+          variant={calculationType === 'stand' ? 'default' : 'outline'}
+          className="flex-1"
+          onClick={() => setCalculationType('stand')}
+        >
+          Стойки
+        </Button>
+      </div>
+
+      {calculationType === 'cable' ? (
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>Расстояние (метры)</Label>
+            <Input
+              type="number"
+              value={distance}
+              onChange={(e) => setDistance(e.target.value)}
+              placeholder="Например: 25"
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <Label>Запас (%)</Label>
+            <Input
+              type="number"
+              value={reserve}
+              onChange={(e) => setReserve(e.target.value)}
+              placeholder="10"
+            />
+          </div>
+
+          <Button onClick={calculateCable} className="w-full">
+            Рассчитать
+          </Button>
+
+          {cableResult !== null && (
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <p className="text-sm text-gray-600">Необходимо кабеля:</p>
+              <p className="text-2xl font-bold text-blue-600">{cableResult} м</p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2 w-full"
+                onClick={() => copyToClipboard(`${cableResult} м`)}
+              >
+                Копировать
+              </Button>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>Количество оборудования</Label>
+            <Input
+              type="number"
+              value={equipmentCount}
+              onChange={(e) => setEquipmentCount(e.target.value)}
+              placeholder="Например: 8"
+            />
+          </div>
+
+          <Button onClick={calculateStands} className="w-full">
+            Рассчитать
+          </Button>
+
+          {standResult !== null && (
+            <div className="bg-green-50 p-4 rounded-lg">
+              <p className="text-sm text-gray-600">Необходимо стоек:</p>
+              <p className="text-2xl font-bold text-green-600">{standResult} шт</p>
+              <p className="text-xs text-gray-500 mt-1">
+                (расчет: 1 стойка на 2 ед. оборудования)
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2 w-full"
+                onClick={() => copyToClipboard(`${standResult} шт`)}
+              >
+                Копировать
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
+      <Button variant="outline" onClick={onClose} className="w-full">
+        Закрыть
+      </Button>
+    </div>
+  );
 }
