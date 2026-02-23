@@ -48,7 +48,8 @@ export function useEstimates(userId: string | undefined) {
       .single();
     
     if (estimateError || !estimateData) {
-      toast.error('Ошибка при создании сметы', { description: estimateError?.message });
+      console.error('Create estimate error:', estimateError);
+      toast.error('Ошибка при создании сметы', { description: estimateError?.message || 'Неизвестная ошибка' });
       return { error: estimateError };
     }
 
