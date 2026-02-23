@@ -3,6 +3,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Card, CardContent } from './ui/card';
 import { Alert, AlertDescription } from './ui/alert';
+import { SortableCategories } from './SortableCategories';
 import { 
   Trash2, 
   Save, 
@@ -377,17 +378,8 @@ export function EstimateBuilder({
     [items]
   );
 
-  // Приоритет категорий в смете
-  const categoryPriority: Record<string, number> = {
-    'Звуковое оборудование (PA)': 1,
-    'Звуковое оборудование (Mixing console)': 2,
-    'Радиосистемы': 3,
-    'Звуковое оборудование (Backline)': 4,
-    'Световое оборудование': 5,
-    'Сценическое оборудование': 6,
-    'Видео оборудование': 7,
-    'Услуги специалистов и транспорт': 999, // Всегда последняя
-  };
+  // Состояние для порядка категорий
+  const [categoryOrder, setCategoryOrder] = useState<string[]>([]);
 
   // Группировка по категориям
   const groupedItems = useMemo(() => {
@@ -400,13 +392,44 @@ export function EstimateBuilder({
       return acc;
     }, {} as Record<string, EstimateItem[]>);
     
-    // Сортируем категории по приоритету
-    return Object.entries(grouped).sort(([a], [b]) => {
+    const entries = Object.entries(grouped);
+    
+    // Если порядок задан - используем его
+    if (categoryOrder.length > 0) {
+      return entries.sort(([a], [b]) => {
+        const indexA = categoryOrder.indexOf(a);
+        const indexB = categoryOrder.indexOf(b);
+        if (indexA === -1 && indexB === -1) return 0;
+        if (indexA === -1) return 1;
+        if (indexB === -1) return -1;
+        return indexA - indexB;
+      });
+    }
+    
+    // Иначе сортируем по приоритету
+    const categoryPriority: Record<string, number> = {
+      'Звуковое оборудование (PA)': 1,
+      'Звуковое оборудование (Mixing console)': 2,
+      'Радиосистемы': 3,
+      'Звуковое оборудование (Backline)': 4,
+      'Световое оборудование': 5,
+      'Сценическое оборудование': 6,
+      'Видео оборудование': 7,
+      'Услуги специалистов и транспорт': 999,
+    };
+    
+    return entries.sort(([a], [b]) => {
       const priorityA = categoryPriority[a] || 100;
       const priorityB = categoryPriority[b] || 100;
       return priorityA - priorityB;
     });
-  }, [items]);
+  }, [items, categoryOrder]);
+
+  // Обработка изменения порядка категорий
+  const handleReorderCategories = (newGroupedItems: [string, EstimateItem[]][]) => {
+    const newOrder = newGroupedItems.map(([category]) => category);
+    setCategoryOrder(newOrder);
+  };
 
   // Расчет суммы по категории (мемоизировано)
   const getCategoryTotal = useCallback((categoryItems: EstimateItem[]) => {
@@ -1024,104 +1047,15 @@ export function EstimateBuilder({
                 <p>Добавьте оборудование из списка слева</p>
               </div>
             ) : (
-              <div className="space-y-4">
-                {groupedItems.map(([category, categoryItems]) => (
-                  <div key={category} className="space-y-2">
-                    {/* Заголовок категории */}
-                    <div className="flex items-center justify-between bg-gray-100 p-2 rounded">
-                      <h3 className="font-semibold text-gray-700">{category}</h3>
-                      <span className="text-sm text-gray-500">{categoryItems.length} поз.</span>
-                    </div>
-                    
-                    {/* Позиции категории */}
-                    <div className="space-y-2">
-                      {categoryItems.map((item, idx) => {
-                        const originalIndex = items.findIndex(i => i === item);
-                        return (
-                          <Card key={idx} className="overflow-hidden">
-                            <CardContent className="p-2.5 md:p-3">
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="flex-1 min-w-0">
-                                  <p className="font-medium text-sm md:text-base">{item.name}</p>
-                                  {item.description && (
-                                    <p className="text-xs text-gray-500 truncate hidden sm:block" title={item.description}>
-                                      {item.description}
-                                    </p>
-                                  )}
-                                  <p className="text-xs md:text-sm text-gray-600 mt-0.5">
-                                    {item.price.toLocaleString('ru-RU')} ₽/{item.unit || 'шт'}
-                                  </p>
-                                </div>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => removeItem(originalIndex)}
-                                  className="shrink-0 h-8 w-8 p-0 -mr-1 -mt-1"
-                                >
-                                  <Trash2 className="w-4 h-4 text-red-500" />
-                                </Button>
-                              </div>
-                              
-                              <div className="flex items-center gap-2 md:gap-4 mt-2 md:mt-3">
-                                {/* Количество */}
-                                <div className="flex items-center gap-1">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-6 w-6 md:h-7 md:w-7 p-0 text-xs md:text-sm"
-                                    onClick={() => updateQuantity(originalIndex, item.quantity - 1)}
-                                  >
-                                    -
-                                  </Button>
-                                  <span className="w-10 text-center font-medium text-xs md:text-sm">
-                                    {item.quantity}
-                                  </span>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-6 w-6 md:h-7 md:w-7 p-0 text-xs md:text-sm"
-                                    onClick={() => updateQuantity(originalIndex, item.quantity + 1)}
-                                  >
-                                    +
-                                  </Button>
-                                </div>
-                                
-                                {/* Коэффициент */}
-                                <div className="flex items-center gap-1">
-                                  <span className="text-xs text-gray-500">Кф:</span>
-                                  <input
-                                    type="number"
-                                    step="0.1"
-                                    min="0.01"
-                                    value={item.coefficient || 1}
-                                    onChange={(e) => updateCoefficient(originalIndex, parseFloat(e.target.value) || 1)}
-                                    className="w-12 md:w-14 h-6 md:h-7 text-center border rounded text-xs md:text-sm"
-                                  />
-                                </div>
-                                
-                                {/* Сумма */}
-                                <div className="ml-auto text-right">
-                                  <span className="font-semibold text-xs md:text-sm">
-                                    {(item.price * item.quantity * (item.coefficient || 1)).toLocaleString('ru-RU')} ₽
-                                  </span>
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        );
-                      })}
-                    </div>
-                    
-                    {/* Подытог по категории */}
-                    <div className="flex justify-end items-center py-2 px-2 md:px-3 bg-blue-50 rounded">
-                      <span className="text-xs md:text-sm text-gray-600 mr-2">Итого по категории:</span>
-                      <span className="font-semibold text-blue-700 text-sm md:text-base">
-                        {getCategoryTotal(categoryItems).toLocaleString('ru-RU')} ₽
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <SortableCategories
+                groupedItems={groupedItems}
+                items={items}
+                onReorder={handleReorderCategories}
+                onRemoveItem={removeItem}
+                onUpdateQuantity={updateQuantity}
+                onUpdateCoefficient={updateCoefficient}
+                getCategoryTotal={getCategoryTotal}
+              />
             )}
           </div>
 
