@@ -833,32 +833,61 @@ function exportChecklistToPDF(checklist: Checklist) {
 
 // Калькулятор для чек-листов
 function CalculatorForm({ onClose }: { onClose: () => void }) {
-  const [calculationType, setCalculationType] = useState<'cable' | 'stand'>('cable');
+  const [calculationType, setCalculationType] = useState<'truss' | 'dmx'>('truss');
   
-  // Для кабелей
-  const [distance, setDistance] = useState('');
-  const [reserve, setReserve] = useState('10');
-  const [cableResult, setCableResult] = useState<number | null>(null);
+  // Для ферм
+  const [jointsCount, setJointsCount] = useState('');
+  const [trussType, setTrussType] = useState<'square' | 'triangle' | 'flat'>('square');
+  const [trussResult, setTrussResult] = useState<{connectors: number, pins: number, splints: number} | null>(null);
   
-  // Для стоек/стендов
-  const [equipmentCount, setEquipmentCount] = useState('');
-  const [standResult, setStandResult] = useState<number | null>(null);
+  // Для DMX
+  const [trussLength, setTrussLength] = useState('');
+  const [fixtureCount, setFixtureCount] = useState('');
+  const [dmxResult, setDmxResult] = useState<{cablePerFixture: number, totalCables: number} | null>(null);
 
-  const calculateCable = () => {
-    const dist = parseFloat(distance);
-    const res = parseFloat(reserve) || 10;
-    if (dist > 0) {
-      const result = Math.ceil(dist * (1 + res / 100));
-      setCableResult(result);
+  const calculateTruss = () => {
+    const joints = parseInt(jointsCount);
+    if (joints > 0) {
+      let connectors = 0, pins = 0, splints = 0;
+      
+      switch (trussType) {
+        case 'square':
+          connectors = joints * 4;
+          pins = joints * 8;
+          splints = joints * 8;
+          break;
+        case 'triangle':
+          connectors = joints * 3;
+          pins = joints * 6;
+          splints = joints * 6;
+          break;
+        case 'flat':
+          connectors = joints * 2;
+          pins = joints * 4;
+          splints = joints * 4;
+          break;
+      }
+      
+      setTrussResult({ connectors, pins, splints });
     }
   };
 
-  const calculateStands = () => {
-    const count = parseInt(equipmentCount);
-    if (count > 0) {
-      // На каждые 2 единицы оборудования - 1 стойка
-      const result = Math.ceil(count / 2);
-      setStandResult(result);
+  const calculateDmx = () => {
+    const length = parseFloat(trussLength);
+    const fixtures = parseInt(fixtureCount);
+    
+    if (length > 0 && fixtures > 0) {
+      // Расстояние между приборами
+      const spacing = length / fixtures;
+      
+      // Кабель с запасом 30%, кратно 0.5м
+      let cablePerFixture = spacing * 1.3;
+      cablePerFixture = Math.ceil(cablePerFixture * 2) / 2; // Округление до 0.5
+      
+      // Общее количество кабелей: приборы * 2 - 2
+      const totalCables = fixtures * 2 - 2;
+      
+      setDmxResult({ cablePerFixture, totalCables });
     }
   };
 
@@ -871,57 +900,93 @@ function CalculatorForm({ onClose }: { onClose: () => void }) {
       <div className="flex gap-2">
         <Button
           type="button"
-          variant={calculationType === 'cable' ? 'default' : 'outline'}
+          variant={calculationType === 'truss' ? 'default' : 'outline'}
           className="flex-1"
-          onClick={() => setCalculationType('cable')}
+          onClick={() => setCalculationType('truss')}
         >
-          Кабель
+          Фермы
         </Button>
         <Button
           type="button"
-          variant={calculationType === 'stand' ? 'default' : 'outline'}
+          variant={calculationType === 'dmx' ? 'default' : 'outline'}
           className="flex-1"
-          onClick={() => setCalculationType('stand')}
+          onClick={() => setCalculationType('dmx')}
         >
-          Стойки
+          DMX кабель
         </Button>
       </div>
 
-      {calculationType === 'cable' ? (
+      {calculationType === 'truss' ? (
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>Расстояние (метры)</Label>
-            <Input
-              type="number"
-              value={distance}
-              onChange={(e) => setDistance(e.target.value)}
-              placeholder="Например: 25"
-            />
+            <Label>Тип фермы</Label>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={trussType === 'square' ? 'default' : 'outline'}
+                size="sm"
+                className="flex-1"
+                onClick={() => setTrussType('square')}
+              >
+                Квадратная
+              </Button>
+              <Button
+                type="button"
+                variant={trussType === 'triangle' ? 'default' : 'outline'}
+                size="sm"
+                className="flex-1"
+                onClick={() => setTrussType('triangle')}
+              >
+                Треугольная
+              </Button>
+              <Button
+                type="button"
+                variant={trussType === 'flat' ? 'default' : 'outline'}
+                size="sm"
+                className="flex-1"
+                onClick={() => setTrussType('flat')}
+              >
+                Плоская
+              </Button>
+            </div>
           </div>
-          
+
           <div className="space-y-2">
-            <Label>Запас (%)</Label>
+            <Label>Количество стыков</Label>
             <Input
               type="number"
-              value={reserve}
-              onChange={(e) => setReserve(e.target.value)}
-              placeholder="10"
+              value={jointsCount}
+              onChange={(e) => setJointsCount(e.target.value)}
+              placeholder="Например: 10"
             />
           </div>
 
-          <Button onClick={calculateCable} className="w-full">
+          <Button onClick={calculateTruss} className="w-full">
             Рассчитать
           </Button>
 
-          {cableResult !== null && (
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <p className="text-sm text-gray-600">Необходимо кабеля:</p>
-              <p className="text-2xl font-bold text-blue-600">{cableResult} м</p>
+          {trussResult !== null && (
+            <div className="bg-blue-50 p-4 rounded-lg space-y-2">
+              <p className="font-semibold text-gray-700">Необходимо комплектующих:</p>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="bg-white p-2 rounded">
+                  <p className="text-xs text-gray-500">Коннекторы</p>
+                  <p className="text-xl font-bold text-blue-600">{trussResult.connectors}</p>
+                </div>
+                <div className="bg-white p-2 rounded">
+                  <p className="text-xs text-gray-500">Пальцы</p>
+                  <p className="text-xl font-bold text-blue-600">{trussResult.pins}</p>
+                </div>
+                <div className="bg-white p-2 rounded">
+                  <p className="text-xs text-gray-500">Шплинты</p>
+                  <p className="text-xl font-bold text-blue-600">{trussResult.splints}</p>
+                </div>
+              </div>
               <Button
                 variant="outline"
                 size="sm"
-                className="mt-2 w-full"
-                onClick={() => copyToClipboard(`${cableResult} м`)}
+                className="w-full"
+                onClick={() => copyToClipboard(`Коннекторы: ${trussResult.connectors}, Пальцы: ${trussResult.pins}, Шплинты: ${trussResult.splints}`)}
               >
                 Копировать
               </Button>
@@ -931,31 +996,41 @@ function CalculatorForm({ onClose }: { onClose: () => void }) {
       ) : (
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>Количество оборудования</Label>
+            <Label>Длина фермы (м)</Label>
             <Input
               type="number"
-              value={equipmentCount}
-              onChange={(e) => setEquipmentCount(e.target.value)}
+              value={trussLength}
+              onChange={(e) => setTrussLength(e.target.value)}
+              placeholder="Например: 12"
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <Label>Количество приборов</Label>
+            <Input
+              type="number"
+              value={fixtureCount}
+              onChange={(e) => setFixtureCount(e.target.value)}
               placeholder="Например: 8"
             />
           </div>
 
-          <Button onClick={calculateStands} className="w-full">
+          <Button onClick={calculateDmx} className="w-full">
             Рассчитать
           </Button>
 
-          {standResult !== null && (
-            <div className="bg-green-50 p-4 rounded-lg">
-              <p className="text-sm text-gray-600">Необходимо стоек:</p>
-              <p className="text-2xl font-bold text-green-600">{standResult} шт</p>
-              <p className="text-xs text-gray-500 mt-1">
-                (расчет: 1 стойка на 2 ед. оборудования)
-              </p>
+          {dmxResult !== null && (
+            <div className="bg-green-50 p-4 rounded-lg space-y-2">
+              <p className="font-semibold text-gray-700">Результат:</p>
+              <div className="space-y-1">
+                <p className="text-sm">Кабель на прибор: <strong>{dmxResult.cablePerFixture} м</strong></p>
+                <p className="text-sm">Всего кабелей DMX: <strong>{dmxResult.totalCables} шт</strong></p>
+              </div>
               <Button
                 variant="outline"
                 size="sm"
-                className="mt-2 w-full"
-                onClick={() => copyToClipboard(`${standResult} шт`)}
+                className="w-full"
+                onClick={() => copyToClipboard(`Кабель DMX: ${dmxResult.cablePerFixture} м x ${dmxResult.totalCables} шт`)}
               >
                 Копировать
               </Button>
