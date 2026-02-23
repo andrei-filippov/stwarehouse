@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Badge } from './ui/badge';
-import { Plus, Upload, Download, Trash2, Edit, Search, FolderPlus, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Upload, Download, Trash2, Edit, Search, FolderPlus, ChevronDown, ChevronUp, X } from 'lucide-react';
 import type { Equipment } from '../types';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
@@ -14,21 +14,27 @@ import * as XLSX from 'xlsx';
 interface EquipmentManagerProps {
   equipment: Equipment[];
   categories: { id: string; name: string }[];
-  onAdd: (item: Omit<Equipment, 'id' | 'created_at' | 'updated_at'>) => Promise<{ error: any }>;
+  userId?: string;
+  onAdd: (item: Omit<Equipment, 'id' | 'created_at' | 'updated_at'> & { user_id: string }) => Promise<{ error: any }>;
   onUpdate: (id: string, updates: Partial<Equipment>) => Promise<{ error: any }>;
   onDelete: (id: string) => Promise<{ error: any }>;
-  onBulkInsert: (items: Omit<Equipment, 'id' | 'created_at' | 'updated_at'>[]) => Promise<{ error: any; count?: number }>;
+  onBulkInsert: (items: (Omit<Equipment, 'id' | 'created_at' | 'updated_at'> & { user_id: string })[]) => Promise<{ error: any; count?: number }>;
   onAddCategory: (name: string) => Promise<{ error: any; data?: any }>;
+  onDeleteCategory?: (id: string) => Promise<{ error: any }>;
+  loading?: boolean;
 }
 
 export function EquipmentManager({ 
   equipment, 
   categories, 
+  userId,
   onAdd, 
   onUpdate, 
   onDelete,
   onBulkInsert,
-  onAddCategory
+  onAddCategory,
+  onDeleteCategory,
+  loading
 }: EquipmentManagerProps) {
   const [search, setSearch] = useState('');
   const [editingItem, setEditingItem] = useState<Equipment | null>(null);
@@ -212,6 +218,10 @@ export function EquipmentManager({
                 const items = groupedByCategory[category];
                 const isExpanded = expandedCategories.has(category);
                 
+                // Проверяем, используется ли категория
+                const categoryObj = categories.find(c => c.name === category);
+                const isCategoryUsed = items.length > 0;
+                
                 return (
                   <Card key={category} className="overflow-hidden">
                     <div 
@@ -223,8 +233,26 @@ export function EquipmentManager({
                         <span className="font-semibold">{category}</span>
                         <Badge variant="secondary">{items.length}</Badge>
                       </div>
-                      <div className="text-sm text-gray-500">
-                        {items.reduce((sum, i) => sum + i.quantity, 0)} ед.
+                      <div className="flex items-center gap-2">
+                        <div className="text-sm text-gray-500">
+                          {items.reduce((sum, i) => sum + i.quantity, 0)} ед.
+                        </div>
+                        {categoryObj && onDeleteCategory && !isCategoryUsed && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 text-gray-400 hover:text-red-500"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (confirm(`Удалить категорию "${category}"?`)) {
+                                onDeleteCategory(categoryObj.id);
+                              }
+                            }}
+                            title="Удалить категорию"
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                     

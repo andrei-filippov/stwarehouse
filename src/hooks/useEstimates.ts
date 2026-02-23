@@ -32,10 +32,17 @@ export function useEstimates(userId: string | undefined) {
   }, [fetchEstimates]);
 
   const createEstimate = async (estimate: Omit<Estimate, 'id' | 'created_at' | 'updated_at'>, items: Omit<EstimateItem, 'id' | 'estimate_id'>[], creatorName?: string) => {
+    // Подготавливаем данные сметы с датами
+    const estimateToSave = {
+      ...estimate,
+      event_date: estimate.event_start_date || estimate.event_date,
+      creator_name: creatorName
+    };
+    
     // Создаем смету
     const { data: estimateData, error: estimateError } = await supabase
       .from('estimates')
-      .insert([{ ...estimate, creator_name: creatorName }])
+      .insert([estimateToSave])
       .select()
       .single();
     
@@ -74,10 +81,17 @@ export function useEstimates(userId: string | undefined) {
   };
 
   const updateEstimate = async (id: string, estimate: Partial<Estimate>, items?: EstimateItem[]) => {
+    // Подготавливаем данные для обновления
+    const estimateToUpdate = {
+      ...estimate,
+      event_date: estimate.event_start_date || estimate.event_date,
+      updated_at: new Date().toISOString()
+    };
+    
     // Обновляем смету
     const { error: estimateError } = await supabase
       .from('estimates')
-      .update({ ...estimate, updated_at: new Date().toISOString() })
+      .update(estimateToUpdate)
       .eq('id', id);
     
     if (estimateError) {

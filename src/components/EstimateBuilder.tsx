@@ -50,6 +50,8 @@ export function EstimateBuilder({
   const [eventName, setEventName] = useState('');
   const [venue, setVenue] = useState('');
   const [eventDate, setEventDate] = useState('');
+  const [eventStartDate, setEventStartDate] = useState('');
+  const [eventEndDate, setEventEndDate] = useState('');
   const [customerId, setCustomerId] = useState<string>('');
   const [items, setItems] = useState<EstimateItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -63,6 +65,8 @@ export function EstimateBuilder({
       setEventName(estimate.event_name || '');
       setVenue(estimate.venue || '');
       setEventDate(estimate.event_date || '');
+      setEventStartDate(estimate.event_start_date || estimate.event_date || '');
+      setEventEndDate(estimate.event_end_date || estimate.event_date || '');
       setCustomerId(estimate.customer_id || '');
       setItems(estimate.items || []);
     } else if (selectedTemplate && equipment.length > 0) {
@@ -70,6 +74,8 @@ export function EstimateBuilder({
       setEventName(selectedTemplate.name || '');
       setVenue('');
       setEventDate('');
+      setEventStartDate('');
+      setEventEndDate('');
       // Применяем шаблон сразу (без проверки доступности, так как дата не выбрана)
       applyTemplateDirect(selectedTemplate);
     } else if (selectedTemplate && equipment.length === 0) {
@@ -77,11 +83,15 @@ export function EstimateBuilder({
       setEventName(selectedTemplate.name || '');
       setVenue('');
       setEventDate('');
+      setEventStartDate('');
+      setEventEndDate('');
       setItems([]);
     } else {
       setEventName('');
       setVenue('');
       setEventDate('');
+      setEventStartDate('');
+      setEventEndDate('');
       setItems([]);
     }
   }, [estimate?.id, selectedTemplate?.id, equipment.length]);
@@ -158,9 +168,21 @@ export function EstimateBuilder({
     setItems(newItems);
   };
 
-  // Расчёт занятости оборудования на выбранную дату
+  // Проверка пересечения двух периодов дат
+  const isDateRangeOverlapping = useCallback((start1: string, end1: string, start2: string, end2: string) => {
+    const s1 = new Date(start1);
+    const e1 = new Date(end1);
+    const s2 = new Date(start2);
+    const e2 = new Date(end2);
+    return s1 <= e2 && s2 <= e1;
+  }, []);
+
+  // Расчёт занятости оборудования на выбранный период
   const equipmentAvailability = useMemo<EquipmentAvailability[]>(() => {
-    if (!eventDate) {
+    const startDate = eventStartDate || eventDate;
+    const endDate = eventEndDate || eventDate;
+    
+    if (!startDate) {
       return equipment.map(eq => ({
         equipment: eq,
         totalQuantity: eq.quantity,
@@ -170,15 +192,21 @@ export function EstimateBuilder({
       }));
     }
 
-    // Находим все сметы на эту дату (исключая текущую редактируемую)
-    const otherEstimatesOnDate = estimates.filter(e => 
-      e.event_date === eventDate && 
-      e.id !== estimate?.id
-    );
+    // Находим все сметы, пересекающиеся с выбранным периодом (исключая текущую редактируемую)
+    const overlappingEstimates = estimates.filter(e => {
+      if (e.id === estimate?.id) return false;
+      
+      const estStart = e.event_start_date || e.event_date;
+      const estEnd = e.event_end_date || e.event_date;
+      
+      if (!estStart || !estEnd) return false;
+      
+      return isDateRangeOverlapping(startDate, endDate || startDate, estStart, estEnd);
+    });
 
     // Считаем занятость по каждому оборудованию
     const occupiedMap = new Map<string, number>();
-    otherEstimatesOnDate.forEach(est => {
+    overlappingEstimates.forEach(est => {
       est.items?.forEach(item => {
         const current = occupiedMap.get(item.equipment_id) || 0;
         occupiedMap.set(item.equipment_id, current + item.quantity);
@@ -196,7 +224,7 @@ export function EstimateBuilder({
         isFullyBooked: available === 0
       };
     });
-  }, [equipment, estimates, eventDate, estimate?.id]);
+  }, [equipment, estimates, eventDate, eventStartDate, eventEndDate, estimate?.id, isDateRangeOverlapping]);
 
   // Категории для фильтра
   const categories = ['all', ...new Set(equipment.map(e => e.category))];
@@ -380,7 +408,9 @@ export function EstimateBuilder({
     const estimateData = {
       event_name: eventName,
       venue,
-      event_date: eventDate,
+      event_date: eventStartDate || eventDate, // Для обратной совместимости
+      event_start_date: eventStartDate || eventDate,
+      event_end_date: eventEndDate || eventStartDate || eventDate,
       total,
       customer_id: customerId || null,
       customer_name: selectedCustomer?.name || null
@@ -780,26 +810,42 @@ export function EstimateBuilder({
                 onChange={(e) => setEventName(e.target.value)}
                 className="text-sm"
               />
+              <Input
+                placeholder="Площадка"
+                value={venue}
+                onChange={(e) => setVenue(e.target.value)}
+                className="text-sm"
+              />
               <div className="grid grid-cols-2 gap-2">
-                <Input
-                  placeholder="Площадка"
-                  value={venue}
-                  onChange={(e) => setVenue(e.target.value)}
-                  className="text-sm"
-                />
-                <Input
-                  type="date"
-                  value={eventDate}
-                  onChange={(e) => setEventDate(e.target.value)}
-                  className="text-sm"
-                />
+                <div className="space-y-1">
+                  <label className="text-xs text-gray-500">Начало мероприятия *</label>
+                  <Input
+                    type="date"
+                    value={eventStartDate}
+                    onChange={(e) => {
+                      setEventStartDate(e.target.value);
+                      setEventDate(e.target.value);
+                    }}
+                    className="text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-gray-500">Окончание мероприятия *</label>
+                  <Input
+                    type="date"
+                    value={eventEndDate}
+                    onChange={(e) => setEventEndDate(e.target.value)}
+                    min={eventStartDate}
+                    className="text-sm"
+                  />
+                </div>
               </div>
               
               {/* Предупреждение о занятости */}
-              {eventDate && equipmentAvailability.some(eq => eq.occupiedQuantity > 0) && (
+              {(eventStartDate || eventDate) && equipmentAvailability.some(eq => eq.occupiedQuantity > 0) && (
                 <Alert className="bg-amber-50 border-amber-200 p-2 md:p-3">
                   <AlertDescription className="text-xs md:text-sm">
-                    <strong>Внимание!</strong> На {new Date(eventDate).toLocaleDateString('ru-RU')} есть другие мероприятия ({equipmentAvailability.filter(eq => eq.occupiedQuantity > 0).length} поз. занято).
+                    <strong>Внимание!</strong> На период с {new Date(eventStartDate || eventDate).toLocaleDateString('ru-RU')} по {new Date(eventEndDate || eventStartDate || eventDate).toLocaleDateString('ru-RU')} есть другие мероприятия ({equipmentAvailability.filter(eq => eq.occupiedQuantity > 0).length} типов оборудования занято).
                   </AlertDescription>
                 </Alert>
               )}

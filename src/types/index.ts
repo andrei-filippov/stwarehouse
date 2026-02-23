@@ -34,7 +34,9 @@ export type Estimate = {
   user_id?: string;
   event_name: string;
   venue: string;
-  event_date: string;
+  event_date: string; // Дата начала (для обратной совместимости)
+  event_start_date?: string; // Дата начала мероприятия
+  event_end_date?: string; // Дата окончания мероприятия
   total: number;
   customer_id?: string;
   customer_name?: string;

@@ -37,9 +37,19 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
       `Смета на мероприятие: ${estimate.event_name}${equipmentList}${creator}`
     );
     
-    // Дата в формате YYYYMMDD (целый день)
-    const date = estimate.event_date?.replace(/-/g, '');
-    const dates = date ? `${date}/${date}` : '';
+    // Даты в формате YYYYMMDD (целый день)
+    const startDate = (estimate.event_start_date || estimate.event_date)?.replace(/-/g, '');
+    const endDate = (estimate.event_end_date || estimate.event_date)?.replace(/-/g, '');
+    
+    // Для Google Calendar конечная дата должна быть на 1 день позже для событий "целый день"
+    let adjustedEndDate = endDate;
+    if (endDate) {
+      const end = new Date(estimate.event_end_date || estimate.event_date || '');
+      end.setDate(end.getDate() + 1);
+      adjustedEndDate = format(end, 'yyyyMMdd');
+    }
+    
+    const dates = startDate && adjustedEndDate ? `${startDate}/${adjustedEndDate}` : '';
     
     return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dates}&details=${details}&location=${location}`;
   }, []);
@@ -54,20 +64,44 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
     return eachDayOfInterval({ start: calendarStart, end: calendarEnd });
   }, [currentMonth]);
 
-  // Группируем сметы по датам
+  // Проверка пересечения дат
+  const isDateInRange = useCallback((date: Date, startDate: string, endDate?: string) => {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(endDate || startDate);
+    end.setHours(0, 0, 0, 0);
+    return d >= start && d <= end;
+  }, []);
+
+  // Группируем сметы по датам (включая многодневные мероприятия)
   const estimatesByDate = useMemo(() => {
     const map = new Map<string, Estimate[]>();
-    estimates.forEach(estimate => {
-      if (estimate.event_date) {
-        const dateKey = estimate.event_date;
-        if (!map.has(dateKey)) {
-          map.set(dateKey, []);
+    
+    // Для каждого дня в календаре находим все сметы, которые включают этот день
+    days.forEach(day => {
+      const dateStr = format(day, 'yyyy-MM-dd');
+      const dayEstimates: Estimate[] = [];
+      
+      estimates.forEach(estimate => {
+        if (!estimate.event_date) return;
+        
+        const startDate = estimate.event_start_date || estimate.event_date;
+        const endDate = estimate.event_end_date || estimate.event_date;
+        
+        if (isDateInRange(day, startDate, endDate)) {
+          dayEstimates.push(estimate);
         }
-        map.get(dateKey)?.push(estimate);
+      });
+      
+      if (dayEstimates.length > 0) {
+        map.set(dateStr, dayEstimates);
       }
     });
+    
     return map;
-  }, [estimates]);
+  }, [estimates, days, isDateInRange]);
 
   // Получаем сметы для выбранной даты
   const selectedDateEstimates = useMemo(() => {
@@ -75,6 +109,18 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
     const dateStr = format(selectedDate, 'yyyy-MM-dd');
     return estimatesByDate.get(dateStr) || [];
   }, [selectedDate, estimatesByDate]);
+  
+  // Проверяем, является ли дата началом, серединой или концом мероприятия
+  const getEventPosition = useCallback((estimate: Estimate, date: Date): 'start' | 'middle' | 'end' | 'single' => {
+    const start = estimate.event_start_date || estimate.event_date;
+    const end = estimate.event_end_date || estimate.event_date;
+    const d = format(date, 'yyyy-MM-dd');
+    
+    if (start === end) return 'single';
+    if (d === start) return 'start';
+    if (d === end) return 'end';
+    return 'middle';
+  }, []);
 
   // Проверка доступности оборудования на выбранную дату
   const getEquipmentAvailability = useCallback((date: Date) => {
@@ -171,14 +217,32 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
                   </div>
                   {hasEvents && (
                     <div className="space-y-1">
-                      {dayEstimates.slice(0, 3).map((estimate, i) => (
-                        <div
-                          key={i}
-                          className="text-xs bg-blue-100 text-blue-800 px-1 py-0.5 rounded truncate"
-                        >
-                          {estimate.event_name}
-                        </div>
-                      ))}
+                      {dayEstimates.slice(0, 3).map((estimate, i) => {
+                        const position = getEventPosition(estimate, day);
+                        const isMultiDay = (estimate.event_start_date || estimate.event_date) !== (estimate.event_end_date || estimate.event_date);
+                        
+                        return (
+                          <div
+                            key={i}
+                            className={`text-xs px-1 py-0.5 rounded truncate ${
+                              isMultiDay 
+                                ? position === 'start' 
+                                  ? 'bg-green-100 text-green-800 rounded-r-none border-r-0'
+                                  : position === 'end'
+                                    ? 'bg-green-100 text-green-800 rounded-l-none border-l-0'
+                                    : position === 'middle'
+                                      ? 'bg-green-100 text-green-800 rounded-none border-x-0'
+                                      : 'bg-blue-100 text-blue-800'
+                                : 'bg-blue-100 text-blue-800'
+                            }`}
+                            title={`${estimate.event_name}${isMultiDay ? ` (${position === 'start' ? 'начало' : position === 'end' ? 'окончание' : position === 'middle' ? 'продолжение' : ''})` : ''}`}
+                          >
+                            {isMultiDay && position === 'start' && '▶ '}
+                            {isMultiDay && position === 'end' && '◀ '}
+                            {estimate.event_name}
+                          </div>
+                        );
+                      })}
                       {dayEstimates.length > 3 && (
                         <div className="text-xs text-gray-500 text-center">
                           +{dayEstimates.length - 3}
@@ -224,6 +288,11 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
                           <div className="min-w-0 flex-1">
                             <p className="font-medium truncate">{estimate.event_name}</p>
                             <p className="text-sm text-gray-500 truncate">{estimate.venue}</p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              📅 {new Date(estimate.event_start_date || estimate.event_date).toLocaleDateString('ru-RU')}
+                              {(estimate.event_end_date || estimate.event_date) !== (estimate.event_start_date || estimate.event_date) && 
+                                ` — ${new Date(estimate.event_end_date || estimate.event_date).toLocaleDateString('ru-RU')}`}
+                            </p>
                             {estimate.creator_name && (
                               <p className="text-xs text-blue-600 mt-1">
                                 👤 {estimate.creator_name}
@@ -308,8 +377,12 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
                   <p>{selectedEstimate.venue || '-'}</p>
                 </div>
                 <div>
-                  <p className="text-gray-500">Дата</p>
-                  <p>{selectedEstimate.event_date}</p>
+                  <p className="text-gray-500">Период</p>
+                  <p>
+                    {new Date(selectedEstimate.event_start_date || selectedEstimate.event_date).toLocaleDateString('ru-RU')}
+                    {(selectedEstimate.event_end_date || selectedEstimate.event_date) !== (selectedEstimate.event_start_date || selectedEstimate.event_date) && 
+                      ` — ${new Date(selectedEstimate.event_end_date || selectedEstimate.event_date).toLocaleDateString('ru-RU')}`}
+                  </p>
                 </div>
                 <div>
                   <p className="text-gray-500">Сумма</p>

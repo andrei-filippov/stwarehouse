@@ -136,7 +136,7 @@ export const EstimateManager = memo(function EstimateManager({
                 <TableHead>Мероприятие</TableHead>
                 <TableHead>Заказчик</TableHead>
                 <TableHead>Площадка</TableHead>
-                <TableHead>Дата</TableHead>
+                <TableHead>Период</TableHead>
                 <TableHead>Позиций</TableHead>
                 <TableHead>Сумма</TableHead>
                 <TableHead>Действия</TableHead>
@@ -148,7 +148,11 @@ export const EstimateManager = memo(function EstimateManager({
                   <TableCell className="font-medium">{estimate.event_name}</TableCell>
                   <TableCell>{estimate.customer_name || '-'}</TableCell>
                   <TableCell>{estimate.venue || '-'}</TableCell>
-                  <TableCell>{estimate.event_date}</TableCell>
+                  <TableCell>
+                    {new Date(estimate.event_start_date || estimate.event_date).toLocaleDateString('ru-RU')}
+                    {(estimate.event_end_date || estimate.event_date) !== (estimate.event_start_date || estimate.event_date) && 
+                      ` — ${new Date(estimate.event_end_date || estimate.event_date).toLocaleDateString('ru-RU')}`}
+                  </TableCell>
                   <TableCell>{estimate.items?.length || 0}</TableCell>
                   <TableCell>{estimate.total.toLocaleString('ru-RU')} ₽</TableCell>
                   <TableCell>
