@@ -103,9 +103,11 @@ export const EstimateManager = memo(function EstimateManager({
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle>Сметы</CardTitle>
-            <div className="flex gap-2">
+          <div className="flex justify-between items-center gap-2">
+            <CardTitle className="text-lg md:text-xl">Сметы</CardTitle>
+            
+            {/* Desktop buttons */}
+            <div className="hidden md:flex gap-2">
               <Button 
                 variant="outline" 
                 onClick={() => setIsImportDialogOpen(true)}
@@ -125,6 +127,38 @@ export const EstimateManager = memo(function EstimateManager({
               <Button onClick={handleCreateNew}>
                 <Plus className="w-4 h-4 mr-2" />
                 Новая смета
+              </Button>
+            </div>
+            
+            {/* Mobile buttons - compact */}
+            <div className="flex md:hidden gap-1">
+              <Button 
+                variant="outline" 
+                size="sm"
+                className="px-2"
+                onClick={() => setIsImportDialogOpen(true)}
+                title="Из Excel"
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+              </Button>
+              {templates.length > 0 && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className="px-2"
+                  onClick={() => setIsTemplateDialogOpen(true)}
+                  title="Из шаблона"
+                >
+                  <Layout className="w-4 h-4" />
+                </Button>
+              )}
+              <Button 
+                size="sm"
+                onClick={handleCreateNew}
+                className="px-2"
+              >
+                <Plus className="w-4 h-4" />
+                <span className="ml-1">Новая</span>
               </Button>
             </div>
           </div>
