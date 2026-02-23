@@ -218,7 +218,7 @@ export function EquipmentManager({
               <p className="text-center text-gray-500 py-8">Нет оборудования</p>
             ) : (
               sortedCategories.map(category => {
-                const items = groupedByCategory[category];
+                const items = groupedByCategory[category] || [];
                 const isExpanded = expandedCategories.has(category);
                 
                 // Проверяем, используется ли категория
