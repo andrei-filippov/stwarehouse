@@ -119,7 +119,47 @@ export function EquipmentManager({
         const workbook = XLSX.read(data, { type: 'binary' });
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        
+        // Читаем все строки как массивы (без заголовков)
+        const rawData: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: null });
+        
+        // Ищем строку с заголовками (где есть "№" или "Наименование")
+        let headerRowIndex = -1;
+        for (let i = 0; i < Math.min(rawData.length, 20); i++) {
+          const row = rawData[i];
+          if (!row) continue;
+          const rowStr = row.map(cell => String(cell || '').toLowerCase()).join(' ');
+          if (rowStr.includes('наименование') || rowStr.includes('название') || rowStr.includes('товар') || rowStr.includes('№')) {
+            headerRowIndex = i;
+            break;
+          }
+        }
+        
+        if (headerRowIndex === -1) {
+          toast.error('Не удалось найти заголовки в файле');
+          return;
+        }
+        
+        // Извлекаем заголовки и данные
+        const headers = rawData[headerRowIndex].map(h => String(h || '').trim());
+        const dataRows = rawData.slice(headerRowIndex + 1).filter(row => 
+          row && row.some(cell => cell !== null && cell !== undefined && String(cell).trim() !== '')
+        );
+        
+        // Преобразуем в объекты
+        const jsonData = dataRows.map(row => {
+          const obj: Record<string, any> = {};
+          headers.forEach((header, index) => {
+            if (header) {
+              obj[header] = row[index] !== undefined ? row[index] : null;
+            }
+          });
+          return obj;
+        });
+        
+        console.log('Headers found:', headers);
+        console.log('Data rows:', jsonData.slice(0, 3));
+        
         processImportData(jsonData);
       }
     };
@@ -159,10 +199,10 @@ export function EquipmentManager({
       // Расширенный список возможных названий колонок
       const name = getValue('name', 'Название', 'Наименование', 'название', 'наименование', 'Товар', 'товар', 'Оборудование', 'оборудование', 'Item', 'item', 'Product', 'product');
       const category = getValue('category', 'Категория', 'категория', 'Группа', 'группа', 'Type', 'type', 'Тип', 'тип', 'Раздел', 'раздел');
-      const quantity = getValue('quantity', 'Количество', 'количество', 'Кол-во', 'кол-во', 'Кол', 'кол', 'Qty', 'qty', 'Count', 'count');
+      const quantity = getValue('quantity', 'Количество', 'количество', 'Кол-во', 'кол-во', 'Кол.', 'кол.', 'Кол', 'кол', 'Qty', 'qty', 'Count', 'count');
       const price = getValue('price', 'Цена', 'цена', 'Стоимость', 'стоимость', 'Price', 'price', 'Сумма', 'сумма', 'Cost', 'cost');
       const description = getValue('description', 'Описание', 'описание', 'Desc', 'desc', 'Примечание', 'примечание', 'Комментарий', 'комментарий');
-      const unit = getValue('unit', 'Ед.изм', 'ед.изм', 'Единица', 'единица', 'Ед', 'ед', 'Unit', 'unit', 'Изм', 'изм');
+      const unit = getValue('unit', 'Ед. Изм.', 'Ед.Изм.', 'Ед. изм.', 'Ед.изм.', 'Ед.изм', 'ед.изм', 'Единица', 'единица', 'Ед', 'ед', 'Unit', 'unit', 'Изм', 'изм');
       
       return {
         name: name || '',
