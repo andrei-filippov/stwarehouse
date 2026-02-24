@@ -8,6 +8,7 @@ import {
   ClipboardCheck, 
   Users, 
   Target, 
+  Cable,
   BarChart3,
   Settings, 
   Shield,
@@ -44,7 +45,7 @@ export function Sidebar({
   );
   
   const referenceTabs = availableTabs.filter(tab => 
-    ['templates', 'checklists', 'staff', 'goals'].includes(tab.id)
+    ['templates', 'checklists', 'staff', 'goals', 'cables'].includes(tab.id)
   );
   
   const systemTabs = availableTabs.filter(tab => 
