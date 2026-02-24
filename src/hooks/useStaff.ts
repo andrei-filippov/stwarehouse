@@ -26,6 +26,33 @@ export function useStaff(userId: string | undefined) {
 
   useEffect(() => {
     fetchStaff();
+    
+    // Realtime подписка на изменения в таблице staff
+    const channel = supabase
+      .channel('staff_changes')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'staff' },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setStaff(prev => {
+              // Проверяем, нет ли уже такой записи
+              if (prev.find(s => s.id === payload.new.id)) return prev;
+              return [...prev, payload.new as Staff];
+            });
+          } else if (payload.eventType === 'UPDATE') {
+            setStaff(prev => prev.map(s => 
+              s.id === payload.new.id ? payload.new as Staff : s
+            ));
+          } else if (payload.eventType === 'DELETE') {
+            setStaff(prev => prev.filter(s => s.id !== payload.old.id));
+          }
+        }
+      )
+      .subscribe();
+    
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [fetchStaff]);
 
   const addStaff = async (staffData: Omit<Staff, 'id' | 'created_at' | 'updated_at'>) => {
