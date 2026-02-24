@@ -8,6 +8,7 @@ import { useChecklists } from './hooks/useChecklists';
 import { useStaff } from './hooks/useStaff';
 import { useGoals } from './hooks/useGoals';
 import { useCustomers } from './hooks/useCustomers';
+import { useCableInventory } from './hooks/useCableInventory';
 import { Auth } from './components/Auth';
 import { EquipmentManager } from './components/EquipmentManagement';
 
@@ -17,6 +18,7 @@ import { TemplatesManager } from './components/Templates';
 import { ChecklistsManager } from './components/Checklists';
 import { StaffManager } from './components/StaffManager';
 import { GoalsManager } from './components/GoalsManager';
+import { CableManager } from './components/CableManager';
 import { PDFSettings } from './components/PDFSettings';
 import { EventCalendar } from './components/EventCalendar';
 import { Analytics } from './components/Analytics';
@@ -42,7 +44,8 @@ import {
   ClipboardCheck,
   Users,
   Target,
-  Shield
+  Shield,
+  Cable
 } from 'lucide-react';
 import type { PDFSettings as PDFSettingsType } from './types';
 
@@ -59,6 +62,7 @@ function App() {
   const { staff, loading: staffLoading, addStaff, updateStaff, deleteStaff } = useStaff(user?.id);
   const { tasks, loading: goalsLoading, addTask, updateTask, deleteTask } = useGoals(user?.id);
   const { customers, loading: customersLoading, error: customersError, addCustomer, updateCustomer, deleteCustomer } = useCustomers(user?.id);
+  const { categories: cableCategories, inventory: cableInventory, movements: cableMovements, stats: cableStats, loading: cableLoading, addCategory: addCableCategory, updateCategory: updateCableCategory, deleteCategory: deleteCableCategory, upsertInventory: upsertCableInventory, deleteInventory: deleteCableInventory, issueCable, returnCable } = useCableInventory(user?.id);
   const analyticsData = { equipment, estimates, staff, customers };
   
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -90,6 +94,7 @@ function App() {
     { id: 'checklists' as Tab, label: 'Чек-листы', icon: ClipboardCheck },
     { id: 'staff' as Tab, label: 'Персонал', icon: Users },
     { id: 'goals' as Tab, label: 'Задачи', icon: Target },
+    { id: 'cables' as Tab, label: 'Коммутация', icon: Cable },
     { id: 'analytics' as Tab, label: 'Аналитика', icon: BarChart3 },
     { id: 'customers' as Tab, label: 'Заказчики', icon: Building2 },
     { id: 'settings' as Tab, label: 'Настройки PDF', icon: Settings },
@@ -279,6 +284,23 @@ function App() {
             onUpdate={updateTask}
             onDelete={deleteTask}
             loading={goalsLoading}
+          />
+        )}
+
+        {activeTab === 'cables' && (
+          <CableManager
+            categories={cableCategories}
+            inventory={cableInventory}
+            movements={cableMovements}
+            stats={cableStats}
+            loading={cableLoading}
+            onAddCategory={addCableCategory}
+            onUpdateCategory={updateCableCategory}
+            onDeleteCategory={deleteCableCategory}
+            onUpsertInventory={upsertCableInventory}
+            onDeleteInventory={deleteCableInventory}
+            onIssueCable={issueCable}
+            onReturnCable={returnCable}
           />
         )}
 
