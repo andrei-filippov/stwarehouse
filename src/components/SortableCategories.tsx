@@ -235,7 +235,7 @@ export function SortableCategories({
   const [categories, setCategories] = useState<string[]>([]);
 
   useEffect(() => {
-    setCategories(groupedItems.map(([category]) => category));
+    setCategories((groupedItems || []).map(([category]) => category));
   }, [groupedItems]);
 
   const sensors = useSensors(
@@ -264,7 +264,7 @@ export function SortableCategories({
   };
 
   // Создаём мапу для быстрого доступа
-  const groupedMap = new Map(groupedItems);
+  const groupedMap = new Map(groupedItems || []);
 
   // Вычисляем индексы для всех позиций
   // Создаём мапу equipment_id -> index для быстрого поиска
@@ -273,7 +273,7 @@ export function SortableCategories({
     
     // Сначала строим мапу всех индексов по equipment_id
     const indexMap = new Map<string, number[]>();
-    items.forEach((it, idx) => {
+    (items || []).forEach((it, idx) => {
       const key = it.equipment_id || it.name;
       if (!indexMap.has(key)) {
         indexMap.set(key, []);
@@ -310,7 +310,7 @@ export function SortableCategories({
 
   // Функция для получения максимально доступного количества
   const getItemMaxQuantity = useCallback((item: EstimateItem): number => {
-    const eqAvail = equipmentAvailability.find(
+    const eqAvail = (equipmentAvailability || []).find(
       ea => ea.equipment.id === item.equipment_id
     );
     if (!eqAvail) return Infinity;

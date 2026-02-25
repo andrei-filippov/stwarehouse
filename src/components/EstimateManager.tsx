@@ -191,7 +191,7 @@ export const EstimateManager = memo(function EstimateManager({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {estimates.map((estimate) => (
+                {(estimates || []).map((estimate) => (
                   <TableRow key={estimate.id}>
                     <TableCell className="font-medium">{estimate.event_name}</TableCell>
                     <TableCell>{estimate.customer_name || '-'}</TableCell>
@@ -229,7 +229,7 @@ export const EstimateManager = memo(function EstimateManager({
 
           {/* Mobile Cards */}
           <div className="md:hidden space-y-3">
-            {estimates.map((estimate) => {
+            {(estimates || []).map((estimate) => {
               const isMultiDay = (estimate.event_end_date || estimate.event_date) !== (estimate.event_start_date || estimate.event_date);
               return (
                 <Card 
@@ -314,7 +314,7 @@ export const EstimateManager = memo(function EstimateManager({
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2 max-h-96 overflow-y-auto">
-            {templates.map((template) => (
+            {(templates || []).map((template) => (
               <Button
                 key={template.id}
                 variant="outline"

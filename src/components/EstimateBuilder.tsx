@@ -211,7 +211,7 @@ export function EstimateBuilder({
     }
 
     // Находим все сметы, пересекающиеся с выбранным периодом (исключая текущую редактируемую)
-    const overlappingEstimates = estimates.filter(e => {
+    const overlappingEstimates = (estimates || []).filter(e => {
       if (e.id === estimate?.id) return false;
       
       const estStart = e.event_start_date || e.event_date;
@@ -465,6 +465,8 @@ export function EstimateBuilder({
   const groupedItems = useMemo(() => {
     // Защита от undefined
     const safeItems = items || [];
+    const safeCategoryOrder = categoryOrder || [];
+    
     const grouped = safeItems.reduce((acc, item) => {
       const category = item.category || 'Без категории';
       if (!acc[category]) {
@@ -477,10 +479,10 @@ export function EstimateBuilder({
     const entries = Object.entries(grouped);
     
     // Если порядок задан - используем его
-    if (categoryOrder.length > 0) {
+    if (safeCategoryOrder.length > 0) {
       return entries.sort(([a], [b]) => {
-        const indexA = categoryOrder.indexOf(a);
-        const indexB = categoryOrder.indexOf(b);
+        const indexA = safeCategoryOrder.indexOf(a);
+        const indexB = safeCategoryOrder.indexOf(b);
         if (indexA === -1 && indexB === -1) return 0;
         if (indexA === -1) return 1;
         if (indexB === -1) return -1;
