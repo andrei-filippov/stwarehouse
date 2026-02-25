@@ -224,7 +224,7 @@ function App() {
             templates={templates}
             customers={customers}
             pdfSettings={pdfSettings}
-            categories={categories}
+            equipmentCategories={categories.map(c => c.name)}
             onCreate={(estimate, items, categoryOrder) => createEstimate(estimate, items, user!.id, profile?.name, categoryOrder)}
             onUpdate={(id, estimate, items, categoryOrder) => updateEstimate(id, estimate, items, user!.id, categoryOrder)}
             onDelete={deleteEstimate}
