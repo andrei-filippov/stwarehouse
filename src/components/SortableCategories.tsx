@@ -85,46 +85,45 @@ function SortableCategoryItem({
       </div>
 
       {/* Позиции категории */}
-      <div className="space-y-2">
+      <div className="space-y-1">
         {(items || []).map((item, idx) => {
           const originalIndex = itemIndices[idx];
           const maxQuantity = getItemMaxQuantity(item);
           const canIncrease = item.quantity < maxQuantity;
+          const itemTotal = item.price * item.quantity * (item.coefficient || 1);
           return (
             <Card key={`${item.equipment_id || item.name}-${originalIndex}`} className="overflow-hidden">
-              <div className="p-2.5 md:p-3">
-                <div className="flex items-start justify-between gap-2">
+              <div className="p-2">
+                <div className="flex items-center gap-2">
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm md:text-base">{item.name}</p>
-                    {item.description && (
-                      <p className="text-xs text-gray-500 truncate" title={item.description}>
-                        {item.description}
-                      </p>
-                    )}
-                    <p className="text-xs md:text-sm text-gray-600 mt-0.5">
-                      {item.price.toLocaleString('ru-RU')} ₽/{item.unit || 'шт'}
-                    </p>
+                    <p className="font-medium text-sm truncate">{item.name}</p>
+                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                      <span>{item.price.toLocaleString('ru-RU')} ₽/{item.unit || 'шт'}</span>
+                      {item.description && (
+                        <span className="truncate" title={item.description}>• {item.description}</span>
+                      )}
+                    </div>
                   </div>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => onRemove(originalIndex)}
-                    className="shrink-0 h-8 w-8 p-0 -mr-1 -mt-1"
+                    className="shrink-0 h-6 w-6 p-0"
                   >
-                    <Trash2 className="w-4 h-4 text-red-500" />
+                    <Trash2 className="w-3.5 h-3.5 text-red-500" />
                   </Button>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2 md:gap-3 mt-2 md:mt-3">
+                <div className="flex items-center justify-between gap-2 mt-1">
                   {/* Количество */}
                   <div className="flex items-center gap-1">
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-6 w-6 md:h-7 md:w-7 p-0 text-xs md:text-sm"
+                      className="h-5 w-5 p-0 text-xs"
                       onClick={() => onUpdateQuantity(originalIndex, item.quantity - 1)}
                     >
-                      -
+                      −
                     </Button>
                     <input
                       type="number"
@@ -136,59 +135,51 @@ function SortableCategoryItem({
                         onUpdateQuantity(originalIndex, newQty);
                       }}
                       onBlur={(e) => {
-                        // При потере фокуса корректируем значение
                         const newQty = parseInt(e.target.value) || 0;
                         const clampedQty = Math.max(1, Math.min(maxQuantity, newQty));
                         if (newQty !== clampedQty) {
                           onUpdateQuantity(originalIndex, clampedQty);
                         }
                       }}
-                      className="w-12 md:w-14 h-6 md:h-7 text-center border rounded text-xs md:text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      className="w-10 h-5 text-center border rounded text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       title={`Макс: ${maxQuantity}`}
                     />
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-6 w-6 md:h-7 md:w-7 p-0 text-xs md:text-sm"
+                      className="h-5 w-5 p-0 text-xs"
                       onClick={() => onUpdateQuantity(originalIndex, item.quantity + 1)}
                       disabled={!canIncrease}
-                      title={!canIncrease ? `Максимально доступно: ${maxQuantity}` : undefined}
+                      title={!canIncrease ? `Макс: ${maxQuantity}` : undefined}
                     >
                       +
                     </Button>
                   </div>
 
-                  {/* Цена */}
-                  <div className="flex items-center gap-1">
-                    <span className="text-xs text-gray-500">Цена:</span>
+                  {/* Цена, Кф, Сумма */}
+                  <div className="flex items-center gap-2">
                     <input
                       type="number"
                       min="0"
                       step="1"
                       value={item.price}
                       onChange={(e) => onUpdatePrice(originalIndex, parseFloat(e.target.value) || 0)}
-                      className="w-16 md:w-20 h-6 md:h-7 text-center border rounded text-xs md:text-sm"
+                      className="w-14 h-5 text-center border rounded text-xs"
+                      title="Цена"
                     />
-                    <span className="text-xs text-gray-400">₽</span>
-                  </div>
-
-                  {/* Коэффициент */}
-                  <div className="flex items-center gap-1">
-                    <span className="text-xs text-gray-500">Кф:</span>
+                    <span className="text-xs text-gray-400">×</span>
                     <input
                       type="number"
                       step="0.1"
                       min="0.01"
                       value={item.coefficient || 1}
                       onChange={(e) => onUpdateCoefficient(originalIndex, parseFloat(e.target.value) || 1)}
-                      className="w-12 md:w-14 h-6 md:h-7 text-center border rounded text-xs md:text-sm"
+                      className="w-10 h-5 text-center border rounded text-xs"
+                      title="Коэфф."
                     />
-                  </div>
-
-                  {/* Сумма */}
-                  <div className="ml-auto text-right">
-                    <span className="font-semibold text-xs md:text-sm">
-                      {(item.price * item.quantity * (item.coefficient || 1)).toLocaleString('ru-RU')} ₽
+                    <span className="text-xs text-gray-400">=</span>
+                    <span className="font-semibold text-sm text-blue-600">
+                      {itemTotal.toLocaleString('ru-RU')} ₽
                     </span>
                   </div>
                 </div>
@@ -199,9 +190,9 @@ function SortableCategoryItem({
       </div>
 
       {/* Подытог по категории */}
-      <div className="flex justify-end items-center py-2 px-2 md:px-3 bg-blue-50 rounded">
-        <span className="text-xs md:text-sm text-gray-600 mr-2">Итого по категории:</span>
-        <span className="font-semibold text-blue-700 text-sm md:text-base">
+      <div className="flex justify-end items-center py-1 px-2 bg-blue-50 rounded text-xs">
+        <span className="text-gray-600 mr-2">Итого:</span>
+        <span className="font-semibold text-blue-700">
           {getCategoryTotal(items).toLocaleString('ru-RU')} ₽
         </span>
       </div>
