@@ -84,7 +84,7 @@ export function EstimateBuilder({
       } else {
         setCategoryOrder([]);
       }
-    } else if (selectedTemplate && equipment.length > 0) {
+    } else if (selectedTemplate && equipment?.length > 0) {
       // Автоматически применяем выбранный шаблон только когда оборудование загружено
       setEventName(selectedTemplate.name || '');
       setVenue('');
@@ -93,7 +93,7 @@ export function EstimateBuilder({
       setEventEndDate('');
       // Применяем шаблон сразу (без проверки доступности, так как дата не выбрана)
       applyTemplateDirect(selectedTemplate);
-    } else if (selectedTemplate && equipment.length === 0) {
+    } else if (selectedTemplate && (!equipment || equipment.length === 0)) {
       // Оборудование еще не загружено - ждем
       setEventName(selectedTemplate.name || '');
       setVenue('');
@@ -109,11 +109,11 @@ export function EstimateBuilder({
       setEventEndDate('');
       setItems([]);
     }
-  }, [estimate?.id, selectedTemplate?.id, equipment.length]);
+  }, [estimate?.id, selectedTemplate?.id, equipment?.length]);
 
   // Прямое применение шаблона без проверки доступности
   const applyTemplateDirect = (template: Template) => {
-    if (!template.items || template.items.length === 0 || equipment.length === 0) return;
+    if (!template.items || template.items.length === 0 || !equipment || equipment.length === 0) return;
     
     const newItems: EstimateItem[] = [];
     
@@ -123,12 +123,12 @@ export function EstimateBuilder({
       
       // Сначала пробуем найти по ID (если шаблон был создан с equipment_id)
       if (templateItem.equipment_id) {
-        matchingEquipment = equipment.find(eq => eq.id === templateItem.equipment_id);
+        matchingEquipment = equipment?.find(eq => eq.id === templateItem.equipment_id);
       }
       
       // Если не нашли по ID, ищем по имени (точное совпадение)
       if (!matchingEquipment && templateItem.equipment_name) {
-        matchingEquipment = equipment.find(eq => 
+        matchingEquipment = equipment?.find(eq => 
           eq.name.toLowerCase().trim() === templateItem.equipment_name.toLowerCase().trim()
         );
       }
@@ -136,7 +136,7 @@ export function EstimateBuilder({
       // Если всё ещё не нашли, ищем по категории (но пропускаем если уже добавляли из этой категории)
       if (!matchingEquipment && templateItem.category) {
         // Для категорийного поиска берем оборудование по индексу, если возможно
-        const categoryEquipment = equipment.filter(eq => 
+        const categoryEquipment = (equipment || []).filter(eq => 
           eq.category.toLowerCase() === templateItem.category.toLowerCase()
         );
         if (categoryEquipment.length > 0) {
@@ -194,6 +194,9 @@ export function EstimateBuilder({
 
   // Расчёт занятости оборудования на выбранный период
   const equipmentAvailability = useMemo<EquipmentAvailability[]>(() => {
+    // Защита от undefined
+    if (!equipment || equipment.length === 0) return [];
+    
     const startDate = eventStartDate || eventDate;
     const endDate = eventEndDate || eventDate;
     
@@ -242,7 +245,7 @@ export function EstimateBuilder({
   }, [equipment, estimates, eventDate, eventStartDate, eventEndDate, estimate?.id, isDateRangeOverlapping]);
 
   // Категории для фильтра
-  const categories = ['all', ...new Set(equipment.map(e => e.category))];
+  const categories = ['all', ...new Set((equipment || []).map(e => e.category))];
 
   // Фильтр оборудования
   const filteredEquipment = equipmentAvailability.filter(item => {
@@ -296,7 +299,7 @@ export function EstimateBuilder({
     if (!item) return;
     
     // Находим оборудование для получения общего количества на складе
-    const equipmentItem = equipment.find(eq => eq.id === item.equipment_id);
+    const equipmentItem = (equipment || []).find(eq => eq.id === item.equipment_id);
     const totalOnWarehouse = equipmentItem?.quantity || 0;
     
     // Если уменьшаем количество - всегда разрешаем
@@ -361,7 +364,7 @@ export function EstimateBuilder({
 
   // Применение шаблона (при клике на кнопку шаблона)
   const applyTemplate = (template: Template) => {
-    if (!template.items || template.items.length === 0 || equipment.length === 0) return;
+    if (!template.items || template.items.length === 0 || !equipment || equipment.length === 0) return;
     
     const newItems: EstimateItem[] = [];
     const usedEquipmentIds = new Set<string>(); // Отслеживаем уже использованное оборудование
@@ -460,7 +463,9 @@ export function EstimateBuilder({
 
   // Группировка по категориям
   const groupedItems = useMemo(() => {
-    const grouped = items.reduce((acc, item) => {
+    // Защита от undefined
+    const safeItems = items || [];
+    const grouped = safeItems.reduce((acc, item) => {
       const category = item.category || 'Без категории';
       if (!acc[category]) {
         acc[category] = [];
@@ -515,7 +520,7 @@ export function EstimateBuilder({
 
   // Выбранный заказчик (мемоизировано)
   const selectedCustomer = useMemo(() =>
-    customers.find(c => c.id === customerId),
+    (customers || []).find(c => c.id === customerId),
     [customers, customerId]
   );
 
@@ -981,7 +986,7 @@ export function EstimateBuilder({
               className="text-sm"
             />
             <div className="flex gap-1.5 md:gap-2 flex-wrap">
-              {['all', ...new Set(equipment.map(e => e.category))].slice(0, 6).map(cat => (
+              {['all', ...new Set((equipment || []).map(e => e.category))].slice(0, 6).map(cat => (
                 <Button
                   key={cat}
                   variant={selectedCategory === cat ? 'default' : 'outline'}
@@ -998,7 +1003,7 @@ export function EstimateBuilder({
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
                 >
-                  {['all', ...new Set(equipment.map(e => e.category))].slice(6).map(cat => (
+                  {['all', ...new Set((equipment || []).map(e => e.category))].slice(6).map(cat => (
                     <option key={cat} value={cat}>{cat}</option>
                   ))}
                 </select>
@@ -1074,7 +1079,7 @@ export function EstimateBuilder({
                 onChange={(e) => setCustomerId(e.target.value)}
               >
                 <option value="">Выберите заказчика</option>
-                {customers.map(c => (
+                {(customers || []).map(c => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
@@ -1132,7 +1137,7 @@ export function EstimateBuilder({
                     Применить шаблон
                   </p>
                   <div className="flex gap-1.5 md:gap-2 flex-wrap">
-                    {templates.slice(0, 3).map(template => (
+                    {(templates || []).slice(0, 3).map(template => (
                       <Button
                         key={template.id}
                         variant="outline"
@@ -1156,7 +1161,7 @@ export function EstimateBuilder({
                         }}
                       >
                         <option value="">Ещё...</option>
-                        {templates.slice(3).map(t => (
+                        {(templates || []).slice(3).map(t => (
                           <option key={t.id} value={t.id}>{t.name}</option>
                         ))}
                       </select>

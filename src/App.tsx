@@ -205,7 +205,7 @@ function App() {
         {activeTab === 'equipment' && (
           <EquipmentManager
             equipment={equipment}
-            equipmentCategories={categories.map(c => c.name)}
+            equipmentCategories={(categories || []).map(c => c.name)}
             userId={user?.id}
             onAdd={addEquipment}
             onUpdate={updateEquipment}
@@ -224,7 +224,7 @@ function App() {
             templates={templates}
             customers={customers}
             pdfSettings={pdfSettings}
-            equipmentCategories={categories.map(c => c.name)}
+            equipmentCategories={(categories || []).map(c => c.name)}
             onCreate={(estimate, items, categoryOrder) => createEstimate(estimate, items, user!.id, profile?.name, categoryOrder)}
             onUpdate={(id, estimate, items, categoryOrder) => updateEstimate(id, estimate, items, user!.id, categoryOrder)}
             onDelete={deleteEstimate}
