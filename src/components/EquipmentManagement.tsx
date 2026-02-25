@@ -49,7 +49,7 @@ export function EquipmentManager({
 
   // Фильтрация оборудования (мемоизировано)
   const filteredEquipment = useMemo(() =>
-    equipment.filter(item =>
+    (equipment || []).filter(item =>
       item.name.toLowerCase().includes(search.toLowerCase()) ||
       item.category.toLowerCase().includes(search.toLowerCase()) ||
       (item.description && item.description.toLowerCase().includes(search.toLowerCase()))
@@ -72,8 +72,8 @@ export function EquipmentManager({
   // Получаем все категории из БД + категории из оборудования
   const sortedCategories = useMemo(() => {
     const allCategoryNames = new Set([
-      ...categories.map(c => c.name),
-      ...Object.keys(groupedByCategory)
+      ...(categories || []).map(c => c.name),
+      ...Object.keys(groupedByCategory || {})
     ]);
     return Array.from(allCategoryNames).sort();
   }, [categories, groupedByCategory]);
@@ -331,7 +331,7 @@ export function EquipmentManager({
                 const isExpanded = expandedCategories.has(category);
                 
                 // Проверяем, используется ли категория
-                const categoryObj = categories.find(c => c.name === category);
+                const categoryObj = (categories || []).find(c => c.name === category);
                 const isCategoryUsed = items.length > 0;
                 
                 return (
@@ -820,7 +820,7 @@ function EquipmentForm({ categories, initialData, onSubmit, onAddCategory }: Equ
             required
           >
             <option value="">Выберите категорию</option>
-            {categories.map(cat => (
+            {(categories || []).map(cat => (
               <option key={cat.id} value={cat.name}>{cat.name}</option>
             ))}
           </select>
