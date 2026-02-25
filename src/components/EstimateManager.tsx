@@ -27,12 +27,14 @@ export const EstimateManager = memo(function EstimateManager({
   templates,
   customers,
   pdfSettings,
-  equipmentCategories = [],
+  equipmentCategories,
   onCreate,
   onUpdate,
   onDelete,
   onCreateEquipment
 }: EstimateManagerProps) {
+  // Защита от undefined
+  const categoriesList = equipmentCategories || [];
   const [isBuilderOpen, setIsBuilderOpen] = useState(false);
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
@@ -101,7 +103,7 @@ export const EstimateManager = memo(function EstimateManager({
         estimate={editingEstimate}
         selectedTemplate={selectedTemplate}
         pdfSettings={pdfSettings}
-        equipmentCategories={equipmentCategories}
+        equipmentCategories={categoriesList}
         onSave={handleSave}
         onClose={handleClose}
         onCreateEquipment={onCreateEquipment}

@@ -52,8 +52,10 @@ export function EstimateBuilder({
   onSave, 
   onClose,
   onCreateEquipment,
-  equipmentCategories = []
+  equipmentCategories
 }: EstimateBuilderProps) {
+  // Защита от undefined
+  const categoriesList = equipmentCategories || [];
   const [eventName, setEventName] = useState('');
   const [venue, setVenue] = useState('');
   const [eventDate, setEventDate] = useState('');
@@ -924,7 +926,7 @@ export function EstimateBuilder({
                   onChange={(e) => setNewEquipmentCategory(e.target.value)}
                 >
                   <option value="">Выберите категорию *</option>
-                  {equipmentCategories.filter(c => c !== 'all').map(cat => (
+                  {categoriesList.map(cat => (
                     <option key={cat} value={cat}>{cat}</option>
                   ))}
                 </select>
@@ -979,7 +981,7 @@ export function EstimateBuilder({
               className="text-sm"
             />
             <div className="flex gap-1.5 md:gap-2 flex-wrap">
-              {categories.slice(0, 6).map(cat => (
+              {['all', ...new Set(equipment.map(e => e.category))].slice(0, 6).map(cat => (
                 <Button
                   key={cat}
                   variant={selectedCategory === cat ? 'default' : 'outline'}
@@ -996,7 +998,7 @@ export function EstimateBuilder({
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
                 >
-                  {categories.slice(6).map(cat => (
+                  {['all', ...new Set(equipment.map(e => e.category))].slice(6).map(cat => (
                     <option key={cat} value={cat}>{cat}</option>
                   ))}
                 </select>
