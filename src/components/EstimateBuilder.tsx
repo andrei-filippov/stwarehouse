@@ -658,7 +658,7 @@ export function EstimateBuilder({
     
     groupedItems.forEach(([category, categoryItems]) => {
       // Заголовок категории
-      wsData.push([category, '', '', '', '', '', '', '', '']);
+      wsData.push(['', category, '', '', '', '', '', '', '']);
       rowIndex++;
       
       // Позиции категории
