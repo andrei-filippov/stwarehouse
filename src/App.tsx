@@ -205,7 +205,7 @@ function App() {
         {activeTab === 'equipment' && (
           <EquipmentManager
             equipment={equipment}
-            categories={categories}
+            equipmentCategories={categories}
             userId={user?.id}
             onAdd={addEquipment}
             onUpdate={updateEquipment}

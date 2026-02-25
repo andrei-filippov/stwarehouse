@@ -14,7 +14,7 @@ interface EstimateManagerProps {
   templates: Template[];
   customers: any[];
   pdfSettings: PDFSettings;
-  categories?: string[];
+  equipmentCategories?: string[];
   onCreate: (estimate: any, items: any[], categoryOrder?: string[]) => Promise<{ error: any; data?: any }>;
   onUpdate: (id: string, estimate: any, items: any[], categoryOrder?: string[]) => Promise<{ error: any }>;
   onDelete: (id: string) => Promise<{ error: any }>;
@@ -27,7 +27,7 @@ export const EstimateManager = memo(function EstimateManager({
   templates,
   customers,
   pdfSettings,
-  categories = [],
+  equipmentCategories = [],
   onCreate,
   onUpdate,
   onDelete,
@@ -101,7 +101,7 @@ export const EstimateManager = memo(function EstimateManager({
         estimate={editingEstimate}
         selectedTemplate={selectedTemplate}
         pdfSettings={pdfSettings}
-        categories={categories}
+        equipmentCategories={equipmentCategories}
         onSave={handleSave}
         onClose={handleClose}
         onCreateEquipment={onCreateEquipment}

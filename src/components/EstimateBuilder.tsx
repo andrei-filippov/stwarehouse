@@ -38,7 +38,7 @@ interface EstimateBuilderProps {
   onSave: (estimate: any, items: any[], categoryOrder?: string[]) => Promise<void>;
   onClose: () => void;
   onCreateEquipment?: (equipment: Omit<Equipment, 'id' | 'created_at' | 'updated_at'>) => Promise<{ error: any; data?: any }>;
-  categories?: string[];
+  equipmentCategories?: string[];
 }
 
 export function EstimateBuilder({ 
@@ -52,7 +52,7 @@ export function EstimateBuilder({
   onSave, 
   onClose,
   onCreateEquipment,
-  categories = []
+  equipmentCategories = []
 }: EstimateBuilderProps) {
   const [eventName, setEventName] = useState('');
   const [venue, setVenue] = useState('');
@@ -924,7 +924,7 @@ export function EstimateBuilder({
                   onChange={(e) => setNewEquipmentCategory(e.target.value)}
                 >
                   <option value="">Выберите категорию *</option>
-                  {categories.filter(c => c !== 'all').map(cat => (
+                  {equipmentCategories.filter(c => c !== 'all').map(cat => (
                     <option key={cat} value={cat}>{cat}</option>
                   ))}
                 </select>
