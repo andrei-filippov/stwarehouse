@@ -266,29 +266,43 @@ export function SortableCategories({
   // Создаём мапу для быстрого доступа
   const groupedMap = new Map(groupedItems);
 
-  // Вычисляем индексы для всех позиций на основе текущего порядка категорий
+  // Вычисляем индексы для всех позиций
+  // Создаём мапу equipment_id -> index для быстрого поиска
   const categoryItemIndices = useMemo(() => {
     const indices = new Map<string, number[]>();
-    let currentIndex = 0;
     
-    // Используем categories (актуальный порядок), а не groupedItems
+    // Сначала строим мапу всех индексов по equipment_id
+    const indexMap = new Map<string, number[]>();
+    items.forEach((it, idx) => {
+      const key = it.equipment_id || it.name;
+      if (!indexMap.has(key)) {
+        indexMap.set(key, []);
+      }
+      indexMap.get(key)!.push(idx);
+    });
+    
+    // Теперь для каждой категории находим индексы
     for (const category of categories) {
       const catItems = groupedMap.get(category) || [];
       const catIndices: number[] = [];
+      const usedIndices = new Set<number>();
       
-      for (let i = 0; i < catItems.length; i++) {
-        // Находим реальный индекс в массиве items
-        const item = catItems[i];
-        const realIndex = items.findIndex((it, idx) => 
-          idx >= currentIndex && 
-          it.equipment_id === item.equipment_id && 
-          it.name === item.name
-        );
-        catIndices.push(realIndex !== -1 ? realIndex : currentIndex + i);
+      for (const item of catItems) {
+        const key = item.equipment_id || item.name;
+        const possibleIndices = indexMap.get(key) || [];
+        
+        // Берём первый неиспользованный индекс
+        const realIndex = possibleIndices.find(idx => !usedIndices.has(idx));
+        if (realIndex !== undefined) {
+          catIndices.push(realIndex);
+          usedIndices.add(realIndex);
+        } else {
+          // Fallback - не должно произойти
+          catIndices.push(-1);
+        }
       }
       
       indices.set(category, catIndices);
-      currentIndex += catItems.length;
     }
     
     return indices;
