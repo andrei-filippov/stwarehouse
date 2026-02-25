@@ -44,6 +44,7 @@ export type Estimate = {
   updated_at?: string;
   items?: EstimateItem[];
   creator_name?: string;
+  category_order?: string[]; // Порядок категорий для drag-and-drop
 };
 
 export type TemplateItem = {

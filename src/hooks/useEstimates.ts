@@ -19,6 +19,19 @@ export function useEstimates(userId: string | undefined) {
       `)
       .order('created_at', { ascending: false });
     
+    // Преобразуем category_order из JSONB в массив
+    if (data) {
+      data.forEach((estimate: any) => {
+        if (estimate.category_order && typeof estimate.category_order === 'string') {
+          try {
+            estimate.category_order = JSON.parse(estimate.category_order);
+          } catch {
+            estimate.category_order = [];
+          }
+        }
+      });
+    }
+    
     if (error) {
       toast.error('Ошибка при загрузке смет', { description: error.message });
     } else if (data) {
@@ -31,14 +44,19 @@ export function useEstimates(userId: string | undefined) {
     fetchEstimates();
   }, [fetchEstimates]);
 
-  const createEstimate = async (estimate: Omit<Estimate, 'id' | 'created_at' | 'updated_at'>, items: Omit<EstimateItem, 'id' | 'estimate_id'>[], userId: string, creatorName?: string) => {
+  const createEstimate = async (estimate: Omit<Estimate, 'id' | 'created_at' | 'updated_at'>, items: Omit<EstimateItem, 'id' | 'estimate_id'>[], userId: string, creatorName?: string, categoryOrder?: string[]) => {
     // Подготавливаем данные сметы с датами и user_id
-    const estimateToSave = {
+    const estimateToSave: any = {
       ...estimate,
       user_id: userId,
       event_date: estimate.event_start_date || estimate.event_date,
       creator_name: creatorName
     };
+    
+    // Добавляем порядок категорий если есть
+    if (categoryOrder && categoryOrder.length > 0) {
+      estimateToSave.category_order = categoryOrder;
+    }
     
     // Создаем смету
     const { data: estimateData, error: estimateError } = await supabase
@@ -82,13 +100,20 @@ export function useEstimates(userId: string | undefined) {
     return { error: null, data: estimateData };
   };
 
-  const updateEstimate = async (id: string, estimate: Partial<Estimate>, items?: EstimateItem[], userId?: string) => {
+  const updateEstimate = async (id: string, estimate: Partial<Estimate>, items?: EstimateItem[], userId?: string, categoryOrder?: string[]) => {
     // Подготавливаем данные для обновления
     const estimateToUpdate: any = {
       ...estimate,
       event_date: estimate.event_start_date || estimate.event_date,
       updated_at: new Date().toISOString()
     };
+    
+    // Добавляем порядок категорий если передан
+    if (categoryOrder && categoryOrder.length > 0) {
+      estimateToUpdate.category_order = categoryOrder;
+    } else if (estimate.category_order) {
+      estimateToUpdate.category_order = estimate.category_order;
+    }
     
     // Добавляем user_id если передан (для новых записей)
     if (userId) {

@@ -14,9 +14,11 @@ interface EstimateManagerProps {
   templates: Template[];
   customers: any[];
   pdfSettings: PDFSettings;
-  onCreate: (estimate: any, items: any[]) => Promise<{ error: any; data?: any }>;
-  onUpdate: (id: string, estimate: any, items: any[]) => Promise<{ error: any }>;
+  categories?: string[];
+  onCreate: (estimate: any, items: any[], categoryOrder?: string[]) => Promise<{ error: any; data?: any }>;
+  onUpdate: (id: string, estimate: any, items: any[], categoryOrder?: string[]) => Promise<{ error: any }>;
   onDelete: (id: string) => Promise<{ error: any }>;
+  onCreateEquipment?: (equipment: any) => Promise<{ error: any; data?: any }>;
 }
 
 export const EstimateManager = memo(function EstimateManager({
@@ -25,9 +27,11 @@ export const EstimateManager = memo(function EstimateManager({
   templates,
   customers,
   pdfSettings,
+  categories = [],
   onCreate,
   onUpdate,
-  onDelete
+  onDelete,
+  onCreateEquipment
 }: EstimateManagerProps) {
   const [isBuilderOpen, setIsBuilderOpen] = useState(false);
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
@@ -74,14 +78,18 @@ export const EstimateManager = memo(function EstimateManager({
     setIsBuilderOpen(true);
   }, []);
 
-  const handleSave = useCallback(async (estimateData: any, items: any[]) => {
+  const handleSave = useCallback(async (estimateData: any, items: any[], categoryOrder?: string[]) => {
     if (editingEstimate && editingEstimate.id !== 'new') {
-      await onUpdate(editingEstimate.id, estimateData, items);
+      await onUpdate(editingEstimate.id, estimateData, items, categoryOrder);
     } else {
-      await onCreate(estimateData, items);
+      const result = await onCreate(estimateData, items, categoryOrder);
+      // После создания новой сметы, обновляем editingEstimate чтобы можно было продолжить редактирование
+      if (result.data) {
+        setEditingEstimate({ ...result.data, items } as Estimate);
+      }
     }
-    handleClose();
-  }, [editingEstimate, onUpdate, onCreate, handleClose]);
+    // Не закрываем конструктор после сохранения
+  }, [editingEstimate, onUpdate, onCreate]);
 
   if (isBuilderOpen) {
     return (
@@ -93,8 +101,10 @@ export const EstimateManager = memo(function EstimateManager({
         estimate={editingEstimate}
         selectedTemplate={selectedTemplate}
         pdfSettings={pdfSettings}
+        categories={categories}
         onSave={handleSave}
         onClose={handleClose}
+        onCreateEquipment={onCreateEquipment}
       />
     );
   }

@@ -224,9 +224,11 @@ function App() {
             templates={templates}
             customers={customers}
             pdfSettings={pdfSettings}
-            onCreate={(estimate, items) => createEstimate(estimate, items, user!.id, profile?.name)}
-            onUpdate={(id, estimate, items) => updateEstimate(id, estimate, items, user!.id)}
+            categories={categories}
+            onCreate={(estimate, items, categoryOrder) => createEstimate(estimate, items, user!.id, profile?.name, categoryOrder)}
+            onUpdate={(id, estimate, items, categoryOrder) => updateEstimate(id, estimate, items, user!.id, categoryOrder)}
             onDelete={deleteEstimate}
+            onCreateEquipment={addEquipment}
             loading={estimatesLoading}
           />
         )}

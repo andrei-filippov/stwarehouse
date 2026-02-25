@@ -4,6 +4,7 @@ import { Input } from './ui/input';
 import { Card, CardContent } from './ui/card';
 import { Alert, AlertDescription } from './ui/alert';
 import { SortableCategories } from './SortableCategories';
+import { toast } from 'sonner';
 import { 
   Trash2, 
   Save, 
@@ -12,7 +13,8 @@ import {
   Package,
   Printer,
   Layout,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Plus
 } from 'lucide-react';
 import type { Customer, Equipment, Estimate, EstimateItem, PDFSettings, Template } from '../types';
 // XLSX загружается динамически при необходимости
@@ -33,8 +35,10 @@ interface EstimateBuilderProps {
   estimate?: Estimate | null;
   selectedTemplate?: Template | null;
   pdfSettings: PDFSettings;
-  onSave: (estimate: any, items: any[]) => Promise<void>;
+  onSave: (estimate: any, items: any[], categoryOrder?: string[]) => Promise<void>;
   onClose: () => void;
+  onCreateEquipment?: (equipment: Omit<Equipment, 'id' | 'created_at' | 'updated_at'>) => Promise<{ error: any; data?: any }>;
+  categories?: string[];
 }
 
 export function EstimateBuilder({ 
@@ -46,7 +50,9 @@ export function EstimateBuilder({
   selectedTemplate,
   pdfSettings, 
   onSave, 
-  onClose 
+  onClose,
+  onCreateEquipment,
+  categories = []
 }: EstimateBuilderProps) {
   const [eventName, setEventName] = useState('');
   const [venue, setVenue] = useState('');
@@ -70,6 +76,12 @@ export function EstimateBuilder({
       setEventEndDate(estimate.event_end_date || estimate.event_date || '');
       setCustomerId(estimate.customer_id || '');
       setItems(estimate.items || []);
+      // Загружаем порядок категорий из сметы
+      if (estimate.category_order && estimate.category_order.length > 0) {
+        setCategoryOrder(estimate.category_order);
+      } else {
+        setCategoryOrder([]);
+      }
     } else if (selectedTemplate && equipment.length > 0) {
       // Автоматически применяем выбранный шаблон только когда оборудование загружено
       setEventName(selectedTemplate.name || '');
@@ -434,6 +446,15 @@ export function EstimateBuilder({
 
   // Состояние для порядка категорий
   const [categoryOrder, setCategoryOrder] = useState<string[]>([]);
+  
+  // Состояние для создания оборудования
+  const [isCreatingEquipment, setIsCreatingEquipment] = useState(false);
+  const [newEquipmentName, setNewEquipmentName] = useState('');
+  const [newEquipmentCategory, setNewEquipmentCategory] = useState('');
+  const [newEquipmentPrice, setNewEquipmentPrice] = useState('');
+  const [newEquipmentQuantity, setNewEquipmentQuantity] = useState('1');
+  const [newEquipmentUnit, setNewEquipmentUnit] = useState('шт');
+  const [newEquipmentDescription, setNewEquipmentDescription] = useState('');
 
   // Группировка по категориям
   const groupedItems = useMemo(() => {
@@ -518,8 +539,45 @@ export function EstimateBuilder({
       estimateData.event_end_date = endDate;
     }
     
-    await onSave(estimateData, items);
-    onClose();
+    // Передаем порядок категорий при сохранении
+    await onSave(estimateData, items, categoryOrder);
+    // Показываем уведомление об успешном сохранении
+    toast.success(estimate ? 'Смета сохранена' : 'Смета создана', {
+      description: eventName
+    });
+    // Не закрываем смету после сохранения
+  };
+  
+  // Создание нового оборудования
+  const handleCreateEquipment = async () => {
+    if (!onCreateEquipment) return;
+    if (!newEquipmentName.trim() || !newEquipmentCategory) {
+      alert('Введите название и выберите категорию оборудования');
+      return;
+    }
+    
+    const price = parseFloat(newEquipmentPrice) || 0;
+    const quantity = parseInt(newEquipmentQuantity) || 1;
+    
+    const { error } = await onCreateEquipment({
+      name: newEquipmentName.trim(),
+      category: newEquipmentCategory,
+      price,
+      quantity,
+      unit: newEquipmentUnit,
+      description: newEquipmentDescription.trim()
+    });
+    
+    if (error) {
+      alert('Ошибка при создании оборудования: ' + error.message);
+    } else {
+      // Очищаем форму
+      setNewEquipmentName('');
+      setNewEquipmentPrice('');
+      setNewEquipmentQuantity('1');
+      setNewEquipmentDescription('');
+      setIsCreatingEquipment(false);
+    }
   };
 
   // Экспорт PDF с поддержкой кириллицы через HTML
@@ -654,6 +712,14 @@ export function EstimateBuilder({
   };
 
   // Экспорт Excel с поддержкой кириллицы
+  // Форматирование даты в dd.mm.yyyy
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return '-';
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return '-';
+    return date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  };
+
   // Экспорт в Excel в стиле файла сметы
   const exportExcel = useCallback(async () => {
     // Создаем массив строк для Excel (AOA - array of arrays)
@@ -662,7 +728,7 @@ export function EstimateBuilder({
     // Заголовок сметы
     wsData.push(['', 'Коммерческое предложение:', '', '', '', '', '', '', '']);
     wsData.push(['', `Заказчик: ${selectedCustomer?.name || 'не указан'}`, '', '', '', '', '', '', '']);
-    wsData.push(['', `Дата и место проведения: ${eventDate || 'не указана'}`, '', '', '', '', '', '', '']);
+    wsData.push(['', `Дата и место проведения: ${formatDate(eventDate)}`, '', '', '', '', '', '', '']);
     wsData.push(['', `Место проведения: ${venue || 'не указано'}`, '', '', '', '', '', '', '']);
     wsData.push(['', '', '', '', '', '', '', '', '']);
     
@@ -716,6 +782,32 @@ export function EstimateBuilder({
     
     // Создаем worksheet
     const ws = XLSX.utils.aoa_to_sheet(wsData);
+    
+    // Стиль для границ
+    const borderStyle = { style: 'thin', color: { rgb: '000000' } };
+    const allBorders = {
+      top: borderStyle,
+      bottom: borderStyle,
+      left: borderStyle,
+      right: borderStyle
+    };
+    
+    // Применяем границы ко всем ячейкам с данными
+    const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+    for (let R = range.s.r; R <= range.e.r; ++R) {
+      for (let C = range.s.c; C <= range.e.c; ++C) {
+        const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
+        if (!ws[cellRef]) continue;
+        if (!ws[cellRef].s) ws[cellRef].s = {};
+        ws[cellRef].s.border = allBorders;
+        
+        // Жирный шрифт для заголовка таблицы (строка 6 - индекс 5)
+        if (R === 5) {
+          ws[cellRef].s.font = { bold: true };
+          ws[cellRef].s.fill = { patternType: 'solid', fgColor: { rgb: 'E3F2FD' } };
+        }
+      }
+    }
     
     // Настройки ширины колонок
     ws['!cols'] = [
@@ -799,10 +891,87 @@ export function EstimateBuilder({
         {/* Левая колонка - Оборудование */}
         <div className={`${activeMobileTab === 'equipment' ? 'flex' : 'hidden'} md:flex w-full md:w-1/2 border-r flex-col print:hidden`}>
           <div className="p-3 md:p-4 border-b space-y-3 md:space-y-4">
-            <h2 className="font-semibold flex items-center gap-2 text-sm md:text-base">
-              <Package className="w-4 h-4 md:w-5 md:h-5" />
-              Доступное оборудование
-            </h2>
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold flex items-center gap-2 text-sm md:text-base">
+                <Package className="w-4 h-4 md:w-5 md:h-5" />
+                Доступное оборудование
+              </h2>
+              {onCreateEquipment && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setIsCreatingEquipment(!isCreatingEquipment)}
+                  className="text-xs"
+                >
+                  {isCreatingEquipment ? 'Отмена' : '+ Добавить'}
+                </Button>
+              )}
+            </div>
+            
+            {/* Форма создания оборудования */}
+            {isCreatingEquipment && onCreateEquipment && (
+              <div className="bg-blue-50 border rounded-lg p-3 space-y-2">
+                <p className="text-xs font-medium text-blue-700">Новое оборудование</p>
+                <Input
+                  placeholder="Название *"
+                  value={newEquipmentName}
+                  onChange={(e) => setNewEquipmentName(e.target.value)}
+                  className="text-sm"
+                />
+                <select
+                  className="w-full border rounded-md p-2 text-sm"
+                  value={newEquipmentCategory}
+                  onChange={(e) => setNewEquipmentCategory(e.target.value)}
+                >
+                  <option value="">Выберите категорию *</option>
+                  {categories.filter(c => c !== 'all').map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+                <div className="grid grid-cols-3 gap-2">
+                  <Input
+                    placeholder="Цена"
+                    type="number"
+                    value={newEquipmentPrice}
+                    onChange={(e) => setNewEquipmentPrice(e.target.value)}
+                    className="text-sm"
+                  />
+                  <Input
+                    placeholder="Кол-во"
+                    type="number"
+                    value={newEquipmentQuantity}
+                    onChange={(e) => setNewEquipmentQuantity(e.target.value)}
+                    className="text-sm"
+                  />
+                  <select
+                    className="border rounded-md p-2 text-sm"
+                    value={newEquipmentUnit}
+                    onChange={(e) => setNewEquipmentUnit(e.target.value)}
+                  >
+                    <option value="шт">шт</option>
+                    <option value="комплект">комплект</option>
+                    <option value="услуга">услуга</option>
+                    <option value="человек">человек</option>
+                    <option value="п.м.">п.м.</option>
+                  </select>
+                </div>
+                <Input
+                  placeholder="Описание (необязательно)"
+                  value={newEquipmentDescription}
+                  onChange={(e) => setNewEquipmentDescription(e.target.value)}
+                  className="text-sm"
+                />
+                <Button 
+                  size="sm" 
+                  className="w-full"
+                  onClick={handleCreateEquipment}
+                  disabled={!newEquipmentName.trim() || !newEquipmentCategory}
+                >
+                  Создать и добавить в базу
+                </Button>
+              </div>
+            )}
+            
             <Input
               placeholder="Поиск..."
               value={searchQuery}
