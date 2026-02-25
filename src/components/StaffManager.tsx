@@ -1,4 +1,5 @@
 import { useState, useCallback, memo, useMemo } from 'react';
+import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -19,7 +20,8 @@ import {
   Phone,
   Mail,
   Calendar,
-  Car
+  Car,
+  FileSpreadsheet
 } from 'lucide-react';
 import type { Staff } from '../types';
 
@@ -139,7 +141,7 @@ export const StaffManager = memo(function StaffManager({ staff, onAdd, onUpdate,
               <th>Должность</th>
               <th>Телефон</th>
               <th>Email</th>
-              <th>Статус</th>
+              <th>Автомобиль</th>
             </tr>
           </thead>
           <tbody>
@@ -150,7 +152,7 @@ export const StaffManager = memo(function StaffManager({ staff, onAdd, onUpdate,
                 <td>${s.position}</td>
                 <td>${s.phone || '-'}</td>
                 <td>${s.email || '-'}</td>
-                <td>${s.is_active ? 'Активен' : 'Уволен'}</td>
+                <td>${s.car_info || '-'}</td>
               </tr>
             `).join('')}
           </tbody>
@@ -205,6 +207,7 @@ export const StaffManager = memo(function StaffManager({ staff, onAdd, onUpdate,
               <th>Паспорт</th>
               <th>Телефон</th>
               <th>Дата рожд.</th>
+              <th>Автомобиль</th>
             </tr>
           </thead>
           <tbody>
@@ -216,6 +219,7 @@ export const StaffManager = memo(function StaffManager({ staff, onAdd, onUpdate,
                 <td class="passport">${s.passport_series || ''} ${s.passport_number || ''}</td>
                 <td>${s.phone || '-'}</td>
                 <td>${s.birth_date ? new Date(s.birth_date).toLocaleDateString('ru-RU') : '-'}</td>
+                <td>${s.car_info || '-'}</td>
               </tr>
             `).join('')}
           </tbody>
@@ -230,6 +234,95 @@ export const StaffManager = memo(function StaffManager({ staff, onAdd, onUpdate,
     setTimeout(() => {
       printWindow.print();
     }, 500);
+  }, [selectedStaff, filteredStaff]);
+
+  // Экспорт в Excel с полными данными
+  const exportToExcel = useCallback(async () => {
+    const staffToExport = selectedStaff.length > 0 ? selectedStaff : filteredStaff;
+    
+    if (staffToExport.length === 0) {
+      toast.error('Нет данных для экспорта');
+      return;
+    }
+
+    // Создаем данные для Excel
+    const wsData: any[][] = [];
+    
+    // Заголовок
+    wsData.push(['ПОЛНЫЕ ДАННЫЕ ПЕРСОНАЛА']);
+    wsData.push(['']);
+    wsData.push([
+      `Всего: ${staffToExport.length} человек | Дата: ${new Date().toLocaleDateString('ru-RU')}${selectedStaff.length > 0 ? ' (выбранные)' : ''}`
+    ]);
+    wsData.push(['']);
+    
+    // Шапка таблицы
+    wsData.push([
+      '№',
+      'ФИО',
+      'Должность',
+      'Телефон',
+      'Email',
+      'Дата рождения',
+      'Паспорт серия',
+      'Паспорт номер',
+      'Кем выдан',
+      'Дата выдачи',
+      'Автомобиль',
+      'Примечания'
+    ]);
+    
+    // Данные
+    staffToExport.forEach((s, idx) => {
+      wsData.push([
+        idx + 1,
+        s.full_name,
+        s.position,
+        s.phone || '',
+        s.email || '',
+        s.birth_date ? new Date(s.birth_date).toLocaleDateString('ru-RU') : '',
+        s.passport_series || '',
+        s.passport_number || '',
+        s.passport_issued_by || '',
+        s.passport_issue_date ? new Date(s.passport_issue_date).toLocaleDateString('ru-RU') : '',
+        s.car_info || '',
+        s.notes || ''
+      ]);
+    });
+    
+    try {
+      const XLSX = await import('xlsx');
+      
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+      
+      // Настройки ширины колонок
+      ws['!cols'] = [
+        { wch: 5 },   // №
+        { wch: 30 },  // ФИО
+        { wch: 20 },  // Должность
+        { wch: 15 },  // Телефон
+        { wch: 25 },  // Email
+        { wch: 15 },  // Дата рождения
+        { wch: 10 },  // Паспорт серия
+        { wch: 12 },  // Паспорт номер
+        { wch: 40 },  // Кем выдан
+        { wch: 15 },  // Дата выдачи
+        { wch: 30 },  // Автомобиль
+        { wch: 30 },  // Примечания
+      ];
+      
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Персонал');
+      
+      const fileName = `Персонал_${new Date().toISOString().split('T')[0]}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+      
+      toast.success('Excel файл сохранен', { 
+        description: `Экспортировано ${staffToExport.length} сотрудников` 
+      });
+    } catch (error) {
+      toast.error('Ошибка при экспорте', { description: 'Не удалось создать Excel файл' });
+    }
   }, [selectedStaff, filteredStaff]);
 
   if (loading) {
@@ -260,10 +353,14 @@ export const StaffManager = memo(function StaffManager({ staff, onAdd, onUpdate,
                   Выбрано: {selectedIds.size}
                 </Badge>
               )}
-              <Button variant="outline" onClick={exportToPDF} className="rounded-lg shadow-sm hover:shadow-md transition-all">
+              <Button variant="outline" onClick={exportToExcel} className="rounded-lg shadow-sm hover:shadow-md transition-all">
+                <FileSpreadsheet className="w-4 h-4 mr-2" />
+                <span className="hidden sm:inline">Excel</span>
+                <span className="sm:hidden">Excel</span>
+              </Button>
+              <Button variant="outline" onClick={exportToPDF} className="rounded-lg shadow-sm hover:shadow-md transition-all hidden sm:flex">
                 <FileText className="w-4 h-4 mr-2" />
-                <span className="hidden sm:inline">{selectedIds.size > 0 ? 'Экспорт выбранных' : 'Список (PDF)'}</span>
-                <span className="sm:hidden">PDF</span>
+                PDF
               </Button>
               <Button variant="outline" onClick={exportFullDataPDF} className="rounded-lg shadow-sm hover:shadow-md transition-all hidden sm:flex">
                 <Download className="w-4 h-4 mr-2" />
