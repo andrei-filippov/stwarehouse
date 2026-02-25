@@ -245,6 +245,7 @@ export function EstimateBuilder({
     // Проверяем, не превышаем ли доступное количество
     const currentQtyInEstimate = existingItem?.quantity || 0;
     if (currentQtyInEstimate >= eqAvailability.availableQuantity) {
+      alert(`Нельзя добавить больше. Доступно: ${eqAvailability.availableQuantity} шт.`);
       return; // Нельзя добавить больше чем доступно
     }
     
@@ -255,6 +256,12 @@ export function EstimateBuilder({
           : i
       ));
     } else {
+      // Проверяем, можно ли добавить новый item (хотя бы 1 штука)
+      if (eqAvailability.availableQuantity <= 0) {
+        alert(`Нет доступного оборудования. Всего: ${eqAvailability.totalQuantity}, занято: ${eqAvailability.occupiedQuantity}`);
+        return;
+      }
+      
       const newItem: EstimateItem = {
         equipment_id: equipmentItem.id,
         name: equipmentItem.name,
@@ -269,13 +276,38 @@ export function EstimateBuilder({
     }
   };
 
-  // Обновление количества
+  // Обновление количества с проверкой доступности
   const updateQuantity = (index: number, quantity: number) => {
-    const newItems = [...items];
-    newItems[index].quantity = Math.max(0, quantity);
-    if (newItems[index].quantity === 0) {
-      newItems.splice(index, 1);
+    const item = items[index];
+    if (!item) return;
+    
+    // Если уменьшаем количество - всегда разрешаем
+    if (quantity <= item.quantity) {
+      const newItems = [...items];
+      newItems[index].quantity = Math.max(0, quantity);
+      if (newItems[index].quantity === 0) {
+        newItems.splice(index, 1);
+      }
+      setItems(newItems);
+      return;
     }
+    
+    // Если увеличиваем - проверяем доступность
+    const eqAvailability = equipmentAvailability.find(
+      ea => ea.equipment.id === item.equipment_id
+    );
+    
+    if (eqAvailability) {
+      // Максимум = доступно + уже в смете
+      const maxAllowed = eqAvailability.availableQuantity + item.quantity;
+      if (quantity > maxAllowed) {
+        alert(`Нельзя добавить больше ${maxAllowed} шт. (доступно на складе: ${eqAvailability.availableQuantity})`);
+        return;
+      }
+    }
+    
+    const newItems = [...items];
+    newItems[index].quantity = quantity;
     setItems(newItems);
   };
 
