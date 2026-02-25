@@ -115,7 +115,7 @@ function SortableCategoryItem({
                   </Button>
                 </div>
 
-                <div className="flex items-center gap-2 md:gap-4 mt-2 md:mt-3">
+                <div className="flex flex-wrap items-center gap-2 md:gap-3 mt-2 md:mt-3">
                   {/* Количество */}
                   <div className="flex items-center gap-1">
                     <Button
@@ -126,9 +126,26 @@ function SortableCategoryItem({
                     >
                       -
                     </Button>
-                    <span className="w-10 text-center font-medium text-xs md:text-sm">
-                      {item.quantity}
-                    </span>
+                    <input
+                      type="number"
+                      min="1"
+                      max={maxQuantity}
+                      value={item.quantity}
+                      onChange={(e) => {
+                        const newQty = parseInt(e.target.value) || 0;
+                        onUpdateQuantity(originalIndex, newQty);
+                      }}
+                      onBlur={(e) => {
+                        // При потере фокуса корректируем значение
+                        const newQty = parseInt(e.target.value) || 0;
+                        const clampedQty = Math.max(1, Math.min(maxQuantity, newQty));
+                        if (newQty !== clampedQty) {
+                          onUpdateQuantity(originalIndex, clampedQty);
+                        }
+                      }}
+                      className="w-12 md:w-14 h-6 md:h-7 text-center border rounded text-xs md:text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      title={`Макс: ${maxQuantity}`}
+                    />
                     <Button
                       variant="outline"
                       size="sm"
