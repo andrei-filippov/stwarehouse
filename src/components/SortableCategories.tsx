@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -19,26 +19,38 @@ import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Trash2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
-import type { EstimateItem } from '../types';
+import type { EstimateItem, Equipment } from '../types';
+
+interface EquipmentAvailability {
+  equipment: Equipment;
+  totalQuantity: number;
+  occupiedQuantity: number;
+  availableQuantity: number;
+  isFullyBooked: boolean;
+}
 
 interface SortableCategoryItemProps {
   category: string;
   items: EstimateItem[];
+  itemIndices: number[]; // Индексы каждой позиции в общем массиве items
   onRemove: (index: number) => void;
   onUpdateQuantity: (index: number, quantity: number) => void;
   onUpdateCoefficient: (index: number, coefficient: number) => void;
+  onUpdatePrice: (index: number, price: number) => void;
   getCategoryTotal: (items: EstimateItem[]) => number;
-  itemsIndex: number;
+  getItemMaxQuantity: (item: EstimateItem) => number;
 }
 
 function SortableCategoryItem({
   category,
   items,
+  itemIndices,
   onRemove,
   onUpdateQuantity,
   onUpdateCoefficient,
+  onUpdatePrice,
   getCategoryTotal,
-  itemsIndex,
+  getItemMaxQuantity,
 }: SortableCategoryItemProps) {
   const {
     attributes,
@@ -75,9 +87,11 @@ function SortableCategoryItem({
       {/* Позиции категории */}
       <div className="space-y-2">
         {items.map((item, idx) => {
-          const originalIndex = itemsIndex + idx;
+          const originalIndex = itemIndices[idx];
+          const maxQuantity = getItemMaxQuantity(item);
+          const canIncrease = item.quantity < maxQuantity;
           return (
-            <Card key={idx} className="overflow-hidden">
+            <Card key={`${item.equipment_id || item.name}-${originalIndex}`} className="overflow-hidden">
               <div className="p-2.5 md:p-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
@@ -120,9 +134,25 @@ function SortableCategoryItem({
                       size="sm"
                       className="h-6 w-6 md:h-7 md:w-7 p-0 text-xs md:text-sm"
                       onClick={() => onUpdateQuantity(originalIndex, item.quantity + 1)}
+                      disabled={!canIncrease}
+                      title={!canIncrease ? `Максимально доступно: ${maxQuantity}` : undefined}
                     >
                       +
                     </Button>
+                  </div>
+
+                  {/* Цена */}
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs text-gray-500">Цена:</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={item.price}
+                      onChange={(e) => onUpdatePrice(originalIndex, parseFloat(e.target.value) || 0)}
+                      className="w-16 md:w-20 h-6 md:h-7 text-center border rounded text-xs md:text-sm"
+                    />
+                    <span className="text-xs text-gray-400">₽</span>
                   </div>
 
                   {/* Коэффициент */}
@@ -165,20 +195,24 @@ function SortableCategoryItem({
 interface SortableCategoriesProps {
   groupedItems: [string, EstimateItem[]][];
   items: EstimateItem[];
+  equipmentAvailability: EquipmentAvailability[];
   onReorder: (newOrder: [string, EstimateItem[]][]) => void;
   onRemoveItem: (index: number) => void;
   onUpdateQuantity: (index: number, quantity: number) => void;
   onUpdateCoefficient: (index: number, coefficient: number) => void;
+  onUpdatePrice: (index: number, price: number) => void;
   getCategoryTotal: (items: EstimateItem[]) => number;
 }
 
 export function SortableCategories({
   groupedItems,
   items,
+  equipmentAvailability,
   onReorder,
   onRemoveItem,
   onUpdateQuantity,
   onUpdateCoefficient,
+  onUpdatePrice,
   getCategoryTotal,
 }: SortableCategoriesProps) {
   const [categories, setCategories] = useState<string[]>([]);
@@ -215,6 +249,46 @@ export function SortableCategories({
   // Создаём мапу для быстрого доступа
   const groupedMap = new Map(groupedItems);
 
+  // Вычисляем индексы для всех позиций на основе текущего порядка категорий
+  const categoryItemIndices = useMemo(() => {
+    const indices = new Map<string, number[]>();
+    let currentIndex = 0;
+    
+    // Используем categories (актуальный порядок), а не groupedItems
+    for (const category of categories) {
+      const catItems = groupedMap.get(category) || [];
+      const catIndices: number[] = [];
+      
+      for (let i = 0; i < catItems.length; i++) {
+        // Находим реальный индекс в массиве items
+        const item = catItems[i];
+        const realIndex = items.findIndex((it, idx) => 
+          idx >= currentIndex && 
+          it.equipment_id === item.equipment_id && 
+          it.name === item.name
+        );
+        catIndices.push(realIndex !== -1 ? realIndex : currentIndex + i);
+      }
+      
+      indices.set(category, catIndices);
+      currentIndex += catItems.length;
+    }
+    
+    return indices;
+  }, [categories, groupedMap, items]);
+
+  // Функция для получения максимально доступного количества
+  const getItemMaxQuantity = useCallback((item: EstimateItem): number => {
+    const eqAvail = equipmentAvailability.find(
+      ea => ea.equipment.id === item.equipment_id
+    );
+    if (!eqAvail) return Infinity;
+    
+    // Максимум = доступное на складе + уже добавленное в смету
+    const alreadyInEstimate = item.quantity;
+    return eqAvail.availableQuantity + alreadyInEstimate;
+  }, [equipmentAvailability]);
+
   return (
     <DndContext
       sensors={sensors}
@@ -223,25 +297,22 @@ export function SortableCategories({
     >
       <SortableContext items={categories} strategy={verticalListSortingStrategy}>
         <div className="space-y-4">
-          {categories.map((category, index) => {
+          {categories.map((category) => {
             const categoryItems = groupedMap.get(category) || [];
-            // Вычисляем начальный индекс для items
-            let itemsIndex = 0;
-            for (let i = 0; i < groupedItems.length; i++) {
-              if (groupedItems[i][0] === category) break;
-              itemsIndex += groupedItems[i][1].length;
-            }
+            const itemIndices = categoryItemIndices.get(category) || [];
 
             return (
               <SortableCategoryItem
                 key={category}
                 category={category}
                 items={categoryItems}
+                itemIndices={itemIndices}
                 onRemove={onRemoveItem}
                 onUpdateQuantity={onUpdateQuantity}
                 onUpdateCoefficient={onUpdateCoefficient}
+                onUpdatePrice={onUpdatePrice}
                 getCategoryTotal={getCategoryTotal}
-                itemsIndex={itemsIndex}
+                getItemMaxQuantity={getItemMaxQuantity}
               />
             );
           })}

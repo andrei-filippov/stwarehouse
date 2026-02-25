@@ -286,6 +286,13 @@ export function EstimateBuilder({
     setItems(newItems);
   };
 
+  // Обновление цены
+  const updatePrice = (index: number, price: number) => {
+    const newItems = [...items];
+    newItems[index].price = Math.max(0, price);
+    setItems(newItems);
+  };
+
   // Удаление позиции
   const removeItem = (index: number) => {
     setItems(items.filter((_, i) => i !== index));
@@ -1050,10 +1057,12 @@ export function EstimateBuilder({
               <SortableCategories
                 groupedItems={groupedItems}
                 items={items}
+                equipmentAvailability={equipmentAvailability}
                 onReorder={handleReorderCategories}
                 onRemoveItem={removeItem}
                 onUpdateQuantity={updateQuantity}
                 onUpdateCoefficient={updateCoefficient}
+                onUpdatePrice={updatePrice}
                 getCategoryTotal={getCategoryTotal}
               />
             )}
