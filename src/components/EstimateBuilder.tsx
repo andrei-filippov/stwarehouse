@@ -297,6 +297,10 @@ export function EstimateBuilder({
 
   // Обновление количества с проверкой доступности
   const updateQuantity = (index: number, quantity: number) => {
+    if (index < 0 || index >= items.length) {
+      console.error('updateQuantity: invalid index', index, items.length);
+      return;
+    }
     const item = items[index];
     if (!item) return;
     
@@ -347,6 +351,10 @@ export function EstimateBuilder({
 
   // Обновление коэффициента
   const updateCoefficient = (index: number, coefficient: number) => {
+    if (index < 0 || index >= items.length) {
+      console.error('updateCoefficient: invalid index', index, items.length);
+      return;
+    }
     const newItems = [...items];
     newItems[index].coefficient = Math.max(0.01, coefficient);
     setItems(newItems);
@@ -354,6 +362,10 @@ export function EstimateBuilder({
 
   // Обновление цены
   const updatePrice = (index: number, price: number) => {
+    if (index < 0 || index >= items.length) {
+      console.error('updatePrice: invalid index', index, items.length);
+      return;
+    }
     const newItems = [...items];
     newItems[index].price = Math.max(0, price);
     setItems(newItems);
@@ -361,6 +373,10 @@ export function EstimateBuilder({
 
   // Удаление позиции
   const removeItem = (index: number) => {
+    if (index < 0 || index >= (items || []).length) {
+      console.error('removeItem: invalid index', index, (items || []).length);
+      return;
+    }
     setItems((items || []).filter((_, i) => i !== index));
   };
 

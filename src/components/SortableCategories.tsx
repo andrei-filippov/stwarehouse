@@ -52,6 +52,14 @@ function SortableCategoryItem({
   getCategoryTotal,
   getItemMaxQuantity,
 }: SortableCategoryItemProps) {
+  // Проверка консистентности данных
+  if (items.length !== itemIndices.length) {
+    console.error('SortableCategoryItem: items and itemIndices length mismatch', {
+      category,
+      itemsLength: items.length,
+      indicesLength: itemIndices.length
+    });
+  }
   const {
     attributes,
     listeners,
@@ -88,6 +96,11 @@ function SortableCategoryItem({
       <div className="space-y-1">
         {(items || []).map((item, idx) => {
           const originalIndex = itemIndices[idx];
+          // Защита: если индекс не найден или -1, не рендерим или используем запасной вариант
+          if (originalIndex === undefined || originalIndex === -1) {
+            console.warn('SortableCategories: invalid originalIndex for item', item);
+            return null;
+          }
           const maxQuantity = getItemMaxQuantity(item);
           const canIncrease = item.quantity < maxQuantity;
           const itemTotal = item.price * item.quantity * (item.coefficient || 1);
@@ -243,61 +256,43 @@ export function SortableCategories({
       const oldIndex = categories.indexOf(active.id as string);
       const newIndex = categories.indexOf(over.id as string);
 
+      if (oldIndex === -1 || newIndex === -1) return;
+
       const newCategories = arrayMove(categories, oldIndex, newIndex);
       setCategories(newCategories);
 
       // Переупорядочиваем groupedItems
-      const newGroupedItems = newCategories.map(
-        (cat) => groupedItems.find(([c]) => c === cat)!
-      );
+      const newGroupedItems = newCategories.map((cat) => {
+        const found = groupedItems.find(([c]) => c === cat);
+        if (!found) {
+          console.error('Category not found in groupedItems:', cat);
+          return [cat, []] as [string, EstimateItem[]];
+        }
+        return found;
+      });
       onReorder(newGroupedItems);
     }
   };
 
-  // Создаём мапу для быстрого доступа
-  const groupedMap = new Map(groupedItems || []);
+
 
   // Вычисляем индексы для всех позиций
-  // Создаём мапу equipment_id -> index для быстрого поиска
+  // Создаём мапу category -> array of original indices
   const categoryItemIndices = useMemo(() => {
     const indices = new Map<string, number[]>();
     
-    // Сначала строим мапу всех индексов по equipment_id
-    const indexMap = new Map<string, number[]>();
-    (items || []).forEach((it, idx) => {
-      const key = it.equipment_id || it.name;
-      if (!indexMap.has(key)) {
-        indexMap.set(key, []);
+    // Проходим по всем items и группируем по категории
+    // Важно: сохраняем порядок items как в оригинальном массиве
+    (items || []).forEach((item, originalIndex) => {
+      const category = item.category || 'Без категории';
+      if (!indices.has(category)) {
+        indices.set(category, []);
       }
-      indexMap.get(key)!.push(idx);
+      indices.get(category)!.push(originalIndex);
     });
     
-    // Теперь для каждой категории находим индексы
-    for (const category of categories) {
-      const catItems = groupedMap.get(category) || [];
-      const catIndices: number[] = [];
-      const usedIndices = new Set<number>();
-      
-      for (const item of catItems) {
-        const key = item.equipment_id || item.name;
-        const possibleIndices = indexMap.get(key) || [];
-        
-        // Берём первый неиспользованный индекс
-        const realIndex = possibleIndices.find(idx => !usedIndices.has(idx));
-        if (realIndex !== undefined) {
-          catIndices.push(realIndex);
-          usedIndices.add(realIndex);
-        } else {
-          // Fallback - не должно произойти
-          catIndices.push(-1);
-        }
-      }
-      
-      indices.set(category, catIndices);
-    }
-    
     return indices;
-  }, [categories, groupedMap, items]);
+  }, [items]);
 
   // Функция для получения максимально доступного количества
   const getItemMaxQuantity = useCallback((item: EstimateItem): number => {
@@ -320,8 +315,9 @@ export function SortableCategories({
       <SortableContext items={categories} strategy={verticalListSortingStrategy}>
         <div className="space-y-2">
           {categories.map((category) => {
-            const categoryItems = groupedMap.get(category) || [];
             const itemIndices = categoryItemIndices.get(category) || [];
+            // Получаем items по индексам из оригинального массива
+            const categoryItems = itemIndices.map(idx => (items || [])[idx]).filter(Boolean);
 
             return (
               <SortableCategoryItem
@@ -337,7 +333,7 @@ export function SortableCategories({
                 getItemMaxQuantity={getItemMaxQuantity}
               />
             );
-          })}
+          })}.
         </div>
       </SortableContext>
     </DndContext>
