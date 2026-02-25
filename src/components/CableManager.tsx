@@ -1,4 +1,5 @@
 import { useState, useMemo, memo } from 'react';
+import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -123,6 +124,24 @@ export const CableManager = memo(function CableManager({
     if (!error) {
       setIsInventoryDialogOpen(false);
       setInventoryForm({ category_id: '', length: '', quantity: '', min_quantity: '5' });
+    }
+  };
+
+  // Обновление количества напрямую
+  const handleUpdateInventoryQty = async (id: string, newQty: number, length: number) => {
+    if (newQty < 0) return;
+    const item = inventory.find(i => i.id === id);
+    if (!item) return;
+    
+    const { error } = await onUpsertInventory({
+      category_id: item.category_id,
+      length: length,
+      quantity: newQty,
+      min_quantity: item.min_quantity,
+    });
+    
+    if (error) {
+      toast.error('Ошибка при обновлении', { description: error.message });
     }
   };
 
@@ -314,9 +333,28 @@ export const CableManager = memo(function CableManager({
                             >
                               <div className="flex items-center gap-4">
                                 <span className="font-medium w-16">{item.length} м</span>
-                                <span className={`text-sm ${item.quantity < item.min_quantity ? 'text-orange-600 font-medium' : 'text-gray-600'}`}>
-                                  {item.quantity} шт
-                                </span>
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-6 w-6 p-0"
+                                    onClick={() => handleUpdateInventoryQty(item.id, item.quantity - 1, item.length)}
+                                    disabled={item.quantity <= 0}
+                                  >
+                                    -
+                                  </Button>
+                                  <span className={`text-sm w-10 text-center ${item.quantity < item.min_quantity ? 'text-orange-600 font-medium' : 'text-gray-600'}`}>
+                                    {item.quantity}
+                                  </span>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-6 w-6 p-0"
+                                    onClick={() => handleUpdateInventoryQty(item.id, item.quantity + 1, item.length)}
+                                  >
+                                    +
+                                  </Button>
+                                </div>
                                 {item.quantity < item.min_quantity && (
                                   <AlertCircle className="w-4 h-4 text-orange-500" />
                                 )}

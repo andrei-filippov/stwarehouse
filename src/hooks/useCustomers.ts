@@ -40,6 +40,43 @@ export function useCustomers(userId: string | undefined) {
 
   useEffect(() => {
     fetchCustomers();
+    
+    // Realtime подписка на изменения заказчиков
+    const channel = supabase
+      .channel('customers_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'customers'
+        },
+        (payload) => {
+          console.log('Customers change received:', payload);
+          
+          if (payload.eventType === 'INSERT') {
+            const newCustomer = payload.new as Customer;
+            setCustomers(prev => {
+              // Проверяем, нет ли уже такого заказчика
+              if (prev.find(c => c.id === newCustomer.id)) return prev;
+              return [...prev, newCustomer].sort((a, b) => a.name.localeCompare(b.name));
+            });
+          } else if (payload.eventType === 'UPDATE') {
+            const updatedCustomer = payload.new as Customer;
+            setCustomers(prev => prev.map(c => 
+              c.id === updatedCustomer.id ? updatedCustomer : c
+            ));
+          } else if (payload.eventType === 'DELETE') {
+            const deletedId = payload.old.id;
+            setCustomers(prev => prev.filter(c => c.id !== deletedId));
+          }
+        }
+      )
+      .subscribe();
+    
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [fetchCustomers]);
 
   const addCustomer = async (customer: Omit<Customer, 'id' | 'created_at' | 'updated_at'> & { user_id: string }) => {

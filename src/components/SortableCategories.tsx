@@ -315,9 +315,9 @@ export function SortableCategories({
     );
     if (!eqAvail) return Infinity;
     
-    // Максимум = доступное на складе + уже добавленное в смету
-    const alreadyInEstimate = item.quantity;
-    return eqAvail.availableQuantity + alreadyInEstimate;
+    // Максимум = доступное на складе + уже в смете, но не больше чем есть всего на складе
+    const maxAllowed = eqAvail.availableQuantity + item.quantity;
+    return Math.min(maxAllowed, eqAvail.totalQuantity);
   }, [equipmentAvailability]);
 
   return (

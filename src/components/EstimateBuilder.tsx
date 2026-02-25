@@ -281,6 +281,10 @@ export function EstimateBuilder({
     const item = items[index];
     if (!item) return;
     
+    // Находим оборудование для получения общего количества на складе
+    const equipmentItem = equipment.find(eq => eq.id === item.equipment_id);
+    const totalOnWarehouse = equipmentItem?.quantity || 0;
+    
     // Если уменьшаем количество - всегда разрешаем
     if (quantity <= item.quantity) {
       const newItems = [...items];
@@ -298,10 +302,21 @@ export function EstimateBuilder({
     );
     
     if (eqAvailability) {
-      // Максимум = доступно + уже в смете
-      const maxAllowed = eqAvailability.availableQuantity + item.quantity;
+      // Максимум = доступно + уже в смете, но не больше чем есть на складе всего
+      const maxAllowed = Math.min(
+        eqAvailability.availableQuantity + item.quantity,
+        totalOnWarehouse
+      );
       if (quantity > maxAllowed) {
-        alert(`Нельзя добавить больше ${maxAllowed} шт. (доступно на складе: ${eqAvailability.availableQuantity})`);
+        const availableOnWarehouse = eqAvailability.availableQuantity;
+        const alreadyInEstimate = item.quantity;
+        alert(`Нельзя добавить больше ${maxAllowed} шт. (уже в смете: ${alreadyInEstimate}, доступно на складе: ${availableOnWarehouse}, всего на складе: ${totalOnWarehouse})`);
+        return;
+      }
+    } else {
+      // Если нет данных о доступности - проверяем по общему количеству
+      if (quantity > totalOnWarehouse) {
+        alert(`Нельзя добавить больше ${totalOnWarehouse} шт. (всего на складе)`);
         return;
       }
     }
