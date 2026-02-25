@@ -318,7 +318,7 @@ export function SortableCategories({
       onDragEnd={handleDragEnd}
     >
       <SortableContext items={categories} strategy={verticalListSortingStrategy}>
-        <div className="space-y-4">
+        <div className="space-y-2">
           {categories.map((category) => {
             const categoryItems = groupedMap.get(category) || [];
             const itemIndices = categoryItemIndices.get(category) || [];

@@ -551,11 +551,18 @@ export function EstimateBuilder({
     }
     
     // Передаем порядок категорий при сохранении
-    await onSave(estimateData, items, categoryOrder);
-    // Показываем уведомление об успешном сохранении
-    toast.success(estimate ? 'Смета сохранена' : 'Смета создана', {
-      description: eventName
-    });
+    try {
+      await onSave(estimateData, items, categoryOrder);
+      // Показываем уведомление об успешном сохранении
+      toast.success(estimate ? 'Смета сохранена' : 'Смета создана', {
+        description: eventName,
+        duration: 3000
+      });
+    } catch (err) {
+      toast.error('Ошибка при сохранении', {
+        description: err instanceof Error ? err.message : 'Неизвестная ошибка'
+      });
+    }
     // Не закрываем смету после сохранения
   };
   
@@ -1004,14 +1011,14 @@ export function EstimateBuilder({
               onChange={(e) => setSearchQuery(e.target.value)}
               className="text-xs h-8"
             />
-            <div className="flex gap-1 overflow-x-auto pb-1 scrollbar-hide">
+            <div className="flex gap-1 flex-wrap">
               {['all', ...new Set((equipment || []).map(e => e.category))].map(cat => (
                 <Button
                   key={cat}
                   variant={selectedCategory === cat ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setSelectedCategory(cat)}
-                  className="text-xs px-2 py-0.5 h-6 whitespace-nowrap"
+                  className="text-[10px] px-1.5 py-0 h-5"
                 >
                   {cat === 'all' ? 'Все' : cat}
                 </Button>
@@ -1282,7 +1289,7 @@ export function EstimateBuilder({
             )}
           </div>
 
-          <div className="flex-1 md:overflow-auto p-4 print:hidden">
+          <div className="flex-1 md:overflow-auto p-2 print:hidden">
             {items.length === 0 ? (
               <div className="text-center text-gray-400 mt-10">
                 <p>Добавьте оборудование из списка слева</p>
