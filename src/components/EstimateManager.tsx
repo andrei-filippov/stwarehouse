@@ -67,7 +67,7 @@ export const EstimateManager = memo(function EstimateManager({
       event_name: estimateData.event_name,
       venue: estimateData.venue,
       event_date: estimateData.event_date,
-      total: items.reduce((sum, item) => sum + (item.price * item.quantity * item.coefficient), 0),
+      total: (items || []).reduce((sum, item) => sum + (item.price * item.quantity * item.coefficient), 0),
       items: items
     } as Estimate);
     setIsImportDialogOpen(false);
@@ -94,6 +94,18 @@ export const EstimateManager = memo(function EstimateManager({
   }, [editingEstimate, onUpdate, onCreate]);
 
   if (isBuilderOpen) {
+    // Защита: не рендерим Builder пока данные не загружены
+    if (!equipment || !estimates) {
+      return (
+        <div className="flex items-center justify-center h-screen">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Загрузка данных...</p>
+          </div>
+        </div>
+      );
+    }
+    
     return (
       <EstimateBuilder
         equipment={equipment}

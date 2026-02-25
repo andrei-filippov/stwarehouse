@@ -86,7 +86,7 @@ function SortableCategoryItem({
 
       {/* Позиции категории */}
       <div className="space-y-2">
-        {items.map((item, idx) => {
+        {(items || []).map((item, idx) => {
           const originalIndex = itemIndices[idx];
           const maxQuantity = getItemMaxQuantity(item);
           const canIncrease = item.quantity < maxQuantity;

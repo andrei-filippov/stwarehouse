@@ -267,7 +267,7 @@ export function EstimateBuilder({
     }
     
     if (existingItem) {
-      setItems(items.map(i => 
+      setItems((items || []).map(i => 
         i.equipment_id === equipmentItem.id 
           ? { ...i, quantity: i.quantity + 1 }
           : i
@@ -359,7 +359,7 @@ export function EstimateBuilder({
 
   // Удаление позиции
   const removeItem = (index: number) => {
-    setItems(items.filter((_, i) => i !== index));
+    setItems((items || []).filter((_, i) => i !== index));
   };
 
   // Применение шаблона (при клике на кнопку шаблона)
@@ -441,11 +441,11 @@ export function EstimateBuilder({
 
   // Подсчет итого с учетом коэффициента (мемоизировано)
   const total = useMemo(() =>
-    items.reduce((sum, item) => sum + (item.price * item.quantity * (item.coefficient || 1)), 0),
+    (items || []).reduce((sum, item) => sum + (item.price * item.quantity * (item.coefficient || 1)), 0),
     [items]
   );
   const totalQuantity = useMemo(() =>
-    items.reduce((sum, item) => sum + item.quantity, 0),
+    (items || []).reduce((sum, item) => sum + item.quantity, 0),
     [items]
   );
 
@@ -517,7 +517,7 @@ export function EstimateBuilder({
 
   // Расчет суммы по категории (мемоизировано)
   const getCategoryTotal = useCallback((categoryItems: EstimateItem[]) => {
-    return categoryItems.reduce((sum, item) => sum + (item.price * item.quantity * (item.coefficient || 1)), 0);
+    return (categoryItems || []).reduce((sum, item) => sum + (item.price * item.quantity * (item.coefficient || 1)), 0);
   }, []);
 
   // Выбранный заказчик (мемоизировано)
