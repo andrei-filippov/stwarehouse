@@ -888,8 +888,8 @@ function CalculatorForm({ onClose }: { onClose: () => void }) {
       let cablePerFixture = spacing * 1.3;
       cablePerFixture = Math.ceil(cablePerFixture * 2) / 2; // Округление до 0.5
       
-      // Общее количество кабелей: приборы * 2 - 2
-      const totalCables = fixtures * 2 - 2;
+      // Общее количество кабелей: приборы - 1
+      const totalCables = fixtures - 1;
       
       setDmxResult({ cablePerFixture, totalCables });
     }
