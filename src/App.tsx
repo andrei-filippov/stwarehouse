@@ -62,7 +62,7 @@ function App() {
   const { staff, loading: staffLoading, addStaff, updateStaff, deleteStaff } = useStaff(user?.id);
   const { tasks, loading: goalsLoading, addTask, updateTask, deleteTask } = useGoals(user?.id);
   const { customers, loading: customersLoading, error: customersError, addCustomer, updateCustomer, deleteCustomer } = useCustomers(user?.id);
-  const { categories: cableCategories, inventory: cableInventory, movements: cableMovements, stats: cableStats, loading: cableLoading, addCategory: addCableCategory, updateCategory: updateCableCategory, deleteCategory: deleteCableCategory, upsertInventory: upsertCableInventory, deleteInventory: deleteCableInventory, issueCable, returnCable } = useCableInventory(user?.id);
+  const { categories: cableCategories, inventory: cableInventory, movements: cableMovements, stats: cableStats, loading: cableLoading, addCategory: addCableCategory, updateCategory: updateCableCategory, deleteCategory: deleteCableCategory, upsertInventory: upsertCableInventory, updateInventoryQty: updateCableInventoryQty, deleteInventory: deleteCableInventory, issueCable, returnCable } = useCableInventory(user?.id);
   const analyticsData = { equipment, estimates, staff, customers };
   
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -312,6 +312,7 @@ function App() {
             onUpdateCategory={updateCableCategory}
             onDeleteCategory={deleteCableCategory}
             onUpsertInventory={upsertCableInventory}
+            onUpdateInventoryQty={updateCableInventoryQty}
             onDeleteInventory={deleteCableInventory}
             onIssueCable={issueCable}
             onReturnCable={returnCable}

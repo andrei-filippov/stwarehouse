@@ -35,6 +35,7 @@ interface CableManagerProps {
   onUpdateCategory: (id: string, updates: Partial<CableCategory>) => Promise<{ error: any }>;
   onDeleteCategory: (id: string) => Promise<{ error: any }>;
   onUpsertInventory: (data: Omit<CableInventory, 'id' | 'created_at' | 'updated_at'>) => Promise<{ error: any }>;
+  onUpdateInventoryQty?: (id: string, quantity: number) => Promise<{ error: any }>;
   onDeleteInventory: (id: string) => Promise<{ error: any }>;
   onIssueCable: (data: {
     category_id: string;
@@ -58,6 +59,7 @@ export const CableManager = memo(function CableManager({
   onUpdateCategory,
   onDeleteCategory,
   onUpsertInventory,
+  onUpdateInventoryQty,
   onDeleteInventory,
   onIssueCable,
   onReturnCable,
@@ -163,6 +165,16 @@ export const CableManager = memo(function CableManager({
     const item = inventory.find(i => i.id === id);
     if (!item) return;
     
+    // Если доступна функция обновления по ID - используем её (быстрее и надежнее)
+    if (onUpdateInventoryQty) {
+      const { error } = await onUpdateInventoryQty(id, newQty);
+      if (error) {
+        toast.error('Ошибка при обновлении', { description: error.message });
+      }
+      return;
+    }
+    
+    // Fallback: используем upsert (может создать дубликат если есть несколько записей с одной длиной)
     const { error } = await onUpsertInventory({
       category_id: item.category_id,
       length: length,

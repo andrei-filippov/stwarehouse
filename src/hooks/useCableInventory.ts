@@ -155,6 +155,20 @@ export function useCableInventory(userId: string | undefined) {
     return { error: null };
   };
 
+  // Обновить только количество по ID (для +/- в интерфейсе)
+  const updateInventoryQty = async (id: string, quantity: number) => {
+    const { error } = await supabase
+      .from('cable_inventory')
+      .update({ quantity, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    
+    if (error) {
+      toast.error('Ошибка обновления количества', { description: error.message });
+      return { error };
+    }
+    return { error: null };
+  };
+
   // Добавить/обновить позицию инвентаря
   // Теперь учитываем notes: кабели одинаковой длины, но с разными комментариями - разные позиции
   const upsertInventory = async (data: Omit<CableInventory, 'id' | 'created_at' | 'updated_at'>) => {
@@ -328,6 +342,7 @@ export function useCableInventory(userId: string | undefined) {
     updateCategory,
     deleteCategory,
     upsertInventory,
+    updateInventoryQty,
     deleteInventory,
     issueCable,
     returnCable,
