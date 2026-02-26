@@ -168,6 +168,7 @@ export const CableManager = memo(function CableManager({
       length: length,
       quantity: newQty,
       min_quantity: item.min_quantity,
+      notes: item.notes,
     });
     
     if (error) {
