@@ -1027,14 +1027,14 @@ export function EstimateBuilder({
               onChange={(e) => setSearchQuery(e.target.value)}
               className="text-xs h-8"
             />
-            <div className="flex gap-1 flex-wrap">
+            <div className="flex gap-1.5 flex-wrap">
               {['all', ...new Set((equipment || []).map(e => e.category))].map(cat => (
                 <Button
                   key={cat}
                   variant={selectedCategory === cat ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setSelectedCategory(cat)}
-                  className="text-[10px] px-1.5 py-0 h-5"
+                  className="text-xs px-2.5 py-1 h-auto min-h-[28px]"
                 >
                   {cat === 'all' ? 'Все' : cat}
                 </Button>
