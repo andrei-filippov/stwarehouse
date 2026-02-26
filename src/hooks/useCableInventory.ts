@@ -167,7 +167,12 @@ export function useCableInventory(userId: string | undefined) {
     if (existing) {
       const { error } = await supabase
         .from('cable_inventory')
-        .update({ quantity: data.quantity, min_quantity: data.min_quantity, updated_at: new Date().toISOString() })
+        .update({ 
+          quantity: data.quantity, 
+          min_quantity: data.min_quantity, 
+          notes: data.notes,
+          updated_at: new Date().toISOString() 
+        })
         .eq('id', existing.id);
       
       if (error) {

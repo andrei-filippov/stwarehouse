@@ -15,6 +15,7 @@ export type CableInventory = {
   length: number;
   quantity: number;
   min_quantity: number;
+  notes?: string;
   created_at?: string;
   updated_at?: string;
 };

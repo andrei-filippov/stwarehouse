@@ -102,7 +102,7 @@ export const CableManager = memo(function CableManager({
 
   // Form states
   const [categoryForm, setCategoryForm] = useState({ name: '', description: '', color: '#3b82f6' });
-  const [inventoryForm, setInventoryForm] = useState({ category_id: '', length: '', quantity: '', min_quantity: '5' });
+  const [inventoryForm, setInventoryForm] = useState({ category_id: '', length: '', quantity: '', min_quantity: '5', notes: '' });
   const [issueForm, setIssueForm] = useState({
     category_id: '',
     inventory_id: '',
@@ -149,10 +149,11 @@ export const CableManager = memo(function CableManager({
       length: parseFloat(inventoryForm.length),
       quantity: parseInt(inventoryForm.quantity),
       min_quantity: parseInt(inventoryForm.min_quantity) || 5,
+      notes: inventoryForm.notes || undefined,
     });
     if (!error) {
       setIsInventoryDialogOpen(false);
-      setInventoryForm({ category_id: '', length: '', quantity: '', min_quantity: '5' });
+      setInventoryForm({ category_id: '', length: '', quantity: '', min_quantity: '5', notes: '' });
     }
   };
 
@@ -220,13 +221,13 @@ export const CableManager = memo(function CableManager({
     setCategoryForm({
       name: cat.name,
       description: cat.description || '',
-      color: cat.color,
+      color: cat.color?.toLowerCase() || '#3b82f6',
     });
     setIsCategoryDialogOpen(true);
   };
 
   const openInventoryAdd = (categoryId: string) => {
-    setInventoryForm({ category_id: categoryId, length: '', quantity: '', min_quantity: '5' });
+    setInventoryForm({ category_id: categoryId, length: '', quantity: '', min_quantity: '5', notes: '' });
     setIsInventoryDialogOpen(true);
   };
 
@@ -361,7 +362,12 @@ export const CableManager = memo(function CableManager({
                               }`}
                             >
                               <div className="flex items-center gap-4">
-                                <span className="font-medium w-16">{item.length} м</span>
+                                <div className="w-20">
+                                  <span className="font-medium">{item.length} м</span>
+                                  {item.notes && (
+                                    <p className="text-xs text-gray-500 truncate" title={item.notes}>{item.notes}</p>
+                                  )}
+                                </div>
                                 <div className="flex items-center gap-1">
                                   <Button
                                     variant="outline"
@@ -509,19 +515,29 @@ export const CableManager = memo(function CableManager({
             </div>
             <div>
               <label className="text-sm font-medium">Цвет</label>
-              <div className="flex gap-2 flex-wrap mt-2">
+              <div className="flex gap-2 flex-wrap mt-2 items-center">
                 {CABLE_COLORS.map(c => (
                   <button
                     key={c.value}
                     type="button"
                     onClick={() => setCategoryForm({ ...categoryForm, color: c.value })}
                     className={`w-8 h-8 rounded-full border-2 ${
-                      categoryForm.color === c.value ? 'border-gray-900 scale-110' : 'border-transparent'
+                      categoryForm.color?.toLowerCase() === c.value.toLowerCase() ? 'border-gray-900 scale-110' : 'border-transparent'
                     }`}
                     style={{ backgroundColor: c.value }}
                     title={c.label}
                   />
                 ))}
+                <div className="flex items-center gap-2 ml-2">
+                  <input
+                    type="color"
+                    value={categoryForm.color}
+                    onChange={(e) => setCategoryForm({ ...categoryForm, color: e.target.value })}
+                    className="w-8 h-8 rounded cursor-pointer border-0 p-0"
+                    title="Произвольный цвет"
+                  />
+                  <span className="text-xs text-gray-500">{categoryForm.color}</span>
+                </div>
               </div>
             </div>
             <div className="flex justify-end gap-2 pt-4">
@@ -575,6 +591,14 @@ export const CableManager = memo(function CableManager({
                 value={inventoryForm.min_quantity}
                 onChange={(e) => setInventoryForm({ ...inventoryForm, min_quantity: e.target.value })}
                 placeholder="При каком количестве предупреждать"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Комментарий</label>
+              <Input
+                value={inventoryForm.notes}
+                onChange={(e) => setInventoryForm({ ...inventoryForm, notes: e.target.value })}
+                placeholder="Например: в коробке по 10 шт, IP65"
               />
             </div>
             <div className="flex justify-end gap-2 pt-4">
