@@ -361,13 +361,8 @@ export const CableManager = memo(function CableManager({
                                 item.quantity < item.min_quantity ? 'bg-orange-50' : 'bg-gray-50'
                               }`}
                             >
-                              <div className="flex items-center gap-4">
-                                <div className="w-20">
-                                  <span className="font-medium">{item.length} м</span>
-                                  {item.notes && (
-                                    <p className="text-xs text-gray-500 truncate" title={item.notes}>{item.notes}</p>
-                                  )}
-                                </div>
+                              <div className="flex items-center gap-3">
+                                <span className="font-medium w-16">{item.length} м</span>
                                 <div className="flex items-center gap-1">
                                   <Button
                                     variant="outline"
@@ -391,7 +386,12 @@ export const CableManager = memo(function CableManager({
                                   </Button>
                                 </div>
                                 {item.quantity < item.min_quantity && (
-                                  <AlertCircle className="w-4 h-4 text-orange-500" />
+                                  <AlertCircle className="w-4 h-4 text-orange-500 shrink-0" />
+                                )}
+                                {item.notes && (
+                                  <span className="text-sm text-gray-500 truncate max-w-[150px]" title={item.notes}>
+                                    {item.notes}
+                                  </span>
                                 )}
                               </div>
                               <div className="flex items-center gap-2">
