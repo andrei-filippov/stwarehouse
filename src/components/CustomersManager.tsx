@@ -1,4 +1,4 @@
-import { useState, useCallback, memo, useMemo, useEffect } from 'react';
+import { useState, useCallback, memo, useMemo, useEffect, useRef } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -23,8 +23,13 @@ interface CustomersManagerProps {
 }
 
 export const CustomersManager = memo(function CustomersManager({ customers, userId, onAdd, onUpdate, onDelete, loading, error, fabAction }: CustomersManagerProps) {
-  // Открываем добавление заказчика при нажатии FAB
+  // Открываем добавление заказчика при нажатии FAB (пропускаем первый рендер)
+  const isFirstRender = useRef(false);
   useEffect(() => {
+    if (!isFirstRender.current) {
+      isFirstRender.current = true;
+      return;
+    }
     if (fabAction && fabAction > 0) {
       setEditingCustomer(null);
       setIsDialogOpen(true);

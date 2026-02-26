@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback, memo } from 'react';
+import { useState, useMemo, useEffect, useCallback, memo, useRef } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -42,8 +42,13 @@ interface GoalsManagerProps {
 type FilterType = 'all' | 'today' | 'in_progress' | 'pending' | 'completed' | 'overdue';
 
 export const GoalsManager = memo(function GoalsManager({ tasks, staff, onAdd, onUpdate, onDelete, loading, fabAction }: GoalsManagerProps) {
-  // Открываем добавление задачи при нажатии FAB
+  // Открываем добавление задачи при нажатии FAB (пропускаем первый рендер)
+  const isFirstRender = useRef(false);
   useEffect(() => {
+    if (!isFirstRender.current) {
+      isFirstRender.current = true;
+      return;
+    }
     if (fabAction && fabAction > 0) {
       setEditingTask(null);
       setIsDialogOpen(true);

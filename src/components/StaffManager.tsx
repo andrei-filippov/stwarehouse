@@ -1,4 +1,4 @@
-import { useState, useCallback, memo, useMemo, useEffect } from 'react';
+import { useState, useCallback, memo, useMemo, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -35,8 +35,13 @@ interface StaffManagerProps {
 }
 
 export const StaffManager = memo(function StaffManager({ staff, onAdd, onUpdate, onDelete, loading, fabAction }: StaffManagerProps) {
-  // Открываем добавление сотрудника при нажатии FAB
+  // Открываем добавление сотрудника при нажатии FAB (пропускаем первый рендер)
+  const isFirstRender = useRef(false);
   useEffect(() => {
+    if (!isFirstRender.current) {
+      isFirstRender.current = true;
+      return;
+    }
     if (fabAction && fabAction > 0) {
       setEditingStaff(null);
       setIsDialogOpen(true);

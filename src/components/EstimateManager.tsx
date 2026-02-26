@@ -1,4 +1,4 @@
-import { useState, useCallback, memo, useEffect } from 'react';
+import { useState, useCallback, memo, useEffect, useRef } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
@@ -35,8 +35,13 @@ export const EstimateManager = memo(function EstimateManager({
   onCreateEquipment,
   fabAction
 }: EstimateManagerProps) {
-  // Открываем создание сметы при нажатии FAB
+  // Открываем создание сметы при нажатии FAB (пропускаем первый рендер)
+  const isFirstRender = useRef(true);
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
     if (fabAction && fabAction > 0) {
       handleCreateNew();
     }

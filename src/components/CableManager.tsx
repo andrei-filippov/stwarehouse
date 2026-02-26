@@ -1,4 +1,4 @@
-import { useState, useMemo, memo, useEffect } from 'react';
+import { useState, useMemo, memo, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -65,8 +65,13 @@ export const CableManager = memo(function CableManager({
 }: CableManagerProps) {
   const [activeTab, setActiveTab] = useState('warehouse');
   
-  // Открываем добавление при нажатии FAB
+  // Открываем добавление при нажатии FAB (пропускаем первый рендер)
+  const isFirstRender = useRef(false);
   useEffect(() => {
+    if (!isFirstRender.current) {
+      isFirstRender.current = true;
+      return;
+    }
     if (fabAction && fabAction > 0) {
       if (activeTab === 'warehouse') {
         setEditingCategory(null);

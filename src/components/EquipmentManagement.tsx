@@ -39,8 +39,13 @@ export function EquipmentManager({
   loading,
   fabAction
 }: EquipmentManagerProps) {
-  // Открываем диалог при нажатии FAB
+  // Открываем диалог при нажатии FAB (пропускаем первый рендер)
+  const isFirstRender = useRef(true);
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
     if (fabAction && fabAction > 0) {
       setEditingItem(null);
       setIsAddDialogOpen(true);

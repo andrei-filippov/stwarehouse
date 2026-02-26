@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, memo } from 'react';
+import { useState, useEffect, useCallback, memo, useRef } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -52,8 +52,13 @@ export const ChecklistsManager = memo(function ChecklistsManager({
   loading,
   fabAction
 }: ChecklistsProps) {
-  // Открываем создание чек-листа или правила при нажатии FAB
+  // Открываем создание чек-листа или правила при нажатии FAB (пропускаем первый рендер)
+  const isFirstRender = useRef(false);
   useEffect(() => {
+    if (!isFirstRender.current) {
+      isFirstRender.current = true;
+      return;
+    }
     if (fabAction && fabAction > 0) {
       if (activeTab === 'checklists') {
         handleOpenChecklistDialog();
