@@ -375,40 +375,41 @@ export const CableManager = memo(function CableManager({
                                 item.quantity < (item.min_quantity ?? 0) ? 'bg-orange-50' : 'bg-gray-50'
                               }`}
                             >
-                              {(() => {
-                                const minQty = item.min_quantity ?? 0;
-                                const isLow = item.quantity < minQty;
-                                return (
-                                  <>
-                                    <span className="font-medium w-16">{item.length} м</span>
-                                    <div className="flex items-center gap-1">
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="h-6 w-6 p-0"
-                                        onClick={() => handleUpdateInventoryQty(item.id, item.quantity - 1, item.length)}
-                                        disabled={item.quantity <= 0}
-                                      >
-                                        -
-                                      </Button>
-                                      <span className={`text-sm w-10 text-center ${isLow ? 'text-orange-600 font-medium' : 'text-gray-600'}`}>
-                                        {item.quantity}
-                                      </span>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="h-6 w-6 p-0"
-                                        onClick={() => handleUpdateInventoryQty(item.id, item.quantity + 1, item.length)}
-                                      >
-                                        +
-                                      </Button>
-                                    </div>
-                                    {isLow && (
-                                      <AlertCircle className="w-4 h-4 text-orange-500 shrink-0" />
-                                    )}
-                                  </>
-                                );
-                              })()}
+                              <div className="flex items-center gap-3">
+                                {(() => {
+                                  const minQty = item.min_quantity ?? 0;
+                                  const isLow = item.quantity < minQty;
+                                  return (
+                                    <>
+                                      <span className="font-medium w-16">{item.length} м</span>
+                                      <div className="flex items-center gap-1">
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="h-6 w-6 p-0"
+                                          onClick={() => handleUpdateInventoryQty(item.id, item.quantity - 1, item.length)}
+                                          disabled={item.quantity <= 0}
+                                        >
+                                          -
+                                        </Button>
+                                        <span className={`text-sm w-10 text-center ${isLow ? 'text-orange-600 font-medium' : 'text-gray-600'}`}>
+                                          {item.quantity}
+                                        </span>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="h-6 w-6 p-0"
+                                          onClick={() => handleUpdateInventoryQty(item.id, item.quantity + 1, item.length)}
+                                        >
+                                          +
+                                        </Button>
+                                      </div>
+                                      {isLow && (
+                                        <AlertCircle className="w-4 h-4 text-orange-500 shrink-0" />
+                                      )}
+                                    </>
+                                  );
+                                })()}
                                 {item.notes && (
                                   <span className="text-sm text-gray-500 truncate max-w-[150px]" title={item.notes}>
                                     {item.notes}
