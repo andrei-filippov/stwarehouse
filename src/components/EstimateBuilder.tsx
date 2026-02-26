@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Card, CardContent } from './ui/card';
@@ -70,6 +71,9 @@ export function EstimateBuilder({
   const [activeMobileTab, setActiveMobileTab] = useState<'equipment' | 'estimate'>('equipment');
   const [isEquipmentCollapsed, setIsEquipmentCollapsed] = useState(false);
   const [isEquipmentFullScreen, setIsEquipmentFullScreen] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [dateError, setDateError] = useState<string | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
 
   // Обновляем состояние при открытии сметы для редактирования
@@ -88,6 +92,8 @@ export function EstimateBuilder({
       } else {
         setCategoryOrder([]);
       }
+      // При редактировании смета уже сохранена
+      setIsSaved(true);
     } else if (selectedTemplate && equipment?.length > 0) {
       // Автоматически применяем выбранный шаблон только когда оборудование загружено
       setEventName(selectedTemplate.name || '');
@@ -97,6 +103,7 @@ export function EstimateBuilder({
       setEventEndDate('');
       // Применяем шаблон сразу (без проверки доступности, так как дата не выбрана)
       applyTemplateDirect(selectedTemplate);
+      setIsSaved(false);
     } else if (selectedTemplate && (!equipment || equipment.length === 0)) {
       // Оборудование еще не загружено - ждем
       setEventName(selectedTemplate.name || '');
@@ -112,6 +119,7 @@ export function EstimateBuilder({
       setEventStartDate('');
       setEventEndDate('');
       setItems([]);
+      setIsSaved(false);
     }
   }, [estimate?.id, selectedTemplate?.id, equipment?.length]);
 
@@ -185,6 +193,7 @@ export function EstimateBuilder({
     });
     
     setItems(newItems);
+    setIsSaved(false);
   };
 
   // Проверка пересечения двух периодов дат
@@ -276,6 +285,7 @@ export function EstimateBuilder({
           ? { ...i, quantity: i.quantity + 1 }
           : i
       ));
+      setIsSaved(false);
     } else {
       // Проверяем, можно ли добавить новый item (хотя бы 1 штука)
       if (eqAvailability.availableQuantity <= 0) {
@@ -294,6 +304,7 @@ export function EstimateBuilder({
         coefficient: 1
       };
       setItems([...items, newItem]);
+      setIsSaved(false);
     }
   };
 
@@ -318,6 +329,7 @@ export function EstimateBuilder({
         newItems.splice(index, 1);
       }
       setItems(newItems);
+      setIsSaved(false);
       return;
     }
     
@@ -349,6 +361,7 @@ export function EstimateBuilder({
     const newItems = [...items];
     newItems[index].quantity = quantity;
     setItems(newItems);
+    setIsSaved(false);
   };
 
   // Обновление коэффициента
@@ -360,6 +373,7 @@ export function EstimateBuilder({
     const newItems = [...items];
     newItems[index].coefficient = Math.max(0.01, coefficient);
     setItems(newItems);
+    setIsSaved(false);
   };
 
   // Обновление цены
@@ -371,6 +385,7 @@ export function EstimateBuilder({
     const newItems = [...items];
     newItems[index].price = Math.max(0, price);
     setItems(newItems);
+    setIsSaved(false);
   };
 
   // Удаление позиции
@@ -380,6 +395,7 @@ export function EstimateBuilder({
       return;
     }
     setItems((items || []).filter((_, i) => i !== index));
+    setIsSaved(false);
   };
 
   // Применение шаблона (при клике на кнопку шаблона)
@@ -457,6 +473,7 @@ export function EstimateBuilder({
     });
     
     setItems(prev => [...prev, ...newItems]);
+    setIsSaved(false);
   };
 
   // Подсчет итого с учетом коэффициента (мемоизировано)
@@ -533,6 +550,7 @@ export function EstimateBuilder({
   const handleReorderCategories = (newGroupedItems: [string, EstimateItem[]][]) => {
     const newOrder = newGroupedItems.map(([category]) => category);
     setCategoryOrder(newOrder);
+    setIsSaved(false);
   };
 
   // Расчет суммы по категории (мемоизировано)
@@ -546,10 +564,29 @@ export function EstimateBuilder({
     [customers, customerId]
   );
 
+  // Проверка даты (не раньше 2020 года)
+  const validateDate = (dateStr: string): boolean => {
+    if (!dateStr) return true; // Пустая дата валидна
+    const date = new Date(dateStr);
+    const minDate = new Date('2020-01-01');
+    if (date < minDate) {
+      setDateError('Дата мероприятия не может быть раньше 2020 года');
+      return false;
+    }
+    setDateError(null);
+    return true;
+  };
+
   // Сохранение
   const handleSave = async () => {
     const startDate = eventStartDate || eventDate;
     const endDate = eventEndDate || eventStartDate || eventDate;
+    
+    // Проверка даты перед сохранением
+    if ((startDate && !validateDate(startDate)) || (endDate && !validateDate(endDate))) {
+      toast.error('Ошибка в дате', { description: dateError || 'Некорректная дата' });
+      return;
+    }
     
     const estimateData: any = {
       event_name: eventName,
@@ -571,6 +608,7 @@ export function EstimateBuilder({
     // Передаем порядок категорий при сохранении
     try {
       await onSave(estimateData, items, categoryOrder);
+      setIsSaved(true);
       // Показываем уведомление об успешном сохранении
       toast.success(estimate ? 'Смета сохранена' : 'Смета создана', {
         description: eventName,
@@ -582,6 +620,17 @@ export function EstimateBuilder({
       });
     }
     // Не закрываем смету после сохранения
+  };
+  
+  // Обработчик закрытия с проверкой сохранения
+  const handleClose = () => {
+    if (isSaved || items.length === 0) {
+      // Если сохранено или нет позиций - закрываем без подтверждения
+      onClose();
+    } else {
+      // Если есть несохранённые изменения - показываем диалог
+      setShowExitConfirm(true);
+    }
   };
   
   // Создание нового оборудования
@@ -878,7 +927,7 @@ export function EstimateBuilder({
       {/* Шапка */}
       <div className="border-b p-2 md:p-4 flex items-center justify-between bg-gray-50 print:hidden">
         <div className="flex items-center gap-2 md:gap-4">
-          <Button variant="ghost" size="sm" onClick={onClose} className="px-2">
+          <Button variant="ghost" size="sm" onClick={handleClose} className="px-2">
             <ChevronLeft className="w-5 h-5 md:mr-2" />
             <span className="hidden md:inline">Назад</span>
           </Button>
@@ -1162,7 +1211,7 @@ export function EstimateBuilder({
                 <select
                   className="w-full border rounded-md p-2 text-sm"
                   value={customerId}
-                  onChange={(e) => setCustomerId(e.target.value)}
+                  onChange={(e) => { setCustomerId(e.target.value); setIsSaved(false); }}
                 >
                   <option value="">Заказчик</option>
                   {(customers || []).map(c => (
@@ -1172,7 +1221,7 @@ export function EstimateBuilder({
                 <Input
                   placeholder="Мероприятие *"
                   value={eventName}
-                  onChange={(e) => setEventName(e.target.value)}
+                  onChange={(e) => { setEventName(e.target.value); setIsSaved(false); }}
                   className="text-sm"
                 />
               </div>
@@ -1181,28 +1230,45 @@ export function EstimateBuilder({
                 <Input
                   placeholder="Площадка"
                   value={venue}
-                  onChange={(e) => setVenue(e.target.value)}
+                  onChange={(e) => { setVenue(e.target.value); setIsSaved(false); }}
                   className="text-sm"
                 />
                 <Input
                   type="date"
                   value={eventStartDate}
                   onChange={(e) => {
-                    setEventStartDate(e.target.value);
-                    setEventDate(e.target.value);
+                    const newDate = e.target.value;
+                    setEventStartDate(newDate);
+                    setEventDate(newDate);
+                    setIsSaved(false);
+                    validateDate(newDate);
                   }}
-                  className="text-sm"
+                  className={`text-sm ${dateError ? 'border-red-500' : ''}`}
                   title="Начало"
                 />
                 <Input
                   type="date"
                   value={eventEndDate}
-                  onChange={(e) => setEventEndDate(e.target.value)}
+                  onChange={(e) => {
+                    const newDate = e.target.value;
+                    setEventEndDate(newDate);
+                    setIsSaved(false);
+                    validateDate(newDate);
+                  }}
                   min={eventStartDate}
-                  className="text-sm"
+                  className={`text-sm ${dateError ? 'border-red-500' : ''}`}
                   title="Окончание"
                 />
               </div>
+              
+              {/* Ошибка даты */}
+              {dateError && (
+                <Alert className="bg-red-50 border-red-200 p-2">
+                  <AlertDescription className="text-xs text-red-600">
+                    <strong>⚠️</strong> {dateError}
+                  </AlertDescription>
+                </Alert>
+              )}
               
               {/* Предупреждение о занятости - компактное */}
               {(eventStartDate || eventDate) && equipmentAvailability.some(eq => eq.occupiedQuantity > 0) && (
@@ -1373,6 +1439,26 @@ export function EstimateBuilder({
           {/* Итого убрано - теперь в заголовке */}
         </div>
       </div>
+      
+      {/* Диалог подтверждения выхода */}
+      <Dialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
+        <DialogContent className="rounded-xl">
+          <DialogHeader>
+            <DialogTitle>Несохранённые изменения</DialogTitle>
+            <DialogDescription>
+              Смета не была сохранена. Вы уверены, что хотите выйти? Все изменения будут потеряны.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-3 justify-end pt-4">
+            <Button variant="outline" onClick={() => setShowExitConfirm(false)}>
+              Остаться
+            </Button>
+            <Button variant="destructive" onClick={() => { setShowExitConfirm(false); onClose(); }}>
+              Выйти без сохранения
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
