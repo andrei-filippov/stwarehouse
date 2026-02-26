@@ -15,6 +15,7 @@ interface TemplatesManagerProps {
   onCreate: (template: any, items: any[]) => Promise<{ error: any; data?: any }>;
   onUpdate: (id: string, updates: any, items?: any[]) => Promise<{ error: any }>;
   onDelete: (id: string) => Promise<{ error: any }>;
+  fabAction?: number;
 }
 
 export const TemplatesManager = memo(function TemplatesManager({
@@ -23,8 +24,15 @@ export const TemplatesManager = memo(function TemplatesManager({
   equipment,
   onCreate,
   onUpdate,
-  onDelete
+  onDelete,
+  fabAction
 }: TemplatesManagerProps) {
+  // Открываем создание шаблона при нажатии FAB
+  useEffect(() => {
+    if (fabAction && fabAction > 0) {
+      handleOpenNew();
+    }
+  }, [fabAction]);
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 

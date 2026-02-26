@@ -36,11 +36,20 @@ interface GoalsManagerProps {
   onUpdate: (id: string, updates: Partial<Task>) => Promise<{ error: any }>;
   onDelete: (id: string) => Promise<{ error: any }>;
   loading?: boolean;
+  fabAction?: number;
 }
 
 type FilterType = 'all' | 'today' | 'in_progress' | 'pending' | 'completed' | 'overdue';
 
-export const GoalsManager = memo(function GoalsManager({ tasks, staff, onAdd, onUpdate, onDelete, loading }: GoalsManagerProps) {
+export const GoalsManager = memo(function GoalsManager({ tasks, staff, onAdd, onUpdate, onDelete, loading, fabAction }: GoalsManagerProps) {
+  // Открываем добавление задачи при нажатии FAB
+  useEffect(() => {
+    if (fabAction && fabAction > 0) {
+      setEditingTask(null);
+      setIsDialogOpen(true);
+    }
+  }, [fabAction]);
+
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [searchQuery, setSearchQuery] = useState('');

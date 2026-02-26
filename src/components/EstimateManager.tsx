@@ -1,4 +1,4 @@
-import { useState, useCallback, memo } from 'react';
+import { useState, useCallback, memo, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
@@ -19,6 +19,7 @@ interface EstimateManagerProps {
   onUpdate: (id: string, estimate: any, items: any[], categoryOrder?: string[]) => Promise<{ error: any }>;
   onDelete: (id: string) => Promise<{ error: any }>;
   onCreateEquipment?: (equipment: any) => Promise<{ error: any; data?: any }>;
+  fabAction?: number;
 }
 
 export const EstimateManager = memo(function EstimateManager({
@@ -31,8 +32,15 @@ export const EstimateManager = memo(function EstimateManager({
   onCreate,
   onUpdate,
   onDelete,
-  onCreateEquipment
+  onCreateEquipment,
+  fabAction
 }: EstimateManagerProps) {
+  // Открываем создание сметы при нажатии FAB
+  useEffect(() => {
+    if (fabAction && fabAction > 0) {
+      handleCreateNew();
+    }
+  }, [fabAction]);
   // Защита от undefined
   const categoriesList = equipmentCategories || [];
   const [isBuilderOpen, setIsBuilderOpen] = useState(false);

@@ -1,4 +1,4 @@
-import { useState, useMemo, memo } from 'react';
+import { useState, useMemo, memo, useEffect } from 'react';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -45,6 +45,7 @@ interface CableManagerProps {
     contact?: string;
   }) => Promise<{ error: any }>;
   onReturnCable: (movementId: string) => Promise<{ error: any }>;
+  fabAction?: number;
 }
 
 export const CableManager = memo(function CableManager({
@@ -60,8 +61,31 @@ export const CableManager = memo(function CableManager({
   onDeleteInventory,
   onIssueCable,
   onReturnCable,
+  fabAction,
 }: CableManagerProps) {
   const [activeTab, setActiveTab] = useState('warehouse');
+  
+  // Открываем добавление при нажатии FAB
+  useEffect(() => {
+    if (fabAction && fabAction > 0) {
+      if (activeTab === 'warehouse') {
+        setEditingCategory(null);
+        setCategoryForm({ name: '', description: '', color: '#3b82f6' });
+        setIsCategoryDialogOpen(true);
+      } else if (activeTab === 'issue') {
+        setIssueForm({
+          category_id: '',
+          inventory_id: '',
+          length: 0,
+          availableQty: 0,
+          quantity: '',
+          issued_to: '',
+          contact: '',
+        });
+        setIsIssueDialogOpen(true);
+      }
+    }
+  }, [fabAction]);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   
   // Dialog states

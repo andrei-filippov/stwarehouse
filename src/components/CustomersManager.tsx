@@ -1,4 +1,4 @@
-import { useState, useCallback, memo, useMemo } from 'react';
+import { useState, useCallback, memo, useMemo, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -19,9 +19,18 @@ interface CustomersManagerProps {
   onDelete: (id: string) => Promise<{ error: any }>;
   loading?: boolean;
   error?: string | null;
+  fabAction?: number;
 }
 
-export const CustomersManager = memo(function CustomersManager({ customers, userId, onAdd, onUpdate, onDelete, loading, error }: CustomersManagerProps) {
+export const CustomersManager = memo(function CustomersManager({ customers, userId, onAdd, onUpdate, onDelete, loading, error, fabAction }: CustomersManagerProps) {
+  // Открываем добавление заказчика при нажатии FAB
+  useEffect(() => {
+    if (fabAction && fabAction > 0) {
+      setEditingCustomer(null);
+      setIsDialogOpen(true);
+    }
+  }, [fabAction]);
+
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [searchQuery, setSearchQuery] = useState('');

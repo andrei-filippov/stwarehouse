@@ -35,6 +35,7 @@ interface ChecklistsProps {
   onUpdateChecklistItem: (checklistId: string, itemId: string, updates: Partial<ChecklistItem>) => Promise<{ error: any }>;
   onDeleteChecklist: (id: string) => Promise<{ error: any }>;
   loading?: boolean;
+  fabAction?: number;
 }
 
 export const ChecklistsManager = memo(function ChecklistsManager({
@@ -48,8 +49,19 @@ export const ChecklistsManager = memo(function ChecklistsManager({
   onCreateChecklist,
   onUpdateChecklistItem,
   onDeleteChecklist,
-  loading
+  loading,
+  fabAction
 }: ChecklistsProps) {
+  // Открываем создание чек-листа или правила при нажатии FAB
+  useEffect(() => {
+    if (fabAction && fabAction > 0) {
+      if (activeTab === 'checklists') {
+        handleOpenChecklistDialog();
+      } else {
+        handleOpenRuleDialog();
+      }
+    }
+  }, [fabAction]);
   const [activeTab, setActiveTab] = useState('checklists');
   const [selectedChecklist, setSelectedChecklist] = useState<Checklist | null>(null);
   const [isRuleDialogOpen, setIsRuleDialogOpen] = useState(false);

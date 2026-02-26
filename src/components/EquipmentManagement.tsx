@@ -23,6 +23,7 @@ interface EquipmentManagerProps {
   onAddCategory: (name: string) => Promise<{ error: any; data?: any }>;
   onDeleteCategory?: (id: string) => Promise<{ error: any }>;
   loading?: boolean;
+  fabAction?: number;
 }
 
 export function EquipmentManager({ 
@@ -35,8 +36,16 @@ export function EquipmentManager({
   onBulkInsert,
   onAddCategory,
   onDeleteCategory,
-  loading
+  loading,
+  fabAction
 }: EquipmentManagerProps) {
+  // Открываем диалог при нажатии FAB
+  useEffect(() => {
+    if (fabAction && fabAction > 0) {
+      setEditingItem(null);
+      setIsAddDialogOpen(true);
+    }
+  }, [fabAction]);
   const [search, setSearch] = useState('');
   const [editingItem, setEditingItem] = useState<Equipment | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);

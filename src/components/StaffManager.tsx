@@ -1,4 +1,4 @@
-import { useState, useCallback, memo, useMemo } from 'react';
+import { useState, useCallback, memo, useMemo, useEffect } from 'react';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -31,9 +31,18 @@ interface StaffManagerProps {
   onUpdate: (id: string, updates: Partial<Staff>) => Promise<{ error: any }>;
   onDelete: (id: string) => Promise<{ error: any }>;
   loading?: boolean;
+  fabAction?: number;
 }
 
-export const StaffManager = memo(function StaffManager({ staff, onAdd, onUpdate, onDelete, loading }: StaffManagerProps) {
+export const StaffManager = memo(function StaffManager({ staff, onAdd, onUpdate, onDelete, loading, fabAction }: StaffManagerProps) {
+  // Открываем добавление сотрудника при нажатии FAB
+  useEffect(() => {
+    if (fabAction && fabAction > 0) {
+      setEditingStaff(null);
+      setIsDialogOpen(true);
+    }
+  }, [fabAction]);
+
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
   const [searchQuery, setSearchQuery] = useState('');

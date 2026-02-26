@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Package, FileText, Calendar, Users, Menu, Plus, X } from 'lucide-react';
+import { Package, FileText, Calendar, Users, Menu, Plus } from 'lucide-react';
 import { Button } from './ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './ui/sheet';
 import type { TabId } from '../lib/permissions';
@@ -9,11 +9,14 @@ interface BottomNavProps {
   onTabChange: (tab: TabId) => void;
   availableTabs: { id: TabId; label: string; icon: React.ElementType }[];
   onSignOut: () => void;
+  onFabClick?: () => void;
 }
 
-export function BottomNav({ activeTab, onTabChange, availableTabs, onSignOut }: BottomNavProps) {
+export function BottomNav({ activeTab, onTabChange, availableTabs, onSignOut, onFabClick }: BottomNavProps) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [fabOpen, setFabOpen] = useState(false);
+  
+  // Скрываем FAB на дашборде
+  const showFab = activeTab !== 'dashboard' && onFabClick !== undefined;
 
   // Основные вкладки для Bottom Nav (максимум 4 + меню)
   const mainTabs = [
@@ -33,43 +36,18 @@ export function BottomNav({ activeTab, onTabChange, availableTabs, onSignOut }: 
 
   return (
     <>
-      {/* Floating Action Button (FAB) */}
-      <div className="fixed bottom-20 right-4 z-40 md:hidden">
-        {fabOpen && (
-          <div className="flex flex-col gap-2 mb-2">
-            <Button
-              size="sm"
-              className="rounded-full shadow-lg bg-blue-600 hover:bg-blue-700 text-white"
-              onClick={() => {
-                onTabChange('equipment');
-                setFabOpen(false);
-                // Здесь можно открыть диалог добавления оборудования
-              }}
-            >
-              <Plus className="w-4 h-4 mr-1" />
-              Оборудование
-            </Button>
-            <Button
-              size="sm"
-              className="rounded-full shadow-lg bg-green-600 hover:bg-green-700 text-white"
-              onClick={() => {
-                onTabChange('estimates');
-                setFabOpen(false);
-              }}
-            >
-              <Plus className="w-4 h-4 mr-1" />
-              Смету
-            </Button>
-          </div>
-        )}
-        <Button
-          size="lg"
-          className="rounded-full w-14 h-14 shadow-xl bg-gradient-to-br from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800"
-          onClick={() => setFabOpen(!fabOpen)}
-        >
-          {fabOpen ? <X className="w-6 h-6" /> : <Plus className="w-6 h-6" />}
-        </Button>
-      </div>
+      {/* Floating Action Button (FAB) - только для вкладок с действием */}
+      {showFab && (
+        <div className="fixed bottom-20 right-4 z-40 md:hidden">
+          <Button
+            size="lg"
+            className="rounded-full w-14 h-14 shadow-xl bg-gradient-to-br from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800"
+            onClick={onFabClick}
+          >
+            <Plus className="w-6 h-6" />
+          </Button>
+        </div>
+      )}
 
       {/* Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg z-50 md:hidden">

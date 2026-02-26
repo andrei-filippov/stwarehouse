@@ -66,7 +66,13 @@ function App() {
   const analyticsData = { equipment, estimates, staff, customers };
   
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
+  const [fabAction, setFabAction] = useState(0);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  
+  // Обработчик нажатия FAB (плюсик в мобильной версии)
+  const handleFabClick = useCallback(() => {
+    setFabAction(prev => prev + 1);
+  }, []);
   const [pdfSettings, setPdfSettings] = useState<PDFSettingsType>({
     logo: null,
     companyName: '',
@@ -214,6 +220,7 @@ function App() {
             onAddCategory={addCategory}
             onDeleteCategory={deleteCategory}
             loading={equipmentLoading}
+            fabAction={fabAction}
           />
         )}
 
@@ -230,6 +237,7 @@ function App() {
             onDelete={deleteEstimate}
             onCreateEquipment={addEquipment}
             loading={estimatesLoading}
+            fabAction={fabAction}
           />
         )}
 
@@ -242,6 +250,7 @@ function App() {
             onUpdate={updateTemplate}
             onDelete={deleteTemplate}
             loading={templatesLoading}
+            fabAction={fabAction}
           />
         )}
 
@@ -265,6 +274,7 @@ function App() {
             onUpdateChecklistItem={updateChecklistItem}
             onDeleteChecklist={deleteChecklist}
             loading={checklistsLoading}
+            fabAction={fabAction}
           />
         )}
 
@@ -275,6 +285,7 @@ function App() {
             onUpdate={updateStaff}
             onDelete={deleteStaff}
             loading={staffLoading}
+            fabAction={fabAction}
           />
         )}
 
@@ -286,6 +297,7 @@ function App() {
             onUpdate={updateTask}
             onDelete={deleteTask}
             loading={goalsLoading}
+            fabAction={fabAction}
           />
         )}
 
@@ -303,6 +315,7 @@ function App() {
             onDeleteInventory={deleteCableInventory}
             onIssueCable={issueCable}
             onReturnCable={returnCable}
+            fabAction={fabAction}
           />
         )}
 
@@ -319,6 +332,7 @@ function App() {
             onDelete={deleteCustomer}
             loading={customersLoading}
             error={customersError}
+            fabAction={fabAction}
           />
         )}
 
@@ -342,6 +356,7 @@ function App() {
         onTabChange={setActiveTab}
         availableTabs={navItems}
         onSignOut={signOut}
+        onFabClick={handleFabClick}
       />
     </div>
   );
