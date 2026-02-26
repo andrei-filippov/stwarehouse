@@ -3,6 +3,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Card, CardContent } from './ui/card';
 import { Alert, AlertDescription } from './ui/alert';
+import { Badge } from './ui/badge';
 import { SortableCategories } from './SortableCategories';
 import { toast } from 'sonner';
 import { 
@@ -68,6 +69,7 @@ export function EstimateBuilder({
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [activeMobileTab, setActiveMobileTab] = useState<'equipment' | 'estimate'>('equipment');
   const [isEquipmentCollapsed, setIsEquipmentCollapsed] = useState(false);
+  const [isEquipmentFullScreen, setIsEquipmentFullScreen] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
   // Обновляем состояние при открытии сметы для редактирования
@@ -920,29 +922,57 @@ export function EstimateBuilder({
             Смета ({items.length})
           </button>
         </div>
-        {/* Desktop: кнопка сворачивания оборудования */}
-        <button
-          className="hidden md:flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 hover:text-blue-600 hover:bg-gray-50"
-          onClick={() => setIsEquipmentCollapsed(!isEquipmentCollapsed)}
-        >
-          {isEquipmentCollapsed ? (
-            <>
-              <ChevronRight className="w-4 h-4" />
-              Оборудование
-            </>
-          ) : (
-            <>
-              <ChevronLeft className="w-4 h-4" />
-              Скрыть
-            </>
+        {/* Desktop: кнопки управления панелями */}
+        <div className="hidden md:flex items-center gap-2">
+          <button
+            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded"
+            onClick={() => {
+              if (isEquipmentFullScreen) {
+                setIsEquipmentFullScreen(false);
+              } else {
+                setIsEquipmentCollapsed(!isEquipmentCollapsed);
+              }
+            }}
+          >
+            {isEquipmentCollapsed || isEquipmentFullScreen ? (
+              <>
+                <ChevronRight className="w-4 h-4" />
+                Оборудование
+              </>
+            ) : (
+              <>
+                <ChevronLeft className="w-4 h-4" />
+                Скрыть
+              </>
+            )}
+          </button>
+          
+          {!isEquipmentCollapsed && (
+            <button
+              className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded"
+              onClick={() => setIsEquipmentFullScreen(!isEquipmentFullScreen)}
+              title={isEquipmentFullScreen ? 'Свернуть' : 'На весь экран'}
+            >
+              {isEquipmentFullScreen ? (
+                <>
+                  <ChevronLeft className="w-4 h-4" />
+                  <span className="text-xs">Смета</span>
+                </>
+              ) : (
+                <>
+                  <ChevronRight className="w-4 h-4" />
+                  <span className="text-xs">Во весь экран</span>
+                </>
+              )}
+            </button>
           )}
-        </button>
+        </div>
       </div>
 
       {/* Основной контент */}
       <div className="flex-1 flex overflow-hidden print:block">
         {/* Левая колонка - Оборудование */}
-        <div className={`${activeMobileTab === 'equipment' ? 'flex' : 'hidden'} ${isEquipmentCollapsed ? 'md:hidden' : 'md:flex'} w-full md:w-[35%] lg:w-[30%] border-r flex-col print:hidden transition-all duration-300`}>
+        <div className={`${activeMobileTab === 'equipment' ? 'flex' : 'hidden'} ${isEquipmentCollapsed ? 'md:hidden' : 'md:flex'} ${isEquipmentFullScreen ? 'md:w-full' : 'md:w-[35%] lg:w-[30%]'} w-full border-r flex-col print:hidden transition-all duration-300`}>
           <div className="p-3 border-b space-y-2">
             <div className="flex items-center justify-between">
               <h2 className="font-semibold flex items-center gap-2 text-sm">
@@ -1049,27 +1079,35 @@ export function EstimateBuilder({
                 const isInEstimate = items.find(i => i.equipment_id === item.equipment.id);
                 const canAddMore = !isFullyBooked && (!isInEstimate || isInEstimate.quantity < item.availableQuantity);
                 
+                const inEstimateQty = isInEstimate?.quantity || 0;
+                
                 return (
                   <Card 
                     key={item.equipment.id} 
-                    className={`transition-colors ${
+                    className={`transition-all ${
                       isFullyBooked 
                         ? 'opacity-50 cursor-not-allowed bg-red-50' 
                         : canAddMore 
-                          ? 'cursor-pointer hover:border-blue-500' 
+                          ? 'cursor-pointer hover:border-blue-500 hover:shadow-md' 
                           : 'opacity-70 cursor-not-allowed bg-yellow-50'
-                    }`}
+                    } ${inEstimateQty > 0 ? 'border-blue-400 bg-blue-50/30' : ''}`}
                     onClick={() => {
                       if (canAddMore) {
                         addItem(item);
-                        // Не переключаем вкладку автоматически, позволяем добавлять несколько позиций
                       }
                     }}
                   >
                     <CardContent className="p-2">
                       <div className="flex items-center justify-between">
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm truncate">{item.equipment.name}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-sm truncate">{item.equipment.name}</p>
+                            {inEstimateQty > 0 && (
+                              <Badge className="bg-blue-600 text-white text-[10px] px-1.5 py-0 h-4">
+                                {inEstimateQty} в смете
+                              </Badge>
+                            )}
+                          </div>
                           <p className="text-[10px] text-gray-500">{item.equipment.category}</p>
                         </div>
                         <div className="text-right ml-2">
@@ -1096,7 +1134,7 @@ export function EstimateBuilder({
         </div>
 
         {/* Правая колонка - Смета */}
-        <div className={`${activeMobileTab === 'estimate' ? 'flex' : 'hidden'} md:flex w-full ${isEquipmentCollapsed ? 'md:w-full' : 'md:w-[65%] lg:w-[70%]'} flex-col print:w-full h-full overflow-auto md:overflow-hidden transition-all duration-300`}>
+        <div className={`${activeMobileTab === 'estimate' ? 'flex' : 'hidden'} ${isEquipmentFullScreen ? 'md:hidden' : 'md:flex'} w-full ${isEquipmentCollapsed ? 'md:w-full' : 'md:w-[65%] lg:w-[70%]'} flex-col print:w-full h-full overflow-auto md:overflow-hidden transition-all duration-300`}>
           <div className="p-3 border-b space-y-2 print:hidden shrink-0">
             <div className="flex items-center justify-between">
               <h2 className="font-semibold flex items-center gap-2 text-sm">
