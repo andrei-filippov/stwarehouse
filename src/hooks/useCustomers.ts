@@ -61,23 +61,37 @@ export function useCustomers(userId: string | undefined) {
               if (prev.find(c => c.id === newCustomer.id)) return prev;
               return [...prev, newCustomer].sort((a, b) => a.name.localeCompare(b.name));
             });
+            toast.info('Новый заказчик добавлен другим пользователем');
           } else if (payload.eventType === 'UPDATE') {
             const updatedCustomer = payload.new as Customer;
-            setCustomers(prev => prev.map(c => 
-              c.id === updatedCustomer.id ? updatedCustomer : c
-            ));
+            const oldCustomer = payload.old as Customer;
+            setCustomers(prev => 
+              prev.map(c => c.id === updatedCustomer.id ? updatedCustomer : c)
+                  .sort((a, b) => a.name.localeCompare(b.name))
+            );
+            // Показываем уведомление только если изменение от другого пользователя
+            if (updatedCustomer.user_id !== userId) {
+              toast.info(`Заказчик "${updatedCustomer.name}" обновлён другим пользователем`);
+            }
           } else if (payload.eventType === 'DELETE') {
             const deletedId = payload.old.id;
             setCustomers(prev => prev.filter(c => c.id !== deletedId));
+            toast.info('Заказчик удалён другим пользователем');
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Customers realtime subscription status:', status);
+        if (status === 'CHANNEL_ERROR') {
+          toast.error('Ошибка подключения к real-time обновлениям заказчиков');
+        }
+      });
     
     return () => {
+      console.log('Removing customers channel');
       supabase.removeChannel(channel);
     };
-  }, [fetchCustomers]);
+  }, [fetchCustomers, userId]);
 
   const addCustomer = async (customer: Omit<Customer, 'id' | 'created_at' | 'updated_at'> & { user_id: string }) => {
     try {
@@ -97,7 +111,7 @@ export function useCustomers(userId: string | undefined) {
         }
         return { error, data: null };
       } else if (data) {
-        setCustomers(prev => [...prev, data as Customer]);
+        // Не добавляем в state здесь — real-time подписка сделает это
         toast.success('Заказчик добавлен', { description: customer.name });
         return { error: null, data };
       }

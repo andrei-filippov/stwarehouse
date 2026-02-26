@@ -246,11 +246,11 @@ CREATE POLICY "Users can insert own equipment" ON equipment FOR INSERT WITH CHEC
 CREATE POLICY "Users can update own equipment" ON equipment FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "Users can delete own equipment" ON equipment FOR DELETE USING (auth.uid() = user_id);
 
--- Политики для customers
-CREATE POLICY "Users can view own customers" ON customers FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own customers" ON customers FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own customers" ON customers FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Users can delete own customers" ON customers FOR DELETE USING (auth.uid() = user_id);
+-- Политики для customers (доступно всем авторизованным для синхронизации)
+CREATE POLICY "Authenticated users can view all customers" ON customers FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can insert customers" ON customers FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated users can update customers" ON customers FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Authenticated users can delete customers" ON customers FOR DELETE TO authenticated USING (true);
 
 -- Политики для estimates
 CREATE POLICY "Users can view own estimates" ON estimates FOR SELECT USING (auth.uid() = user_id);
@@ -369,3 +369,42 @@ INSERT INTO categories (name) VALUES
   ('Кабели'),
   ('Аксессуары')
 ON CONFLICT (name) DO NOTHING;
+
+-- ============================================
+-- Real-time публикация для синхронизации между пользователями
+-- ============================================
+-- Добавляем таблицы в публикацию supabase_realtime
+DO $$
+BEGIN
+  -- Customers (заказчики) - обязательно для синхронизации
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' AND tablename = 'customers'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE customers;
+  END IF;
+  
+  -- Equipment (оборудование)
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' AND tablename = 'equipment'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE equipment;
+  END IF;
+  
+  -- Estimates (сметы)
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' AND tablename = 'estimates'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE estimates;
+  END IF;
+  
+  -- Staff (персонал)
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' AND tablename = 'staff'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE staff;
+  END IF;
+END $$;
