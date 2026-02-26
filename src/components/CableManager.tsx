@@ -297,7 +297,7 @@ export const CableManager = memo(function CableManager({
               const catInventory = inventory.filter(i => i.category_id === category.id).sort((a, b) => a.length - b.length);
               const catStats = stats[category.id] || { totalLength: 0, totalQty: 0, issuedQty: 0 };
               const isExpanded = expandedCategories.has(category.id);
-              const hasLowStock = catInventory.some(i => i.quantity < (i.min_quantity ?? 0));
+              const hasLowStock = catInventory.some(i => (i.min_quantity ?? 0) > 0 && i.quantity < (i.min_quantity ?? 0));
 
               return (
                 <Card key={category.id} className={hasLowStock ? 'border-orange-300' : ''}>
@@ -372,13 +372,13 @@ export const CableManager = memo(function CableManager({
                             <div 
                               key={item.id}
                               className={`flex items-center justify-between p-2 rounded ${
-                                item.quantity < (item.min_quantity ?? 0) ? 'bg-orange-50' : 'bg-gray-50'
+                                (item.min_quantity ?? 0) > 0 && item.quantity < (item.min_quantity ?? 0) ? 'bg-orange-50' : 'bg-gray-50'
                               }`}
                             >
                               <div className="flex items-center gap-3">
                                 {(() => {
                                   const minQty = item.min_quantity ?? 0;
-                                  const isLow = item.quantity < minQty;
+                                  const isLow = minQty > 0 && item.quantity < minQty;
                                   return (
                                     <>
                                       <span className="font-medium w-16">{item.length} м</span>
