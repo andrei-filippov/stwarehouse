@@ -156,13 +156,23 @@ export function useCableInventory(userId: string | undefined) {
   };
 
   // Добавить/обновить позицию инвентаря
+  // Теперь учитываем notes: кабели одинаковой длины, но с разными комментариями - разные позиции
   const upsertInventory = async (data: Omit<CableInventory, 'id' | 'created_at' | 'updated_at'>) => {
-    const { data: existing } = await supabase
+    // Ищем существующую запись по категории, длине И комментарию
+    let query = supabase
       .from('cable_inventory')
       .select('id')
       .eq('category_id', data.category_id)
-      .eq('length', data.length)
-      .single();
+      .eq('length', data.length);
+    
+    // Учитываем notes: если notes null - ищем IS NULL, иначе ищем по значению
+    if (data.notes) {
+      query = query.eq('notes', data.notes);
+    } else {
+      query = query.is('notes', null);
+    }
+    
+    const { data: existing } = await query.single();
 
     if (existing) {
       const { error } = await supabase

@@ -19,9 +19,10 @@ CREATE TABLE IF NOT EXISTS cable_inventory (
     length NUMERIC(10, 2) NOT NULL, -- длина в метрах (0.5, 1, 1.5, etc.)
     quantity INTEGER NOT NULL DEFAULT 0, -- всего на складе
     min_quantity INTEGER DEFAULT 0, -- минимальный остаток для алерта
+    notes TEXT, -- комментарий (например: IP65, на шуко и т.д.)
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(category_id, length)
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    -- Уникальность по (category_id, length, notes) добавляется в отдельной миграции
 );
 
 -- Движение: выдача и возврат
