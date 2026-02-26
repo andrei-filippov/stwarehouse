@@ -102,7 +102,7 @@ export const CableManager = memo(function CableManager({
 
   // Form states
   const [categoryForm, setCategoryForm] = useState({ name: '', description: '', color: '#3b82f6' });
-  const [inventoryForm, setInventoryForm] = useState({ category_id: '', length: '', quantity: '', min_quantity: '5', notes: '' });
+  const [inventoryForm, setInventoryForm] = useState({ category_id: '', length: '', quantity: '', min_quantity: '0', notes: '' });
   const [issueForm, setIssueForm] = useState({
     category_id: '',
     inventory_id: '',
@@ -227,7 +227,7 @@ export const CableManager = memo(function CableManager({
   };
 
   const openInventoryAdd = (categoryId: string) => {
-    setInventoryForm({ category_id: categoryId, length: '', quantity: '', min_quantity: '5', notes: '' });
+    setInventoryForm({ category_id: categoryId, length: '', quantity: '', min_quantity: '0', notes: '' });
     setIsInventoryDialogOpen(true);
   };
 

@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS cable_inventory (
     category_id UUID REFERENCES cable_categories(id) ON DELETE CASCADE,
     length NUMERIC(10, 2) NOT NULL, -- длина в метрах (0.5, 1, 1.5, etc.)
     quantity INTEGER NOT NULL DEFAULT 0, -- всего на складе
-    min_quantity INTEGER DEFAULT 5, -- минимальный остаток для алерта
+    min_quantity INTEGER DEFAULT 0, -- минимальный остаток для алерта
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE(category_id, length)
