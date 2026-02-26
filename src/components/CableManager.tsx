@@ -146,16 +146,17 @@ export const CableManager = memo(function CableManager({
   };
 
   const handleAddInventory = async () => {
+    const minQty = parseInt(inventoryForm.min_quantity);
     const { error } = await onUpsertInventory({
       category_id: inventoryForm.category_id,
       length: parseFloat(inventoryForm.length),
       quantity: parseInt(inventoryForm.quantity),
-      min_quantity: parseInt(inventoryForm.min_quantity) || 5,
+      min_quantity: isNaN(minQty) ? 0 : minQty,
       notes: inventoryForm.notes || undefined,
     });
     if (!error) {
       setIsInventoryDialogOpen(false);
-      setInventoryForm({ category_id: '', length: '', quantity: '', min_quantity: '5', notes: '' });
+      setInventoryForm({ category_id: '', length: '', quantity: '', min_quantity: '0', notes: '' });
     }
   };
 
@@ -296,7 +297,7 @@ export const CableManager = memo(function CableManager({
               const catInventory = inventory.filter(i => i.category_id === category.id).sort((a, b) => a.length - b.length);
               const catStats = stats[category.id] || { totalLength: 0, totalQty: 0, issuedQty: 0 };
               const isExpanded = expandedCategories.has(category.id);
-              const hasLowStock = catInventory.some(i => i.quantity < i.min_quantity);
+              const hasLowStock = catInventory.some(i => i.quantity < (i.min_quantity ?? 0));
 
               return (
                 <Card key={category.id} className={hasLowStock ? 'border-orange-300' : ''}>
@@ -371,36 +372,43 @@ export const CableManager = memo(function CableManager({
                             <div 
                               key={item.id}
                               className={`flex items-center justify-between p-2 rounded ${
-                                item.quantity < item.min_quantity ? 'bg-orange-50' : 'bg-gray-50'
+                                item.quantity < (item.min_quantity ?? 0) ? 'bg-orange-50' : 'bg-gray-50'
                               }`}
                             >
-                              <div className="flex items-center gap-3">
-                                <span className="font-medium w-16">{item.length} м</span>
-                                <div className="flex items-center gap-1">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-6 w-6 p-0"
-                                    onClick={() => handleUpdateInventoryQty(item.id, item.quantity - 1, item.length)}
-                                    disabled={item.quantity <= 0}
-                                  >
-                                    -
-                                  </Button>
-                                  <span className={`text-sm w-10 text-center ${item.quantity < item.min_quantity ? 'text-orange-600 font-medium' : 'text-gray-600'}`}>
-                                    {item.quantity}
-                                  </span>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-6 w-6 p-0"
-                                    onClick={() => handleUpdateInventoryQty(item.id, item.quantity + 1, item.length)}
-                                  >
-                                    +
-                                  </Button>
-                                </div>
-                                {item.quantity < item.min_quantity && (
-                                  <AlertCircle className="w-4 h-4 text-orange-500 shrink-0" />
-                                )}
+                              {(() => {
+                                const minQty = item.min_quantity ?? 0;
+                                const isLow = item.quantity < minQty;
+                                return (
+                                  <>
+                                    <span className="font-medium w-16">{item.length} м</span>
+                                    <div className="flex items-center gap-1">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-6 w-6 p-0"
+                                        onClick={() => handleUpdateInventoryQty(item.id, item.quantity - 1, item.length)}
+                                        disabled={item.quantity <= 0}
+                                      >
+                                        -
+                                      </Button>
+                                      <span className={`text-sm w-10 text-center ${isLow ? 'text-orange-600 font-medium' : 'text-gray-600'}`}>
+                                        {item.quantity}
+                                      </span>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-6 w-6 p-0"
+                                        onClick={() => handleUpdateInventoryQty(item.id, item.quantity + 1, item.length)}
+                                      >
+                                        +
+                                      </Button>
+                                    </div>
+                                    {isLow && (
+                                      <AlertCircle className="w-4 h-4 text-orange-500 shrink-0" />
+                                    )}
+                                  </>
+                                );
+                              })()}
                                 {item.notes && (
                                   <span className="text-sm text-gray-500 truncate max-w-[150px]" title={item.notes}>
                                     {item.notes}
