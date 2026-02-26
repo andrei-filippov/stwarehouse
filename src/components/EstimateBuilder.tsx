@@ -1040,6 +1040,13 @@ export function EstimateBuilder({
                     <option value="п.м.">п.м.</option>
                   </select>
                 </div>
+                <textarea
+                  placeholder="Описание (опционально)"
+                  value={newEquipmentDescription}
+                  onChange={(e) => setNewEquipmentDescription(e.target.value)}
+                  className="w-full border rounded px-2 py-1 text-xs resize-none h-16"
+                  rows={2}
+                />
                 <Button 
                   size="sm" 
                   className="w-full h-7 text-xs"
