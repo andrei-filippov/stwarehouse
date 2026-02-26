@@ -564,15 +564,37 @@ export function EstimateBuilder({
     [customers, customerId]
   );
 
-  // Проверка даты (не раньше 2020 года)
-  const validateDate = (dateStr: string): boolean => {
+  // Проверка даты (год от 2026 до 2100)
+  const validateDate = (dateStr: string, isEndDate: boolean = false): boolean => {
     if (!dateStr) return true; // Пустая дата валидна
-    const date = new Date(dateStr);
-    const minDate = new Date('2020-01-01');
-    if (date < minDate) {
-      setDateError('Дата мероприятия не может быть раньше 2020 года');
+    
+    // Проверка формата года (должно быть ровно 4 цифры)
+    const yearMatch = dateStr.match(/^(\d{4})-/);
+    if (!yearMatch || yearMatch[1].length !== 4) {
+      setDateError(isEndDate ? 'Год окончания должен содержать 4 цифры' : 'Год должен содержать 4 цифры');
       return false;
     }
+    
+    const year = parseInt(yearMatch[1]);
+    if (year < 2026) {
+      setDateError('Год должен быть не раньше 2026');
+      return false;
+    }
+    if (year > 2100) {
+      setDateError('Год должен быть не позже 2100');
+      return false;
+    }
+    
+    // Проверка что дата окончания не раньше даты начала
+    if (isEndDate && eventStartDate) {
+      const startDate = new Date(eventStartDate);
+      const endDate = new Date(dateStr);
+      if (endDate < startDate) {
+        setDateError('Дата окончания не может быть раньше даты начала');
+        return false;
+      }
+    }
+    
     setDateError(null);
     return true;
   };
@@ -583,7 +605,7 @@ export function EstimateBuilder({
     const endDate = eventEndDate || eventStartDate || eventDate;
     
     // Проверка даты перед сохранением
-    if ((startDate && !validateDate(startDate)) || (endDate && !validateDate(endDate))) {
+    if ((startDate && !validateDate(startDate, false)) || (endDate && !validateDate(endDate, true))) {
       toast.error('Ошибка в дате', { description: dateError || 'Некорректная дата' });
       return;
     }
@@ -1241,7 +1263,7 @@ export function EstimateBuilder({
                     setEventStartDate(newDate);
                     setEventDate(newDate);
                     setIsSaved(false);
-                    validateDate(newDate);
+                    validateDate(newDate, false); // false = это дата начала
                   }}
                   className={`text-sm ${dateError ? 'border-red-500' : ''}`}
                   title="Начало"
@@ -1253,7 +1275,7 @@ export function EstimateBuilder({
                     const newDate = e.target.value;
                     setEventEndDate(newDate);
                     setIsSaved(false);
-                    validateDate(newDate);
+                    validateDate(newDate, true); // true = это дата окончания
                   }}
                   min={eventStartDate}
                   className={`text-sm ${dateError ? 'border-red-500' : ''}`}
