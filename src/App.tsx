@@ -55,6 +55,17 @@ import { hasAccess, getRoleLabel, type UserRole, type TabId } from './lib/permis
 
 function App() {
   const { user, profile, permissions, loading: authLoading, signIn, signUp, signOut } = useAuth();
+  
+  // DEBUG: Проверяем роль и env переменные
+  useEffect(() => {
+    console.log('[App Debug]', {
+      profileRole: profile?.role,
+      userRole: (profile?.role || 'manager') as UserRole,
+      gigachatClientId: import.meta.env.VITE_GIGACHAT_CLIENT_ID?.substring(0, 8) + '...',
+      gigachatClientSecret: import.meta.env.VITE_GIGACHAT_CLIENT_SECRET ? 'есть' : 'нет',
+    });
+  }, [profile?.role]);
+  
   const { equipment, categories, loading: equipmentLoading, addEquipment, updateEquipment, deleteEquipment, bulkInsert, addCategory, deleteCategory } = useEquipment(user?.id);
   const { estimates, loading: estimatesLoading, createEstimate, updateEstimate, deleteEstimate, startEditing, stopEditing } = useEstimates(user?.id);
   const { templates, loading: templatesLoading, createTemplate, updateTemplate, deleteTemplate } = useTemplates(user?.id);

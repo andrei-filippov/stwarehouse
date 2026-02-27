@@ -49,6 +49,17 @@ export const EstimateManager = memo(function EstimateManager({
   gigachatClientId,
   gigachatClientSecret,
 }: EstimateManagerProps) {
+  // DEBUG: Проверяем пропсы для AI кнопки
+  useEffect(() => {
+    console.log('[EstimateManager Debug]', {
+      userRole,
+      isAdmin: userRole === 'admin',
+      hasClientId: !!gigachatClientId,
+      hasClientSecret: !!gigachatClientSecret,
+      gigachatClientId: gigachatClientId?.substring(0, 8) + '...',
+    });
+  }, [userRole, gigachatClientId, gigachatClientSecret]);
+
   // Открываем создание сметы при нажатии FAB (пропускаем первый рендер)
   const isFirstRender = useRef(true);
   useEffect(() => {
