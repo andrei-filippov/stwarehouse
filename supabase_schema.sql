@@ -241,89 +241,137 @@ DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
 CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
 
 -- Политики для categories (доступно всем авторизованным)
+DROP POLICY IF EXISTS "Authenticated users can view categories" ON categories;
 CREATE POLICY "Authenticated users can view categories" ON categories FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "Authenticated users can insert categories" ON categories;
 CREATE POLICY "Authenticated users can insert categories" ON categories FOR INSERT TO authenticated WITH CHECK (true);
+DROP POLICY IF EXISTS "Authenticated users can delete categories" ON categories;
 CREATE POLICY "Authenticated users can delete categories" ON categories FOR DELETE TO authenticated USING (true);
 
 -- Политики для equipment
+DROP POLICY IF EXISTS "Users can view own equipment" ON equipment;
 CREATE POLICY "Users can view own equipment" ON equipment FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can insert own equipment" ON equipment;
 CREATE POLICY "Users can insert own equipment" ON equipment FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own equipment" ON equipment;
 CREATE POLICY "Users can update own equipment" ON equipment FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own equipment" ON equipment;
 CREATE POLICY "Users can delete own equipment" ON equipment FOR DELETE USING (auth.uid() = user_id);
 
 -- Политики для customers (доступно всем авторизованным для синхронизации)
+DROP POLICY IF EXISTS "Authenticated users can view all customers" ON customers;
 CREATE POLICY "Authenticated users can view all customers" ON customers FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "Authenticated users can insert customers" ON customers;
 CREATE POLICY "Authenticated users can insert customers" ON customers FOR INSERT TO authenticated WITH CHECK (true);
+DROP POLICY IF EXISTS "Authenticated users can update customers" ON customers;
 CREATE POLICY "Authenticated users can update customers" ON customers FOR UPDATE TO authenticated USING (true);
+DROP POLICY IF EXISTS "Authenticated users can delete customers" ON customers;
 CREATE POLICY "Authenticated users can delete customers" ON customers FOR DELETE TO authenticated USING (true);
 
 -- Политики для estimates
+DROP POLICY IF EXISTS "Users can view own estimates" ON estimates;
 CREATE POLICY "Users can view own estimates" ON estimates FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can insert own estimates" ON estimates;
 CREATE POLICY "Users can insert own estimates" ON estimates FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own estimates" ON estimates;
 CREATE POLICY "Users can update own estimates" ON estimates FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own estimates" ON estimates;
 CREATE POLICY "Users can delete own estimates" ON estimates FOR DELETE USING (auth.uid() = user_id);
 
 -- Политики для estimate_items
+DROP POLICY IF EXISTS "Users can view own estimate items" ON estimate_items;
 CREATE POLICY "Users can view own estimate items" ON estimate_items FOR SELECT 
   USING (EXISTS (SELECT 1 FROM estimates WHERE estimates.id = estimate_items.estimate_id AND estimates.user_id = auth.uid()));
+DROP POLICY IF EXISTS "Users can insert own estimate items" ON estimate_items;
 CREATE POLICY "Users can insert own estimate items" ON estimate_items FOR INSERT 
   WITH CHECK (EXISTS (SELECT 1 FROM estimates WHERE estimates.id = estimate_items.estimate_id AND estimates.user_id = auth.uid()));
+DROP POLICY IF EXISTS "Users can delete own estimate items" ON estimate_items;
 CREATE POLICY "Users can delete own estimate items" ON estimate_items FOR DELETE 
   USING (EXISTS (SELECT 1 FROM estimates WHERE estimates.id = estimate_items.estimate_id AND estimates.user_id = auth.uid()));
 
 -- Политики для templates
+DROP POLICY IF EXISTS "Users can view own templates" ON templates;
 CREATE POLICY "Users can view own templates" ON templates FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can insert own templates" ON templates;
 CREATE POLICY "Users can insert own templates" ON templates FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own templates" ON templates;
 CREATE POLICY "Users can update own templates" ON templates FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own templates" ON templates;
 CREATE POLICY "Users can delete own templates" ON templates FOR DELETE USING (auth.uid() = user_id);
 
 -- Политики для template_items
+DROP POLICY IF EXISTS "Users can view own template items" ON template_items;
 CREATE POLICY "Users can view own template items" ON template_items FOR SELECT 
   USING (EXISTS (SELECT 1 FROM templates WHERE templates.id = template_items.template_id AND templates.user_id = auth.uid()));
+DROP POLICY IF EXISTS "Users can insert own template items" ON template_items;
 CREATE POLICY "Users can insert own template items" ON template_items FOR INSERT 
   WITH CHECK (EXISTS (SELECT 1 FROM templates WHERE templates.id = template_items.template_id AND templates.user_id = auth.uid()));
+DROP POLICY IF EXISTS "Users can delete own template items" ON template_items;
 CREATE POLICY "Users can delete own template items" ON template_items FOR DELETE 
   USING (EXISTS (SELECT 1 FROM templates WHERE templates.id = template_items.template_id AND templates.user_id = auth.uid()));
 
 -- Политики для staff
+DROP POLICY IF EXISTS "Users can view own staff" ON staff;
 CREATE POLICY "Users can view own staff" ON staff FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can insert own staff" ON staff;
 CREATE POLICY "Users can insert own staff" ON staff FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own staff" ON staff;
 CREATE POLICY "Users can update own staff" ON staff FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own staff" ON staff;
 CREATE POLICY "Users can delete own staff" ON staff FOR DELETE USING (auth.uid() = user_id);
 
 -- Политики для goals
+DROP POLICY IF EXISTS "Users can view own goals" ON goals;
 CREATE POLICY "Users can view own goals" ON goals FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can insert own goals" ON goals;
 CREATE POLICY "Users can insert own goals" ON goals FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own goals" ON goals;
 CREATE POLICY "Users can update own goals" ON goals FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own goals" ON goals;
 CREATE POLICY "Users can delete own goals" ON goals FOR DELETE USING (auth.uid() = user_id);
 
 -- Политики для checklist_rules
+DROP POLICY IF EXISTS "Users can view own checklist rules" ON checklist_rules;
 CREATE POLICY "Users can view own checklist rules" ON checklist_rules FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can insert own checklist rules" ON checklist_rules;
 CREATE POLICY "Users can insert own checklist rules" ON checklist_rules FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own checklist rules" ON checklist_rules;
 CREATE POLICY "Users can update own checklist rules" ON checklist_rules FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own checklist rules" ON checklist_rules;
 CREATE POLICY "Users can delete own checklist rules" ON checklist_rules FOR DELETE USING (auth.uid() = user_id);
 
 -- Политики для checklist_rule_items
+DROP POLICY IF EXISTS "Users can view own checklist rule items" ON checklist_rule_items;
 CREATE POLICY "Users can view own checklist rule items" ON checklist_rule_items FOR SELECT 
   USING (EXISTS (SELECT 1 FROM checklist_rules WHERE checklist_rules.id = checklist_rule_items.rule_id AND checklist_rules.user_id = auth.uid()));
+DROP POLICY IF EXISTS "Users can insert own checklist rule items" ON checklist_rule_items;
 CREATE POLICY "Users can insert own checklist rule items" ON checklist_rule_items FOR INSERT 
   WITH CHECK (EXISTS (SELECT 1 FROM checklist_rules WHERE checklist_rules.id = checklist_rule_items.rule_id AND checklist_rules.user_id = auth.uid()));
+DROP POLICY IF EXISTS "Users can delete own checklist rule items" ON checklist_rule_items;
 CREATE POLICY "Users can delete own checklist rule items" ON checklist_rule_items FOR DELETE 
   USING (EXISTS (SELECT 1 FROM checklist_rules WHERE checklist_rules.id = checklist_rule_items.rule_id AND checklist_rules.user_id = auth.uid()));
 
 -- Политики для checklists
+DROP POLICY IF EXISTS "Users can view own checklists" ON checklists;
 CREATE POLICY "Users can view own checklists" ON checklists FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can insert own checklists" ON checklists;
 CREATE POLICY "Users can insert own checklists" ON checklists FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own checklists" ON checklists;
 CREATE POLICY "Users can update own checklists" ON checklists FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own checklists" ON checklists;
 CREATE POLICY "Users can delete own checklists" ON checklists FOR DELETE USING (auth.uid() = user_id);
 
 -- Политики для checklist_items
+DROP POLICY IF EXISTS "Users can view own checklist items" ON checklist_items;
 CREATE POLICY "Users can view own checklist items" ON checklist_items FOR SELECT 
   USING (EXISTS (SELECT 1 FROM checklists WHERE checklists.id = checklist_items.checklist_id AND checklists.user_id = auth.uid()));
+DROP POLICY IF EXISTS "Users can insert own checklist items" ON checklist_items;
 CREATE POLICY "Users can insert own checklist items" ON checklist_items FOR INSERT 
   WITH CHECK (EXISTS (SELECT 1 FROM checklists WHERE checklists.id = checklist_items.checklist_id AND checklists.user_id = auth.uid()));
+DROP POLICY IF EXISTS "Users can update own checklist items" ON checklist_items;
 CREATE POLICY "Users can update own checklist items" ON checklist_items FOR UPDATE 
   USING (EXISTS (SELECT 1 FROM checklists WHERE checklists.id = checklist_items.checklist_id AND checklists.user_id = auth.uid()));
+DROP POLICY IF EXISTS "Users can delete own checklist items" ON checklist_items;
 CREATE POLICY "Users can delete own checklist items" ON checklist_items FOR DELETE 
   USING (EXISTS (SELECT 1 FROM checklists WHERE checklists.id = checklist_items.checklist_id AND checklists.user_id = auth.uid()));
 

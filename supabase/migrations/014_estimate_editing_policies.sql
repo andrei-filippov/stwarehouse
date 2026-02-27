@@ -3,6 +3,7 @@
 -- Разрешаем всем авторизованным пользователям обновлять статус редактирования
 -- Это нужно для realtime блокировок
 
+DROP POLICY IF EXISTS "Users can update editing status" ON estimates;
 CREATE POLICY "Users can update editing status"
     ON estimates FOR UPDATE
     USING (auth.uid() = user_id OR is_editing = false OR editing_by = auth.uid())
