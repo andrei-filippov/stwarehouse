@@ -46,8 +46,6 @@ export function RiderImportDialog({
   onClose,
   onImport,
   equipment,
-  gigachatClientId,
-  gigachatClientSecret,
 }: RiderImportDialogProps) {
   const [step, setStep] = useState<Step>('upload');
   const [riderText, setRiderText] = useState('');
@@ -65,14 +63,11 @@ export function RiderImportDialog({
     parsedRider,
     matchedItems,
     unmatchedItems,
-    parseRiderText,
+    parseRider,
     matchWithInventory,
     reset,
     extractTextFromFile,
-  } = useRiderParser({
-    clientId: gigachatClientId,
-    clientSecret: gigachatClientSecret,
-  });
+  } = useRiderParser();
 
   // Обработка загрузки файла
   const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -89,7 +84,7 @@ export function RiderImportDialog({
 
   // Запуск парсинга
   const handleParse = useCallback(async () => {
-    const parsed = await parseRiderText(riderText);
+    const parsed = await parseRider(riderText);
     if (parsed) {
       setEventName(parsed.event_name || '');
       setVenue(parsed.venue || '');
@@ -107,7 +102,7 @@ export function RiderImportDialog({
       });
       setQuantities(qtys);
     }
-  }, [riderText, parseRiderText]);
+  }, [riderText, parseRider]);
 
   // Запуск сопоставления с базой
   const handleMatch = useCallback(async () => {

@@ -26,8 +26,6 @@ interface EstimateManagerProps {
   currentUserId?: string;
   fabAction?: number;
   userRole?: UserRole;
-  gigachatClientId?: string;
-  gigachatClientSecret?: string;
 }
 
 export const EstimateManager = memo(function EstimateManager({
@@ -46,20 +44,7 @@ export const EstimateManager = memo(function EstimateManager({
   currentUserId,
   fabAction,
   userRole,
-  gigachatClientId,
-  gigachatClientSecret,
 }: EstimateManagerProps) {
-  // DEBUG: Проверяем пропсы для AI кнопки
-  useEffect(() => {
-    console.log('[EstimateManager Debug]', {
-      userRole,
-      isAdmin: userRole === 'admin',
-      hasClientId: !!gigachatClientId,
-      hasClientSecret: !!gigachatClientSecret,
-      gigachatClientId: gigachatClientId?.substring(0, 8) + '...',
-    });
-  }, [userRole, gigachatClientId, gigachatClientSecret]);
-
   // Открываем создание сметы при нажатии FAB (пропускаем первый рендер)
   const isFirstRender = useRef(true);
   useEffect(() => {
@@ -202,7 +187,7 @@ export const EstimateManager = memo(function EstimateManager({
                 Из Excel
               </Button>
               {/* AI импорт райдера - только для админа */}
-              {userRole === 'admin' && gigachatClientId && gigachatClientSecret && (
+              {userRole === 'admin' && (
                 <Button 
                   variant="outline" 
                   onClick={() => setIsRiderDialogOpen(true)}
@@ -239,7 +224,7 @@ export const EstimateManager = memo(function EstimateManager({
                 <FileSpreadsheet className="w-4 h-4" />
               </Button>
               {/* AI импорт райдера - только для админа */}
-              {userRole === 'admin' && gigachatClientId && gigachatClientSecret && (
+              {userRole === 'admin' && (
                 <Button 
                   variant="outline" 
                   size="sm"
@@ -471,14 +456,12 @@ export const EstimateManager = memo(function EstimateManager({
       />
 
       {/* Диалог импорта из райдера (AI) - только для админа */}
-      {userRole === 'admin' && gigachatClientId && gigachatClientSecret && (
+      {userRole === 'admin' && (
         <RiderImportDialog
           isOpen={isRiderDialogOpen}
           onClose={() => setIsRiderDialogOpen(false)}
           onImport={handleImportFromRider}
           equipment={equipment}
-          gigachatClientId={gigachatClientId}
-          gigachatClientSecret={gigachatClientSecret}
         />
       )}
     </div>

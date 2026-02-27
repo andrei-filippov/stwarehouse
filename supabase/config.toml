@@ -1,0 +1,6 @@
+# Supabase configuration
+# Для деплоя Edge Functions
+
+[functions.parse-rider]
+# Таймаут выполнения (в секундах)
+verify_jwt = true
