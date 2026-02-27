@@ -77,7 +77,14 @@ export function EstimateBuilder({
   const printRef = useRef<HTMLDivElement>(null);
 
   // Обновляем состояние при открытии сметы для редактирования
+  const isInitializedRef = useRef(false);
+  
   useEffect(() => {
+    // Если уже инициализировано и смета редактируется (есть позиции), не сбрасываем
+    if (isInitializedRef.current && items.length > 0 && !estimate) {
+      return;
+    }
+    
     if (estimate) {
       setEventName(estimate.event_name || '');
       setVenue(estimate.venue || '');
@@ -94,6 +101,7 @@ export function EstimateBuilder({
       }
       // При редактировании смета уже сохранена
       setIsSaved(true);
+      isInitializedRef.current = true;
     } else if (selectedTemplate && equipment?.length > 0) {
       // Автоматически применяем выбранный шаблон только когда оборудование загружено
       setEventName(selectedTemplate.name || '');
@@ -104,6 +112,7 @@ export function EstimateBuilder({
       // Применяем шаблон сразу (без проверки доступности, так как дата не выбрана)
       applyTemplateDirect(selectedTemplate);
       setIsSaved(false);
+      isInitializedRef.current = true;
     } else if (selectedTemplate && (!equipment || equipment.length === 0)) {
       // Оборудование еще не загружено - ждем
       setEventName(selectedTemplate.name || '');
@@ -113,13 +122,16 @@ export function EstimateBuilder({
       setEventEndDate('');
       setItems([]);
     } else {
-      setEventName('');
-      setVenue('');
-      setEventDate('');
-      setEventStartDate('');
-      setEventEndDate('');
-      setItems([]);
-      setIsSaved(false);
+      // Новая пустая смета - сбрасываем только если еще не инициализировано
+      if (!isInitializedRef.current) {
+        setEventName('');
+        setVenue('');
+        setEventDate('');
+        setEventStartDate('');
+        setEventEndDate('');
+        setItems([]);
+        setIsSaved(false);
+      }
     }
   }, [estimate?.id, selectedTemplate?.id, equipment?.length]);
 
