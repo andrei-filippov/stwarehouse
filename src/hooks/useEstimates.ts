@@ -1,25 +1,31 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
 import type { Estimate, EstimateItem } from '../types';
 
+// Генерируем уникальный ID сессии для этой вкладки
+const SESSION_ID = Math.random().toString(36).substring(2, 15);
+
 export function useEstimates(userId: string | undefined) {
   const [estimates, setEstimates] = useState<Estimate[]>([]);
   const [loading, setLoading] = useState(false);
+  const currentEditingIdRef = useRef<string | null>(null);
 
   const fetchEstimates = useCallback(async () => {
     if (!userId) return;
     setLoading(true);
     
+    // Загружаем сметы с данными редактора (join с profiles)
     const { data, error } = await supabase
       .from('estimates')
       .select(`
         *,
-        items:estimate_items(*)
+        items:estimate_items(*),
+        editor:profiles!estimates_editing_by_fkey(name)
       `)
       .order('created_at', { ascending: false });
     
-    // Преобразуем category_order из JSONB в массив
+    // Преобразуем category_order из JSONB в массив и добавляем имя редактора
     if (data) {
       data.forEach((estimate: any) => {
         if (estimate.category_order && typeof estimate.category_order === 'string') {
@@ -28,6 +34,10 @@ export function useEstimates(userId: string | undefined) {
           } catch {
             estimate.category_order = [];
           }
+        }
+        // Добавляем имя редактора если есть
+        if (estimate.editor && estimate.editor.name) {
+          estimate.editor_name = estimate.editor.name;
         }
       });
     }
@@ -40,9 +50,111 @@ export function useEstimates(userId: string | undefined) {
     setLoading(false);
   }, [userId]);
 
+  // Устанавливаем статус "редактируется" при открытии сметы
+  const startEditing = useCallback(async (estimateId: string) => {
+    if (!userId) return { error: new Error('Not authenticated') };
+    
+    currentEditingIdRef.current = estimateId;
+    
+    const { error } = await supabase
+      .from('estimates')
+      .update({
+        is_editing: true,
+        editing_by: userId,
+        editing_since: new Date().toISOString(),
+        editing_session_id: SESSION_ID
+      })
+      .eq('id', estimateId);
+    
+    return { error };
+  }, [userId]);
+
+  // Снимаем статус редактирования при закрытии
+  const stopEditing = useCallback(async (estimateId?: string) => {
+    const id = estimateId || currentEditingIdRef.current;
+    if (!id || !userId) return { error: null };
+    
+    // Проверяем что мы действительно те, кто редактировал
+    const { data: current } = await supabase
+      .from('estimates')
+      .select('editing_by, editing_session_id')
+      .eq('id', id)
+      .single();
+    
+    // Снимаем блокировку только если мы те, кто редактировал
+    if (current && (current.editing_by === userId || current.editing_session_id === SESSION_ID)) {
+      const { error } = await supabase
+        .from('estimates')
+        .update({
+          is_editing: false,
+          editing_by: null,
+          editing_since: null,
+          editing_session_id: null
+        })
+        .eq('id', id);
+      
+      if (!error) {
+        currentEditingIdRef.current = null;
+      }
+      return { error };
+    }
+    
+    return { error: null };
+  }, [userId]);
+
+  // Realtime подписка на изменения статуса редактирования
   useEffect(() => {
+    if (!userId) return;
+    
     fetchEstimates();
-  }, [fetchEstimates]);
+    
+    // Подписываемся на изменения в сметах (только статус редактирования)
+    const channel = supabase
+      .channel('estimates_editing_status')
+      .on('postgres_changes', 
+        { event: 'UPDATE', schema: 'public', table: 'estimates' },
+        async (payload) => {
+          const updated = payload.new as Estimate;
+          
+          // Если изменился статус редактирования - обновляем локально
+          if (updated.is_editing !== undefined || updated.editing_by !== undefined) {
+            // Загружаем имя редактора если нужно
+            let editorName = undefined;
+            if (updated.editing_by && updated.editing_by !== userId) {
+              const { data: profile } = await supabase
+                .from('profiles')
+                .select('name')
+                .eq('id', updated.editing_by)
+                .single();
+              if (profile) {
+                editorName = profile.name;
+              }
+            }
+            
+            setEstimates(prev => prev.map(e => {
+              if (e.id === updated.id) {
+                return { 
+                  ...e, 
+                  ...updated,
+                  editor_name: editorName
+                };
+              }
+              return e;
+            }));
+          }
+        }
+      )
+      .subscribe();
+    
+    // Очистка при размонтировании
+    return () => {
+      // Снимаем блокировку с текущей сметы если есть
+      if (currentEditingIdRef.current) {
+        stopEditing(currentEditingIdRef.current);
+      }
+      supabase.removeChannel(channel);
+    };
+  }, [fetchEstimates, userId, stopEditing]);
 
   const createEstimate = async (estimate: Omit<Estimate, 'id' | 'created_at' | 'updated_at'>, items: Omit<EstimateItem, 'id' | 'estimate_id'>[], userId: string, creatorName?: string, categoryOrder?: string[]) => {
     // Подготавливаем данные сметы с датами и user_id
@@ -187,6 +299,8 @@ export function useEstimates(userId: string | undefined) {
     createEstimate,
     updateEstimate,
     deleteEstimate,
+    startEditing,
+    stopEditing,
     refresh: fetchEstimates
   };
 }

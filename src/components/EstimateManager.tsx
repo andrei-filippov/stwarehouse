@@ -3,7 +3,7 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
-import { Plus, Edit, Trash2, Layout, Copy, FileSpreadsheet, Users } from 'lucide-react';
+import { Plus, Edit, Trash2, Layout, Copy, FileSpreadsheet, Users, Loader2, Lock } from 'lucide-react';
 import type { Estimate, PDFSettings, Template, EstimateItem } from '../types';
 import { EstimateBuilder } from './EstimateBuilder';
 import { EstimateImportDialog } from './EstimateImportDialog';
@@ -19,6 +19,9 @@ interface EstimateManagerProps {
   onUpdate: (id: string, estimate: any, items: any[], categoryOrder?: string[]) => Promise<{ error: any }>;
   onDelete: (id: string) => Promise<{ error: any }>;
   onCreateEquipment?: (equipment: any) => Promise<{ error: any; data?: any }>;
+  onStartEditing?: (estimateId: string) => Promise<{ error: any }>;
+  onStopEditing?: (estimateId?: string) => Promise<{ error: any }>;
+  currentUserId?: string;
   fabAction?: number;
 }
 
@@ -33,6 +36,9 @@ export const EstimateManager = memo(function EstimateManager({
   onUpdate,
   onDelete,
   onCreateEquipment,
+  onStartEditing,
+  onStopEditing,
+  currentUserId,
   fabAction
 }: EstimateManagerProps) {
   // Открываем создание сметы при нажатии FAB (пропускаем первый рендер)
@@ -54,17 +60,25 @@ export const EstimateManager = memo(function EstimateManager({
   const [editingEstimate, setEditingEstimate] = useState<Estimate | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
 
-  const handleEdit = useCallback((estimate: Estimate) => {
+  const handleEdit = useCallback(async (estimate: Estimate) => {
+    // Устанавливаем статус редактирования
+    if (onStartEditing && estimate.id !== 'new') {
+      await onStartEditing(estimate.id);
+    }
     setEditingEstimate(estimate);
     setSelectedTemplate(null);
     setIsBuilderOpen(true);
-  }, []);
+  }, [onStartEditing]);
 
-  const handleClose = useCallback(() => {
+  const handleClose = useCallback(async () => {
+    // Снимаем статус редактирования
+    if (onStopEditing && editingEstimate && editingEstimate.id !== 'new') {
+      await onStopEditing(editingEstimate.id);
+    }
     setIsBuilderOpen(false);
     setEditingEstimate(null);
     setSelectedTemplate(null);
-  }, []);
+  }, [onStopEditing, editingEstimate]);
 
   const handleCreateFromTemplate = useCallback((template: Template) => {
     setSelectedTemplate(template);
@@ -217,8 +231,18 @@ export const EstimateManager = memo(function EstimateManager({
               </TableHeader>
               <TableBody>
                 {(estimates || []).map((estimate) => (
-                  <TableRow key={estimate.id}>
-                    <TableCell className="font-medium">{estimate.event_name}</TableCell>
+                  <TableRow key={estimate.id} className={estimate.is_editing ? 'bg-blue-50' : ''}>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        {estimate.event_name}
+                        {estimate.is_editing && (
+                          <span className="inline-flex items-center gap-1 text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded">
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                            {estimate.editor_name || 'редактируется'}
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell>{estimate.customer_name || '-'}</TableCell>
                     <TableCell>{estimate.venue || '-'}</TableCell>
                     <TableCell>
@@ -234,8 +258,14 @@ export const EstimateManager = memo(function EstimateManager({
                           variant="ghost" 
                           size="sm"
                           onClick={() => handleEdit(estimate)}
+                          disabled={estimate.is_editing && estimate.editing_by !== currentUserId}
+                          title={estimate.is_editing ? `Редактирует: ${estimate.editor_name || 'другой пользователь'}` : 'Редактировать'}
                         >
-                          <Edit className="w-4 h-4" />
+                          {estimate.is_editing ? (
+                            <Lock className="w-4 h-4 text-orange-500" />
+                          ) : (
+                            <Edit className="w-4 h-4" />
+                          )}
                         </Button>
                         <Button 
                           variant="ghost" 
@@ -259,26 +289,43 @@ export const EstimateManager = memo(function EstimateManager({
               return (
                 <Card 
                   key={estimate.id} 
-                  className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+                  className={`overflow-hidden cursor-pointer hover:shadow-md transition-shadow ${estimate.is_editing ? 'border-blue-300 bg-blue-50/50' : ''}`}
                   onClick={() => handleEdit(estimate)}
                 >
                   <CardContent className="p-4">
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-base truncate">{estimate.event_name}</h3>
+                        <h3 className="font-semibold text-base truncate">
+                          {estimate.event_name}
+                          {estimate.is_editing && (
+                            <span className="ml-2 inline-flex items-center gap-1 text-xs text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded">
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            </span>
+                          )}
+                        </h3>
                         <p className="text-sm text-gray-500 truncate">{estimate.venue || 'Без площадки'}</p>
+                        {estimate.is_editing && (
+                          <p className="text-xs text-blue-600 mt-1">
+                            Редактирует: {estimate.editor_name || 'другой пользователь'}
+                          </p>
+                        )}
                       </div>
                       <div className="flex gap-1 ml-2">
                         <Button 
                           variant="ghost" 
                           size="sm"
                           className="h-8 w-8 p-0"
+                          disabled={estimate.is_editing && estimate.editing_by !== currentUserId}
                           onClick={(e) => {
                             e.stopPropagation();
                             handleEdit(estimate);
                           }}
                         >
-                          <Edit className="w-4 h-4" />
+                          {estimate.is_editing ? (
+                            <Lock className="w-4 h-4 text-orange-500" />
+                          ) : (
+                            <Edit className="w-4 h-4" />
+                          )}
                         </Button>
                         <Button 
                           variant="ghost" 

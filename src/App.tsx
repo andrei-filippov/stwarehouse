@@ -56,7 +56,7 @@ import { hasAccess, getRoleLabel, type UserRole, type TabId } from './lib/permis
 function App() {
   const { user, profile, permissions, loading: authLoading, signIn, signUp, signOut } = useAuth();
   const { equipment, categories, loading: equipmentLoading, addEquipment, updateEquipment, deleteEquipment, bulkInsert, addCategory, deleteCategory } = useEquipment(user?.id);
-  const { estimates, loading: estimatesLoading, createEstimate, updateEstimate, deleteEstimate } = useEstimates(user?.id);
+  const { estimates, loading: estimatesLoading, createEstimate, updateEstimate, deleteEstimate, startEditing, stopEditing } = useEstimates(user?.id);
   const { templates, loading: templatesLoading, createTemplate, updateTemplate, deleteTemplate } = useTemplates(user?.id);
   const { checklists, rules, loading: checklistsLoading, createRule, deleteRule, createChecklist, updateChecklistItem, deleteChecklist } = useChecklists(user?.id, estimates);
   const { staff, loading: staffLoading, addStaff, updateStaff, deleteStaff } = useStaff(user?.id);
@@ -236,6 +236,9 @@ function App() {
             onUpdate={(id, estimate, items, categoryOrder) => updateEstimate(id, estimate, items, user!.id, categoryOrder)}
             onDelete={deleteEstimate}
             onCreateEquipment={addEquipment}
+            onStartEditing={startEditing}
+            onStopEditing={stopEditing}
+            currentUserId={user?.id}
             loading={estimatesLoading}
             fabAction={fabAction}
           />

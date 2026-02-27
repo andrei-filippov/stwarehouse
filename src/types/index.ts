@@ -45,6 +45,13 @@ export type Estimate = {
   items?: EstimateItem[];
   creator_name?: string;
   category_order?: string[]; // Порядок категорий для drag-and-drop
+  // Статус редактирования (realtime)
+  is_editing?: boolean;
+  editing_by?: string;
+  editing_since?: string;
+  editing_session_id?: string;
+  // Данные редактора (join с profiles)
+  editor_name?: string;
 };
 
 export type TemplateItem = {

@@ -73,6 +73,11 @@ CREATE TABLE IF NOT EXISTS estimates (
   customer_name TEXT,
   creator_name TEXT,
   total DECIMAL(12, 2) NOT NULL DEFAULT 0,
+  -- Статус редактирования (realtime)
+  is_editing BOOLEAN DEFAULT FALSE,
+  editing_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  editing_since TIMESTAMP WITH TIME ZONE,
+  editing_session_id TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
