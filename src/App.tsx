@@ -239,8 +239,10 @@ function App() {
             onStartEditing={startEditing}
             onStopEditing={stopEditing}
             currentUserId={user?.id}
-            loading={estimatesLoading}
             fabAction={fabAction}
+            userRole={(profile?.role || 'manager') as import('./lib/permissions').UserRole}
+            gigachatClientId={import.meta.env.VITE_GIGACHAT_CLIENT_ID}
+            gigachatClientSecret={import.meta.env.VITE_GIGACHAT_CLIENT_SECRET}
           />
         )}
 

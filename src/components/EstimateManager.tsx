@@ -3,10 +3,12 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
-import { Plus, Edit, Trash2, Layout, Copy, FileSpreadsheet, Users, Loader2, Lock } from 'lucide-react';
+import { Plus, Edit, Trash2, Layout, Copy, FileSpreadsheet, Users, Loader2, Lock, Brain } from 'lucide-react';
 import type { Estimate, PDFSettings, Template, EstimateItem } from '../types';
 import { EstimateBuilder } from './EstimateBuilder';
 import { EstimateImportDialog } from './EstimateImportDialog';
+import { RiderImportDialog } from './RiderImportDialog';
+import type { UserRole } from '../lib/permissions';
 
 interface EstimateManagerProps {
   estimates: Estimate[];
@@ -23,6 +25,9 @@ interface EstimateManagerProps {
   onStopEditing?: (estimateId?: string) => Promise<{ error: any }>;
   currentUserId?: string;
   fabAction?: number;
+  userRole?: UserRole;
+  gigachatClientId?: string;
+  gigachatClientSecret?: string;
 }
 
 export const EstimateManager = memo(function EstimateManager({
@@ -39,7 +44,10 @@ export const EstimateManager = memo(function EstimateManager({
   onStartEditing,
   onStopEditing,
   currentUserId,
-  fabAction
+  fabAction,
+  userRole,
+  gigachatClientId,
+  gigachatClientSecret,
 }: EstimateManagerProps) {
   // Открываем создание сметы при нажатии FAB (пропускаем первый рендер)
   const isFirstRender = useRef(true);
@@ -57,6 +65,7 @@ export const EstimateManager = memo(function EstimateManager({
   const [isBuilderOpen, setIsBuilderOpen] = useState(false);
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [isRiderDialogOpen, setIsRiderDialogOpen] = useState(false);
   const [editingEstimate, setEditingEstimate] = useState<Estimate | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
 
@@ -98,6 +107,21 @@ export const EstimateManager = memo(function EstimateManager({
       items: items
     } as Estimate);
     setIsImportDialogOpen(false);
+    setIsBuilderOpen(true);
+  }, []);
+
+  // Обработка импорта из райдера (AI)
+  const handleImportFromRider = useCallback((estimateData: { event_name: string; venue: string; event_date: string }, items: EstimateItem[]) => {
+    setSelectedTemplate(null);
+    setEditingEstimate({
+      id: 'new',
+      event_name: estimateData.event_name,
+      venue: estimateData.venue,
+      event_date: estimateData.event_date,
+      total: (items || []).reduce((sum, item) => sum + (item.price * item.quantity * item.coefficient), 0),
+      items: items
+    } as Estimate);
+    setIsRiderDialogOpen(false);
     setIsBuilderOpen(true);
   }, []);
 
@@ -166,6 +190,17 @@ export const EstimateManager = memo(function EstimateManager({
                 <FileSpreadsheet className="w-4 h-4 mr-2" />
                 Из Excel
               </Button>
+              {/* AI импорт райдера - только для админа */}
+              {userRole === 'admin' && gigachatClientId && gigachatClientSecret && (
+                <Button 
+                  variant="outline" 
+                  onClick={() => setIsRiderDialogOpen(true)}
+                  className="bg-purple-50 hover:bg-purple-100 border-purple-200"
+                >
+                  <Brain className="w-4 h-4 mr-2 text-purple-600" />
+                  <span className="text-purple-700">Из райдера</span>
+                </Button>
+              )}
               {templates.length > 0 && (
                 <Button 
                   variant="outline" 
@@ -192,6 +227,18 @@ export const EstimateManager = memo(function EstimateManager({
               >
                 <FileSpreadsheet className="w-4 h-4" />
               </Button>
+              {/* AI импорт райдера - только для админа */}
+              {userRole === 'admin' && gigachatClientId && gigachatClientSecret && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className="px-2 bg-purple-50 border-purple-200"
+                  onClick={() => setIsRiderDialogOpen(true)}
+                  title="Из райдера (AI)"
+                >
+                  <Brain className="w-4 h-4 text-purple-600" />
+                </Button>
+              )}
               {templates.length > 0 && (
                 <Button 
                   variant="outline" 
@@ -411,6 +458,18 @@ export const EstimateManager = memo(function EstimateManager({
         onClose={() => setIsImportDialogOpen(false)}
         onImport={handleImportFromExcel}
       />
+
+      {/* Диалог импорта из райдера (AI) - только для админа */}
+      {userRole === 'admin' && gigachatClientId && gigachatClientSecret && (
+        <RiderImportDialog
+          isOpen={isRiderDialogOpen}
+          onClose={() => setIsRiderDialogOpen(false)}
+          onImport={handleImportFromRider}
+          equipment={equipment}
+          gigachatClientId={gigachatClientId}
+          gigachatClientSecret={gigachatClientSecret}
+        />
+      )}
     </div>
   );
 });
