@@ -15,18 +15,37 @@ export function useEstimates(userId: string | undefined) {
     if (!userId) return;
     setLoading(true);
     
-    // Загружаем сметы с данными редактора (join с profiles)
+    // Загружаем сметы
     const { data, error } = await supabase
       .from('estimates')
       .select(`
         *,
-        items:estimate_items(*),
-        editor:profiles!estimates_editing_by_fkey(name)
+        items:estimate_items(*)
       `)
       .order('created_at', { ascending: false });
     
-    // Преобразуем category_order из JSONB в массив и добавляем имя редактора
-    if (data) {
+    // Если есть сметы в режиме редактирования - загружаем имена редакторов отдельно
+    if (data && data.length > 0) {
+      const editingUserIds = data
+        .filter((e: any) => e.is_editing && e.editing_by)
+        .map((e: any) => e.editing_by)
+        .filter((v: string, i: number, a: string[]) => a.indexOf(v) === i); // unique
+      
+      let editorNames: Record<string, string> = {};
+      if (editingUserIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, name')
+          .in('id', editingUserIds);
+        
+        if (profiles) {
+          profiles.forEach((p: any) => {
+            editorNames[p.id] = p.name;
+          });
+        }
+      }
+      
+      // Преобразуем category_order из JSONB в массив и добавляем имя редактора
       data.forEach((estimate: any) => {
         if (estimate.category_order && typeof estimate.category_order === 'string') {
           try {
@@ -36,8 +55,8 @@ export function useEstimates(userId: string | undefined) {
           }
         }
         // Добавляем имя редактора если есть
-        if (estimate.editor && estimate.editor.name) {
-          estimate.editor_name = estimate.editor.name;
+        if (estimate.is_editing && estimate.editing_by && editorNames[estimate.editing_by]) {
+          estimate.editor_name = editorNames[estimate.editing_by];
         }
       });
     }
