@@ -175,6 +175,26 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
     return map;
   }, [estimates, days, isDateInRange]);
 
+  // Получаем уникальные мероприятия за период (для статистики)
+  const periodEstimates = useMemo(() => {
+    const uniqueIds = new Set<string>();
+    const uniqueEstimates: Estimate[] = [];
+    
+    days.forEach(day => {
+      const dateStr = format(day, 'yyyy-MM-dd');
+      const dayEstimates = estimatesByDate.get(dateStr) || [];
+      
+      dayEstimates.forEach(estimate => {
+        if (!uniqueIds.has(estimate.id)) {
+          uniqueIds.add(estimate.id);
+          uniqueEstimates.push(estimate);
+        }
+      });
+    });
+    
+    return uniqueEstimates;
+  }, [days, estimatesByDate]);
+
   // Получаем сметы для выбранной даты
   const selectedDateEstimates = useMemo(() => {
     if (!selectedDate) return [];
@@ -534,7 +554,7 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
             <div>
               <p className="text-sm text-gray-600">Мероприятий в периоде</p>
               <p className="text-2xl font-bold text-gray-800">
-                {Array.from(estimatesByDate.values()).flat().length}
+                {periodEstimates.length}
               </p>
             </div>
           </CardContent>
@@ -548,7 +568,7 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
             <div>
               <p className="text-sm text-gray-600">Многодневных</p>
               <p className="text-2xl font-bold text-gray-800">
-                {estimates.filter(e => e.event_start_date !== e.event_end_date).length}
+                {periodEstimates.filter(e => e.event_start_date !== e.event_end_date).length}
               </p>
             </div>
           </CardContent>
@@ -560,10 +580,9 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
               <CalendarIcon className="w-5 h-5 text-white" />
             </div>
             <div>
-              <p className="text-sm text-gray-600">Общая сумма</p>
+              <p className="text-sm text-gray-600">Общая сумма за период</p>
               <p className="text-2xl font-bold text-gray-800">
-                {Array.from(estimatesByDate.values())
-                  .flat()
+                {periodEstimates
                   .reduce((sum, e) => sum + e.total, 0)
                   .toLocaleString('ru-RU')} ₽
               </p>
