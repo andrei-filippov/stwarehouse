@@ -1,10 +1,11 @@
 // Supabase Edge Function: parse-rider
-// Анализирует технический райдер через GigaChat API
+// Анализирует технический райдер через GigaChat API (через OpenRouter)
+// https://openrouter.ai/docs
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 
-const GIGACHAT_API_URL = 'https://gigachat.devices.sberbank.ru/api/v1';
-const GIGACHAT_SCOPE = 'GIGACHAT_API_PERS';
+const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const MODEL = 'gigachat/gigachat-pro'; // Можно заменить на 'gigachat/gigachat-lite' для экономии
 
 // CORS заголовки
 const corsHeaders = {
@@ -13,45 +14,12 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-// Генерация UUID
-function generateUUID(): string {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-}
-
-// Получение токена GigaChat
-async function getGigaChatToken(clientId: string, clientSecret: string): Promise<string> {
-  const authString = btoa(`${clientId}:${clientSecret}`);
-  
-  const response = await fetch(`${GIGACHAT_API_URL}/oauth`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Basic ${authString}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'RqUID': generateUUID(),
-    },
-    body: `scope=${GIGACHAT_SCOPE}`,
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`GigaChat auth failed: ${error}`);
-  }
-
-  const data = await response.json();
-  return data.access_token;
-}
-
-// Парсинг райдера через GigaChat
-async function parseRiderWithGigaChat(
+// Парсинг райдера через OpenRouter (GigaChat)
+async function parseRiderWithAI(
   riderText: string, 
-  clientId: string, 
-  clientSecret: string
+  apiKey: string
 ): Promise<any> {
-  const token = await getGigaChatToken(clientId, clientSecret);
+  console.log('Parsing rider via OpenRouter, text length:', riderText.length);
 
   const systemPrompt = `Ты - технический специалист по звуковому и световому оборудованию. 
 Твоя задача - проанализировать технический райдер артиста и извлечь из него список оборудования.
@@ -78,14 +46,18 @@ async function parseRiderWithGigaChat(
 4. Если не уверен в категории - ставь "Другое"
 5. Сохраняй оригинальные названия оборудования из райдера`;
 
-  const response = await fetch(`${GIGACHAT_API_URL}/chat/completions`, {
+  console.log('Sending request to OpenRouter...');
+  
+  const response = await fetch(OPENROUTER_URL, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${token}`,
+      'Authorization': `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
+      'HTTP-Referer': 'https://stwarehouse.vercel.app', // Укажите ваш домен
+      'X-Title': 'ST Warehouse - Rider Parser',
     },
     body: JSON.stringify({
-      model: 'GigaChat',
+      model: MODEL,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: `Вот технический райдер:\n\n${riderText}` }
@@ -95,13 +67,18 @@ async function parseRiderWithGigaChat(
     }),
   });
 
+  console.log('OpenRouter response status:', response.status);
+
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`GigaChat API error: ${error}`);
+    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+    console.error('OpenRouter error:', errorData);
+    throw new Error(`OpenRouter API error: ${response.status} - ${errorData.error?.message || errorData.error || 'Unknown'}`);
   }
 
   const data = await response.json();
-  const content = data.choices[0]?.message?.content || '{}';
+  const content = data.choices?.[0]?.message?.content || '{}';
+  
+  console.log('Response received, parsing...');
   
   // Очищаем от Markdown
   const cleanJson = content
@@ -111,6 +88,8 @@ async function parseRiderWithGigaChat(
 
   try {
     const parsed = JSON.parse(cleanJson);
+    console.log('Parsed successfully, items:', parsed.items?.length || 0);
+    
     return {
       event_name: parsed.event_name || '',
       venue: parsed.venue || '',
@@ -118,19 +97,21 @@ async function parseRiderWithGigaChat(
       items: Array.isArray(parsed.items) ? parsed.items : [],
     };
   } catch (e) {
-    throw new Error('Неверный формат ответа от GigaChat');
+    console.error('JSON parse error, raw content:', content.substring(0, 500));
+    throw new Error('Неверный формат ответа от AI');
   }
 }
 
 // Главный обработчик
 serve(async (req) => {
+  console.log('=== Request ===', req.method);
+  
   // CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    // Проверяем метод
     if (req.method !== 'POST') {
       return new Response(
         JSON.stringify({ error: 'Method not allowed' }),
@@ -138,13 +119,12 @@ serve(async (req) => {
       );
     }
 
-    // Получаем данные запроса
     let body;
     try {
       body = await req.json();
     } catch {
       return new Response(
-        JSON.stringify({ error: 'Invalid JSON body' }),
+        JSON.stringify({ error: 'Invalid JSON' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -153,26 +133,24 @@ serve(async (req) => {
 
     if (!riderText || typeof riderText !== 'string') {
       return new Response(
-        JSON.stringify({ error: 'riderText is required' }),
+        JSON.stringify({ error: 'riderText required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Получаем ключи из переменных окружения (безопасно!)
-    const clientId = Deno.env.get('GIGACHAT_CLIENT_ID');
-    const clientSecret = Deno.env.get('GIGACHAT_CLIENT_SECRET');
+    const apiKey = Deno.env.get('OPENROUTER_API_KEY');
 
-    if (!clientId || !clientSecret) {
+    console.log('API Key check:', { hasKey: !!apiKey, keyPrefix: apiKey?.substring(0, 10) + '...' });
+
+    if (!apiKey) {
       return new Response(
-        JSON.stringify({ error: 'GigaChat credentials not configured' }),
+        JSON.stringify({ error: 'OpenRouter API key not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Парсим райдер
-    const result = await parseRiderWithGigaChat(riderText, clientId, clientSecret);
+    const result = await parseRiderWithAI(riderText, apiKey);
 
-    // Возвращаем результат
     return new Response(
       JSON.stringify(result),
       { 
@@ -180,13 +158,12 @@ serve(async (req) => {
         headers: { 
           ...corsHeaders, 
           'Content-Type': 'application/json',
-          'Cache-Control': 'private, max-age=300' // Кэш 5 минут
         } 
       }
     );
 
   } catch (error) {
-    console.error('Error:', error);
+    console.error('=== Error ===', error.message);
     
     return new Response(
       JSON.stringify({ 

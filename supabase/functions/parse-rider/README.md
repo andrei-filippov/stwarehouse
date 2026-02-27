@@ -1,35 +1,45 @@
 # Edge Function: parse-rider
 
-Анализирует технические райдеры артистов через GigaChat API.
+Анализирует технические райдеры артистов через **OpenRouter** (GigaChat API).
 
-## Деплой
+## Настройка OpenRouter
 
-### Способ 1: Через Supabase Dashboard (рекомендуется)
+### 1. Регистрация
+1. Перейдите на [openrouter.ai](https://openrouter.ai)
+2. Зарегистрируйтесь (можно через Google/GitHub)
+3. Пополните баланс (минимум $5) или используйте бесплатные токены
 
+### 2. Получение API ключа
+1. В Dashboard нажмите **"Keys"**
+2. Создайте новый ключ
+3. Скопируйте ключ (начинается с `sk-or-...`)
+
+### 3. Деплой функции в Supabase
+
+#### Через Dashboard:
 1. Перейдите в [Supabase Dashboard](https://app.supabase.com)
-2. Выберите ваш проект
-3. Перейдите в **"Edge Functions"**
-4. Нажмите **"New Function"**
-5. Название: `parse-rider`
-6. Вставьте код из `index.ts`
-7. Нажмите **"Deploy"**
+2. Выберите проект
+3. **Edge Functions** → **New Function**
+4. Название: `parse-rider`
+5. Вставьте код из `index.ts`
+6. **Deploy**
 
-### Способ 2: Через Supabase CLI (если установлен)
-
-```bash
-supabase functions deploy parse-rider
-```
-
-## Настройка переменных окружения
-
-В Supabase Dashboard:
+#### Переменные окружения:
 1. **Project Settings** → **Edge Functions**
-2. Добавьте переменные:
+2. Добавьте:
+```
+OPENROUTER_API_KEY=sk-or-...ваш_ключ...
+```
+3. (Опционально) Удалите старые `GIGACHAT_CLIENT_ID` и `GIGACHAT_CLIENT_SECRET`
 
-```
-GIGACHAT_CLIENT_ID=ваш_client_id
-GIGACHAT_CLIENT_SECRET=ваш_client_secret
-```
+## Модели и цены
+
+| Модель | Цена за 1K токенов | Код в функции |
+|--------|-------------------|---------------|
+| GigaChat Lite | ~$0.01 | `gigachat/gigachat-lite` |
+| GigaChat Pro | ~$0.02 | `gigachat/gigachat-pro` |
+
+Измените `MODEL` в `index.ts` если нужна другая модель.
 
 ## Использование
 
@@ -56,3 +66,11 @@ const { data, error } = await supabase.functions.invoke('parse-rider', {
   ]
 }
 ```
+
+## Преимущества OpenRouter
+
+- ✅ Нет проблем с SSL сертификатами
+- ✅ Работает сразу
+- ✅ Надёжная инфраструктура
+- ✅ Поддержка множества моделей (GPT-4, Claude, GigaChat и др.)
+- ✅ Детальная статистика использования
