@@ -240,7 +240,6 @@ function App() {
             onStopEditing={stopEditing}
             currentUserId={user?.id}
             fabAction={fabAction}
-            userRole={(profile?.role || 'manager') as import('./lib/permissions').UserRole}
           />
         )}
 

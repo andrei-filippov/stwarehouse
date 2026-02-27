@@ -1,6 +1,0 @@
-# Supabase configuration
-# Для деплоя Edge Functions
-
-[functions.parse-rider]
-# Отключаем проверку JWT - функция публичная (только чтение/парсинг)
-verify_jwt = false

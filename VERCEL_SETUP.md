@@ -1,41 +1,5 @@
 # Настройка на Vercel
 
-## Переменные окружения для GigaChat (AI райдеры)
-
-### 1. Добавьте переменные в Vercel Dashboard
-
-1. Перейдите на [vercel.com/dashboard](https://vercel.com/dashboard)
-2. Выберите ваш проект
-3. Нажмите **"Settings"** → **"Environment Variables"**
-4. Добавьте:
-   ```
-   Name: VITE_GIGACHAT_CLIENT_ID
-   Value: ваш_client_id_от_gigachat
-   ```
-   ```
-   Name: VITE_GIGACHAT_CLIENT_SECRET
-   Value: ваш_client_secret_от_gigachat
-   ```
-5. Нажмите **Save**
-
-### 2. Обязательно сделайте Redeploy
-
-- В Vercel Dashboard → вкладка **"Deployments"**
-- Найдите последний деплой
-- Нажмите **"⋮"** → **"Redeploy"**
-
-### 3. Проверьте в консоли браузера
-
-Откройте DevTools (F12) → Console. Должно быть сообщение:
-```
-[App Debug] {profileRole: 'admin', userRole: 'admin', ...}
-[EstimateManager Debug] {userRole: 'admin', isAdmin: true, ...}
-```
-
-Если `gigachatClientId: undefined` — переменная не подтянулась.
-
----
-
 ## Проблема: API Dadata не работает на Vercel
 
 ### Решение:
