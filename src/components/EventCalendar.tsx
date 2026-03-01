@@ -442,9 +442,6 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
                           </div>
                         </div>
                         <div className="text-right">
-                          <div className="text-2xl font-bold text-blue-600">
-                            {estimate.total.toLocaleString('ru-RU')} ₽
-                          </div>
                           <div className="text-sm text-gray-500">
                             {estimate.items?.length || 0} позиций
                           </div>
@@ -544,52 +541,7 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
         </CardContent>
       </Card>
 
-      {/* Статистика за период */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-3 bg-blue-500 rounded-lg">
-              <FileText className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Мероприятий в периоде</p>
-              <p className="text-2xl font-bold text-gray-800">
-                {periodEstimates.length}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-3 bg-green-500 rounded-lg">
-              <Clock className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Многодневных</p>
-              <p className="text-2xl font-bold text-gray-800">
-                {periodEstimates.filter(e => e.event_start_date !== e.event_end_date).length}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
 
-        <Card className="bg-gradient-to-br from-purple-50 to-pink-50 border-purple-200">
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-3 bg-purple-500 rounded-lg">
-              <CalendarIcon className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Общая сумма за период</p>
-              <p className="text-2xl font-bold text-gray-800">
-                {periodEstimates
-                  .reduce((sum, e) => sum + e.total, 0)
-                  .toLocaleString('ru-RU')} ₽
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
 
       {/* Диалог с деталями дня */}
       <Dialog open={!!selectedDate} onOpenChange={() => setSelectedDate(null)}>
@@ -650,9 +602,6 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
                             )}
                           </div>
                           <div className="text-right ml-4">
-                            <p className="text-xl font-bold text-blue-600">
-                              {estimate.total.toLocaleString('ru-RU')} ₽
-                            </p>
                             <p className="text-xs text-gray-500">
                               {estimate.items?.length || 0} позиций
                             </p>
@@ -747,12 +696,7 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
                       ` — ${new Date(selectedEstimate.event_end_date || selectedEstimate.event_date).toLocaleDateString('ru-RU')}`}
                   </p>
                 </div>
-                <div>
-                  <p className="text-gray-500 mb-1">Сумма</p>
-                  <p className="font-bold text-xl text-blue-600">
-                    {selectedEstimate.total.toLocaleString('ru-RU')} ₽
-                  </p>
-                </div>
+
                 {selectedEstimate.creator_name && (
                   <div>
                     <p className="text-gray-500 mb-1">Составитель</p>
@@ -774,10 +718,7 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
                     <div key={idx} className="flex justify-between text-sm p-3 bg-gray-50 rounded-lg">
                       <span className="font-medium">{item.name}</span>
                       <span className="text-gray-600">
-                        {item.quantity} × {item.price.toLocaleString('ru-RU')} ₽ = {' '}
-                        <span className="font-semibold text-gray-800">
-                          {(item.quantity * item.price).toLocaleString('ru-RU')} ₽
-                        </span>
+                        {item.quantity} {item.unit || 'шт'}
                       </span>
                     </div>
                   ))}

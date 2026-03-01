@@ -190,3 +190,7 @@ export type { Task as Goal } from './goals';
 
 // Cable management
 export type { CableCategory, CableInventory, CableMovement, CableMovementWithCategory } from './cable';
+
+// Expenses
+export type { Expense, ExpenseCategory } from './expenses';
+export { EXPENSE_CATEGORIES, getExpenseCategoryLabel } from './expenses';

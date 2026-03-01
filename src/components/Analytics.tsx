@@ -1,6 +1,9 @@
 import { useState, useMemo, useCallback, memo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
 import { Badge } from './ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { 
   BarChart3 as BarChartIcon, 
   TrendingUp, 
@@ -9,42 +12,110 @@ import {
   Users,
   DollarSign,
   PieChart,
-  Activity
+  Activity,
+  TrendingDown,
+  Wallet,
+  Plus,
+  Trash2,
+  Edit
 } from 'lucide-react';
 import type { Customer, Equipment, Estimate, Staff } from '../types';
+import type { Expense, ExpenseCategory } from '../types/expenses';
+import { EXPENSE_CATEGORIES, getExpenseCategoryLabel } from '../types/expenses';
+import { format, startOfMonth, endOfMonth, subMonths, parseISO } from 'date-fns';
+import { ru } from 'date-fns/locale';
 
 interface AnalyticsProps {
   equipment: Equipment[];
   estimates: Estimate[];
   staff: Staff[];
   customers: Customer[];
+  expenses?: Expense[];
+  onAddExpense?: (expense: Omit<Expense, 'id' | 'created_at' | 'updated_at'>) => Promise<{ error: any }>;
+  onUpdateExpense?: (id: string, updates: Partial<Expense>) => Promise<{ error: any }>;
+  onDeleteExpense?: (id: string) => Promise<{ error: any }>;
 }
 
-export const Analytics = memo(function Analytics({ equipment, estimates, staff, customers }: AnalyticsProps) {
+export const Analytics = memo(function Analytics({ 
+  equipment, 
+  estimates, 
+  staff, 
+  customers,
+  expenses = [],
+  onAddExpense,
+  onUpdateExpense,
+  onDeleteExpense
+}: AnalyticsProps) {
   const [period, setPeriod] = useState<'all' | 'year' | 'month'>('all');
+  const [isExpenseDialogOpen, setIsExpenseDialogOpen] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+
+  // Вычисляем даты для фильтрации
+  const dateRange = useMemo(() => {
+    const now = new Date();
+    let startDate: Date;
+    
+    if (period === 'all') {
+      startDate = new Date(2000, 0, 1); // С начала времен
+    } else if (period === 'year') {
+      startDate = subMonths(now, 12);
+    } else {
+      startDate = subMonths(now, 1);
+    }
+    
+    return {
+      start: format(startDate, 'yyyy-MM-dd'),
+      end: format(now, 'yyyy-MM-dd')
+    };
+  }, [period]);
 
   // Фильтруем сметы по периоду
   const filteredEstimates = useMemo(() => {
     if (period === 'all') return estimates;
     
-    const now = new Date();
-    const cutoff = new Date();
-    
-    if (period === 'year') {
-      cutoff.setFullYear(now.getFullYear() - 1);
-    } else if (period === 'month') {
-      cutoff.setMonth(now.getMonth() - 1);
-    }
-    
     return estimates.filter(e => {
       if (!e.event_date) return false;
-      return new Date(e.event_date) >= cutoff;
+      return e.event_date >= dateRange.start && e.event_date <= dateRange.end;
     });
-  }, [estimates, period]);
+  }, [estimates, period, dateRange]);
+
+  // Фильтруем расходы по периоду
+  const filteredExpenses = useMemo(() => {
+    return expenses.filter(e => 
+      e.date >= dateRange.start && e.date <= dateRange.end
+    );
+  }, [expenses, dateRange]);
+
+  // === ВЫРУЧКА ===
+  const totalRevenue = useMemo(() => {
+    return filteredEstimates.reduce((sum, e) => sum + (e.total || 0), 0);
+  }, [filteredEstimates]);
+
+  // === РАСХОДЫ ===
+  const totalExpenses = useMemo(() => {
+    return filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
+  }, [filteredExpenses]);
+
+  // Расходы по категориям
+  const expensesByCategory = useMemo(() => {
+    const stats: Record<string, number> = {};
+    filteredExpenses.forEach(e => {
+      stats[e.category] = (stats[e.category] || 0) + e.amount;
+    });
+    return Object.entries(stats)
+      .map(([category, amount]) => ({ category: category as ExpenseCategory, amount }))
+      .sort((a, b) => b.amount - a.amount);
+  }, [filteredExpenses]);
+
+  // === ПРИБЫЛЬ ===
+  const profit = totalRevenue - totalExpenses;
+  const profitMargin = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
+
+  // === СМЕТЫ ===
+  const estimateCount = filteredEstimates.length;
+  const avgEstimate = estimateCount > 0 ? totalRevenue / estimateCount : 0;
 
   // === ОБОРУДОВАНИЕ ===
-  
-  // Частота использования оборудования (сколько раз использовалось в сметах)
   const equipmentUsage = useMemo(() => {
     const usage: Record<string, { count: number; revenue: number; name: string; category: string }> = {};
     
@@ -67,21 +138,17 @@ export const Analytics = memo(function Analytics({ equipment, estimates, staff, 
     return Object.values(usage).sort((a, b) => b.count - a.count);
   }, [filteredEstimates]);
 
-  // Топ оборудование по прибыли
   const topEquipmentByRevenue = useMemo(() => {
     return [...equipmentUsage]
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 10);
   }, [equipmentUsage]);
 
-  // Топ оборудование по частоте использования
   const topEquipmentByUsage = useMemo(() => {
     return equipmentUsage.slice(0, 10);
   }, [equipmentUsage]);
 
   // === КАТЕГОРИИ ===
-
-  // Прибыль по категориям
   const categoryStats = useMemo(() => {
     const stats: Record<string, { revenue: number; count: number; items: number }> = {};
     
@@ -103,42 +170,34 @@ export const Analytics = memo(function Analytics({ equipment, estimates, staff, 
       .sort((a, b) => b.revenue - a.revenue);
   }, [filteredEstimates]);
 
-  // === СМЕТЫ ===
-
-  // Общая сумма по сметам
-  const totalRevenue = useMemo(() => {
-    return filteredEstimates.reduce((sum, e) => sum + (e.total || 0), 0);
-  }, [filteredEstimates]);
-
-  // Средняя сумма сметы
-  const avgEstimate = useMemo(() => {
-    if (filteredEstimates.length === 0) return 0;
-    return totalRevenue / filteredEstimates.length;
-  }, [totalRevenue, filteredEstimates]);
-
-  // Количество смет
-  const estimateCount = filteredEstimates.length;
-
-  // Динамика по месяцам
+  // === ДИНАМИКА ПО МЕСЯЦАМ (выручка и расходы) ===
   const monthlyStats = useMemo(() => {
-    const months: Record<string, { revenue: number; count: number }> = {};
+    const months: Record<string, { revenue: number; expenses: number; count: number }> = {};
     
     // Последние 12 месяцев
     for (let i = 11; i >= 0; i--) {
       const d = new Date();
       d.setMonth(d.getMonth() - i);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      months[key] = { revenue: 0, count: 0 };
+      months[key] = { revenue: 0, expenses: 0, count: 0 };
     }
     
+    // Сметы
     filteredEstimates.forEach(estimate => {
       if (estimate.event_date) {
-        const d = new Date(estimate.event_date);
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        const key = estimate.event_date.substring(0, 7); // yyyy-MM
         if (months[key]) {
           months[key].revenue += estimate.total || 0;
           months[key].count += 1;
         }
+      }
+    });
+    
+    // Расходы
+    filteredExpenses.forEach(expense => {
+      const key = expense.date.substring(0, 7); // yyyy-MM
+      if (months[key]) {
+        months[key].expenses += expense.amount;
       }
     });
     
@@ -147,22 +206,19 @@ export const Analytics = memo(function Analytics({ equipment, estimates, staff, 
       year: month.slice(0, 4),
       ...data
     }));
-  }, [filteredEstimates]);
+  }, [filteredEstimates, filteredExpenses]);
 
   // === СКЛАД ===
-
-  // Статистика по складу
   const warehouseStats = useMemo(() => {
     const totalItems = equipment.length;
     const totalQuantity = equipment.reduce((sum, e) => sum + (e.quantity || 0), 0);
     const totalValue = equipment.reduce((sum, e) => sum + (e.price || 0) * (e.quantity || 0), 0);
-    const avgPrice = totalItems > 0 ? totalValue / totalQuantity : 0;
+    const avgPrice = totalQuantity > 0 ? totalValue / totalQuantity : 0;
     
     return { totalItems, totalQuantity, totalValue, avgPrice };
   }, [equipment]);
 
   // === ПЕРСОНАЛ ===
-
   const staffStats = useMemo(() => {
     const active = staff.filter(s => s.is_active).length;
     const inactive = staff.filter(s => !s.is_active).length;
@@ -172,7 +228,6 @@ export const Analytics = memo(function Analytics({ equipment, estimates, staff, 
   }, [staff]);
 
   // === ЗАКАЗЧИКИ ===
-
   const customerStats = useMemo(() => {
     const stats: Record<string, { name: string; revenue: number; count: number }> = {};
     
@@ -185,12 +240,63 @@ export const Analytics = memo(function Analytics({ equipment, estimates, staff, 
       stats[name].count += 1;
     });
     
-    return Object.values(stats)
-      .sort((a, b) => b.revenue - a.revenue);
+    return Object.values(stats).sort((a, b) => b.revenue - a.revenue);
   }, [filteredEstimates]);
+
+  // === РАСХОДЫ ПО МЕСЯЦАМ ===
+  const monthlyExpenses = useMemo(() => {
+    const months: Record<string, number> = {};
+    
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date();
+      d.setMonth(d.getMonth() - i);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      months[key] = 0;
+    }
+    
+    filteredExpenses.forEach(expense => {
+      const key = expense.date.substring(0, 7);
+      if (months[key] !== undefined) {
+        months[key] += expense.amount;
+      }
+    });
+    
+    return Object.entries(months).map(([month, amount]) => ({
+      month: month.slice(5),
+      year: month.slice(0, 4),
+      amount
+    }));
+  }, [filteredExpenses]);
 
   const formatCurrency = useCallback((val: number) => 
     val.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }), []);
+
+  // Обработчики расходов
+  const handleAddExpense = () => {
+    setEditingExpense(null);
+    setIsExpenseDialogOpen(true);
+  };
+
+  const handleEditExpense = (expense: Expense) => {
+    setEditingExpense(expense);
+    setIsExpenseDialogOpen(true);
+  };
+
+  const handleDeleteExpense = async (id: string) => {
+    if (onDeleteExpense && confirm('Удалить расход?')) {
+      await onDeleteExpense(id);
+    }
+  };
+
+  const handleExpenseSubmit = async (data: any) => {
+    if (editingExpense && onUpdateExpense) {
+      await onUpdateExpense(editingExpense.id, data);
+    } else if (onAddExpense) {
+      await onAddExpense(data);
+    }
+    setIsExpenseDialogOpen(false);
+    setEditingExpense(null);
+  };
 
   return (
     <div className="space-y-6">
@@ -217,16 +323,45 @@ export const Analytics = memo(function Analytics({ equipment, estimates, staff, 
         </div>
       </div>
 
-      {/* Основные KPI */}
+      {/* Основные KPI - Финансы */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Выручка</p>
-                <p className="text-2xl font-bold">{formatCurrency(totalRevenue)}</p>
+                <p className="text-2xl font-bold text-green-600">{formatCurrency(totalRevenue)}</p>
               </div>
               <DollarSign className="w-8 h-8 text-green-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Расходы</p>
+                <p className="text-2xl font-bold text-red-600">{formatCurrency(totalExpenses)}</p>
+              </div>
+              <TrendingDown className="w-8 h-8 text-red-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className={profit >= 0 ? 'border-green-200' : 'border-red-200'}>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Прибыль</p>
+                <p className={`text-2xl font-bold ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {formatCurrency(profit)}
+                </p>
+                <p className="text-xs text-gray-400">
+                  {profitMargin.toFixed(1)}% маржинальность
+                </p>
+              </div>
+              <Wallet className={`w-8 h-8 ${profit >= 0 ? 'text-green-500' : 'text-red-500'}`} />
             </div>
           </CardContent>
         </Card>
@@ -242,53 +377,44 @@ export const Analytics = memo(function Analytics({ equipment, estimates, staff, 
             </div>
           </CardContent>
         </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500">Средний чек</p>
-                <p className="text-2xl font-bold">{formatCurrency(avgEstimate)}</p>
-              </div>
-              <TrendingUp className="w-8 h-8 text-purple-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500">Позиций на складе</p>
-                <p className="text-2xl font-bold">{warehouseStats.totalQuantity}</p>
-              </div>
-              <Package className="w-8 h-8 text-orange-500" />
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
-      {/* График динамики */}
+      {/* График динамики - Выручка vs Расходы */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <Activity className="w-5 h-5" />
-            Динамика по месяцам
+            Динамика: Выручка vs Расходы
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="h-48 flex items-end gap-2">
             {monthlyStats.map((m, i) => {
-              const maxRevenue = Math.max(...monthlyStats.map(x => x.revenue)) || 1;
-              const height = (m.revenue / maxRevenue) * 100;
+              const maxValue = Math.max(...monthlyStats.map(x => Math.max(x.revenue, x.expenses))) || 1;
+              const revenueHeight = (m.revenue / maxValue) * 100;
+              const expenseHeight = (m.expenses / maxValue) * 100;
+              const profit = m.revenue - m.expenses;
+              
               return (
                 <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                  <div 
-                    className="w-full bg-blue-500 rounded-t transition-all hover:bg-blue-600 relative group"
-                    style={{ height: `${Math.max(height, 5)}%` }}
-                  >
-                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap z-10">
-                      {formatCurrency(m.revenue)}
+                  <div className="w-full flex gap-0.5 items-end h-32">
+                    {/* Выручка */}
+                    <div 
+                      className="flex-1 bg-green-500 rounded-t transition-all hover:bg-green-600 relative group"
+                      style={{ height: `${Math.max(revenueHeight, 3)}%` }}
+                    >
+                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap z-10">
+                        Выручка: {formatCurrency(m.revenue)}
+                      </div>
+                    </div>
+                    {/* Расходы */}
+                    <div 
+                      className="flex-1 bg-red-500 rounded-t transition-all hover:bg-red-600 relative group"
+                      style={{ height: `${Math.max(expenseHeight, 3)}%` }}
+                    >
+                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap z-10">
+                        Расходы: {formatCurrency(m.expenses)}
+                      </div>
                     </div>
                   </div>
                   <span className="text-xs text-gray-500">{m.month}</span>
@@ -296,16 +422,91 @@ export const Analytics = memo(function Analytics({ equipment, estimates, staff, 
               );
             })}
           </div>
+          <div className="flex justify-center gap-4 mt-4 text-sm">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-green-500 rounded"></div>
+              <span>Выручка</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-red-500 rounded"></div>
+              <span>Расходы</span>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Расходы по категориям */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <TrendingDown className="w-5 h-5" />
+              Расходы по категориям
+            </CardTitle>
+            {onAddExpense && (
+              <Button size="sm" onClick={handleAddExpense}>
+                <Plus className="w-4 h-4 mr-1" />
+                Добавить
+              </Button>
+            )}
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {expensesByCategory.length === 0 ? (
+                <p className="text-center text-gray-500 py-4">Нет расходов за выбранный период</p>
+              ) : (
+                expensesByCategory.map((item, i) => (
+                  <div key={i} className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-gray-500 w-6">{i + 1}</span>
+                      <span className="text-sm">{getExpenseCategoryLabel(item.category)}</span>
+                    </div>
+                    <span className="text-sm font-medium text-red-600">{formatCurrency(item.amount)}</span>
+                  </div>
+                ))
+              )}
+            </div>
+            
+            {/* Последние расходы */}
+            {filteredExpenses.length > 0 && (
+              <div className="mt-6 pt-4 border-t">
+                <p className="text-sm font-medium mb-3">Последние расходы</p>
+                <div className="space-y-2 max-h-40 overflow-auto">
+                  {filteredExpenses.slice(0, 5).map((expense) => (
+                    <div key={expense.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg text-sm">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{expense.description || getExpenseCategoryLabel(expense.category)}</p>
+                        <p className="text-xs text-gray-500">
+                          {format(parseISO(expense.date), 'dd.MM.yyyy', { locale: ru })}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 ml-2">
+                        <span className="font-medium text-red-600">{formatCurrency(expense.amount)}</span>
+                        {onUpdateExpense && (
+                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleEditExpense(expense)}>
+                            <Edit className="w-3 h-3" />
+                          </Button>
+                        )}
+                        {onDeleteExpense && (
+                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-red-500" onClick={() => handleDeleteExpense(expense.id)}>
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Топ категорий по прибыли */}
         <Card>
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <PieChart className="w-5 h-5" />
-              Прибыль по категориям
+              Выручка по категориям
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -358,7 +559,7 @@ export const Analytics = memo(function Analytics({ equipment, estimates, staff, 
           </CardContent>
         </Card>
 
-        {/* Топ оборудование по использованию */}
+        {/* Часто используемое оборудование */}
         <Card>
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
@@ -386,7 +587,10 @@ export const Analytics = memo(function Analytics({ equipment, estimates, staff, 
             </div>
           </CardContent>
         </Card>
+      </div>
 
+      {/* Статистика персонала и заказчики */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Статистика персонала */}
         <Card>
           <CardHeader>
@@ -416,6 +620,35 @@ export const Analytics = memo(function Analytics({ equipment, estimates, staff, 
             </div>
           </CardContent>
         </Card>
+
+        {/* Топ заказчиков */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Users className="w-5 h-5" />
+              Топ заказчиков
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {customerStats.slice(0, 5).map((c, i) => (
+                <div key={i} className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-medium text-gray-500 w-6">{i + 1}</span>
+                    <div>
+                      <p className="text-sm font-medium">{c.name}</p>
+                      <p className="text-xs text-gray-500">{c.count} смет</p>
+                    </div>
+                  </div>
+                  <span className="text-sm font-medium">{formatCurrency(c.revenue)}</span>
+                </div>
+              ))}
+              {customerStats.length === 0 && (
+                <p className="text-center text-gray-500 py-4">Нет данных</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Стоимость склада */}
@@ -437,34 +670,112 @@ export const Analytics = memo(function Analytics({ equipment, estimates, staff, 
         </CardContent>
       </Card>
 
-      {/* Аналитика по заказчикам */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Users className="w-5 h-5" />
-            Топ заказчиков
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {customerStats.slice(0, 5).map((c, i) => (
-              <div key={i} className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium text-gray-500 w-6">{i + 1}</span>
-                  <div>
-                    <p className="text-sm font-medium">{c.name}</p>
-                    <p className="text-xs text-gray-500">{c.count} смет</p>
-                  </div>
-                </div>
-                <span className="text-sm font-medium">{formatCurrency(c.revenue)}</span>
-              </div>
-            ))}
-            {customerStats.length === 0 && (
-              <p className="text-center text-gray-500 py-4">Нет данных</p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Диалог добавления/редактирования расхода */}
+      <Dialog open={isExpenseDialogOpen} onOpenChange={setIsExpenseDialogOpen}>
+        <DialogContent className="max-w-md" aria-describedby="expense-dialog-desc">
+          <DialogHeader>
+            <DialogTitle>
+              {editingExpense ? 'Редактировать расход' : 'Добавить расход'}
+            </DialogTitle>
+            <DialogDescription id="expense-dialog-desc">
+              {editingExpense ? 'Измените данные расхода' : 'Введите данные о новом расходе'}
+            </DialogDescription>
+          </DialogHeader>
+          <ExpenseForm
+            initialData={editingExpense}
+            onSubmit={handleExpenseSubmit}
+            onCancel={() => {
+              setIsExpenseDialogOpen(false);
+              setEditingExpense(null);
+            }}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
-});
+}
+
+interface ExpenseFormProps {
+  initialData: Expense | null;
+  onSubmit: (data: any) => void;
+  onCancel: () => void;
+}
+
+function ExpenseForm({ initialData, onSubmit, onCancel }: ExpenseFormProps) {
+  const [formData, setFormData] = useState({
+    category: initialData?.category || 'other',
+    amount: initialData?.amount || '',
+    description: initialData?.description || '',
+    date: initialData?.date || format(new Date(), 'yyyy-MM-dd'),
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit({
+      ...formData,
+      amount: Number(formData.amount),
+    });
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label className="text-sm font-medium">Категория *</label>
+        <select
+          value={formData.category}
+          onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+          className="w-full border rounded-md p-2 mt-1"
+          required
+        >
+          {EXPENSE_CATEGORIES.map(c => (
+            <option key={c.value} value={c.value}>{c.label}</option>
+          ))}
+        </select>
+      </div>
+
+      <div>
+        <label className="text-sm font-medium">Сумма *</label>
+        <Input
+          type="number"
+          min="0"
+          step="0.01"
+          value={formData.amount}
+          onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+          placeholder="0.00"
+          required
+          className="mt-1"
+        />
+      </div>
+
+      <div>
+        <label className="text-sm font-medium">Дата *</label>
+        <Input
+          type="date"
+          value={formData.date}
+          onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+          required
+          className="mt-1"
+        />
+      </div>
+
+      <div>
+        <label className="text-sm font-medium">Описание</label>
+        <Input
+          value={formData.description}
+          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          placeholder="Например: Закуп микрофонов"
+          className="mt-1"
+        />
+      </div>
+
+      <div className="flex justify-end gap-2 pt-4">
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Отмена
+        </Button>
+        <Button type="submit">
+          {initialData ? 'Сохранить' : 'Добавить'}
+        </Button>
+      </div>
+    </form>
+  );
+}

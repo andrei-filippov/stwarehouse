@@ -9,6 +9,7 @@ import { useStaff } from './hooks/useStaff';
 import { useGoals } from './hooks/useGoals';
 import { useCustomers } from './hooks/useCustomers';
 import { useCableInventory } from './hooks/useCableInventory';
+import { useExpenses } from './hooks/useExpenses';
 import { Auth } from './components/Auth';
 import { EquipmentManager } from './components/EquipmentManagement';
 
@@ -63,7 +64,8 @@ function App() {
   const { tasks, loading: goalsLoading, addTask, updateTask, deleteTask } = useGoals(user?.id);
   const { customers, loading: customersLoading, error: customersError, addCustomer, updateCustomer, deleteCustomer } = useCustomers(user?.id);
   const { categories: cableCategories, inventory: cableInventory, movements: cableMovements, stats: cableStats, loading: cableLoading, addCategory: addCableCategory, updateCategory: updateCableCategory, deleteCategory: deleteCableCategory, upsertInventory: upsertCableInventory, updateInventoryQty: updateCableInventoryQty, deleteInventory: deleteCableInventory, issueCable, returnCable } = useCableInventory(user?.id);
-  const analyticsData = { equipment, estimates, staff, customers };
+  const { expenses, loading: expensesLoading, addExpense, updateExpense, deleteExpense } = useExpenses(user?.id);
+  const analyticsData = { equipment, estimates, staff, customers, expenses, onAddExpense: addExpense, onUpdateExpense: updateExpense, onDeleteExpense: deleteExpense };
   
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [fabAction, setFabAction] = useState(0);
@@ -323,7 +325,16 @@ function App() {
         )}
 
         {activeTab === 'analytics' && (
-          <Analytics {...analyticsData} />
+          <Analytics 
+            equipment={equipment}
+            estimates={estimates}
+            staff={staff}
+            customers={customers}
+            expenses={expenses}
+            onAddExpense={addExpense}
+            onUpdateExpense={updateExpense}
+            onDeleteExpense={deleteExpense}
+          />
         )}
 
         {activeTab === 'customers' && (

@@ -72,6 +72,7 @@ export function useStaff(userId: string | undefined) {
     if (staffData.passport_issued_by) cleanData.passport_issued_by = staffData.passport_issued_by;
     if (staffData.passport_issue_date) cleanData.passport_issue_date = staffData.passport_issue_date;
     if (staffData.notes) cleanData.notes = staffData.notes;
+    if (staffData.car_info) cleanData.car_info = staffData.car_info;
     if (staffData.is_active !== undefined) cleanData.is_active = staffData.is_active;
     
     const { data, error } = await supabase

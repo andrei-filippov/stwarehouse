@@ -12,8 +12,7 @@ import {
   Edit2, 
   CheckCircle2, 
   Circle, 
-  Clock, 
-  AlertCircle,
+  Clock,
   Calendar,
   Target,
   User,
@@ -39,7 +38,7 @@ interface GoalsManagerProps {
   fabAction?: number;
 }
 
-type FilterType = 'all' | 'today' | 'in_progress' | 'pending' | 'completed' | 'overdue';
+type FilterType = 'all' | 'today' | 'in_progress' | 'pending' | 'completed';
 
 export const GoalsManager = memo(function GoalsManager({ tasks, staff, onAdd, onUpdate, onDelete, loading, fabAction }: GoalsManagerProps) {
   // Открываем добавление задачи при нажатии FAB (пропускаем первый рендер)
@@ -91,7 +90,7 @@ export const GoalsManager = memo(function GoalsManager({ tasks, staff, onAdd, on
       pending: tasks.filter(t => t.status === 'pending').length,
       inProgress: tasks.filter(t => t.status === 'in_progress').length,
       completed: tasks.filter(t => t.status === 'completed').length,
-      overdue: tasks.filter(t => t.due_date < today && t.status !== 'completed' && t.status !== 'cancelled').length,
+
       today: tasks.filter(t => t.due_date === today && t.status !== 'completed' && t.status !== 'cancelled').length,
     };
   }, [tasks]);
@@ -111,8 +110,7 @@ export const GoalsManager = memo(function GoalsManager({ tasks, staff, onAdd, on
             return task.status === 'pending';
           case 'completed':
             return task.status === 'completed';
-          case 'overdue':
-            return task.due_date < today && task.status !== 'completed' && task.status !== 'cancelled';
+
           case 'all':
           default:
             return true;
@@ -130,7 +128,7 @@ export const GoalsManager = memo(function GoalsManager({ tasks, staff, onAdd, on
 
   const groupedTasks = useMemo(() => {
     const groups: Record<string, Task[]> = {
-      overdue: [],
+
       today: [],
       tomorrow: [],
       week: [],
@@ -146,8 +144,7 @@ export const GoalsManager = memo(function GoalsManager({ tasks, staff, onAdd, on
     filteredTasks.forEach(task => {
       if (task.status === 'completed' || task.status === 'cancelled') {
         groups.completed.push(task);
-      } else if (task.due_date < todayStr) {
-        groups.overdue.push(task);
+
       } else if (task.due_date === todayStr) {
         groups.today.push(task);
       } else if (task.due_date === tomorrowStr) {
@@ -306,14 +303,7 @@ export const GoalsManager = memo(function GoalsManager({ tasks, staff, onAdd, on
           isActive={activeFilter === 'completed'}
           onClick={() => setActiveFilter('completed')}
         />
-        <StatCard 
-          title="Просрочено" 
-          value={stats.overdue} 
-          icon={AlertCircle} 
-          color="bg-red-50 text-red-600" 
-          isActive={activeFilter === 'overdue'}
-          onClick={() => setActiveFilter('overdue')}
-        />
+
       </div>
 
       {/* Активный фильтр и поиск */}
@@ -372,7 +362,7 @@ export const GoalsManager = memo(function GoalsManager({ tasks, staff, onAdd, on
             </div>
           ) : (
             <div className="space-y-2">
-              {renderTaskGroup('⚠️ Просрочено', groupedTasks.overdue, 'text-red-600')}
+
               {renderTaskGroup('📅 Сегодня', groupedTasks.today, 'text-green-600')}
               {renderTaskGroup('🔔 Завтра', groupedTasks.tomorrow, 'text-blue-600')}
               {renderTaskGroup('📆 На этой неделе', groupedTasks.week, 'text-purple-600')}
