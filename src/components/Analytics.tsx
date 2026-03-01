@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, memo } from 'react';
+import { useState, useMemo, useCallback, memo, type FormEvent } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -709,7 +709,7 @@ function ExpenseForm({ initialData, onSubmit, onCancel }: ExpenseFormProps) {
     date: initialData?.date || format(new Date(), 'yyyy-MM-dd'),
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     onSubmit({
       ...formData,
