@@ -14,7 +14,8 @@ import {
   Shield,
   LogOut,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  FileSignature
 } from 'lucide-react';
 import { Button } from './ui/button';
 import type { TabId } from '../lib/permissions';
@@ -41,7 +42,7 @@ export function Sidebar({
   onToggleCollapse
 }: SidebarProps) {
   const mainTabs = availableTabs.filter(tab => 
-    ['equipment', 'estimates', 'calendar', 'customers'].includes(tab.id)
+    ['equipment', 'estimates', 'calendar', 'customers', 'contracts'].includes(tab.id)
   );
   
   const referenceTabs = availableTabs.filter(tab => 
