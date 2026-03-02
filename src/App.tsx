@@ -212,6 +212,7 @@ function App() {
             staff={staff}
             goals={tasks}
             onTabChange={setActiveTab}
+            checkAccess={checkAccess}
           />
         )}
 

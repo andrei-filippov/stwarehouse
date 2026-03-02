@@ -27,6 +27,8 @@ interface DashboardProps {
   goals?: Goal[];
   onTabChange: (tab: string) => void;
   onOpenEstimate?: (estimate: Estimate) => void;
+  availableTabs?: string[];
+  checkAccess?: (tab: string) => boolean;
 }
 
 export function Dashboard({ 
@@ -36,8 +38,16 @@ export function Dashboard({
   staff, 
   goals,
   onTabChange,
-  onOpenEstimate 
+  onOpenEstimate,
+  availableTabs = [],
+  checkAccess
 }: DashboardProps) {
+  // Функция проверки доступа к вкладке
+  const hasAccess = (tab: string): boolean => {
+    if (checkAccess) return checkAccess(tab);
+    if (availableTabs.length > 0) return availableTabs.includes(tab);
+    return true; // Если ничего не передано — показываем всё
+  };
   // Текущая дата для автообновления задач
   const [currentDate, setCurrentDate] = useState(new Date());
   
@@ -127,60 +137,75 @@ export function Dashboard({
         </div>
       </div>
 
-      {/* Статистика */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-blue-600 font-medium">Оборудование</p>
-                <p className="text-2xl font-bold text-blue-900">{stats.totalEquipment}</p>
+      {/* Статистика — только для доступных вкладок */}
+      <div className={`grid gap-4 ${
+        [hasAccess('equipment'), hasAccess('estimates'), hasAccess('customers'), hasAccess('calendar')].filter(Boolean).length === 4 
+          ? 'grid-cols-2 md:grid-cols-4' 
+          : [hasAccess('equipment'), hasAccess('estimates'), hasAccess('customers'), hasAccess('calendar')].filter(Boolean).length === 3 
+            ? 'grid-cols-2 md:grid-cols-3'
+            : 'grid-cols-2'
+      }`}>
+        {hasAccess('equipment') && (
+          <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 cursor-pointer" onClick={() => onTabChange('equipment')}>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-blue-600 font-medium">Оборудование</p>
+                  <p className="text-2xl font-bold text-blue-900">{stats.totalEquipment}</p>
+                </div>
+                <Package className="w-8 h-8 text-blue-500" />
               </div>
-              <Package className="w-8 h-8 text-blue-500" />
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
-        <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-green-600 font-medium">Сметы</p>
-                <p className="text-2xl font-bold text-green-900">{stats.totalEstimates}</p>
+        {hasAccess('estimates') && (
+          <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200 cursor-pointer" onClick={() => onTabChange('estimates')}>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-green-600 font-medium">Сметы</p>
+                  <p className="text-2xl font-bold text-green-900">{stats.totalEstimates}</p>
+                </div>
+                <FileText className="w-8 h-8 text-green-500" />
               </div>
-              <FileText className="w-8 h-8 text-green-500" />
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
-        <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-purple-600 font-medium">Клиенты</p>
-                <p className="text-2xl font-bold text-purple-900">{stats.totalCustomers}</p>
+        {hasAccess('customers') && (
+          <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200 cursor-pointer" onClick={() => onTabChange('customers')}>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-purple-600 font-medium">Клиенты</p>
+                  <p className="text-2xl font-bold text-purple-900">{stats.totalCustomers}</p>
+                </div>
+                <Users className="w-8 h-8 text-purple-500" />
               </div>
-              <Users className="w-8 h-8 text-purple-500" />
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
-        <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-orange-600 font-medium">Сегодня мероприятий</p>
-                <p className="text-2xl font-bold text-orange-900">{todayEvents.length}</p>
+        {hasAccess('calendar') && (
+          <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200 cursor-pointer" onClick={() => onTabChange('calendar')}>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-orange-600 font-medium">Сегодня мероприятий</p>
+                  <p className="text-2xl font-bold text-orange-900">{todayEvents.length}</p>
+                </div>
+                <CalendarDays className="w-8 h-8 text-orange-500" />
               </div>
-              <CalendarDays className="w-8 h-8 text-orange-500" />
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Основной контент */}
-      <div className="grid md:grid-cols-3 gap-6">
-        {/* Ближайшие мероприятия */}
+      <div className={`grid gap-6 ${hasAccess('estimates') ? 'md:grid-cols-3' : 'md:grid-cols-1'}`}>
+        {/* Ближайшие мероприятия — только если есть доступ к сметам */}
+        {hasAccess('estimates') && (
         <Card className="md:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-lg flex items-center gap-2">
@@ -251,11 +276,13 @@ export function Dashboard({
             )}
           </CardContent>
         </Card>
+        )}
 
-        {/* Правая колонка */}
+        {/* Правая колонка — только если есть доступ к goals или estimates */}
+        {(hasAccess('goals') || hasAccess('estimates')) && (
         <div className="space-y-6">
-          {/* Задачи на сегодня */}
-          {todayTasks.length > 0 && (
+          {/* Задачи на сегодня — только если есть доступ */}
+          {hasAccess('goals') && todayTasks.length > 0 && (
             <Card className="border-blue-200">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-lg flex items-center gap-2 text-blue-700">
@@ -309,7 +336,8 @@ export function Dashboard({
             </Card>
           )}
 
-          {/* Недавние сметы */}
+          {/* Недавние сметы — только если есть доступ */}
+          {hasAccess('estimates') && (
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-lg flex items-center gap-2">
@@ -338,6 +366,7 @@ export function Dashboard({
               )}
             </CardContent>
           </Card>
+          )}
 
           {/* Быстрые действия */}
           <Card>
@@ -345,6 +374,7 @@ export function Dashboard({
               <CardTitle className="text-lg">Быстрые действия</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
+              {hasAccess('estimates') && (
               <Button 
                 className="w-full justify-start"
                 onClick={() => onTabChange('estimates')}
@@ -352,6 +382,8 @@ export function Dashboard({
                 <FileText className="w-4 h-4 mr-2" />
                 Новая смета
               </Button>
+              )}
+              {hasAccess('equipment') && (
               <Button 
                 variant="outline"
                 className="w-full justify-start"
@@ -360,6 +392,8 @@ export function Dashboard({
                 <Package className="w-4 h-4 mr-2" />
                 Добавить оборудование
               </Button>
+              )}
+              {hasAccess('customers') && (
               <Button 
                 variant="outline"
                 className="w-full justify-start"
@@ -368,9 +402,11 @@ export function Dashboard({
                 <Users className="w-4 h-4 mr-2" />
                 Новый клиент
               </Button>
+              )}
             </CardContent>
           </Card>
         </div>
+        )}
       </div>
     </div>
   );
