@@ -3,11 +3,11 @@ import { supabase } from './supabase';
 // Система прав доступа (RBAC) с поддержкой кастомных разрешений
 
 export type UserRole = 'admin' | 'manager' | 'warehouse' | 'accountant';
-export type TabId = 'equipment' | 'estimates' | 'templates' | 'calendar' | 'checklists' | 'staff' | 'goals' | 'cables' | 'analytics' | 'customers' | 'settings' | 'admin';
+export type TabId = 'equipment' | 'estimates' | 'templates' | 'calendar' | 'checklists' | 'staff' | 'goals' | 'cables' | 'analytics' | 'customers' | 'contracts' | 'settings' | 'admin';
 
 // Разрешения по умолчанию для каждой роли
 export const ROLE_TABS: Record<UserRole, TabId[]> = {
-  admin: ['equipment', 'estimates', 'templates', 'calendar', 'checklists', 'staff', 'goals', 'cables', 'analytics', 'customers', 'settings', 'admin'],
+  admin: ['equipment', 'estimates', 'templates', 'calendar', 'checklists', 'staff', 'goals', 'cables', 'analytics', 'customers', 'contracts', 'settings', 'admin'],
   manager: ['equipment', 'estimates', 'templates', 'calendar', 'checklists', 'goals', 'cables', 'analytics', 'customers'],
   warehouse: ['equipment', 'checklists', 'calendar', 'cables'],
   accountant: ['estimates', 'analytics', 'customers', 'calendar'],
@@ -24,6 +24,7 @@ export const ALL_TABS: { id: TabId; label: string }[] = [
   { id: 'cables', label: 'Коммутация' },
   { id: 'analytics', label: 'Аналитика' },
   { id: 'customers', label: 'Заказчики' },
+  { id: 'contracts', label: 'Договоры' },
   { id: 'settings', label: 'Настройки PDF' },
   { id: 'admin', label: 'Админ-панель' },
 ];

@@ -194,3 +194,22 @@ export type { CableCategory, CableInventory, CableMovement, CableMovementWithCat
 // Expenses
 export type { Expense, ExpenseCategory } from './expenses';
 export { EXPENSE_CATEGORIES, getExpenseCategoryLabel } from './expenses';
+
+// Contracts
+export type { 
+  Contract, 
+  ContractTemplate, 
+  ContractEstimateItem, 
+  ContractTemplateData,
+  ContractType,
+  ContractStatus 
+} from './contracts';
+export { 
+  CONTRACT_TYPE_LABELS, 
+  CONTRACT_STATUS_LABELS, 
+  CONTRACT_STATUS_COLORS,
+  getContractTypeLabel, 
+  getContractStatusLabel,
+  numberToWords,
+  generateContractNumber 
+} from './contracts';

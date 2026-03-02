@@ -10,6 +10,7 @@ import { useGoals } from './hooks/useGoals';
 import { useCustomers } from './hooks/useCustomers';
 import { useCableInventory } from './hooks/useCableInventory';
 import { useExpenses } from './hooks/useExpenses';
+import { useContracts } from './hooks/useContracts';
 import { Auth } from './components/Auth';
 import { EquipmentManager } from './components/EquipmentManagement';
 
@@ -24,6 +25,7 @@ import { PDFSettings } from './components/PDFSettings';
 import { EventCalendar } from './components/EventCalendar';
 import { Analytics } from './components/Analytics';
 import { CustomersManager } from './components/CustomersManager';
+import { ContractManager } from './components/ContractManager';
 import { AdminPanel } from './components/AdminPanel';
 import { AccessDenied } from './components/AccessDenied';
 import { BottomNav } from './components/BottomNav';
@@ -46,7 +48,8 @@ import {
   Users,
   Target,
   Shield,
-  Cable
+  Cable,
+  FileSignature
 } from 'lucide-react';
 import type { PDFSettings as PDFSettingsType } from './types';
 
@@ -65,6 +68,7 @@ function App() {
   const { customers, loading: customersLoading, error: customersError, addCustomer, updateCustomer, deleteCustomer } = useCustomers(user?.id);
   const { categories: cableCategories, inventory: cableInventory, movements: cableMovements, stats: cableStats, loading: cableLoading, addCategory: addCableCategory, updateCategory: updateCableCategory, deleteCategory: deleteCableCategory, upsertInventory: upsertCableInventory, updateInventoryQty: updateCableInventoryQty, deleteInventory: deleteCableInventory, issueCable, returnCable } = useCableInventory(user?.id);
   const { expenses, loading: expensesLoading, addExpense, updateExpense, deleteExpense } = useExpenses(user?.id);
+  const { contracts, templates: contractTemplates, loading: contractsLoading, createContract, updateContract, deleteContract, getNextContractNumber } = useContracts(user?.id);
   const analyticsData = { equipment, estimates, staff, customers, expenses, onAddExpense: addExpense, onUpdateExpense: updateExpense, onDeleteExpense: deleteExpense };
   
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -105,6 +109,7 @@ function App() {
     { id: 'cables' as Tab, label: 'Коммутация', icon: Cable },
     { id: 'analytics' as Tab, label: 'Аналитика', icon: BarChart3 },
     { id: 'customers' as Tab, label: 'Заказчики', icon: Building2 },
+    { id: 'contracts' as Tab, label: 'Договоры', icon: FileSignature },
     { id: 'settings' as Tab, label: 'Настройки PDF', icon: Settings },
     { id: 'admin' as Tab, label: 'Админ', icon: Shield },
   ];
@@ -348,6 +353,25 @@ function App() {
             error={customersError}
             fabAction={fabAction}
           />
+        )}
+
+        {activeTab === 'contracts' && (
+          checkAccess('contracts') ? (
+            <ContractManager
+              contracts={contracts}
+              templates={contractTemplates}
+              customers={customers}
+              estimates={estimates}
+              pdfSettings={pdfSettings}
+              onCreate={createContract}
+              onUpdate={updateContract}
+              onDelete={deleteContract}
+              getNextNumber={getNextContractNumber}
+              fabAction={fabAction}
+            />
+          ) : (
+            <AccessDenied role={userRole} requiredRole="Администратор" />
+          )
         )}
 
         {activeTab === 'settings' && (

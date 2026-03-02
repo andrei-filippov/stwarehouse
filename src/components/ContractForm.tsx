@@ -1,0 +1,565 @@
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import { Textarea } from './ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import { Card, CardContent } from './ui/card';
+import { Badge } from './ui/badge';
+import { Checkbox } from './ui/checkbox';
+import { Calendar } from './ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { format } from 'date-fns';
+import { ru } from 'date-fns/locale';
+import { 
+  CalendarIcon, 
+  Plus, 
+  Trash2, 
+  Building2, 
+  User, 
+  FileText,
+  Briefcase,
+  CalendarDays,
+  Banknote
+} from 'lucide-react';
+import type { Contract, ContractTemplate, ContractType, ContractStatus, PDFSettings } from '../types';
+import { CONTRACT_TYPE_LABELS, CONTRACT_STATUS_LABELS, generateContractNumber } from '../types';
+
+interface ContractFormProps {
+  contract: Contract | null;
+  templates: ContractTemplate[];
+  customers: any[];
+  estimates: any[];
+  pdfSettings: PDFSettings;
+  getNextNumber: (type: ContractType, year: number) => Promise<string>;
+  onSave: (contract: any, estimateIds: string[]) => void;
+  onCancel: () => void;
+}
+
+export function ContractForm({
+  contract,
+  templates,
+  customers,
+  estimates,
+  pdfSettings,
+  getNextNumber,
+  onSave,
+  onCancel,
+}: ContractFormProps) {
+  const isEditing = !!contract;
+  const currentYear = new Date().getFullYear();
+
+  // Основные поля
+  const [number, setNumber] = useState('');
+  const [date, setDate] = useState<Date>(new Date());
+  const [type, setType] = useState<ContractType>('service');
+  const [status, setStatus] = useState<ContractStatus>('draft');
+  const [templateId, setTemplateId] = useState('');
+  const [customerId, setCustomerId] = useState('');
+  
+  // Мероприятие
+  const [eventName, setEventName] = useState('');
+  const [eventStartDate, setEventStartDate] = useState<Date | undefined>();
+  const [eventEndDate, setEventEndDate] = useState<Date | undefined>();
+  const [venue, setVenue] = useState('');
+  
+  // Финансы
+  const [totalAmount, setTotalAmount] = useState(0);
+  const [paymentTerms, setPaymentTerms] = useState('');
+  
+  // Исполнитель
+  const [executorName, setExecutorName] = useState('');
+  const [executorRepresentative, setExecutorRepresentative] = useState('');
+  const [executorBasis, setExecutorBasis] = useState('Устава');
+  
+  // Дополнительно
+  const [subject, setSubject] = useState('');
+  const [additionalTerms, setAdditionalTerms] = useState('');
+  
+  // Привязанные сметы
+  const [selectedEstimateIds, setSelectedEstimateIds] = useState<string[]>([]);
+
+  // Инициализация при редактировании
+  useEffect(() => {
+    if (contract) {
+      setNumber(contract.number);
+      setDate(contract.date ? new Date(contract.date) : new Date());
+      setType(contract.type);
+      setStatus(contract.status);
+      setTemplateId(contract.template_id || '');
+      setCustomerId(contract.customer_id || '');
+      setEventName(contract.event_name || '');
+      setEventStartDate(contract.event_start_date ? new Date(contract.event_start_date) : undefined);
+      setEventEndDate(contract.event_end_date ? new Date(contract.event_end_date) : undefined);
+      setVenue(contract.venue || '');
+      setTotalAmount(contract.total_amount);
+      setPaymentTerms(contract.payment_terms || '');
+      setExecutorName(contract.executor_name || pdfSettings.companyName || '');
+      setExecutorRepresentative(contract.executor_representative || pdfSettings.personName || '');
+      setExecutorBasis(contract.executor_basis || 'Устава');
+      setSubject(contract.subject || '');
+      setAdditionalTerms(contract.additional_terms || '');
+      setSelectedEstimateIds(contract.estimates?.map(e => e.estimate_id) || []);
+    } else {
+      // Новый договор - генерируем номер
+      generateNumber('service');
+      setExecutorName(pdfSettings.companyName || '');
+      setExecutorRepresentative(pdfSettings.personName || '');
+      setPaymentTerms('Оплата в течение 15 банковских дней с даты подписания Акта сдачи-приемки услуг.');
+    }
+  }, [contract, pdfSettings]);
+
+  // Генерация номера договора
+  const generateNumber = async (newType: ContractType) => {
+    if (isEditing) return;
+    const nextNumber = await getNextNumber(newType, currentYear);
+    setNumber(nextNumber);
+  };
+
+  // При изменении типа - перегенерируем номер
+  const handleTypeChange = (newType: ContractType) => {
+    setType(newType);
+    if (!isEditing) {
+      generateNumber(newType);
+    }
+  };
+
+  // Автоматический расчёт суммы из смет
+  useEffect(() => {
+    if (selectedEstimateIds.length > 0) {
+      const sum = estimates
+        .filter(e => selectedEstimateIds.includes(e.id))
+        .reduce((acc, e) => acc + (e.total || 0), 0);
+      setTotalAmount(sum);
+    }
+  }, [selectedEstimateIds, estimates]);
+
+  // Получение имени заказчика
+  const selectedCustomer = useMemo(() => {
+    return customers.find(c => c.id === customerId);
+  }, [customers, customerId]);
+
+  // Получение выбранного шаблона
+  const selectedTemplate = useMemo(() => {
+    return templates.find(t => t.id === templateId);
+  }, [templates, templateId]);
+
+  // Доступные сметы (без привязки к другим договорам или привязанные к текущему)
+  const availableEstimates = useMemo(() => {
+    return estimates.filter(e => 
+      !e.contract_id || selectedEstimateIds.includes(e.id)
+    );
+  }, [estimates, selectedEstimateIds]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const contractData = {
+      number,
+      date: date.toISOString().split('T')[0],
+      type,
+      status,
+      template_id: templateId || null,
+      customer_id: customerId || null,
+      event_name: eventName || null,
+      event_start_date: eventStartDate?.toISOString().split('T')[0] || null,
+      event_end_date: eventEndDate?.toISOString().split('T')[0] || null,
+      venue: venue || null,
+      total_amount: totalAmount,
+      payment_terms: paymentTerms || null,
+      executor_name: executorName || null,
+      executor_representative: executorRepresentative || null,
+      executor_basis: executorBasis || null,
+      subject: subject || null,
+      additional_terms: additionalTerms || null,
+    };
+
+    onSave(contractData, selectedEstimateIds);
+  };
+
+  const toggleEstimate = (estimateId: string) => {
+    setSelectedEstimateIds(prev => 
+      prev.includes(estimateId)
+        ? prev.filter(id => id !== estimateId)
+        : [...prev, estimateId]
+    );
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <Tabs defaultValue="main" className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="main">Основное</TabsTrigger>
+          <TabsTrigger value="event">Мероприятие</TabsTrigger>
+          <TabsTrigger value="finance">Финансы</TabsTrigger>
+          <TabsTrigger value="estimates">Сметы ({selectedEstimateIds.length})</TabsTrigger>
+        </TabsList>
+
+        {/* Основная информация */}
+        <TabsContent value="main" className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="number">Номер договора</Label>
+              <Input
+                id="number"
+                value={number}
+                onChange={(e) => setNumber(e.target.value)}
+                required
+                placeholder="01-25У"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Дата договора</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {date ? format(date, 'dd.MM.yyyy', { locale: ru }) : 'Выберите дату'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={date}
+                    onSelect={(d) => d && setDate(d)}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="type">Тип договора</Label>
+              <Select value={type} onValueChange={(v) => handleTypeChange(v as ContractType)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(CONTRACT_TYPE_LABELS).map(([key, label]) => (
+                    <SelectItem key={key} value={key}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="status">Статус</Label>
+              <Select value={status} onValueChange={(v) => setStatus(v as ContractStatus)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(CONTRACT_STATUS_LABELS).map(([key, label]) => (
+                    <SelectItem key={key} value={key}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="template">Шаблон договора</Label>
+            <Select value={templateId} onValueChange={setTemplateId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Выберите шаблон" />
+              </SelectTrigger>
+              <SelectContent>
+                {templates.map((template) => (
+                  <SelectItem key={template.id} value={template.id}>
+                    {template.name} {template.is_default && '(по умолчанию)'}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="customer">Заказчик</Label>
+            <Select value={customerId} onValueChange={setCustomerId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Выберите заказчика" />
+              </SelectTrigger>
+              <SelectContent>
+                {customers.map((customer) => (
+                  <SelectItem key={customer.id} value={customer.id}>
+                    {customer.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {selectedCustomer && (
+            <Card className="bg-gray-50">
+              <CardContent className="pt-4 space-y-2 text-sm">
+                <div className="flex items-center gap-2">
+                  <Building2 className="w-4 h-4 text-gray-400" />
+                  <span>{selectedCustomer.type === 'company' ? 'ООО' : selectedCustomer.type === 'ip' ? 'ИП' : 'Физ.лицо'}</span>
+                </div>
+                {selectedCustomer.inn && (
+                  <div>ИНН: {selectedCustomer.inn}</div>
+                )}
+                {selectedCustomer.legal_address && (
+                  <div>Адрес: {selectedCustomer.legal_address}</div>
+                )}
+                {selectedCustomer.contact_person && (
+                  <div className="flex items-center gap-2">
+                    <User className="w-4 h-4 text-gray-400" />
+                    <span>{selectedCustomer.contact_person}</span>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          <div className="space-y-2">
+            <Label htmlFor="subject">Предмет договора</Label>
+            <Textarea
+              id="subject"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              placeholder="Описание предмета договора"
+              rows={3}
+            />
+          </div>
+        </TabsContent>
+
+        {/* Мероприятие */}
+        <TabsContent value="event" className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="eventName">Название мероприятия</Label>
+            <Input
+              id="eventName"
+              value={eventName}
+              onChange={(e) => setEventName(e.target.value)}
+              placeholder="Например: Корпоративное мероприятие"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Дата начала</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal"
+                  >
+                    <CalendarDays className="mr-2 h-4 w-4" />
+                    {eventStartDate ? format(eventStartDate, 'dd.MM.yyyy', { locale: ru }) : 'Выберите дату'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={eventStartDate}
+                    onSelect={setEventStartDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Дата окончания</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal"
+                  >
+                    <CalendarDays className="mr-2 h-4 w-4" />
+                    {eventEndDate ? format(eventEndDate, 'dd.MM.yyyy', { locale: ru }) : 'Выберите дату'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={eventEndDate}
+                    onSelect={setEventEndDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="venue">Место проведения</Label>
+            <Input
+              id="venue"
+              value={venue}
+              onChange={(e) => setVenue(e.target.value)}
+              placeholder="Адрес площадки"
+            />
+          </div>
+        </TabsContent>
+
+        {/* Финансы */}
+        <TabsContent value="finance" className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="totalAmount">Общая сумма договора</Label>
+            <div className="relative">
+              <Banknote className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Input
+                id="totalAmount"
+                type="number"
+                value={totalAmount}
+                onChange={(e) => setTotalAmount(Number(e.target.value))}
+                className="pl-10"
+                min={0}
+                step={0.01}
+              />
+            </div>
+            <p className="text-sm text-gray-500">
+              Сумма автоматически рассчитывается из привязанных смет
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="paymentTerms">Условия оплаты</Label>
+            <Textarea
+              id="paymentTerms"
+              value={paymentTerms}
+              onChange={(e) => setPaymentTerms(e.target.value)}
+              placeholder="Условия и сроки оплаты"
+              rows={3}
+            />
+          </div>
+
+          <Card className="border-blue-200 bg-blue-50">
+            <CardContent className="pt-4 space-y-4">
+              <h4 className="font-medium flex items-center gap-2">
+                <Briefcase className="w-4 h-4" />
+                Реквизиты Исполнителя
+              </h4>
+              
+              <div className="space-y-2">
+                <Label htmlFor="executorName">Наименование</Label>
+                <Input
+                  id="executorName"
+                  value={executorName}
+                  onChange={(e) => setExecutorName(e.target.value)}
+                  placeholder="ИП Фамилия И.О. или ООО «Название»"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="executorRepresentative">Представитель</Label>
+                <Input
+                  id="executorRepresentative"
+                  value={executorRepresentative}
+                  onChange={(e) => setExecutorRepresentative(e.target.value)}
+                  placeholder="Директор Иванов И.И."
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="executorBasis">Действует на основании</Label>
+                <Select value={executorBasis} onValueChange={setExecutorBasis}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Устава">Устава</SelectItem>
+                    <SelectItem value="Свидетельства о регистрации">Свидетельства о регистрации</SelectItem>
+                    <SelectItem value="Доверенности №____ от __.__.20__">Доверенности</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="space-y-2">
+            <Label htmlFor="additionalTerms">Дополнительные условия</Label>
+            <Textarea
+              id="additionalTerms"
+              value={additionalTerms}
+              onChange={(e) => setAdditionalTerms(e.target.value)}
+              placeholder="Любые дополнительные условия договора"
+              rows={4}
+            />
+          </div>
+        </TabsContent>
+
+        {/* Сметы */}
+        <TabsContent value="estimates" className="space-y-4">
+          <div className="text-sm text-gray-500 mb-2">
+            Выберите сметы для включения в договор:
+          </div>
+          
+          {estimates.length === 0 ? (
+            <div className="text-center text-gray-500 py-8">
+              Нет доступных смет. Сначала создайте сметы.
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {estimates.map((estimate) => {
+                const isSelected = selectedEstimateIds.includes(estimate.id);
+                return (
+                  <div
+                    key={estimate.id}
+                    className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                      isSelected 
+                        ? 'border-blue-500 bg-blue-50' 
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                    onClick={() => toggleEstimate(estimate.id)}
+                  >
+                    <div className="flex items-start gap-3">
+                      <Checkbox 
+                        checked={isSelected}
+                        onCheckedChange={() => toggleEstimate(estimate.id)}
+                      />
+                      <div className="flex-1">
+                        <div className="font-medium">{estimate.event_name}</div>
+                        <div className="text-sm text-gray-500">
+                          {new Date(estimate.event_date || estimate.event_start_date).toLocaleDateString('ru-RU')}
+                          {' · '}
+                          {estimate.venue || 'Площадка не указана'}
+                        </div>
+                        <div className="text-sm font-medium mt-1">
+                          {estimate.total?.toLocaleString('ru-RU')} ₽
+                          {' · '}
+                          {estimate.items?.length || 0} позиций
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {selectedEstimateIds.length > 0 && (
+            <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+              <div className="font-medium mb-2">Итого по выбранным сметам:</div>
+              <div className="text-2xl font-bold text-blue-600">
+                {estimates
+                  .filter(e => selectedEstimateIds.includes(e.id))
+                  .reduce((sum, e) => sum + (e.total || 0), 0)
+                  .toLocaleString('ru-RU')} ₽
+              </div>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      <div className="flex justify-end gap-2 pt-4 border-t">
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Отмена
+        </Button>
+        <Button type="submit">
+          {isEditing ? 'Сохранить изменения' : 'Создать договор'}
+        </Button>
+      </div>
+    </form>
+  );
+}
