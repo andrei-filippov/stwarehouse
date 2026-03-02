@@ -80,6 +80,9 @@ export function ContractForm({
   // Привязанные сметы
   const [selectedEstimateIds, setSelectedEstimateIds] = useState<string[]>([]);
 
+  // Сохраняем начальные значения pdfSettings в ref, чтобы избежать бесконечных ререндеров
+  const pdfSettingsRef = useMemo(() => pdfSettings, []);
+
   // Инициализация при редактировании
   useEffect(() => {
     if (contract) {
@@ -108,7 +111,8 @@ export function ContractForm({
       setExecutorRepresentative(pdfSettings.personName || '');
       setPaymentTerms('Оплата в течение 15 банковских дней с даты подписания Акта сдачи-приемки услуг.');
     }
-  }, [contract, pdfSettings]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contract]); // Убрали pdfSettings из зависимостей
 
   // Генерация номера договора
   const generateNumber = async (newType: ContractType) => {
