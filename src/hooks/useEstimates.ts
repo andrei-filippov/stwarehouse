@@ -177,11 +177,14 @@ export function useEstimates(userId: string | undefined) {
 
   const createEstimate = async (estimate: Omit<Estimate, 'id' | 'created_at' | 'updated_at'>, items: Omit<EstimateItem, 'id' | 'estimate_id'>[], userId: string, creatorName?: string, categoryOrder?: string[]) => {
     // Подготавливаем базовые данные сметы (только поля которые точно есть в БД)
+    // Убираем пустые строки для UUID полей
+    const customerId = estimate.customer_id?.trim() || null;
+    
     const baseEstimate: any = {
       event_name: estimate.event_name,
       venue: estimate.venue,
       event_date: estimate.event_start_date || estimate.event_date,
-      customer_id: estimate.customer_id,
+      customer_id: customerId,
       total: estimate.total,
       user_id: userId,
       creator_name: creatorName
@@ -257,11 +260,14 @@ export function useEstimates(userId: string | undefined) {
 
   const updateEstimate = async (id: string, estimate: Partial<Estimate>, items?: EstimateItem[], userId?: string, categoryOrder?: string[]) => {
     // Базовые поля для обновления
+    // Убираем пустые строки для UUID полей
+    const customerId = estimate.customer_id?.trim() || null;
+    
     const baseUpdate: any = {
       event_name: estimate.event_name,
       venue: estimate.venue,
       event_date: estimate.event_start_date || estimate.event_date,
-      customer_id: estimate.customer_id,
+      customer_id: customerId,
       total: estimate.total,
       updated_at: new Date().toISOString()
     };
