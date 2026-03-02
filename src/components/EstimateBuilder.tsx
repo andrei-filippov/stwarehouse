@@ -267,7 +267,7 @@ export function EstimateBuilder({
 
           worksheet.addImage(imageId, {
             tl: { col: 0, row: 0 },
-            ext: { width: 150, height: 60 },
+            ext: { width: 200, height: 80 },
           });
           
           currentRow = 4; // Сдвигаем начало данных после логотипа

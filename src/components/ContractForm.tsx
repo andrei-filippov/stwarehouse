@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -14,8 +14,6 @@ import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { 
   CalendarIcon, 
-  Plus, 
-  Trash2, 
   Building2, 
   User, 
   FileText,
@@ -24,7 +22,7 @@ import {
   Banknote
 } from 'lucide-react';
 import type { Contract, ContractTemplate, ContractType, ContractStatus, PDFSettings } from '../types';
-import { CONTRACT_TYPE_LABELS, CONTRACT_STATUS_LABELS, generateContractNumber } from '../types';
+import { CONTRACT_TYPE_LABELS, CONTRACT_STATUS_LABELS } from '../types';
 
 interface ContractFormProps {
   contract: Contract | null;
@@ -49,6 +47,7 @@ export function ContractForm({
 }: ContractFormProps) {
   const isEditing = !!contract;
   const currentYear = new Date().getFullYear();
+  const initialized = useRef(false);
 
   // Основные поля
   const [number, setNumber] = useState('');
@@ -69,8 +68,8 @@ export function ContractForm({
   const [paymentTerms, setPaymentTerms] = useState('');
   
   // Исполнитель
-  const [executorName, setExecutorName] = useState('');
-  const [executorRepresentative, setExecutorRepresentative] = useState('');
+  const [executorName, setExecutorName] = useState(pdfSettings.companyName || '');
+  const [executorRepresentative, setExecutorRepresentative] = useState(pdfSettings.personName || '');
   const [executorBasis, setExecutorBasis] = useState('Устава');
   
   // Дополнительно
@@ -80,9 +79,13 @@ export function ContractForm({
   // Привязанные сметы
   const [selectedEstimateIds, setSelectedEstimateIds] = useState<string[]>([]);
 
-  // Инициализация при редактировании - только при монтировании или смене contract
+  // Генерация номера договора - вызывается один раз при монтировании для нового договора
   useEffect(() => {
+    if (initialized.current) return;
+    initialized.current = true;
+
     if (contract) {
+      // Редактирование - заполняем все поля
       setNumber(contract.number);
       setDate(contract.date ? new Date(contract.date) : new Date());
       setType(contract.type);
@@ -102,16 +105,15 @@ export function ContractForm({
       setAdditionalTerms(contract.additional_terms || '');
       setSelectedEstimateIds(contract.estimates?.map(e => e.estimate_id) || []);
     } else {
-      // Новый договор - генерируем номер только если он еще не установлен
-      if (!number) {
-        generateNumber('service');
-      }
+      // Новый договор - устанавливаем значения по умолчанию
       setExecutorName(pdfSettings.companyName || '');
       setExecutorRepresentative(pdfSettings.personName || '');
       setPaymentTerms('Оплата в течение 15 банковских дней с даты подписания Акта сдачи-приемки услуг.');
+      // Генерируем номер отдельно
+      generateNumber('service');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [contract?.id]); // Зависим только от ID контракта, а не от всего объекта
+  }, []);
 
   // Генерация номера договора
   const generateNumber = async (newType: ContractType) => {
@@ -121,22 +123,24 @@ export function ContractForm({
   };
 
   // При изменении типа - перегенерируем номер
-  const handleTypeChange = (newType: ContractType) => {
+  const handleTypeChange = useCallback((newType: ContractType) => {
     setType(newType);
     if (!isEditing) {
       generateNumber(newType);
     }
-  };
+  }, [isEditing]);
 
-  // Автоматический расчёт суммы из смет - только когда меняется выбор смет
+  // Автоматический расчёт суммы из смет
   useEffect(() => {
     if (selectedEstimateIds.length > 0) {
       const sum = estimates
         .filter(e => selectedEstimateIds.includes(e.id))
         .reduce((acc, e) => acc + (e.total || 0), 0);
-      setTotalAmount(prev => prev !== sum ? sum : prev); // Обновляем только если сумма изменилась
+      setTotalAmount(sum);
+    } else {
+      setTotalAmount(0);
     }
-  }, [selectedEstimateIds]); // Убрали estimates из зависимостей
+  }, [selectedEstimateIds, estimates]);
 
   // Получение имени заказчика
   const selectedCustomer = useMemo(() => {
@@ -148,7 +152,7 @@ export function ContractForm({
     return templates.find(t => t.id === templateId);
   }, [templates, templateId]);
 
-  // Доступные сметы (без привязки к другим договорам или привязанные к текущему)
+  // Доступные сметы
   const availableEstimates = useMemo(() => {
     return estimates.filter(e => 
       !e.contract_id || selectedEstimateIds.includes(e.id)
