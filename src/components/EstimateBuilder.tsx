@@ -487,7 +487,7 @@ export function EstimateBuilder({
       {/* Шапка */}
       <div className="border-b p-2 md:p-4 flex items-center justify-between bg-gray-50 print:hidden">
         <div className="flex items-center gap-2 md:gap-4">
-          <Button variant="ghost" size="sm" onClick={handleClose} className="px-2">
+          <Button variant="ghost" size="sm" onClick={onClose} className="px-2">
             <ChevronLeft className="w-5 h-5 md:mr-2" />
             <span className="hidden md:inline">Назад</span>
           </Button>
