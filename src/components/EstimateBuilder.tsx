@@ -1,16 +1,9 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Label } from './ui/label';
-import { Textarea } from './ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Badge } from './ui/badge';
-import { Checkbox } from './ui/checkbox';
 import { ScrollArea } from './ui/scroll-area';
-import { Separator } from './ui/separator';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { format } from 'date-fns';
@@ -25,12 +18,13 @@ import {
   Printer,
   FileSpreadsheet,
   Search,
-  ArrowUpDown,
   GripVertical,
   Copy,
-  X,
   CalendarIcon,
-  ChevronUp
+  ChevronUp,
+  Maximize2,
+  Minimize2,
+  X
 } from 'lucide-react';
 import type { Equipment, Estimate, EstimateItem, Customer, PDFSettings } from '../types';
 import { cn } from '../lib/utils';
@@ -64,7 +58,8 @@ export function EstimateBuilder({
 }: EstimateBuilderProps) {
   const [eventName, setEventName] = useState(estimate?.event_name || '');
   const [venue, setVenue] = useState(estimate?.venue || '');
-  const [eventDate, setEventDate] = useState(estimate?.event_date || '');
+  const [eventStartDate, setEventStartDate] = useState(estimate?.event_start_date || '');
+  const [eventEndDate, setEventEndDate] = useState(estimate?.event_end_date || '');
   const [customerId, setCustomerId] = useState(estimate?.customer_id || '');
   const [items, setItems] = useState<EstimateItem[]>(estimate?.items || []);
   const [searchQuery, setSearchQuery] = useState('');
@@ -72,8 +67,10 @@ export function EstimateBuilder({
   const [activeMobileTab, setActiveMobileTab] = useState<'equipment' | 'estimate'>('equipment');
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const [categoryOrder, setCategoryOrder] = useState<string[]>(estimate?.category_order || equipmentCategories);
-  const [showPreview, setShowPreview] = useState(false);
-  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
+  
+  // Состояние для разворачивания панелей
+  const [expandedPanel, setExpandedPanel] = useState<'none' | 'equipment' | 'estimate'>('none');
+  
   const [isDragging, setIsDragging] = useState(false);
   const [draggedCategory, setDraggedCategory] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
@@ -88,6 +85,7 @@ export function EstimateBuilder({
     [items]
   );
 
+  // Фильтрация оборудования
   const filteredEquipment = useMemo(() => {
     return equipment.filter(item => {
       const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -97,8 +95,24 @@ export function EstimateBuilder({
     });
   }, [equipment, searchQuery, selectedCategory]);
 
+  // Группировка позиций сметы (суммируем одинаковые)
   const groupedItems = useMemo(() => {
-    const grouped = items.reduce((acc, item) => {
+    // Сначала группируем по equipment_id для суммирования одинаковых
+    const itemMap = new Map<string, EstimateItem>();
+    
+    items.forEach(item => {
+      const key = `${item.equipment_id}_${item.price}_${item.coefficient || 1}`;
+      if (itemMap.has(key)) {
+        const existing = itemMap.get(key)!;
+        existing.quantity += item.quantity;
+      } else {
+        itemMap.set(key, { ...item });
+      }
+    });
+    
+    // Преобразуем обратно в массив и группируем по категориям
+    const mergedItems = Array.from(itemMap.values());
+    const grouped = mergedItems.reduce((acc, item) => {
       if (!acc[item.category]) acc[item.category] = [];
       acc[item.category].push(item);
       return acc;
@@ -114,19 +128,35 @@ export function EstimateBuilder({
     ] as [string, EstimateItem[]]);
   }, [items, categoryOrder]);
 
+  // Добавление позиции (суммируем если уже есть)
   const handleAddItem = (equipment: Equipment) => {
-    const newItem: EstimateItem = {
-      id: Math.random().toString(36).substr(2, 9),
-      equipment_id: equipment.id,
-      name: equipment.name,
-      description: equipment.description || '',
-      category: equipment.category,
-      quantity: 1,
-      price: equipment.price,
-      unit: equipment.unit,
-      coefficient: 1,
-    };
-    setItems(prev => [...prev, newItem]);
+    const existingIndex = items.findIndex(
+      item => item.equipment_id === equipment.id && item.price === equipment.price && (item.coefficient || 1) === 1
+    );
+    
+    if (existingIndex >= 0) {
+      // Увеличиваем количество существующей позиции
+      const updatedItems = [...items];
+      updatedItems[existingIndex] = {
+        ...updatedItems[existingIndex],
+        quantity: updatedItems[existingIndex].quantity + 1
+      };
+      setItems(updatedItems);
+    } else {
+      // Добавляем новую позицию
+      const newItem: EstimateItem = {
+        id: Math.random().toString(36).substr(2, 9),
+        equipment_id: equipment.id,
+        name: equipment.name,
+        description: equipment.description || '',
+        category: equipment.category,
+        quantity: 1,
+        price: equipment.price,
+        unit: equipment.unit,
+        coefficient: 1,
+      };
+      setItems(prev => [...prev, newItem]);
+    }
   };
 
   const handleRemoveItem = (itemId: string) => {
@@ -151,7 +181,8 @@ export function EstimateBuilder({
     const estimateData = {
       event_name: eventName,
       venue,
-      event_date: eventDate,
+      event_start_date: eventStartDate,
+      event_end_date: eventEndDate,
       customer_id: customerId,
       total,
     };
@@ -194,32 +225,6 @@ export function EstimateBuilder({
     setDropTarget(null);
   };
 
-  // Сортировка оборудования
-  const handleSort = (key: string) => {
-    setSortConfig(current => {
-      if (!current || current.key !== key) {
-        return { key, direction: 'asc' };
-      }
-      if (current.direction === 'asc') {
-        return { key, direction: 'desc' };
-      }
-      return null;
-    });
-  };
-
-  const sortedEquipment = useMemo(() => {
-    if (!sortConfig) return filteredEquipment;
-    
-    return [...filteredEquipment].sort((a, b) => {
-      const aValue = (a as any)[sortConfig.key];
-      const bValue = (b as any)[sortConfig.key];
-      
-      if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
-      if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
-      return 0;
-    });
-  }, [filteredEquipment, sortConfig]);
-
   const toggleCategory = (category: string) => {
     setCollapsedCategories(prev => {
       const newSet = new Set(prev);
@@ -232,7 +237,7 @@ export function EstimateBuilder({
     });
   };
 
-  // Форматирование даты в dd.mm.yyyy
+  // Форматирование даты
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '-';
     const date = new Date(dateStr);
@@ -240,7 +245,20 @@ export function EstimateBuilder({
     return date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
-  // Экспорт PDF с поддержкой кириллицы через HTML
+  // Определение классов для панелей
+  const getEquipmentPanelClass = () => {
+    if (expandedPanel === 'equipment') return 'w-full';
+    if (expandedPanel === 'estimate') return 'hidden';
+    return 'w-[35%]'; // 30% для оборудования
+  };
+
+  const getEstimatePanelClass = () => {
+    if (expandedPanel === 'estimate') return 'w-full';
+    if (expandedPanel === 'equipment') return 'hidden';
+    return 'w-[65%]'; // 70% для сметы
+  };
+
+  // Экспорт PDF
   const exportPDF = useCallback(() => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
@@ -268,16 +286,10 @@ export function EstimateBuilder({
           tr:nth-child(even) { background: #f5f5f5; }
           .nowrap { white-space: nowrap; }
           .total { margin-top: 15px; font-size: 14px; font-weight: bold; text-align: right; }
-          .signature-section { margin-top: 40px; display: flex; justify-content: space-between; align-items: flex-end; }
-          .signature-left { width: 45%; }
-          .signature-right { width: 45%; text-align: right; }
-          .signature-line { border-top: 1px solid #333; margin-top: 30px; padding-top: 5px; font-size: 10px; }
-          .signature-img { max-height: 40px; margin-top: 10px; }
-          .stamp-img { max-height: 60px; }
+          @media print { body { margin: 10px; } }
         </style>
       </head>
       <body>
-        <!-- Шапка с логотипом и реквизитами -->
         <div class="header">
           <div class="logo-section">
             ${pdfSettings.logo ? `<img src="${pdfSettings.logo}" alt="Логотип" />` : '<p>&nbsp;</p>'}
@@ -293,10 +305,11 @@ export function EstimateBuilder({
         <div class="info">
           <p><strong>Мероприятие:</strong> ${eventName}</p>
           <p><strong>Площадка:</strong> ${venue || '-'}</p>
-          <p><strong>Дата:</strong> ${eventDate ? new Date(eventDate).toLocaleDateString('ru-RU') : '-'}</p>
+          <p><strong>Дата начала:</strong> ${eventStartDate ? new Date(eventStartDate).toLocaleDateString('ru-RU') : '-'}</p>
+          <p><strong>Дата окончания:</strong> ${eventEndDate ? new Date(eventEndDate).toLocaleDateString('ru-RU') : '-'}</p>
         </div>
         
-        ${groupedItems.map(([category, categoryItems], catIdx) => {
+        ${groupedItems.map(([category, categoryItems]) => {
           const catTotal = categoryItems.reduce((sum, item) => sum + (item.price * item.quantity * (item.coefficient || 1)), 0);
           return `
           <table>
@@ -343,35 +356,16 @@ export function EstimateBuilder({
         <div class="total">
           ИТОГО: ${total.toLocaleString('ru-RU')}₽
         </div>
-        
-        <!-- Подпись и печать -->
-        ${(pdfSettings.personName || pdfSettings.position) ? `
-          <div class="signature-section">
-            <div class="signature-left">
-              <div class="signature-line">
-                ${pdfSettings.position || ''}${pdfSettings.position && pdfSettings.personName ? '<br/>' : ''}
-                ${pdfSettings.personName || ''}
-              </div>
-              ${pdfSettings.signature ? `<img src="${pdfSettings.signature}" alt="Подпись" class="signature-img" />` : ''}
-            </div>
-            <div class="signature-right">
-              ${pdfSettings.stamp ? `<img src="${pdfSettings.stamp}" alt="Печать" class="stamp-img" />` : ''}
-            </div>
-          </div>
-        ` : ''}
       </body>
       </html>
     `;
 
     printWindow.document.write(html);
     printWindow.document.close();
-    
-    setTimeout(() => {
-      printWindow.print();
-    }, 500);
-  }, [eventName, venue, eventDate, groupedItems, total, pdfSettings]);
+    setTimeout(() => printWindow.print(), 500);
+  }, [eventName, venue, eventStartDate, eventEndDate, groupedItems, total, pdfSettings]);
 
-  // Экспорт в Excel с поддержкой логотипа
+  // Экспорт Excel
   const exportExcel = useCallback(async () => {
     const ExcelJS = await import('exceljs');
     const workbook = new ExcelJS.Workbook();
@@ -379,12 +373,7 @@ export function EstimateBuilder({
 
     let currentRow = 1;
 
-    // Шапка - логотип слева, реквизиты справа
-    const logoWidth = 200;
-    const logoHeight = 80;
-    const headerEndRow = 5; // Логотип и реквизиты занимают строки 1-5
-
-    // Добавляем логотип слева (ячейки A1:C5)
+    // Шапка с логотипом
     if (pdfSettings.logo) {
       try {
         const base64Data = pdfSettings.logo.split(',')[1];
@@ -401,7 +390,7 @@ export function EstimateBuilder({
           worksheet.addImage(imageId, {
             tl: { col: 0, row: 0 },
             br: { col: 2, row: 4 },
-            ext: { width: logoWidth, height: logoHeight },
+            ext: { width: 200, height: 80 },
             editAs: 'oneCell',
           });
         }
@@ -410,10 +399,9 @@ export function EstimateBuilder({
       }
     }
 
-    // Объединяем ячейки для логотипа слева (A1:C5)
     worksheet.mergeCells('A1:C5');
 
-    // Реквизиты справа в столбцах D-F
+    // Реквизиты справа
     let detailsRow = 1;
     if (pdfSettings.companyName) {
       worksheet.mergeCells(`D${detailsRow}:F${detailsRow}`);
@@ -424,9 +412,8 @@ export function EstimateBuilder({
     }
 
     if (pdfSettings.companyDetails) {
-      const lines = pdfSettings.companyDetails.split('\n');
-      lines.forEach((line) => {
-        if (detailsRow <= headerEndRow) {
+      pdfSettings.companyDetails.split('\n').forEach((line) => {
+        if (detailsRow <= 5) {
           worksheet.mergeCells(`D${detailsRow}:F${detailsRow}`);
           worksheet.getCell(detailsRow, 4).value = line;
           worksheet.getCell(detailsRow, 4).font = { size: 10 };
@@ -436,15 +423,11 @@ export function EstimateBuilder({
       });
     }
 
-    // Устанавливаем высоту строк для шапки
-    for (let i = 1; i <= headerEndRow; i++) {
+    for (let i = 1; i <= 5; i++) {
       worksheet.getRow(i).height = 16;
     }
 
-    currentRow = headerEndRow + 1; // Начинаем данные после шапки
-    currentRow++; // Пустая строка для отступа
-
-    // Заголовок сметы
+    currentRow = 7;
     worksheet.getCell(currentRow, 1).value = 'Коммерческое предложение:';
     worksheet.getCell(currentRow, 1).font = { bold: true, size: 12 };
     currentRow++;
@@ -452,18 +435,20 @@ export function EstimateBuilder({
     worksheet.getCell(currentRow, 1).value = `Заказчик: ${selectedCustomer?.name || 'не указан'}`;
     currentRow++;
     
-    worksheet.getCell(currentRow, 1).value = `Дата: ${formatDate(eventDate)}`;
+    worksheet.getCell(currentRow, 1).value = `Дата начала: ${formatDate(eventStartDate)}`;
+    currentRow++;
+    
+    worksheet.getCell(currentRow, 1).value = `Дата окончания: ${formatDate(eventEndDate)}`;
     currentRow++;
     
     worksheet.getCell(currentRow, 1).value = `Место: ${venue || 'не указано'}`;
     currentRow++;
-    currentRow++; // Пустая строка
+    currentRow++;
 
-    // Шапка таблицы (начинаем с колонки A)
+    // Шапка таблицы
     const headerRow = worksheet.getRow(currentRow);
     headerRow.values = ['№', 'Наименование', 'Ед. изм.', 'Кол-во', 'Цена, руб.', 'Коэфф.', 'Стоимость, руб.'];
     
-    // Применяем стиль к шапке таблицы
     for (let col = 1; col <= 7; col++) {
       headerRow.getCell(col).font = { bold: true };
       headerRow.getCell(col).fill = {
@@ -477,9 +462,8 @@ export function EstimateBuilder({
 
     const dataStartRow = currentRow;
 
-    // Данные по категориям
+    // Данные
     groupedItems.forEach(([category, categoryItems]) => {
-      // Заголовок категории
       const categoryRow = worksheet.getRow(currentRow);
       categoryRow.values = [category, '', '', '', '', '', ''];
       categoryRow.font = { bold: true };
@@ -488,34 +472,30 @@ export function EstimateBuilder({
         pattern: 'solid',
         fgColor: { argb: 'FFF5F5F5' }
       };
-      // Объединяем ячейки для названия категории
       worksheet.mergeCells(`A${currentRow}:G${currentRow}`);
       categoryRow.getCell(1).alignment = { horizontal: 'left' };
       currentRow++;
 
-      // Позиции категории
       const categoryStartRow = currentRow;
       categoryItems.forEach((item, idx) => {
         const row = worksheet.getRow(currentRow);
         row.values = [
-          idx + 1, // A - №
-          item.description ? `${item.name} - ${item.description}` : item.name, // B
-          item.unit || 'шт', // C
-          item.quantity, // D
-          item.price, // E
-          item.coefficient || 1, // F
-          { formula: `D${currentRow}*E${currentRow}*F${currentRow}` } // G
+          idx + 1,
+          item.description ? `${item.name} - ${item.description}` : item.name,
+          item.unit || 'шт',
+          item.quantity,
+          item.price,
+          item.coefficient || 1,
+          { formula: `D${currentRow}*E${currentRow}*F${currentRow}` }
         ];
         
-        // Форматирование ячеек
-        row.getCell(4).numFmt = '#,##0'; // Кол-во (D)
-        row.getCell(5).numFmt = '#,##0.00" ₽"'; // Цена (E)
-        row.getCell(7).numFmt = '#,##0.00" ₽"'; // Стоимость (G)
+        row.getCell(4).numFmt = '#,##0';
+        row.getCell(5).numFmt = '#,##0.00" ₽"';
+        row.getCell(7).numFmt = '#,##0.00" ₽"';
         
         currentRow++;
       });
 
-      // Итого по категории
       if (categoryItems.length > 0) {
         const totalRow = worksheet.getRow(currentRow);
         totalRow.values = ['', '', '', '', '', 'Итого:', { formula: `SUM(G${categoryStartRow}:G${currentRow - 1})` }];
@@ -525,7 +505,7 @@ export function EstimateBuilder({
         currentRow++;
       }
       
-      currentRow++; // Пустая строка
+      currentRow++;
     });
 
     // Общий итог
@@ -540,18 +520,16 @@ export function EstimateBuilder({
     grandTotalRow.getCell(6).alignment = { horizontal: 'right', vertical: 'center' };
     grandTotalRow.getCell(7).numFmt = '#,##0.00" ₽"';
 
-    // Настройки ширины колонок
     worksheet.columns = [
-      { width: 6 },   // A - №
-      { width: 50 },  // B - Наименование (шире)
-      { width: 12 },  // C - Ед. изм.
-      { width: 10 },  // D - Кол-во
-      { width: 15 },  // E - Цена
-      { width: 10 },  // F - Коэфф.
-      { width: 18 },  // G - Стоимость
+      { width: 6 },
+      { width: 50 },
+      { width: 12 },
+      { width: 10 },
+      { width: 15 },
+      { width: 10 },
+      { width: 18 },
     ];
 
-    // Границы для всех ячеек с данными
     for (let row = dataStartRow - 1; row <= currentRow; row++) {
       for (let col = 1; col <= 7; col++) {
         const cell = worksheet.getCell(row, col);
@@ -564,10 +542,8 @@ export function EstimateBuilder({
       }
     }
 
-    // Имя файла
-    const fileName = `Смета ${eventName || 'без названия'} ${eventDate || ''}.xlsx`.trim();
+    const fileName = `Смета ${eventName || 'без названия'} ${eventStartDate || ''}.xlsx`.trim();
     
-    // Сохранение файла
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const url = URL.createObjectURL(blob);
@@ -578,9 +554,8 @@ export function EstimateBuilder({
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  }, [eventName, eventDate, groupedItems, total, items, customerId, customers, pdfSettings, venue]);
+  }, [eventName, eventStartDate, eventEndDate, groupedItems, total, customerId, customers, pdfSettings, venue]);
 
-  // Печать через браузер
   const handlePrint = () => {
     window.print();
   };
@@ -636,61 +611,104 @@ export function EstimateBuilder({
 
       {/* Основной контент */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Левая панель - Оборудование */}
-        <div className={`${activeMobileTab === 'equipment' ? 'flex' : 'hidden'} md:flex w-full md:w-1/2 flex-col border-r`}>
+        {/* Левая панель - Оборудование (30%) */}
+        <div className={`${activeMobileTab === 'equipment' ? 'flex' : 'hidden'} md:flex ${getEquipmentPanelClass()} flex-col border-r transition-all duration-300`}>
+          {/* Заголовок панели с кнопкой разворачивания */}
+          <div className="p-2 md:p-3 border-b bg-gray-50 flex items-center justify-between">
+            <span className="font-medium text-sm">Оборудование</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setExpandedPanel(expandedPanel === 'equipment' ? 'none' : 'equipment')}
+              className="h-8 w-8 p-0"
+            >
+              {expandedPanel === 'equipment' ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            </Button>
+          </div>
+
           <div className="p-2 md:p-4 border-b space-y-2">
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <Input
-                  placeholder="Поиск оборудования..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger className="w-32 md:w-40">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Все категории</SelectItem>
-                  {equipmentCategories.map(cat => (
-                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Input
+                placeholder="Поиск оборудования..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            
+            {/* Фильтр категорий - кнопками для видимости */}
+            <div className="flex flex-wrap gap-1">
+              <button
+                onClick={() => setSelectedCategory('all')}
+                className={cn(
+                  "px-2 py-1 text-xs rounded border transition-colors",
+                  selectedCategory === 'all' 
+                    ? "bg-blue-600 text-white border-blue-600" 
+                    : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                )}
+              >
+                Все
+              </button>
+              {equipmentCategories.map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={cn(
+                    "px-2 py-1 text-xs rounded border transition-colors truncate max-w-[120px]",
+                    selectedCategory === cat 
+                      ? "bg-blue-600 text-white border-blue-600" 
+                      : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                  )}
+                  title={cat}
+                >
+                  {cat}
+                </button>
+              ))}
             </div>
           </div>
 
-          <ScrollArea className="flex-1">
+          <div className="flex-1 overflow-y-auto">
             <div className="p-2 md:p-4 space-y-2">
-              {sortedEquipment.map(item => (
+              {filteredEquipment.map(item => (
                 <Card key={item.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => handleAddItem(item)}>
                   <CardContent className="p-2 md:p-3">
                     <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="font-medium text-sm md:text-base">{item.name}</h3>
-                        <p className="text-xs md:text-sm text-gray-500">{item.category}</p>
+                      <div className="flex-1 min-w-0 mr-2">
+                        <h3 className="font-medium text-sm md:text-base truncate">{item.name}</h3>
+                        <p className="text-xs text-gray-500 truncate">{item.category}</p>
                         {item.description && (
-                          <p className="text-xs text-gray-400 mt-1">{item.description}</p>
+                          <p className="text-xs text-gray-400 mt-1 truncate">{item.description}</p>
                         )}
                       </div>
-                      <div className="text-right">
+                      <div className="text-right shrink-0">
                         <p className="font-bold text-sm md:text-base">{item.price.toLocaleString('ru-RU')} ₽</p>
-                        <p className="text-xs text-gray-500">{item.quantity} {item.unit} в наличии</p>
+                        <p className="text-xs text-gray-500">{item.quantity} {item.unit}</p>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
               ))}
             </div>
-          </ScrollArea>
+          </div>
         </div>
 
-        {/* Правая панель - Смета */}
-        <div className={`${activeMobileTab === 'estimate' ? 'flex' : 'hidden'} md:flex w-full md:w-1/2 flex-col`}>
-          <div className="p-2 md:p-4 border-b space-y-2 md:space-y-4 overflow-y-auto max-h-[40vh] md:max-h-none">
+        {/* Правая панель - Смета (70%) */}
+        <div className={`${activeMobileTab === 'estimate' ? 'flex' : 'hidden'} md:flex ${getEstimatePanelClass()} flex-col transition-all duration-300`}>
+          {/* Заголовок панели с кнопкой разворачивания */}
+          <div className="p-2 md:p-3 border-b bg-gray-50 flex items-center justify-between">
+            <span className="font-medium text-sm">Смета</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setExpandedPanel(expandedPanel === 'estimate' ? 'none' : 'estimate')}
+              className="h-8 w-8 p-0"
+            >
+              {expandedPanel === 'estimate' ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            </Button>
+          </div>
+
+          <div className="p-2 md:p-4 border-b space-y-3 overflow-y-auto max-h-[200px]">
             <Input
               placeholder="Название мероприятия"
               value={eventName}
@@ -698,46 +716,68 @@ export function EstimateBuilder({
               className="font-medium"
             />
             
+            {/* Две даты - начало и окончание */}
             <div className="grid grid-cols-2 gap-2">
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start text-left font-normal">
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {eventDate ? format(new Date(eventDate), 'dd.MM.yyyy') : 'Дата'}
+                  <Button variant="outline" className="w-full justify-start text-left font-normal text-xs">
+                    <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
+                    <span className="truncate">
+                      {eventStartDate ? format(new Date(eventStartDate), 'dd.MM.yyyy') : 'Начало'}
+                    </span>
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
-                    selected={eventDate ? new Date(eventDate) : undefined}
-                    onSelect={(date) => date && setEventDate(date.toISOString())}
+                    selected={eventStartDate ? new Date(eventStartDate) : undefined}
+                    onSelect={(date) => date && setEventStartDate(date.toISOString())}
                     initialFocus
                   />
                 </PopoverContent>
               </Popover>
               
-              <Input
-                placeholder="Место"
-                value={venue}
-                onChange={(e) => setVenue(e.target.value)}
-              />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start text-left font-normal text-xs">
+                    <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
+                    <span className="truncate">
+                      {eventEndDate ? format(new Date(eventEndDate), 'dd.MM.yyyy') : 'Окончание'}
+                    </span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={eventEndDate ? new Date(eventEndDate) : undefined}
+                    onSelect={(date) => date && setEventEndDate(date.toISOString())}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
+            
+            <Input
+              placeholder="Место проведения"
+              value={venue}
+              onChange={(e) => setVenue(e.target.value)}
+            />
 
-            <Select value={customerId} onValueChange={setCustomerId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Выберите заказчика" />
-              </SelectTrigger>
-              <SelectContent>
-                {customers.map(customer => (
-                  <SelectItem key={customer.id} value={customer.id}>
-                    {customer.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <select
+              value={customerId}
+              onChange={(e) => setCustomerId(e.target.value)}
+              className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Выберите заказчика</option>
+              {customers.map(customer => (
+                <option key={customer.id} value={customer.id}>
+                  {customer.name}
+                </option>
+              ))}
+            </select>
           </div>
 
-          <ScrollArea className="flex-1">
+          <div className="flex-1 overflow-y-auto">
             <div className="p-2 md:p-4 space-y-4">
               {groupedItems.length === 0 ? (
                 <div className="text-center py-8 text-gray-400">
@@ -760,14 +800,15 @@ export function EstimateBuilder({
                     >
                       <div className="flex items-center justify-between">
                         <CardTitle className="text-sm md:text-base flex items-center gap-2">
-                          <GripVertical className="w-4 h-4 text-gray-400" />
-                          {category}
-                          <Badge variant="secondary">{categoryItems.length}</Badge>
+                          <GripVertical className="w-4 h-4 text-gray-400 shrink-0" />
+                          <span className="truncate">{category}</span>
+                          <Badge variant="secondary" className="shrink-0">{categoryItems.length}</Badge>
                         </CardTitle>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => toggleCategory(category)}
+                          className="shrink-0"
                         >
                           {collapsedCategories.has(category) ? (
                             <ChevronDown className="w-4 h-4" />
@@ -783,14 +824,14 @@ export function EstimateBuilder({
                         <div className="space-y-2 p-2 md:p-3">
                           {categoryItems.map((item, idx) => (
                             <div key={item.id} className="flex items-center gap-2 p-2 bg-gray-50 rounded">
-                              <span className="text-xs text-gray-400 w-6">{idx + 1}</span>
+                              <span className="text-xs text-gray-400 w-6 shrink-0">{idx + 1}</span>
                               <div className="flex-1 min-w-0">
                                 <p className="font-medium text-sm truncate">{item.name}</p>
                                 <p className="text-xs text-gray-500">
                                   {(item.price * item.quantity * (item.coefficient || 1)).toLocaleString('ru-RU')} ₽
                                 </p>
                               </div>
-                              <div className="flex items-center gap-1">
+                              <div className="flex items-center gap-1 shrink-0">
                                 <Input
                                   type="number"
                                   value={item.quantity}
@@ -830,7 +871,7 @@ export function EstimateBuilder({
                 ))
               )}
             </div>
-          </ScrollArea>
+          </div>
 
           <div className="p-2 md:p-4 border-t bg-gray-50">
             <div className="flex justify-between items-center">
