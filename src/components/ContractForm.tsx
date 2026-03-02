@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -16,7 +16,6 @@ import {
   CalendarIcon, 
   Building2, 
   User, 
-  FileText,
   Briefcase,
   CalendarDays,
   Banknote
@@ -47,117 +46,77 @@ export function ContractForm({
 }: ContractFormProps) {
   const isEditing = !!contract;
   const currentYear = new Date().getFullYear();
-  const initialized = useRef(false);
+  
+  // Используем ref для отслеживания инициализации
+  const initializedRef = useRef(false);
 
   // Основные поля
-  const [number, setNumber] = useState('');
-  const [date, setDate] = useState<Date>(new Date());
-  const [type, setType] = useState<ContractType>('service');
-  const [status, setStatus] = useState<ContractStatus>('draft');
-  const [templateId, setTemplateId] = useState('');
-  const [customerId, setCustomerId] = useState('');
+  const [number, setNumber] = useState(contract?.number || '');
+  const [date, setDate] = useState<Date>(contract?.date ? new Date(contract.date) : new Date());
+  const [type, setType] = useState<ContractType>(contract?.type || 'service');
+  const [status, setStatus] = useState<ContractStatus>(contract?.status || 'draft');
+  const [templateId, setTemplateId] = useState(contract?.template_id || '');
+  const [customerId, setCustomerId] = useState(contract?.customer_id || '');
   
   // Мероприятие
-  const [eventName, setEventName] = useState('');
-  const [eventStartDate, setEventStartDate] = useState<Date | undefined>();
-  const [eventEndDate, setEventEndDate] = useState<Date | undefined>();
-  const [venue, setVenue] = useState('');
+  const [eventName, setEventName] = useState(contract?.event_name || '');
+  const [eventStartDate, setEventStartDate] = useState<Date | undefined>(
+    contract?.event_start_date ? new Date(contract.event_start_date) : undefined
+  );
+  const [eventEndDate, setEventEndDate] = useState<Date | undefined>(
+    contract?.event_end_date ? new Date(contract.event_end_date) : undefined
+  );
+  const [venue, setVenue] = useState(contract?.venue || '');
   
   // Финансы
-  const [totalAmount, setTotalAmount] = useState(0);
-  const [paymentTerms, setPaymentTerms] = useState('');
+  const [totalAmount, setTotalAmount] = useState(contract?.total_amount || 0);
+  const [paymentTerms, setPaymentTerms] = useState(contract?.payment_terms || '');
   
   // Исполнитель
-  const [executorName, setExecutorName] = useState(pdfSettings.companyName || '');
-  const [executorRepresentative, setExecutorRepresentative] = useState(pdfSettings.personName || '');
-  const [executorBasis, setExecutorBasis] = useState('Устава');
+  const [executorName, setExecutorName] = useState(contract?.executor_name || pdfSettings.companyName || '');
+  const [executorRepresentative, setExecutorRepresentative] = useState(contract?.executor_representative || pdfSettings.personName || '');
+  const [executorBasis, setExecutorBasis] = useState(contract?.executor_basis || 'Устава');
   
   // Дополнительно
-  const [subject, setSubject] = useState('');
-  const [additionalTerms, setAdditionalTerms] = useState('');
+  const [subject, setSubject] = useState(contract?.subject || '');
+  const [additionalTerms, setAdditionalTerms] = useState(contract?.additional_terms || '');
   
   // Привязанные сметы
-  const [selectedEstimateIds, setSelectedEstimateIds] = useState<string[]>([]);
+  const [selectedEstimateIds, setSelectedEstimateIds] = useState<string[]>(
+    contract?.estimates?.map((e: any) => e.estimate_id) || []
+  );
 
-  // Генерация номера договора - вызывается один раз при монтировании для нового договора
+  // Генерация номера при создании нового договора
   useEffect(() => {
-    if (initialized.current) return;
-    initialized.current = true;
+    if (initializedRef.current) return;
+    initializedRef.current = true;
 
-    if (contract) {
-      // Редактирование - заполняем все поля
-      setNumber(contract.number);
-      setDate(contract.date ? new Date(contract.date) : new Date());
-      setType(contract.type);
-      setStatus(contract.status);
-      setTemplateId(contract.template_id || '');
-      setCustomerId(contract.customer_id || '');
-      setEventName(contract.event_name || '');
-      setEventStartDate(contract.event_start_date ? new Date(contract.event_start_date) : undefined);
-      setEventEndDate(contract.event_end_date ? new Date(contract.event_end_date) : undefined);
-      setVenue(contract.venue || '');
-      setTotalAmount(contract.total_amount);
-      setPaymentTerms(contract.payment_terms || '');
-      setExecutorName(contract.executor_name || pdfSettings.companyName || '');
-      setExecutorRepresentative(contract.executor_representative || pdfSettings.personName || '');
-      setExecutorBasis(contract.executor_basis || 'Устава');
-      setSubject(contract.subject || '');
-      setAdditionalTerms(contract.additional_terms || '');
-      setSelectedEstimateIds(contract.estimates?.map(e => e.estimate_id) || []);
-    } else {
-      // Новый договор - устанавливаем значения по умолчанию
-      setExecutorName(pdfSettings.companyName || '');
-      setExecutorRepresentative(pdfSettings.personName || '');
-      setPaymentTerms('Оплата в течение 15 банковских дней с даты подписания Акта сдачи-приемки услуг.');
-      // Генерируем номер отдельно
-      generateNumber('service');
+    if (!isEditing && !number) {
+      getNextNumber('service', currentYear).then(setNumber);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (!isEditing && !paymentTerms) {
+      setPaymentTerms('Оплата в течение 15 банковских дней с даты подписания Акта сдачи-приемки услуг.');
+    }
   }, []);
 
-  // Генерация номера договора
-  const generateNumber = async (newType: ContractType) => {
-    if (isEditing) return;
-    const nextNumber = await getNextNumber(newType, currentYear);
-    setNumber(nextNumber);
-  };
+  // Пересчёт суммы при изменении выбранных смет
+  useEffect(() => {
+    if (selectedEstimateIds.length === 0) {
+      setTotalAmount(0);
+      return;
+    }
+    const sum = estimates
+      .filter((e: any) => selectedEstimateIds.includes(e.id))
+      .reduce((acc: number, e: any) => acc + (e.total || 0), 0);
+    setTotalAmount(sum);
+  }, [selectedEstimateIds]);
 
-  // При изменении типа - перегенерируем номер
   const handleTypeChange = useCallback((newType: ContractType) => {
     setType(newType);
     if (!isEditing) {
-      generateNumber(newType);
+      getNextNumber(newType, currentYear).then(setNumber);
     }
-  }, [isEditing]);
-
-  // Автоматический расчёт суммы из смет
-  useEffect(() => {
-    if (selectedEstimateIds.length > 0) {
-      const sum = estimates
-        .filter(e => selectedEstimateIds.includes(e.id))
-        .reduce((acc, e) => acc + (e.total || 0), 0);
-      setTotalAmount(sum);
-    } else {
-      setTotalAmount(0);
-    }
-  }, [selectedEstimateIds, estimates]);
-
-  // Получение имени заказчика
-  const selectedCustomer = useMemo(() => {
-    return customers.find(c => c.id === customerId);
-  }, [customers, customerId]);
-
-  // Получение выбранного шаблона
-  const selectedTemplate = useMemo(() => {
-    return templates.find(t => t.id === templateId);
-  }, [templates, templateId]);
-
-  // Доступные сметы
-  const availableEstimates = useMemo(() => {
-    return estimates.filter(e => 
-      !e.contract_id || selectedEstimateIds.includes(e.id)
-    );
-  }, [estimates, selectedEstimateIds]);
+  }, [isEditing, currentYear, getNextNumber]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -192,6 +151,9 @@ export function ContractForm({
         : [...prev, estimateId]
     );
   };
+
+  // Выбранный заказчик
+  const selectedCustomer = customers.find((c: any) => c.id === customerId);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -310,12 +272,8 @@ export function ContractForm({
                   <Building2 className="w-4 h-4 text-gray-400" />
                   <span>{selectedCustomer.type === 'company' ? 'ООО' : selectedCustomer.type === 'ip' ? 'ИП' : 'Физ.лицо'}</span>
                 </div>
-                {selectedCustomer.inn && (
-                  <div>ИНН: {selectedCustomer.inn}</div>
-                )}
-                {selectedCustomer.legal_address && (
-                  <div>Адрес: {selectedCustomer.legal_address}</div>
-                )}
+                {selectedCustomer.inn && <div>ИНН: {selectedCustomer.inn}</div>}
+                {selectedCustomer.legal_address && <div>Адрес: {selectedCustomer.legal_address}</div>}
                 {selectedCustomer.contact_person && (
                   <div className="flex items-center gap-2">
                     <User className="w-4 h-4 text-gray-400" />
@@ -425,9 +383,7 @@ export function ContractForm({
                 step={0.01}
               />
             </div>
-            <p className="text-sm text-gray-500">
-              Сумма автоматически рассчитывается из привязанных смет
-            </p>
+            <p className="text-sm text-gray-500">Сумма автоматически рассчитывается из привязанных смет</p>
           </div>
 
           <div className="space-y-2">
@@ -498,25 +454,19 @@ export function ContractForm({
 
         {/* Сметы */}
         <TabsContent value="estimates" className="space-y-4">
-          <div className="text-sm text-gray-500 mb-2">
-            Выберите сметы для включения в договор:
-          </div>
+          <div className="text-sm text-gray-500 mb-2">Выберите сметы для включения в договор:</div>
           
           {estimates.length === 0 ? (
-            <div className="text-center text-gray-500 py-8">
-              Нет доступных смет. Сначала создайте сметы.
-            </div>
+            <div className="text-center text-gray-500 py-8">Нет доступных смет. Сначала создайте сметы.</div>
           ) : (
             <div className="space-y-2 max-h-96 overflow-y-auto">
-              {estimates.map((estimate) => {
+              {estimates.map((estimate: any) => {
                 const isSelected = selectedEstimateIds.includes(estimate.id);
                 return (
                   <div
                     key={estimate.id}
                     className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                      isSelected 
-                        ? 'border-blue-500 bg-blue-50' 
-                        : 'border-gray-200 hover:border-gray-300'
+                      isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
                     }`}
                     onClick={() => toggleEstimate(estimate.id)}
                   >
@@ -550,8 +500,8 @@ export function ContractForm({
               <div className="font-medium mb-2">Итого по выбранным сметам:</div>
               <div className="text-2xl font-bold text-blue-600">
                 {estimates
-                  .filter(e => selectedEstimateIds.includes(e.id))
-                  .reduce((sum, e) => sum + (e.total || 0), 0)
+                  .filter((e: any) => selectedEstimateIds.includes(e.id))
+                  .reduce((sum: number, e: any) => sum + (e.total || 0), 0)
                   .toLocaleString('ru-RU')} ₽
               </div>
             </div>
@@ -560,12 +510,8 @@ export function ContractForm({
       </Tabs>
 
       <div className="flex justify-end gap-2 pt-4 border-t">
-        <Button type="button" variant="outline" onClick={onCancel}>
-          Отмена
-        </Button>
-        <Button type="submit">
-          {isEditing ? 'Сохранить изменения' : 'Создать договор'}
-        </Button>
+        <Button type="button" variant="outline" onClick={onCancel}>Отмена</Button>
+        <Button type="submit">{isEditing ? 'Сохранить изменения' : 'Создать договор'}</Button>
       </div>
     </form>
   );

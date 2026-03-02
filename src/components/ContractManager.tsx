@@ -288,6 +288,7 @@ export const ContractManager = memo(function ContractManager({
             </DialogTitle>
           </DialogHeader>
           <ContractForm
+            key={editingContract?.id || 'new'}
             contract={editingContract}
             templates={templates}
             customers={customers}
