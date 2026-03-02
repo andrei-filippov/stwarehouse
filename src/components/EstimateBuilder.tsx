@@ -467,12 +467,18 @@ export function EstimateBuilder({
       try {
         const base64Data = pdfSettings.logo.split(',')[1];
         if (base64Data) {
-          const imageBuffer = Buffer.from(base64Data, 'base64');
+          // Конвертируем base64 в Uint8Array для браузера
+          const binaryString = atob(base64Data);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          
           const imageType = pdfSettings.logo.includes('image/png') ? 'png' : 
                            pdfSettings.logo.includes('image/jpeg') ? 'jpeg' : 'png';
           
           const imageId = workbook.addImage({
-            buffer: imageBuffer,
+            buffer: bytes,
             extension: imageType as 'png' | 'jpeg',
           });
 
