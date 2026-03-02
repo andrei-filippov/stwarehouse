@@ -240,6 +240,137 @@ export function EstimateBuilder({
     return date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
+  // Экспорт PDF с поддержкой кириллицы через HTML
+  const exportPDF = useCallback(() => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Смета - ${eventName}</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 15px; }
+          .logo-section { width: 45%; }
+          .logo-section img { max-height: 80px; max-width: 100%; }
+          .company-section { width: 50%; text-align: right; font-size: 11px; }
+          .company-section h2 { margin: 0 0 5px 0; font-size: 14px; }
+          .company-section p { margin: 3px 0; }
+          h1 { text-align: center; font-size: 18px; margin: 15px 0; }
+          .info { margin-bottom: 15px; font-size: 12px; }
+          .info p { margin: 5px 0; }
+          table { width: 100%; border-collapse: collapse; font-size: 10px; margin-top: 10px; }
+          th { background: #2980b9; color: white; padding: 6px 4px; text-align: left; }
+          td { padding: 5px 4px; border-bottom: 1px solid #ddd; }
+          tr:nth-child(even) { background: #f5f5f5; }
+          .nowrap { white-space: nowrap; }
+          .total { margin-top: 15px; font-size: 14px; font-weight: bold; text-align: right; }
+          .signature-section { margin-top: 40px; display: flex; justify-content: space-between; align-items: flex-end; }
+          .signature-left { width: 45%; }
+          .signature-right { width: 45%; text-align: right; }
+          .signature-line { border-top: 1px solid #333; margin-top: 30px; padding-top: 5px; font-size: 10px; }
+          .signature-img { max-height: 40px; margin-top: 10px; }
+          .stamp-img { max-height: 60px; }
+        </style>
+      </head>
+      <body>
+        <!-- Шапка с логотипом и реквизитами -->
+        <div class="header">
+          <div class="logo-section">
+            ${pdfSettings.logo ? `<img src="${pdfSettings.logo}" alt="Логотип" />` : '<p>&nbsp;</p>'}
+          </div>
+          <div class="company-section">
+            ${pdfSettings.companyName ? `<h2>${pdfSettings.companyName}</h2>` : ''}
+            ${pdfSettings.companyDetails ? pdfSettings.companyDetails.split('\n').map(line => `<p>${line}</p>`).join('') : ''}
+          </div>
+        </div>
+
+        <h1>Коммерческое предложение</h1>
+        
+        <div class="info">
+          <p><strong>Мероприятие:</strong> ${eventName}</p>
+          <p><strong>Площадка:</strong> ${venue || '-'}</p>
+          <p><strong>Дата:</strong> ${eventDate ? new Date(eventDate).toLocaleDateString('ru-RU') : '-'}</p>
+        </div>
+        
+        ${groupedItems.map(([category, categoryItems], catIdx) => {
+          const catTotal = categoryItems.reduce((sum, item) => sum + (item.price * item.quantity * (item.coefficient || 1)), 0);
+          return `
+          <table>
+            <thead>
+              <tr style="background:#e3f2fd;">
+                <th colspan="8" style="text-align:left;padding:8px;font-size:13px;">
+                  ${category} (${categoryItems.length} поз.)
+                </th>
+              </tr>
+              <tr>
+                <th style="width:5%">№</th>
+                <th style="width:25%">Наименование</th>
+                <th style="width:20%">Описание</th>
+                <th style="width:8%">Ед.</th>
+                <th style="width:8%">Кол-во</th>
+                <th style="width:10%">Цена</th>
+                <th style="width:8%">Коэф.</th>
+                <th style="width:10%">Сумма</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${categoryItems.map((item, idx) => `
+                <tr>
+                  <td>${idx + 1}</td>
+                  <td>${item.name}</td>
+                  <td>${item.description || '-'}</td>
+                  <td>${item.unit || 'шт'}</td>
+                  <td>${item.quantity}</td>
+                  <td class="nowrap">${item.price.toLocaleString('ru-RU')}₽</td>
+                  <td>${item.coefficient || 1}</td>
+                  <td class="nowrap">${(item.price * item.quantity * (item.coefficient || 1)).toLocaleString('ru-RU')}₽</td>
+                </tr>
+              `).join('')}
+              <tr style="background:#f5f5f5;font-weight:bold;">
+                <td colspan="7" style="text-align:right;padding:8px;">Итого по категории:</td>
+                <td style="text-align:right;padding:8px;" class="nowrap">${catTotal.toLocaleString('ru-RU')}₽</td>
+              </tr>
+            </tbody>
+          </table>
+          <div style="height:10px;"></div>
+          `;
+        }).join('')}
+        
+        <div class="total">
+          ИТОГО: ${total.toLocaleString('ru-RU')}₽
+        </div>
+        
+        <!-- Подпись и печать -->
+        ${(pdfSettings.personName || pdfSettings.position) ? `
+          <div class="signature-section">
+            <div class="signature-left">
+              <div class="signature-line">
+                ${pdfSettings.position || ''}${pdfSettings.position && pdfSettings.personName ? '<br/>' : ''}
+                ${pdfSettings.personName || ''}
+              </div>
+              ${pdfSettings.signature ? `<img src="${pdfSettings.signature}" alt="Подпись" class="signature-img" />` : ''}
+            </div>
+            <div class="signature-right">
+              ${pdfSettings.stamp ? `<img src="${pdfSettings.stamp}" alt="Печать" class="stamp-img" />` : ''}
+            </div>
+          </div>
+        ` : ''}
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+    
+    setTimeout(() => {
+      printWindow.print();
+    }, 500);
+  }, [eventName, venue, eventDate, groupedItems, total, pdfSettings]);
+
   // Экспорт в Excel с поддержкой логотипа
   const exportExcel = useCallback(async () => {
     const ExcelJS = await import('exceljs');
@@ -248,12 +379,12 @@ export function EstimateBuilder({
 
     let currentRow = 1;
 
-    // Шапка в стиле "Sound Technology" - логотип слева, реквизиты справа
-    const logoWidth = 300;
-    const logoHeight = 100;
-    const headerEndRow = 6; // Логотип и реквизиты занимают строки 1-6
+    // Шапка - логотип слева, реквизиты справа
+    const logoWidth = 200;
+    const logoHeight = 80;
+    const headerEndRow = 5; // Логотип и реквизиты занимают строки 1-5
 
-    // Добавляем логотип слева (объединённые ячейки A-D, строки 1-6)
+    // Добавляем логотип слева (ячейки A1:C5)
     if (pdfSettings.logo) {
       try {
         const base64Data = pdfSettings.logo.split(',')[1];
@@ -267,10 +398,9 @@ export function EstimateBuilder({
             extension: imageType as 'png' | 'jpeg',
           });
 
-          // Логотип в ячейках A1:D6 (большой, слева)
           worksheet.addImage(imageId, {
             tl: { col: 0, row: 0 },
-            br: { col: 3, row: 5 },
+            br: { col: 2, row: 4 },
             ext: { width: logoWidth, height: logoHeight },
             editAs: 'oneCell',
           });
@@ -280,31 +410,27 @@ export function EstimateBuilder({
       }
     }
 
-    // Объединяем ячейки для логотипа слева (A1:D6)
-    worksheet.mergeCells('A1:D6');
+    // Объединяем ячейки для логотипа слева (A1:C5)
+    worksheet.mergeCells('A1:C5');
 
-    // Реквизиты справа в столбцах E-G, выравнивание по правому краю
-    const detailsStartRow = 1;
-    let detailsRow = detailsStartRow;
-
-    // Название компании (крупным шрифтом)
+    // Реквизиты справа в столбцах D-F
+    let detailsRow = 1;
     if (pdfSettings.companyName) {
-      worksheet.mergeCells(`E${detailsRow}:G${detailsRow}`);
-      worksheet.getCell(detailsRow, 5).value = pdfSettings.companyName;
-      worksheet.getCell(detailsRow, 5).font = { bold: true, size: 14 };
-      worksheet.getCell(detailsRow, 5).alignment = { horizontal: 'right', vertical: 'center' };
+      worksheet.mergeCells(`D${detailsRow}:F${detailsRow}`);
+      worksheet.getCell(detailsRow, 4).value = pdfSettings.companyName;
+      worksheet.getCell(detailsRow, 4).font = { bold: true, size: 14 };
+      worksheet.getCell(detailsRow, 4).alignment = { horizontal: 'right', vertical: 'center' };
       detailsRow++;
     }
 
-    // Реквизиты компании
     if (pdfSettings.companyDetails) {
       const lines = pdfSettings.companyDetails.split('\n');
-      lines.forEach((line, index) => {
+      lines.forEach((line) => {
         if (detailsRow <= headerEndRow) {
-          worksheet.mergeCells(`E${detailsRow}:G${detailsRow}`);
-          worksheet.getCell(detailsRow, 5).value = line;
-          worksheet.getCell(detailsRow, 5).font = { size: 10 };
-          worksheet.getCell(detailsRow, 5).alignment = { horizontal: 'right', vertical: 'center', wrapText: true };
+          worksheet.mergeCells(`D${detailsRow}:F${detailsRow}`);
+          worksheet.getCell(detailsRow, 4).value = line;
+          worksheet.getCell(detailsRow, 4).font = { size: 10 };
+          worksheet.getCell(detailsRow, 4).alignment = { horizontal: 'right', vertical: 'center', wrapText: true };
           detailsRow++;
         }
       });
@@ -312,40 +438,33 @@ export function EstimateBuilder({
 
     // Устанавливаем высоту строк для шапки
     for (let i = 1; i <= headerEndRow; i++) {
-      worksheet.getRow(i).height = 18;
+      worksheet.getRow(i).height = 16;
     }
 
     currentRow = headerEndRow + 1; // Начинаем данные после шапки
     currentRow++; // Пустая строка для отступа
 
     // Заголовок сметы
-    worksheet.getCell(currentRow, 2).value = 'Коммерческое предложение:';
-    worksheet.getCell(currentRow, 2).font = { bold: true, size: 12 };
+    worksheet.getCell(currentRow, 1).value = 'Коммерческое предложение:';
+    worksheet.getCell(currentRow, 1).font = { bold: true, size: 12 };
     currentRow++;
     
-    worksheet.getCell(currentRow, 2).value = `Заказчик: ${selectedCustomer?.name || 'не указан'}`;
+    worksheet.getCell(currentRow, 1).value = `Заказчик: ${selectedCustomer?.name || 'не указан'}`;
     currentRow++;
     
-    worksheet.getCell(currentRow, 2).value = `Дата и место проведения: ${formatDate(eventDate)}`;
+    worksheet.getCell(currentRow, 1).value = `Дата: ${formatDate(eventDate)}`;
     currentRow++;
     
-    worksheet.getCell(currentRow, 2).value = `Место проведения: ${venue || 'не указано'}`;
+    worksheet.getCell(currentRow, 1).value = `Место: ${venue || 'не указано'}`;
     currentRow++;
     currentRow++; // Пустая строка
 
-    // Шапка таблицы (начинаем с колонки E)
+    // Шапка таблицы (начинаем с колонки A)
     const headerRow = worksheet.getRow(currentRow);
-    headerRow.values = ['', '', '', '', '№', 'Наименование', 'Ед. изм.', 'Кол-во', 'Цена, руб.', 'Коэфф.', 'Стоимость, руб.'];
-    headerRow.font = { bold: true };
-    headerRow.fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: 'FFE3F2FD' }
-    };
-    headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
+    headerRow.values = ['№', 'Наименование', 'Ед. изм.', 'Кол-во', 'Цена, руб.', 'Коэфф.', 'Стоимость, руб.'];
     
-    // Применяем стиль только к колонкам с данными (E-K)
-    for (let col = 5; col <= 11; col++) {
+    // Применяем стиль к шапке таблицы
+    for (let col = 1; col <= 7; col++) {
       headerRow.getCell(col).font = { bold: true };
       headerRow.getCell(col).fill = {
         type: 'pattern',
@@ -359,12 +478,10 @@ export function EstimateBuilder({
     const dataStartRow = currentRow;
 
     // Данные по категориям
-    let rowIndex = currentRow; // Для формул Excel
-    
     groupedItems.forEach(([category, categoryItems]) => {
-      // Заголовок категории (начинаем с колонки F)
+      // Заголовок категории
       const categoryRow = worksheet.getRow(currentRow);
-      categoryRow.values = ['', '', '', '', '', category, '', '', '', '', ''];
+      categoryRow.values = [category, '', '', '', '', '', ''];
       categoryRow.font = { bold: true };
       categoryRow.fill = {
         type: 'pattern',
@@ -372,85 +489,71 @@ export function EstimateBuilder({
         fgColor: { argb: 'FFF5F5F5' }
       };
       // Объединяем ячейки для названия категории
-      worksheet.mergeCells(`F${currentRow}:K${currentRow}`);
-      categoryRow.getCell(6).alignment = { horizontal: 'left' };
+      worksheet.mergeCells(`A${currentRow}:G${currentRow}`);
+      categoryRow.getCell(1).alignment = { horizontal: 'left' };
       currentRow++;
-      rowIndex++;
 
       // Позиции категории
       const categoryStartRow = currentRow;
       categoryItems.forEach((item, idx) => {
         const row = worksheet.getRow(currentRow);
-        // Заполняем начиная с колонки E (№)
         row.values = [
-          '', // A
-          '', // B
-          '', // C
-          '', // D
-          idx + 1, // E - №
-          item.description ? `${item.name} - ${item.description}` : item.name, // F
-          item.unit || 'шт', // G
-          item.quantity, // H
-          item.price, // I
-          item.coefficient || 1, // J
-          { formula: `H${currentRow}*I${currentRow}*J${currentRow}` } // K
+          idx + 1, // A - №
+          item.description ? `${item.name} - ${item.description}` : item.name, // B
+          item.unit || 'шт', // C
+          item.quantity, // D
+          item.price, // E
+          item.coefficient || 1, // F
+          { formula: `D${currentRow}*E${currentRow}*F${currentRow}` } // G
         ];
         
         // Форматирование ячеек
-        row.getCell(8).numFmt = '#,##0'; // Кол-во (H)
-        row.getCell(9).numFmt = '#,##0.00" ₽"'; // Цена (I)
-        row.getCell(11).numFmt = '#,##0.00" ₽"'; // Стоимость (K)
+        row.getCell(4).numFmt = '#,##0'; // Кол-во (D)
+        row.getCell(5).numFmt = '#,##0.00" ₽"'; // Цена (E)
+        row.getCell(7).numFmt = '#,##0.00" ₽"'; // Стоимость (G)
         
         currentRow++;
-        rowIndex++;
       });
 
       // Итого по категории
       if (categoryItems.length > 0) {
         const totalRow = worksheet.getRow(currentRow);
-        totalRow.values = ['', '', '', '', '', '', '', '', '', 'Итого:', { formula: `SUM(K${categoryStartRow}:K${currentRow - 1})` }];
+        totalRow.values = ['', '', '', '', '', 'Итого:', { formula: `SUM(G${categoryStartRow}:G${currentRow - 1})` }];
         totalRow.font = { bold: true };
-        totalRow.getCell(10).alignment = { horizontal: 'right' };
-        totalRow.getCell(11).numFmt = '#,##0.00" ₽"';
+        totalRow.getCell(6).alignment = { horizontal: 'right' };
+        totalRow.getCell(7).numFmt = '#,##0.00" ₽"';
         currentRow++;
-        rowIndex++;
       }
       
       currentRow++; // Пустая строка
-      rowIndex++;
     });
 
     // Общий итог
     const grandTotalRow = worksheet.getRow(currentRow);
-    grandTotalRow.values = ['', '', '', '', '', '', '', '', '', 'ИТОГО:', total];
+    grandTotalRow.values = ['', '', '', '', '', 'ИТОГО:', total];
     grandTotalRow.font = { bold: true, size: 12 };
     grandTotalRow.fill = {
       type: 'pattern',
       pattern: 'solid',
       fgColor: { argb: 'FFFFF9C4' }
     };
-    grandTotalRow.getCell(10).alignment = { horizontal: 'right', vertical: 'center' };
-    grandTotalRow.getCell(11).numFmt = '#,##0.00" ₽"';
+    grandTotalRow.getCell(6).alignment = { horizontal: 'right', vertical: 'center' };
+    grandTotalRow.getCell(7).numFmt = '#,##0.00" ₽"';
 
     // Настройки ширины колонок
-    // A-D для логотипа (широкие), E-G для реквизитов и данных
     worksheet.columns = [
-      { width: 15 },  // A - часть логотипа
-      { width: 15 },  // B - часть логотипа
-      { width: 15 },  // C - часть логотипа
-      { width: 15 },  // D - часть логотипа
-      { width: 25 },  // E - реквизиты/№
-      { width: 35 },  // F - Наименование (шире)
-      { width: 12 },  // G - Ед. изм.
-      { width: 10 },  // H - Кол-во
-      { width: 15 },  // I - Цена
-      { width: 10 },  // J - Коэфф.
-      { width: 18 },  // K - Стоимость
+      { width: 6 },   // A - №
+      { width: 50 },  // B - Наименование (шире)
+      { width: 12 },  // C - Ед. изм.
+      { width: 10 },  // D - Кол-во
+      { width: 15 },  // E - Цена
+      { width: 10 },  // F - Коэфф.
+      { width: 18 },  // G - Стоимость
     ];
 
-    // Границы для всех ячеек с данными (только колонки E-K)
+    // Границы для всех ячеек с данными
     for (let row = dataStartRow - 1; row <= currentRow; row++) {
-      for (let col = 5; col <= 11; col++) {
+      for (let col = 1; col <= 7; col++) {
         const cell = worksheet.getCell(row, col);
         cell.border = {
           top: { style: 'thin' },
@@ -499,6 +602,10 @@ export function EstimateBuilder({
           <Button variant="outline" size="sm" onClick={exportExcel} className="px-2 md:px-3 hidden sm:flex">
             <FileSpreadsheet className="w-4 h-4 md:mr-2" />
             <span className="hidden md:inline">Excel</span>
+          </Button>
+          <Button variant="outline" size="sm" onClick={exportPDF} className="px-2 md:px-3">
+            <FileText className="w-4 h-4 md:mr-2" />
+            <span className="hidden md:inline">PDF</span>
           </Button>
           <Button variant="outline" size="sm" onClick={handlePrint} className="px-2 md:px-3">
             <Printer className="w-4 h-4 md:mr-2" />
