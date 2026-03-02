@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from './ui/dialog';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { 
@@ -84,8 +84,8 @@ export function EstimateBuilder({
     name: '',
     description: '',
     category: equipmentCategories[0] || '',
-    quantity: 1,
-    price: 0,
+    quantity: '' as string | number,
+    price: '' as string | number,
     unit: 'шт'
   });
   
@@ -324,8 +324,8 @@ export function EstimateBuilder({
       name: newEquipment.name,
       description: newEquipment.description,
       category: newEquipment.category,
-      quantity: newEquipment.quantity,
-      price: newEquipment.price,
+      quantity: newEquipment.quantity === '' ? 0 : Number(newEquipment.quantity),
+      price: newEquipment.price === '' ? 0 : Number(newEquipment.price),
       unit: newEquipment.unit,
       is_active: true
     });
@@ -336,8 +336,8 @@ export function EstimateBuilder({
         name: '',
         description: '',
         category: equipmentCategories[0] || '',
-        quantity: 1,
-        price: 0,
+        quantity: '',
+        price: '',
         unit: 'шт'
       });
       // Добавляем созданное оборудование в смету
@@ -1057,10 +1057,10 @@ export function EstimateBuilder({
               <AlertTriangle className="w-5 h-5 text-amber-500" />
               Несохраненные изменения
             </DialogTitle>
+            <DialogDescription>
+              У вас есть несохраненные изменения. Вы уверены, что хотите выйти без сохранения?
+            </DialogDescription>
           </DialogHeader>
-          <p className="text-sm text-gray-600">
-            У вас есть несохраненные изменения. Вы уверены, что хотите выйти без сохранения?
-          </p>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setShowExitConfirm(false)}>
               Остаться
@@ -1077,6 +1077,9 @@ export function EstimateBuilder({
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Новое оборудование</DialogTitle>
+            <DialogDescription>
+              Создайте новое оборудование и оно будет автоматически добавлено в смету.
+            </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4 py-4">
@@ -1117,7 +1120,12 @@ export function EstimateBuilder({
                 <Input
                   type="number"
                   value={newEquipment.quantity}
-                  onChange={(e) => setNewEquipment({...newEquipment, quantity: parseInt(e.target.value) || 0})}
+                  onChange={(e) => setNewEquipment({...newEquipment, quantity: e.target.value === '' ? '' : parseInt(e.target.value) || 0})}
+                  onFocus={(e) => {
+                    if (e.target.value === '0') {
+                      e.target.select();
+                    }
+                  }}
                   min={0}
                 />
               </div>
@@ -1127,7 +1135,12 @@ export function EstimateBuilder({
                 <Input
                   type="number"
                   value={newEquipment.price}
-                  onChange={(e) => setNewEquipment({...newEquipment, price: parseFloat(e.target.value) || 0})}
+                  onChange={(e) => setNewEquipment({...newEquipment, price: e.target.value === '' ? '' : parseFloat(e.target.value) || 0})}
+                  onFocus={(e) => {
+                    if (e.target.value === '0') {
+                      e.target.select();
+                    }
+                  }}
                   min={0}
                 />
               </div>
