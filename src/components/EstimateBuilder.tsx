@@ -248,15 +248,17 @@ export function EstimateBuilder({
 
     let currentRow = 1;
 
-    // Добавляем логотип если есть
+    // Шапка в стиле "Sound Technology" - логотип слева, реквизиты справа
+    const logoWidth = 300;
+    const logoHeight = 100;
+    const headerEndRow = 6; // Логотип и реквизиты занимают строки 1-6
+
+    // Добавляем логотип слева (объединённые ячейки A-D, строки 1-6)
     if (pdfSettings.logo) {
       try {
-        // Конвертируем base64 в буфер
         const base64Data = pdfSettings.logo.split(',')[1];
         if (base64Data) {
           const imageBuffer = Buffer.from(base64Data, 'base64');
-          
-          // Определяем тип изображения
           const imageType = pdfSettings.logo.includes('image/png') ? 'png' : 
                            pdfSettings.logo.includes('image/jpeg') ? 'jpeg' : 'png';
           
@@ -265,36 +267,56 @@ export function EstimateBuilder({
             extension: imageType as 'png' | 'jpeg',
           });
 
+          // Логотип в ячейках A1:D6 (большой, слева)
           worksheet.addImage(imageId, {
             tl: { col: 0, row: 0 },
-            ext: { width: 200, height: 80 },
+            br: { col: 3, row: 5 },
+            ext: { width: logoWidth, height: logoHeight },
+            editAs: 'oneCell',
           });
-          
-          currentRow = 4; // Сдвигаем начало данных после логотипа
         }
       } catch (e) {
         console.error('Error adding logo:', e);
       }
     }
 
-    // Шапка с настройками PDF
+    // Объединяем ячейки для логотипа слева (A1:D6)
+    worksheet.mergeCells('A1:D6');
+
+    // Реквизиты справа в столбцах E-G, выравнивание по правому краю
+    const detailsStartRow = 1;
+    let detailsRow = detailsStartRow;
+
+    // Название компании (крупным шрифтом)
     if (pdfSettings.companyName) {
-      worksheet.getCell(currentRow, 2).value = pdfSettings.companyName;
-      worksheet.getCell(currentRow, 2).font = { bold: true, size: 14 };
-      currentRow++;
+      worksheet.mergeCells(`E${detailsRow}:G${detailsRow}`);
+      worksheet.getCell(detailsRow, 5).value = pdfSettings.companyName;
+      worksheet.getCell(detailsRow, 5).font = { bold: true, size: 14 };
+      worksheet.getCell(detailsRow, 5).alignment = { horizontal: 'right', vertical: 'center' };
+      detailsRow++;
     }
-    
+
+    // Реквизиты компании
     if (pdfSettings.companyDetails) {
-      pdfSettings.companyDetails.split('\n').forEach(line => {
-        worksheet.getCell(currentRow, 2).value = line;
-        worksheet.getCell(currentRow, 2).font = { size: 10 };
-        currentRow++;
+      const lines = pdfSettings.companyDetails.split('\n');
+      lines.forEach((line, index) => {
+        if (detailsRow <= headerEndRow) {
+          worksheet.mergeCells(`E${detailsRow}:G${detailsRow}`);
+          worksheet.getCell(detailsRow, 5).value = line;
+          worksheet.getCell(detailsRow, 5).font = { size: 10 };
+          worksheet.getCell(detailsRow, 5).alignment = { horizontal: 'right', vertical: 'center', wrapText: true };
+          detailsRow++;
+        }
       });
     }
-    
-    if (pdfSettings.companyName || pdfSettings.companyDetails) {
-      currentRow++; // Пустая строка
+
+    // Устанавливаем высоту строк для шапки
+    for (let i = 1; i <= headerEndRow; i++) {
+      worksheet.getRow(i).height = 18;
     }
+
+    currentRow = headerEndRow + 1; // Начинаем данные после шапки
+    currentRow++; // Пустая строка для отступа
 
     // Заголовок сметы
     worksheet.getCell(currentRow, 2).value = 'Коммерческое предложение:';
@@ -311,9 +333,9 @@ export function EstimateBuilder({
     currentRow++;
     currentRow++; // Пустая строка
 
-    // Шапка таблицы
+    // Шапка таблицы (начинаем с колонки E)
     const headerRow = worksheet.getRow(currentRow);
-    headerRow.values = ['№', 'Наименование', 'Ед. изм.', 'Кол-во', 'Цена, руб.', 'Коэфф.', 'Стоимость, руб.'];
+    headerRow.values = ['', '', '', '', '№', 'Наименование', 'Ед. изм.', 'Кол-во', 'Цена, руб.', 'Коэфф.', 'Стоимость, руб.'];
     headerRow.font = { bold: true };
     headerRow.fill = {
       type: 'pattern',
@@ -321,81 +343,114 @@ export function EstimateBuilder({
       fgColor: { argb: 'FFE3F2FD' }
     };
     headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
+    
+    // Применяем стиль только к колонкам с данными (E-K)
+    for (let col = 5; col <= 11; col++) {
+      headerRow.getCell(col).font = { bold: true };
+      headerRow.getCell(col).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFE3F2FD' }
+      };
+      headerRow.getCell(col).alignment = { horizontal: 'center', vertical: 'middle' };
+    }
     currentRow++;
 
     const dataStartRow = currentRow;
 
     // Данные по категориям
+    let rowIndex = currentRow; // Для формул Excel
+    
     groupedItems.forEach(([category, categoryItems]) => {
-      // Заголовок категории
+      // Заголовок категории (начинаем с колонки F)
       const categoryRow = worksheet.getRow(currentRow);
-      categoryRow.values = ['', category, '', '', '', '', ''];
+      categoryRow.values = ['', '', '', '', '', category, '', '', '', '', ''];
       categoryRow.font = { bold: true };
       categoryRow.fill = {
         type: 'pattern',
         pattern: 'solid',
         fgColor: { argb: 'FFF5F5F5' }
       };
+      // Объединяем ячейки для названия категории
+      worksheet.mergeCells(`F${currentRow}:K${currentRow}`);
+      categoryRow.getCell(6).alignment = { horizontal: 'left' };
       currentRow++;
+      rowIndex++;
 
       // Позиции категории
+      const categoryStartRow = currentRow;
       categoryItems.forEach((item, idx) => {
         const row = worksheet.getRow(currentRow);
+        // Заполняем начиная с колонки E (№)
         row.values = [
-          idx + 1,
-          item.description ? `${item.name} - ${item.description}` : item.name,
-          item.unit || 'шт',
-          item.quantity,
-          item.price,
-          item.coefficient || 1,
-          { formula: `D${currentRow}*E${currentRow}*F${currentRow}` }
+          '', // A
+          '', // B
+          '', // C
+          '', // D
+          idx + 1, // E - №
+          item.description ? `${item.name} - ${item.description}` : item.name, // F
+          item.unit || 'шт', // G
+          item.quantity, // H
+          item.price, // I
+          item.coefficient || 1, // J
+          { formula: `H${currentRow}*I${currentRow}*J${currentRow}` } // K
         ];
         
         // Форматирование ячеек
-        row.getCell(4).numFmt = '#,##0'; // Кол-во
-        row.getCell(5).numFmt = '#,##0.00" ₽"'; // Цена
-        row.getCell(7).numFmt = '#,##0.00" ₽"'; // Стоимость
+        row.getCell(8).numFmt = '#,##0'; // Кол-во (H)
+        row.getCell(9).numFmt = '#,##0.00" ₽"'; // Цена (I)
+        row.getCell(11).numFmt = '#,##0.00" ₽"'; // Стоимость (K)
         
         currentRow++;
+        rowIndex++;
       });
 
       // Итого по категории
       if (categoryItems.length > 0) {
         const totalRow = worksheet.getRow(currentRow);
-        totalRow.values = ['', '', '', '', '', 'Итого:', { formula: `SUM(G${currentRow - categoryItems.length}:G${currentRow - 1})` }];
+        totalRow.values = ['', '', '', '', '', '', '', '', '', 'Итого:', { formula: `SUM(K${categoryStartRow}:K${currentRow - 1})` }];
         totalRow.font = { bold: true };
-        totalRow.getCell(7).numFmt = '#,##0.00" ₽"';
+        totalRow.getCell(10).alignment = { horizontal: 'right' };
+        totalRow.getCell(11).numFmt = '#,##0.00" ₽"';
         currentRow++;
+        rowIndex++;
       }
       
       currentRow++; // Пустая строка
+      rowIndex++;
     });
 
     // Общий итог
     const grandTotalRow = worksheet.getRow(currentRow);
-    grandTotalRow.values = ['', '', '', '', '', 'ИТОГО:', total];
+    grandTotalRow.values = ['', '', '', '', '', '', '', '', '', 'ИТОГО:', total];
     grandTotalRow.font = { bold: true, size: 12 };
     grandTotalRow.fill = {
       type: 'pattern',
       pattern: 'solid',
       fgColor: { argb: 'FFFFF9C4' }
     };
-    grandTotalRow.getCell(7).numFmt = '#,##0.00" ₽"';
+    grandTotalRow.getCell(10).alignment = { horizontal: 'right', vertical: 'center' };
+    grandTotalRow.getCell(11).numFmt = '#,##0.00" ₽"';
 
     // Настройки ширины колонок
+    // A-D для логотипа (широкие), E-G для реквизитов и данных
     worksheet.columns = [
-      { width: 5 },   // №
-      { width: 60 },  // Наименование
-      { width: 12 },  // Ед. изм.
-      { width: 10 },  // Кол-во
-      { width: 15 },  // Цена
-      { width: 10 },  // Коэфф.
-      { width: 18 },  // Стоимость
+      { width: 15 },  // A - часть логотипа
+      { width: 15 },  // B - часть логотипа
+      { width: 15 },  // C - часть логотипа
+      { width: 15 },  // D - часть логотипа
+      { width: 25 },  // E - реквизиты/№
+      { width: 35 },  // F - Наименование (шире)
+      { width: 12 },  // G - Ед. изм.
+      { width: 10 },  // H - Кол-во
+      { width: 15 },  // I - Цена
+      { width: 10 },  // J - Коэфф.
+      { width: 18 },  // K - Стоимость
     ];
 
-    // Границы для всех ячеек с данными
+    // Границы для всех ячеек с данными (только колонки E-K)
     for (let row = dataStartRow - 1; row <= currentRow; row++) {
-      for (let col = 1; col <= 7; col++) {
+      for (let col = 5; col <= 11; col++) {
         const cell = worksheet.getCell(row, col);
         cell.border = {
           top: { style: 'thin' },
