@@ -1,5 +1,16 @@
-import { Document, Paragraph, TextRun, Table, TableCell, TableRow, WidthType, AlignmentType, HeadingLevel, Packer } from 'docx';
+import { Document, Paragraph, TextRun, Table, TableCell, TableRow, WidthType, AlignmentType, HeadingLevel, Packer, ImageRun } from 'docx';
 import type { Contract, ContractTemplateData, PDFSettings } from '../types';
+
+// Конвертация base64 в Uint8Array для изображений
+function base64ToUint8Array(base64: string): Uint8Array {
+  const base64Data = base64.split(',')[1] || base64;
+  const binaryString = atob(base64Data);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
+}
 
 // Генерация HTML для предпросмотра и печати
 export function generateContractHTML(contract: Contract, pdfSettings: PDFSettings): string {
@@ -16,7 +27,32 @@ export function generateContractHTML(contract: Contract, pdfSettings: PDFSetting
     return (data as Record<string, string>)[key] || '';
   });
 
+  // Добавляем шапку с настройками PDF
+  const headerHTML = generateHeaderHTML(pdfSettings);
+  
+  // Вставляем шапку перед содержимым договора
+  html = html.replace('<body>', `<body>${headerHTML}`);
+
   return html;
+}
+
+// Генерация шапки с настройками PDF
+function generateHeaderHTML(pdfSettings: PDFSettings): string {
+  const logoHTML = pdfSettings.logo ? `<img src="${pdfSettings.logo}" alt="Логотип" style="max-height: 80px; max-width: 200px;" />` : '';
+  const companyHTML = pdfSettings.companyName ? `<h2 style="margin: 0; font-size: 14px;">${pdfSettings.companyName}</h2>` : '';
+  const detailsHTML = pdfSettings.companyDetails ? pdfSettings.companyDetails.split('\n').map(line => `<p style="margin: 3px 0; font-size: 11px;">${line}</p>`).join('') : '';
+  
+  return `
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 15px;">
+      <div style="width: 45%;">
+        ${logoHTML}
+      </div>
+      <div style="width: 50%; text-align: right; font-size: 11px;">
+        ${companyHTML}
+        ${detailsHTML}
+      </div>
+    </div>
+  `;
 }
 
 // Подготовка данных для шаблона
@@ -59,7 +95,7 @@ function prepareTemplateData(contract: Contract, pdfSettings: PDFSettings): Cont
           const sum = item.price * item.quantity * (item.coefficient || 1);
           tableHTML += `<tr>` +
             `<td>${globalIndex++}</td>` +
-            `<td>${item.name}${item.description ? ` (${item.description})` : ''}</td>` +
+            `<td>${item.name}</td>` +
             `<td>${item.quantity}</td>` +
             `<td>${item.unit}</td>` +
             `<td>${item.price.toLocaleString('ru-RU')}</td>` +
@@ -159,6 +195,52 @@ export async function exportContractToDOCX(contract: Contract, pdfSettings: PDFS
 
   // Создаём параграфы
   const children: Paragraph[] = [];
+
+  // Шапка с логотипом и реквизитами компании
+  if (pdfSettings.logo || pdfSettings.companyName || pdfSettings.companyDetails) {
+    const headerChildren: Paragraph[] = [];
+    
+    if (pdfSettings.companyName) {
+      headerChildren.push(
+        new Paragraph({
+          text: pdfSettings.companyName,
+          bold: true,
+          size: 24, // 12pt
+          spacing: { after: 100 },
+        })
+      );
+    }
+    
+    if (pdfSettings.companyDetails) {
+      pdfSettings.companyDetails.split('\n').forEach(line => {
+        headerChildren.push(
+          new Paragraph({
+            text: line,
+            size: 20, // 10pt
+            spacing: { after: 50 },
+          })
+        );
+      });
+    }
+    
+    // Добавляем разделительную линию
+    headerChildren.push(
+      new Paragraph({
+        text: '',
+        spacing: { after: 200 },
+        border: {
+          bottom: {
+            color: '999999',
+            space: 1,
+            value: 'single',
+            size: 6,
+          },
+        },
+      })
+    );
+    
+    children.push(...headerChildren);
+  }
 
   // Заголовок
   children.push(
@@ -303,7 +385,7 @@ export async function exportContractToDOCX(contract: Contract, pdfSettings: PDFS
     })
   );
 
-  // Подписи
+  // Подписи с настройками PDF
   children.push(
     new Paragraph({
       text: '6. Адреса и реквизиты сторон',
@@ -311,6 +393,10 @@ export async function exportContractToDOCX(contract: Contract, pdfSettings: PDFS
       spacing: { before: 300, after: 400 },
     })
   );
+
+  // Данные для подписей
+  const executorPosition = pdfSettings.position || '';
+  const executorName = pdfSettings.personName || data.executor_representative;
 
   // Таблица подписей
   const signatureTable = new Table({
@@ -323,7 +409,8 @@ export async function exportContractToDOCX(contract: Contract, pdfSettings: PDFS
             children: [
               new Paragraph({ text: 'Исполнитель:', bold: true }),
               new Paragraph({ text: data.executor_name }),
-              new Paragraph({ text: data.executor_representative }),
+              new Paragraph({ text: executorPosition }),
+              new Paragraph({ text: executorName }),
               new Paragraph({ text: '' }),
               new Paragraph({ text: '_______________ / _______________' }),
             ],
@@ -334,6 +421,7 @@ export async function exportContractToDOCX(contract: Contract, pdfSettings: PDFS
               new Paragraph({ text: 'Заказчик:', bold: true }),
               new Paragraph({ text: data.customer_name }),
               new Paragraph({ text: data.customer_representative }),
+              new Paragraph({ text: '' }),
               new Paragraph({ text: '' }),
               new Paragraph({ text: '_______________ / _______________' }),
             ],

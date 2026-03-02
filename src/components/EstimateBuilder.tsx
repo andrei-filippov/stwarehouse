@@ -844,6 +844,19 @@ export function EstimateBuilder({
     // Создаем массив строк для Excel (AOA - array of arrays)
     const wsData: any[][] = [];
     
+    // Шапка с настройками PDF (компания, реквизиты)
+    if (pdfSettings.companyName) {
+      wsData.push([pdfSettings.companyName, '', '', '', '', '', '', '', '']);
+    }
+    if (pdfSettings.companyDetails) {
+      pdfSettings.companyDetails.split('\n').forEach(line => {
+        wsData.push([line, '', '', '', '', '', '', '', '']);
+      });
+    }
+    if (pdfSettings.companyName || pdfSettings.companyDetails) {
+      wsData.push(['', '', '', '', '', '', '', '', '']); // Пустая строка после шапки
+    }
+    
     // Заголовок сметы
     wsData.push(['', 'Коммерческое предложение:', '', '', '', '', '', '', '']);
     wsData.push(['', `Заказчик: ${selectedCustomer?.name || 'не указан'}`, '', '', '', '', '', '', '']);

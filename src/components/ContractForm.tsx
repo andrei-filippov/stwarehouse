@@ -80,10 +80,7 @@ export function ContractForm({
   // Привязанные сметы
   const [selectedEstimateIds, setSelectedEstimateIds] = useState<string[]>([]);
 
-  // Сохраняем начальные значения pdfSettings в ref, чтобы избежать бесконечных ререндеров
-  const pdfSettingsRef = useMemo(() => pdfSettings, []);
-
-  // Инициализация при редактировании
+  // Инициализация при редактировании - только при монтировании или смене contract
   useEffect(() => {
     if (contract) {
       setNumber(contract.number);
@@ -105,14 +102,16 @@ export function ContractForm({
       setAdditionalTerms(contract.additional_terms || '');
       setSelectedEstimateIds(contract.estimates?.map(e => e.estimate_id) || []);
     } else {
-      // Новый договор - генерируем номер
-      generateNumber('service');
+      // Новый договор - генерируем номер только если он еще не установлен
+      if (!number) {
+        generateNumber('service');
+      }
       setExecutorName(pdfSettings.companyName || '');
       setExecutorRepresentative(pdfSettings.personName || '');
       setPaymentTerms('Оплата в течение 15 банковских дней с даты подписания Акта сдачи-приемки услуг.');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [contract]); // Убрали pdfSettings из зависимостей
+  }, [contract?.id]); // Зависим только от ID контракта, а не от всего объекта
 
   // Генерация номера договора
   const generateNumber = async (newType: ContractType) => {
@@ -129,15 +128,15 @@ export function ContractForm({
     }
   };
 
-  // Автоматический расчёт суммы из смет
+  // Автоматический расчёт суммы из смет - только когда меняется выбор смет
   useEffect(() => {
     if (selectedEstimateIds.length > 0) {
       const sum = estimates
         .filter(e => selectedEstimateIds.includes(e.id))
         .reduce((acc, e) => acc + (e.total || 0), 0);
-      setTotalAmount(sum);
+      setTotalAmount(prev => prev !== sum ? sum : prev); // Обновляем только если сумма изменилась
     }
-  }, [selectedEstimateIds, estimates]);
+  }, [selectedEstimateIds]); // Убрали estimates из зависимостей
 
   // Получение имени заказчика
   const selectedCustomer = useMemo(() => {
