@@ -465,12 +465,11 @@ export function ContractForm({
                 return (
                   <div
                     key={estimate.id}
-                    className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                      isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
+                    className={`p-3 border rounded-lg transition-colors ${
+                      isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
                     }`}
-                    onClick={() => toggleEstimate(estimate.id)}
                   >
-                    <div className="flex items-start gap-3">
+                    <label className="flex items-start gap-3 cursor-pointer">
                       <Checkbox 
                         checked={isSelected}
                         onCheckedChange={() => toggleEstimate(estimate.id)}
@@ -488,7 +487,7 @@ export function ContractForm({
                           {estimate.items?.length || 0} позиций
                         </div>
                       </div>
-                    </div>
+                    </label>
                   </div>
                 );
               })}
