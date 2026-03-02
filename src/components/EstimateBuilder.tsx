@@ -151,20 +151,53 @@ export function EstimateBuilder({
     ] as [string, EstimateItem[]]);
   }, [items, categoryOrder]);
 
+  // Проверка пересечения дат
+  const datesOverlap = (start1: string, end1: string, start2: string, end2: string) => {
+    if (!start1 || !start2) return false;
+    const s1 = new Date(start1).getTime();
+    const e1 = end1 ? new Date(end1).getTime() : s1;
+    const s2 = new Date(start2).getTime();
+    const e2 = end2 ? new Date(end2).getTime() : s2;
+    
+    return s1 <= e2 && s2 <= e1;
+  };
+  
   // Подсчет использованного количества оборудования в смете
   const getUsedQuantity = (equipmentId: string) => {
     return items
       .filter(item => item.equipment_id === equipmentId)
       .reduce((sum, item) => sum + item.quantity, 0);
   };
+  
+  // Подсчет занятого оборудования в других сметах на пересекающиеся даты
+  const getBookedQuantity = (equipmentId: string) => {
+    if (!eventStartDate && !eventEndDate) return 0;
+    
+    const currentEstimateId = estimate?.id;
+    const currentStart = eventStartDate || eventEndDate;
+    const currentEnd = eventEndDate || eventStartDate;
+    
+    return estimates
+      .filter(e => e.id !== currentEstimateId && e.items)
+      .filter(e => datesOverlap(currentStart!, currentEnd!, e.event_start_date || e.event_date, e.event_end_date || e.event_date))
+      .reduce((total, e) => {
+        const bookedInEstimate = (e.items || [])
+          .filter((item: EstimateItem) => item.equipment_id === equipmentId)
+          .reduce((sum: number, item: EstimateItem) => sum + (item.quantity || 0), 0);
+        return total + bookedInEstimate;
+      }, 0);
+  };
 
   // Добавление позиции с проверкой доступного количества
   const handleAddItem = (equipment: Equipment) => {
-    const usedQuantity = getUsedQuantity(equipment.id);
-    const availableQuantity = equipment.quantity - usedQuantity;
+    const usedInCurrent = getUsedQuantity(equipment.id);
+    const bookedInOthers = getBookedQuantity(equipment.id);
+    const totalBooked = usedInCurrent + bookedInOthers;
+    const availableQuantity = equipment.quantity - totalBooked;
     
     if (availableQuantity <= 0) {
-      alert(`Все доступное оборудование "${equipment.name}" уже добавлено в смету`);
+      const bookedMsg = bookedInOthers > 0 ? ` (${bookedInOthers} занято в других сметах)` : '';
+      alert(`Все доступное оборудование "${equipment.name}" уже используется${bookedMsg}`);
       return;
     }
     
@@ -463,6 +496,7 @@ export function EstimateBuilder({
     let currentRow = 1;
 
     // Шапка с логотипом
+    let headerEndRow = 5;
     if (pdfSettings.logo) {
       try {
         const base64Data = pdfSettings.logo.split(',')[1];
@@ -482,11 +516,11 @@ export function EstimateBuilder({
             extension: imageType as 'png' | 'jpeg',
           });
 
+          // Добавляем изображение с фиксированными размерами
           worksheet.addImage(imageId, {
-            tl: { col: 0, row: 0 },
-            br: { col: 2, row: 4 },
-            ext: { width: 200, height: 80 },
-            editAs: 'oneCell',
+            tl: { col: 0.2, row: 0.5 },
+            ext: { width: 180, height: 60 },
+            editAs: 'absolute',
           });
         }
       } catch (e) {
@@ -494,6 +528,7 @@ export function EstimateBuilder({
       }
     }
 
+    // Объединяем ячейки для логотипа
     worksheet.mergeCells('A1:C5');
 
     // Реквизиты справа
@@ -780,7 +815,9 @@ export function EstimateBuilder({
               <div className="p-2 md:p-4 space-y-2">
                 {filteredEquipment.map(item => {
                   const usedQty = getUsedQuantity(item.id);
-                  const availableQty = item.quantity - usedQty;
+                  const bookedQty = getBookedQuantity(item.id);
+                  const totalUsed = usedQty + bookedQty;
+                  const availableQty = item.quantity - totalUsed;
                   
                   return (
                     <Card 
@@ -804,9 +841,10 @@ export function EstimateBuilder({
                             <p className="font-bold text-sm md:text-base">{item.price.toLocaleString('ru-RU')} ₽</p>
                             <p className={cn(
                               "text-xs",
-                              availableQty <= 0 ? "text-red-500 font-medium" : "text-gray-500"
+                              availableQty <= 0 ? "text-red-500 font-medium" : bookedQty > 0 ? "text-amber-600" : "text-gray-500"
                             )}>
-                              {availableQty} / {item.quantity} {item.unit}
+                              {availableQty} свободно / {item.quantity} {item.unit}
+                              {bookedQty > 0 && <span className="block text-[10px]">({bookedQty} в других сметах)</span>}
                             </p>
                           </div>
                         </div>
@@ -849,43 +887,50 @@ export function EstimateBuilder({
               
               {/* Две даты - начало и окончание */}
               <div className="grid grid-cols-2 gap-2">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start text-left font-normal text-xs">
-                      <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
-                      <span className="truncate">
-                        {eventStartDate ? format(new Date(eventStartDate), 'dd.MM.yyyy') : 'Начало'}
-                      </span>
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={eventStartDate ? new Date(eventStartDate) : undefined}
-                      onSelect={(date) => date && setEventStartDate(date.toISOString())}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+                <div className="relative">
+                  <Label className="text-[10px] text-gray-500 mb-1 block">Начало</Label>
+                  <Input
+                    type="date"
+                    value={eventStartDate ? eventStartDate.split('T')[0] : ''}
+                    onChange={(e) => {
+                      const date = e.target.value;
+                      if (date) {
+                        setEventStartDate(new Date(date).toISOString());
+                        // Если окончание не установлено или раньше начала, устанавливаем = начало
+                        if (!eventEndDate || new Date(eventEndDate) < new Date(date)) {
+                          setEventEndDate(new Date(date).toISOString());
+                        }
+                      } else {
+                        setEventStartDate('');
+                      }
+                    }}
+                    className="text-sm"
+                  />
+                </div>
                 
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start text-left font-normal text-xs">
-                      <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
-                      <span className="truncate">
-                        {eventEndDate ? format(new Date(eventEndDate), 'dd.MM.yyyy') : 'Окончание'}
-                      </span>
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={eventEndDate ? new Date(eventEndDate) : undefined}
-                      onSelect={(date) => date && setEventEndDate(date.toISOString())}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+                <div className="relative">
+                  <Label className="text-[10px] text-gray-500 mb-1 block">Окончание</Label>
+                  <Input
+                    type="date"
+                    value={eventEndDate ? eventEndDate.split('T')[0] : ''}
+                    onChange={(e) => {
+                      const date = e.target.value;
+                      if (date) {
+                        const newEnd = new Date(date);
+                        // Не даем выбрать окончание раньше начала
+                        if (eventStartDate && newEnd < new Date(eventStartDate)) {
+                          alert('Дата окончания не может быть раньше даты начала');
+                          return;
+                        }
+                        setEventEndDate(newEnd.toISOString());
+                      } else {
+                        setEventEndDate('');
+                      }
+                    }}
+                    className="text-sm"
+                    min={eventStartDate ? eventStartDate.split('T')[0] : undefined}
+                  />
+                </div>
               </div>
               
               <Input
