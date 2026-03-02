@@ -1,836 +1,237 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Card, CardContent } from './ui/card';
-import { Alert, AlertDescription } from './ui/alert';
+import { Label } from './ui/label';
+import { Textarea } from './ui/textarea';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Badge } from './ui/badge';
-import { SortableCategories } from './SortableCategories';
-import { toast } from 'sonner';
+import { Checkbox } from './ui/checkbox';
+import { ScrollArea } from './ui/scroll-area';
+import { Separator } from './ui/separator';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Calendar } from './ui/calendar';
+import { format } from 'date-fns';
+import { ru } from 'date-fns/locale';
 import { 
+  Plus, 
   Trash2, 
   Save, 
   ChevronLeft,
-  ChevronRight,
+  ChevronDown,
   FileText,
-  Package,
   Printer,
-  Layout,
   FileSpreadsheet,
-  Plus
+  Search,
+  ArrowUpDown,
+  GripVertical,
+  Copy,
+  X,
+  CalendarIcon,
+  ChevronUp
 } from 'lucide-react';
-import type { Customer, Equipment, Estimate, EstimateItem, PDFSettings, Template } from '../types';
-// XLSX загружается динамически при необходимости
-
-interface EquipmentAvailability {
-  equipment: Equipment;
-  totalQuantity: number;
-  occupiedQuantity: number;
-  availableQuantity: number;
-  isFullyBooked: boolean;
-}
+import type { Equipment, Estimate, EstimateItem, Customer, PDFSettings } from '../types';
+import { cn } from '../lib/utils';
 
 interface EstimateBuilderProps {
   equipment: Equipment[];
   estimates: Estimate[];
-  templates: Template[];
+  templates: any[];
   customers: Customer[];
-  estimate?: Estimate | null;
-  selectedTemplate?: Template | null;
+  estimate: Estimate | null;
+  selectedTemplate: any;
   pdfSettings: PDFSettings;
-  onSave: (estimate: any, items: any[], categoryOrder?: string[]) => Promise<void>;
+  equipmentCategories: string[];
+  onSave: (estimate: any, items: any[], categoryOrder?: string[]) => void;
   onClose: () => void;
-  onCreateEquipment?: (equipment: Omit<Equipment, 'id' | 'created_at' | 'updated_at'>) => Promise<{ error: any; data?: any }>;
-  equipmentCategories?: string[];
+  onCreateEquipment?: (equipment: any) => Promise<{ error: any; data?: any }>;
 }
 
-export function EstimateBuilder({ 
-  equipment, 
+export function EstimateBuilder({
+  equipment,
   estimates,
   templates,
   customers,
-  estimate, 
+  estimate,
   selectedTemplate,
-  pdfSettings, 
-  onSave, 
+  pdfSettings,
+  equipmentCategories,
+  onSave,
   onClose,
   onCreateEquipment,
-  equipmentCategories
 }: EstimateBuilderProps) {
-  // Защита от undefined
-  const categoriesList = equipmentCategories || [];
-  const [eventName, setEventName] = useState('');
-  const [venue, setVenue] = useState('');
-  const [eventDate, setEventDate] = useState('');
-  const [eventStartDate, setEventStartDate] = useState('');
-  const [eventEndDate, setEventEndDate] = useState('');
-  const [customerId, setCustomerId] = useState<string>('');
-  const [items, setItems] = useState<EstimateItem[]>([]);
+  const [eventName, setEventName] = useState(estimate?.event_name || '');
+  const [venue, setVenue] = useState(estimate?.venue || '');
+  const [eventDate, setEventDate] = useState(estimate?.event_date || '');
+  const [customerId, setCustomerId] = useState(estimate?.customer_id || '');
+  const [items, setItems] = useState<EstimateItem[]>(estimate?.items || []);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [activeMobileTab, setActiveMobileTab] = useState<'equipment' | 'estimate'>('equipment');
-  const [isEquipmentCollapsed, setIsEquipmentCollapsed] = useState(false);
-  const [isEquipmentFullScreen, setIsEquipmentFullScreen] = useState(false);
-  const [isSaved, setIsSaved] = useState(false);
-  const [showExitConfirm, setShowExitConfirm] = useState(false);
-  const [dateError, setDateError] = useState<string | null>(null);
-  const printRef = useRef<HTMLDivElement>(null);
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
+  const [categoryOrder, setCategoryOrder] = useState<string[]>(estimate?.category_order || equipmentCategories);
+  const [showPreview, setShowPreview] = useState(false);
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [draggedCategory, setDraggedCategory] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
 
-  // Обновляем состояние при открытии сметы для редактирования
-  const isInitializedRef = useRef(false);
-  
-  useEffect(() => {
-    // Если уже инициализировано и смета редактируется (есть позиции), не сбрасываем
-    if (isInitializedRef.current && items.length > 0 && !estimate) {
-      return;
-    }
-    
-    if (estimate) {
-      setEventName(estimate.event_name || '');
-      setVenue(estimate.venue || '');
-      setEventDate(estimate.event_date || '');
-      setEventStartDate(estimate.event_start_date || estimate.event_date || '');
-      setEventEndDate(estimate.event_end_date || estimate.event_date || '');
-      setCustomerId(estimate.customer_id || '');
-      setItems(estimate.items || []);
-      // Загружаем порядок категорий из сметы
-      if (estimate.category_order && estimate.category_order.length > 0) {
-        setCategoryOrder(estimate.category_order);
-      } else {
-        setCategoryOrder([]);
-      }
-      // При редактировании смета уже сохранена
-      setIsSaved(true);
-      isInitializedRef.current = true;
-    } else if (selectedTemplate && equipment?.length > 0) {
-      // Автоматически применяем выбранный шаблон только когда оборудование загружено
-      setEventName(selectedTemplate.name || '');
-      setVenue('');
-      setEventDate('');
-      setEventStartDate('');
-      setEventEndDate('');
-      // Применяем шаблон сразу (без проверки доступности, так как дата не выбрана)
-      applyTemplateDirect(selectedTemplate);
-      setIsSaved(false);
-      isInitializedRef.current = true;
-    } else if (selectedTemplate && (!equipment || equipment.length === 0)) {
-      // Оборудование еще не загружено - ждем
-      setEventName(selectedTemplate.name || '');
-      setVenue('');
-      setEventDate('');
-      setEventStartDate('');
-      setEventEndDate('');
-      setItems([]);
-    } else {
-      // Новая пустая смета - сбрасываем только если еще не инициализировано
-      if (!isInitializedRef.current) {
-        setEventName('');
-        setVenue('');
-        setEventDate('');
-        setEventStartDate('');
-        setEventEndDate('');
-        setItems([]);
-        setIsSaved(false);
-      }
-    }
-  }, [estimate?.id, selectedTemplate?.id, equipment?.length]);
-
-  // Прямое применение шаблона без проверки доступности
-  const applyTemplateDirect = (template: Template) => {
-    if (!template.items || template.items.length === 0 || !equipment || equipment.length === 0) return;
-    
-    const newItems: EstimateItem[] = [];
-    
-    template.items.forEach((templateItem, index) => {
-      // Ищем оборудование по ID (если есть) или по имени
-      let matchingEquipment = null;
-      
-      // Сначала пробуем найти по ID (если шаблон был создан с equipment_id)
-      if (templateItem.equipment_id) {
-        matchingEquipment = equipment?.find(eq => eq.id === templateItem.equipment_id);
-      }
-      
-      // Если не нашли по ID, ищем по имени (точное совпадение)
-      if (!matchingEquipment && templateItem.equipment_name) {
-        matchingEquipment = equipment?.find(eq => 
-          eq.name.toLowerCase().trim() === templateItem.equipment_name.toLowerCase().trim()
-        );
-      }
-      
-      // Если всё ещё не нашли, ищем по категории (но пропускаем если уже добавляли из этой категории)
-      if (!matchingEquipment && templateItem.category) {
-        // Для категорийного поиска берем оборудование по индексу, если возможно
-        const categoryEquipment = (equipment || []).filter(eq => 
-          eq.category.toLowerCase() === templateItem.category.toLowerCase()
-        );
-        if (categoryEquipment.length > 0) {
-          // Берем оборудование из категории по индексу позиции в шаблоне
-          // или первое неиспользованное
-          for (const eq of categoryEquipment) {
-            if (!newItems.find(item => item.equipment_id === eq.id)) {
-              matchingEquipment = eq;
-              break;
-            }
-          }
-          // Если все уже использованы, берем первое
-          if (!matchingEquipment) {
-            matchingEquipment = categoryEquipment[0];
-          }
-        }
-      }
-      
-      if (matchingEquipment) {
-        // Без проверки доступности - просто берем запрошенное количество
-        const quantity = templateItem.default_quantity || 1;
-        
-        // Проверяем, не добавили ли уже это оборудование (избегаем дубликатов)
-        const existingIndex = newItems.findIndex(i => i.equipment_id === matchingEquipment!.id);
-        if (existingIndex >= 0) {
-          // Если уже есть - увеличиваем количество
-          newItems[existingIndex].quantity += quantity;
-        } else {
-          // Добавляем новую позицию
-          newItems.push({
-            equipment_id: matchingEquipment.id,
-            name: matchingEquipment.name,
-            description: matchingEquipment.description,
-            category: matchingEquipment.category,
-            quantity: quantity,
-            price: matchingEquipment.price,
-            unit: matchingEquipment.unit || 'шт',
-            coefficient: 1
-          });
-        }
-      }
-    });
-    
-    setItems(newItems);
-    setIsSaved(false);
-  };
-
-  // Проверка пересечения двух периодов дат
-  const isDateRangeOverlapping = useCallback((start1: string, end1: string, start2: string, end2: string) => {
-    const s1 = new Date(start1);
-    const e1 = new Date(end1);
-    const s2 = new Date(start2);
-    const e2 = new Date(end2);
-    return s1 <= e2 && s2 <= e1;
-  }, []);
-
-  // Расчёт занятости оборудования на выбранный период
-  const equipmentAvailability = useMemo<EquipmentAvailability[]>(() => {
-    // Защита от undefined
-    if (!equipment || equipment.length === 0) return [];
-    
-    const startDate = eventStartDate || eventDate;
-    const endDate = eventEndDate || eventDate;
-    
-    if (!startDate) {
-      return equipment.map(eq => ({
-        equipment: eq,
-        totalQuantity: eq.quantity,
-        occupiedQuantity: 0,
-        availableQuantity: eq.quantity,
-        isFullyBooked: false
-      }));
-    }
-
-    // Находим все сметы, пересекающиеся с выбранным периодом (исключая текущую редактируемую)
-    const overlappingEstimates = (estimates || []).filter(e => {
-      if (e.id === estimate?.id) return false;
-      
-      const estStart = e.event_start_date || e.event_date;
-      const estEnd = e.event_end_date || e.event_date;
-      
-      if (!estStart || !estEnd) return false;
-      
-      return isDateRangeOverlapping(startDate, endDate || startDate, estStart, estEnd);
-    });
-
-    // Считаем занятость по каждому оборудованию
-    const occupiedMap = new Map<string, number>();
-    overlappingEstimates.forEach(est => {
-      est.items?.forEach(item => {
-        const current = occupiedMap.get(item.equipment_id) || 0;
-        occupiedMap.set(item.equipment_id, current + item.quantity);
-      });
-    });
-
-    return equipment.map(eq => {
-      const occupied = occupiedMap.get(eq.id) || 0;
-      const available = Math.max(0, eq.quantity - occupied);
-      return {
-        equipment: eq,
-        totalQuantity: eq.quantity,
-        occupiedQuantity: occupied,
-        availableQuantity: available,
-        isFullyBooked: available === 0
-      };
-    });
-  }, [equipment, estimates, eventDate, eventStartDate, eventEndDate, estimate?.id, isDateRangeOverlapping]);
-
-  // Категории для фильтра
-  const categories = ['all', ...new Set((equipment || []).map(e => e.category))];
-
-  // Фильтр оборудования
-  const filteredEquipment = equipmentAvailability.filter(item => {
-    const matchesSearch = item.equipment.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || item.equipment.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
-
-  // Добавление позиции с проверкой доступности
-  const addItem = (eqAvailability: EquipmentAvailability) => {
-    const equipmentItem = eqAvailability.equipment;
-    const existingItem = items.find(i => i.equipment_id === equipmentItem.id);
-    
-    // Проверяем, не превышаем ли доступное количество
-    const currentQtyInEstimate = existingItem?.quantity || 0;
-    if (currentQtyInEstimate >= eqAvailability.availableQuantity) {
-      alert(`Нельзя добавить больше. Доступно: ${eqAvailability.availableQuantity} шт.`);
-      return; // Нельзя добавить больше чем доступно
-    }
-    
-    if (existingItem) {
-      setItems((items || []).map(i => 
-        i.equipment_id === equipmentItem.id 
-          ? { ...i, quantity: i.quantity + 1 }
-          : i
-      ));
-      setIsSaved(false);
-    } else {
-      // Проверяем, можно ли добавить новый item (хотя бы 1 штука)
-      if (eqAvailability.availableQuantity <= 0) {
-        alert(`Нет доступного оборудования. Всего: ${eqAvailability.totalQuantity}, занято: ${eqAvailability.occupiedQuantity}`);
-        return;
-      }
-      
-      const newItem: EstimateItem = {
-        equipment_id: equipmentItem.id,
-        name: equipmentItem.name,
-        description: equipmentItem.description,
-        category: equipmentItem.category,
-        quantity: 1,
-        price: equipmentItem.price,
-        unit: equipmentItem.unit || 'шт',
-        coefficient: 1
-      };
-      setItems([...items, newItem]);
-      setIsSaved(false);
-    }
-  };
-
-  // Обновление количества с проверкой доступности
-  const updateQuantity = (index: number, quantity: number) => {
-    if (index < 0 || index >= items.length) {
-      console.error('updateQuantity: invalid index', index, items.length);
-      return;
-    }
-    const item = items[index];
-    if (!item) return;
-    
-    // Находим оборудование для получения общего количества на складе
-    const equipmentItem = (equipment || []).find(eq => eq.id === item.equipment_id);
-    const totalOnWarehouse = equipmentItem?.quantity || 0;
-    
-    // Если уменьшаем количество - всегда разрешаем
-    if (quantity <= item.quantity) {
-      const newItems = [...items];
-      newItems[index].quantity = Math.max(0, quantity);
-      if (newItems[index].quantity === 0) {
-        newItems.splice(index, 1);
-      }
-      setItems(newItems);
-      setIsSaved(false);
-      return;
-    }
-    
-    // Если увеличиваем - проверяем доступность
-    const eqAvailability = equipmentAvailability.find(
-      ea => ea.equipment.id === item.equipment_id
-    );
-    
-    if (eqAvailability) {
-      // Максимум = доступно + уже в смете, но не больше чем есть на складе всего
-      const maxAllowed = Math.min(
-        eqAvailability.availableQuantity + item.quantity,
-        totalOnWarehouse
-      );
-      if (quantity > maxAllowed) {
-        const availableOnWarehouse = eqAvailability.availableQuantity;
-        const alreadyInEstimate = item.quantity;
-        alert(`Нельзя добавить больше ${maxAllowed} шт. (уже в смете: ${alreadyInEstimate}, доступно на складе: ${availableOnWarehouse}, всего на складе: ${totalOnWarehouse})`);
-        return;
-      }
-    } else {
-      // Если нет данных о доступности - проверяем по общему количеству
-      if (quantity > totalOnWarehouse) {
-        alert(`Нельзя добавить больше ${totalOnWarehouse} шт. (всего на складе)`);
-        return;
-      }
-    }
-    
-    const newItems = [...items];
-    newItems[index].quantity = quantity;
-    setItems(newItems);
-    setIsSaved(false);
-  };
-
-  // Обновление коэффициента
-  const updateCoefficient = (index: number, coefficient: number) => {
-    if (index < 0 || index >= items.length) {
-      console.error('updateCoefficient: invalid index', index, items.length);
-      return;
-    }
-    const newItems = [...items];
-    newItems[index].coefficient = Math.max(0.01, coefficient);
-    setItems(newItems);
-    setIsSaved(false);
-  };
-
-  // Обновление цены
-  const updatePrice = (index: number, price: number) => {
-    if (index < 0 || index >= items.length) {
-      console.error('updatePrice: invalid index', index, items.length);
-      return;
-    }
-    const newItems = [...items];
-    newItems[index].price = Math.max(0, price);
-    setItems(newItems);
-    setIsSaved(false);
-  };
-
-  // Удаление позиции
-  const removeItem = (index: number) => {
-    if (index < 0 || index >= (items || []).length) {
-      console.error('removeItem: invalid index', index, (items || []).length);
-      return;
-    }
-    setItems((items || []).filter((_, i) => i !== index));
-    setIsSaved(false);
-  };
-
-  // Применение шаблона (при клике на кнопку шаблона)
-  const applyTemplate = (template: Template) => {
-    if (!template.items || template.items.length === 0 || !equipment || equipment.length === 0) return;
-    
-    const newItems: EstimateItem[] = [];
-    const usedEquipmentIds = new Set<string>(); // Отслеживаем уже использованное оборудование
-    
-    template.items.forEach((templateItem, index) => {
-      // Ищем оборудование по ID (если есть) или по имени
-      let matchingEquipment = null;
-      
-      // Сначала пробуем найти по ID
-      if (templateItem.equipment_id) {
-        matchingEquipment = equipment.find(eq => eq.id === templateItem.equipment_id);
-      }
-      
-      // Если не нашли по ID, ищем по имени (точное совпадение)
-      if (!matchingEquipment && templateItem.equipment_name) {
-        matchingEquipment = equipment.find(eq => 
-          eq.name.toLowerCase().trim() === templateItem.equipment_name.toLowerCase().trim()
-        );
-      }
-      
-      // Если всё ещё не нашли, ищем по категории (берем первое неиспользованное)
-      if (!matchingEquipment && templateItem.category) {
-        const categoryEquipment = equipment.filter(eq => 
-          eq.category.toLowerCase() === templateItem.category.toLowerCase() &&
-          !usedEquipmentIds.has(eq.id) // Исключаем уже использованное
-        );
-        if (categoryEquipment.length > 0) {
-          matchingEquipment = categoryEquipment[0];
-        }
-      }
-      
-      if (matchingEquipment) {
-        // Проверяем доступность
-        const eqAvail = equipmentAvailability.find(ea => ea.equipment.id === matchingEquipment!.id);
-        const maxAvailable = eqAvail?.availableQuantity || 0;
-        
-        if (maxAvailable > 0) {
-          const quantity = Math.min(templateItem.default_quantity || 1, maxAvailable);
-          
-          // Проверяем, не добавили ли уже это оборудование в текущую смету
-          const existingIndex = items.findIndex(i => i.equipment_id === matchingEquipment!.id);
-          const newItemIndex = newItems.findIndex(i => i.equipment_id === matchingEquipment!.id);
-          
-          if (existingIndex >= 0) {
-            // Уже есть в смете - увеличиваем количество
-            setItems(prev => prev.map((item, idx) => 
-              idx === existingIndex 
-                ? { ...item, quantity: item.quantity + quantity }
-                : item
-            ));
-          } else if (newItemIndex >= 0) {
-            // Уже добавили в этом шаблоне - увеличиваем количество
-            newItems[newItemIndex].quantity += quantity;
-          } else {
-            // Новое оборудование
-            newItems.push({
-              equipment_id: matchingEquipment.id,
-              name: matchingEquipment.name,
-              description: matchingEquipment.description,
-              category: matchingEquipment.category,
-              quantity: quantity,
-              price: matchingEquipment.price,
-              unit: matchingEquipment.unit || 'шт',
-              coefficient: 1
-            });
-            usedEquipmentIds.add(matchingEquipment.id);
-          }
-        }
-      }
-    });
-    
-    setItems(prev => [...prev, ...newItems]);
-    setIsSaved(false);
-  };
-
-  // Подсчет итого с учетом коэффициента (мемоизировано)
-  const total = useMemo(() =>
-    (items || []).reduce((sum, item) => sum + (item.price * item.quantity * (item.coefficient || 1)), 0),
-    [items]
-  );
-  const totalQuantity = useMemo(() =>
-    (items || []).reduce((sum, item) => sum + item.quantity, 0),
-    [items]
-  );
-
-  // Состояние для порядка категорий
-  const [categoryOrder, setCategoryOrder] = useState<string[]>([]);
-  
-  // Состояние для создания оборудования
-  const [isCreatingEquipment, setIsCreatingEquipment] = useState(false);
-  const [newEquipmentName, setNewEquipmentName] = useState('');
-  const [newEquipmentCategory, setNewEquipmentCategory] = useState('');
-  const [newEquipmentPrice, setNewEquipmentPrice] = useState('');
-  const [newEquipmentQuantity, setNewEquipmentQuantity] = useState('1');
-  const [newEquipmentUnit, setNewEquipmentUnit] = useState('шт');
-  const [newEquipmentDescription, setNewEquipmentDescription] = useState('');
-
-  // Группировка по категориям
-  const groupedItems = useMemo(() => {
-    // Защита от undefined
-    const safeItems = items || [];
-    const safeCategoryOrder = categoryOrder || [];
-    
-    const grouped = safeItems.reduce((acc, item) => {
-      const category = item.category || 'Без категории';
-      if (!acc[category]) {
-        acc[category] = [];
-      }
-      acc[category].push(item);
-      return acc;
-    }, {} as Record<string, EstimateItem[]>);
-    
-    const entries = Object.entries(grouped);
-    
-    // Если порядок задан - используем его
-    if (safeCategoryOrder.length > 0) {
-      return entries.sort(([a], [b]) => {
-        const indexA = safeCategoryOrder.indexOf(a);
-        const indexB = safeCategoryOrder.indexOf(b);
-        if (indexA === -1 && indexB === -1) return 0;
-        if (indexA === -1) return 1;
-        if (indexB === -1) return -1;
-        return indexA - indexB;
-      });
-    }
-    
-    // Иначе сортируем по приоритету
-    const categoryPriority: Record<string, number> = {
-      'Звуковое оборудование (PA)': 1,
-      'Звуковое оборудование (Mixing console)': 2,
-      'Радиосистемы': 3,
-      'Звуковое оборудование (Backline)': 4,
-      'Световое оборудование': 5,
-      'Сценическое оборудование': 6,
-      'Видео оборудование': 7,
-      'Услуги специалистов и транспорт': 999,
-    };
-    
-    return entries.sort(([a], [b]) => {
-      const priorityA = categoryPriority[a] || 100;
-      const priorityB = categoryPriority[b] || 100;
-      return priorityA - priorityB;
-    });
-  }, [items, categoryOrder]);
-
-  // Обработка изменения порядка категорий
-  const handleReorderCategories = (newGroupedItems: [string, EstimateItem[]][]) => {
-    const newOrder = newGroupedItems.map(([category]) => category);
-    setCategoryOrder(newOrder);
-    setIsSaved(false);
-  };
-
-  // Расчет суммы по категории (мемоизировано)
-  const getCategoryTotal = useCallback((categoryItems: EstimateItem[]) => {
-    return (categoryItems || []).reduce((sum, item) => sum + (item.price * item.quantity * (item.coefficient || 1)), 0);
-  }, []);
-
-  // Выбранный заказчик (мемоизировано)
-  const selectedCustomer = useMemo(() =>
-    (customers || []).find(c => c.id === customerId),
+  const selectedCustomer = useMemo(() => 
+    customers.find(c => c.id === customerId),
     [customers, customerId]
   );
 
-  // Проверка даты (год от 2026 до 2100)
-  const validateDate = (dateStr: string, isEndDate: boolean = false): boolean => {
-    if (!dateStr) return true; // Пустая дата валидна
-    
-    // Проверка формата года (должно быть ровно 4 цифры)
-    const yearMatch = dateStr.match(/^(\d{4})-/);
-    if (!yearMatch || yearMatch[1].length !== 4) {
-      setDateError(isEndDate ? 'Год окончания должен содержать 4 цифры' : 'Год должен содержать 4 цифры');
-      return false;
-    }
-    
-    const year = parseInt(yearMatch[1]);
-    if (year < 2026) {
-      setDateError('Год должен быть не раньше 2026');
-      return false;
-    }
-    if (year > 2100) {
-      setDateError('Год должен быть не позже 2100');
-      return false;
-    }
-    
-    // Проверка что дата окончания не раньше даты начала
-    if (isEndDate && eventStartDate) {
-      const startDate = new Date(eventStartDate);
-      const endDate = new Date(dateStr);
-      if (endDate < startDate) {
-        setDateError('Дата окончания не может быть раньше даты начала');
-        return false;
-      }
-    }
-    
-    setDateError(null);
-    return true;
-  };
+  const total = useMemo(() => 
+    items.reduce((sum, item) => sum + (item.price * item.quantity * (item.coefficient || 1)), 0),
+    [items]
+  );
 
-  // Сохранение
-  const handleSave = async () => {
-    const startDate = eventStartDate || eventDate;
-    const endDate = eventEndDate || eventStartDate || eventDate;
-    
-    // Проверка даты перед сохранением
-    if ((startDate && !validateDate(startDate, false)) || (endDate && !validateDate(endDate, true))) {
-      toast.error('Ошибка в дате', { description: dateError || 'Некорректная дата' });
-      return;
-    }
-    
-    const estimateData: any = {
-      event_name: eventName,
-      venue: venue || null,
-      event_date: startDate, // Для обратной совместимости
-      total,
-      customer_id: customerId || null,
-      customer_name: selectedCustomer?.name || null
-    };
-    
-    // Добавляем новые поля только если есть значения (не пустые строки)
-    if (startDate) {
-      estimateData.event_start_date = startDate;
-    }
-    if (endDate) {
-      estimateData.event_end_date = endDate;
-    }
-    
-    // Передаем порядок категорий при сохранении
-    try {
-      await onSave(estimateData, items, categoryOrder);
-      setIsSaved(true);
-      // Показываем уведомление об успешном сохранении
-      toast.success(estimate ? 'Смета сохранена' : 'Смета создана', {
-        description: eventName,
-        duration: 3000
-      });
-    } catch (err) {
-      toast.error('Ошибка при сохранении', {
-        description: err instanceof Error ? err.message : 'Неизвестная ошибка'
-      });
-    }
-    // Не закрываем смету после сохранения
-  };
-  
-  // Обработчик закрытия с проверкой сохранения
-  const handleClose = () => {
-    if (isSaved || items.length === 0) {
-      // Если сохранено или нет позиций - закрываем без подтверждения
-      onClose();
-    } else {
-      // Если есть несохранённые изменения - показываем диалог
-      setShowExitConfirm(true);
-    }
-  };
-  
-  // Создание нового оборудования
-  const handleCreateEquipment = async () => {
-    if (!onCreateEquipment) return;
-    if (!newEquipmentName.trim() || !newEquipmentCategory) {
-      alert('Введите название и выберите категорию оборудования');
-      return;
-    }
-    
-    const price = parseFloat(newEquipmentPrice) || 0;
-    const quantity = parseInt(newEquipmentQuantity) || 1;
-    
-    const { error } = await onCreateEquipment({
-      name: newEquipmentName.trim(),
-      category: newEquipmentCategory,
-      price,
-      quantity,
-      unit: newEquipmentUnit,
-      description: newEquipmentDescription.trim()
+  const filteredEquipment = useMemo(() => {
+    return equipment.filter(item => {
+      const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.description?.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
+      return matchesSearch && matchesCategory;
     });
+  }, [equipment, searchQuery, selectedCategory]);
+
+  const groupedItems = useMemo(() => {
+    const grouped = items.reduce((acc, item) => {
+      if (!acc[item.category]) acc[item.category] = [];
+      acc[item.category].push(item);
+      return acc;
+    }, {} as Record<string, EstimateItem[]>);
+
+    // Сортируем категории согласно порядку
+    const orderedCategories = categoryOrder.filter(cat => grouped[cat]);
+    const remainingCategories = Object.keys(grouped).filter(cat => !categoryOrder.includes(cat));
     
-    if (error) {
-      alert('Ошибка при создании оборудования: ' + error.message);
-    } else {
-      // Очищаем форму
-      setNewEquipmentName('');
-      setNewEquipmentPrice('');
-      setNewEquipmentQuantity('1');
-      setNewEquipmentDescription('');
-      setIsCreatingEquipment(false);
+    return [...orderedCategories, ...remainingCategories].map(category => [
+      category,
+      grouped[category]
+    ] as [string, EstimateItem[]]);
+  }, [items, categoryOrder]);
+
+  const handleAddItem = (equipment: Equipment) => {
+    const newItem: EstimateItem = {
+      id: Math.random().toString(36).substr(2, 9),
+      equipment_id: equipment.id,
+      name: equipment.name,
+      description: equipment.description || '',
+      category: equipment.category,
+      quantity: 1,
+      price: equipment.price,
+      unit: equipment.unit,
+      coefficient: 1,
+    };
+    setItems(prev => [...prev, newItem]);
+  };
+
+  const handleRemoveItem = (itemId: string) => {
+    setItems(prev => prev.filter(item => item.id !== itemId));
+  };
+
+  const handleUpdateItem = (itemId: string, updates: Partial<EstimateItem>) => {
+    setItems(prev => prev.map(item => 
+      item.id === itemId ? { ...item, ...updates } : item
+    ));
+  };
+
+  const handleDuplicateItem = (item: EstimateItem) => {
+    const newItem: EstimateItem = {
+      ...item,
+      id: Math.random().toString(36).substr(2, 9),
+    };
+    setItems(prev => [...prev, newItem]);
+  };
+
+  const handleSave = () => {
+    const estimateData = {
+      event_name: eventName,
+      venue,
+      event_date: eventDate,
+      customer_id: customerId,
+      total,
+    };
+    onSave(estimateData, items, categoryOrder);
+  };
+
+  // Drag and drop для категорий
+  const handleDragStart = (category: string) => {
+    setIsDragging(true);
+    setDraggedCategory(category);
+  };
+
+  const handleDragOver = (e: React.DragEvent, category: string) => {
+    e.preventDefault();
+    if (draggedCategory && draggedCategory !== category) {
+      setDropTarget(category);
     }
   };
 
-  // Экспорт PDF с поддержкой кириллицы через HTML
-  const exportPDF = () => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-
-    const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <title>Смета - ${eventName}</title>
-        <style>
-          body { font-family: Arial, sans-serif; margin: 20px; }
-          .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 15px; }
-          .logo-section { width: 45%; }
-          .logo-section img { max-height: 80px; max-width: 100%; }
-          .company-section { width: 50%; text-align: right; font-size: 11px; }
-          .company-section h2 { margin: 0 0 5px 0; font-size: 14px; }
-          .company-section p { margin: 3px 0; }
-          h1 { text-align: center; font-size: 18px; margin: 15px 0; }
-          .info { margin-bottom: 15px; font-size: 12px; }
-          .info p { margin: 5px 0; }
-          table { width: 100%; border-collapse: collapse; font-size: 10px; margin-top: 10px; }
-          th { background: #2980b9; color: white; padding: 6px 4px; text-align: left; }
-          td { padding: 5px 4px; border-bottom: 1px solid #ddd; }
-          tr:nth-child(even) { background: #f5f5f5; }
-          .nowrap { white-space: nowrap; }
-          .total { margin-top: 15px; font-size: 14px; font-weight: bold; text-align: right; }
-          .signature-section { margin-top: 40px; display: flex; justify-content: space-between; align-items: flex-end; }
-          .signature-left { width: 45%; }
-          .signature-right { width: 45%; text-align: right; }
-          .signature-line { border-top: 1px solid #333; margin-top: 30px; padding-top: 5px; font-size: 10px; }
-          .signature-img { max-height: 40px; margin-top: 10px; }
-          .stamp-img { max-height: 60px; }
-        </style>
-      </head>
-      <body>
-        <!-- Шапка с логотипом и реквизитами -->
-        <div class="header">
-          <div class="logo-section">
-            ${pdfSettings.logo ? `<img src="${pdfSettings.logo}" alt="Логотип" />` : '<p>&nbsp;</p>'}
-          </div>
-          <div class="company-section">
-            ${pdfSettings.companyName ? `<h2>${pdfSettings.companyName}</h2>` : ''}
-            ${pdfSettings.companyDetails ? pdfSettings.companyDetails.split('\n').map(line => `<p>${line}</p>`).join('') : ''}
-          </div>
-        </div>
-
-        <h1>Коммерческое предложение</h1>
-        
-        <div class="info">
-          <p><strong>Мероприятие:</strong> ${eventName}</p>
-          <p><strong>Площадка:</strong> ${venue || '-'}</p>
-          <p><strong>Дата:</strong> ${eventDate ? new Date(eventDate).toLocaleDateString('ru-RU') : '-'}</p>
-        </div>
-        
-        ${groupedItems.map(([category, categoryItems], catIdx) => {
-          const catTotal = categoryItems.reduce((sum, item) => sum + (item.price * item.quantity * (item.coefficient || 1)), 0);
-          return `
-          <table>
-            <thead>
-              <tr style="background:#e3f2fd;">
-                <th colspan="8" style="text-align:left;padding:8px;font-size:13px;">
-                  ${category} (${categoryItems.length} поз.)
-                </th>
-              </tr>
-              <tr>
-                <th style="width:5%">№</th>
-                <th style="width:25%">Наименование</th>
-                <th style="width:20%">Описание</th>
-                <th style="width:8%">Ед.</th>
-                <th style="width:8%">Кол-во</th>
-                <th style="width:10%">Цена</th>
-                <th style="width:8%">Коэф.</th>
-                <th style="width:10%">Сумма</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${categoryItems.map((item, idx) => `
-                <tr>
-                  <td>${idx + 1}</td>
-                  <td>${item.name}</td>
-                  <td>${item.description || '-'}</td>
-                  <td>${item.unit || 'шт'}</td>
-                  <td>${item.quantity}</td>
-                  <td class="nowrap">${item.price.toLocaleString('ru-RU')}₽</td>
-                  <td>${item.coefficient || 1}</td>
-                  <td class="nowrap">${(item.price * item.quantity * (item.coefficient || 1)).toLocaleString('ru-RU')}₽</td>
-                </tr>
-              `).join('')}
-              <tr style="background:#f5f5f5;font-weight:bold;">
-                <td colspan="7" style="text-align:right;padding:8px;">Итого по категории:</td>
-                <td style="text-align:right;padding:8px;" class="nowrap">${catTotal.toLocaleString('ru-RU')}₽</td>
-              </tr>
-            </tbody>
-          </table>
-          <div style="height:10px;"></div>
-          `;
-        }).join('')}
-        
-        <div class="total">
-          ИТОГО: ${total.toLocaleString('ru-RU')}₽
-        </div>
-        
-        <!-- Подпись и печать -->
-        ${(pdfSettings.personName || pdfSettings.position) ? `
-          <div class="signature-section">
-            <div class="signature-left">
-              <div class="signature-line">
-                ${pdfSettings.position || ''}${pdfSettings.position && pdfSettings.personName ? '<br/>' : ''}
-                ${pdfSettings.personName || ''}
-              </div>
-              ${pdfSettings.signature ? `<img src="${pdfSettings.signature}" alt="Подпись" class="signature-img" />` : ''}
-            </div>
-            <div class="signature-right">
-              ${pdfSettings.stamp ? `<img src="${pdfSettings.stamp}" alt="Печать" class="stamp-img" />` : ''}
-            </div>
-          </div>
-        ` : ''}
-      </body>
-      </html>
-    `;
-
-    printWindow.document.write(html);
-    printWindow.document.close();
-    
-    setTimeout(() => {
-      printWindow.print();
-    }, 500);
+  const handleDrop = (e: React.DragEvent, targetCategory: string) => {
+    e.preventDefault();
+    if (draggedCategory && draggedCategory !== targetCategory) {
+      const newOrder = [...categoryOrder];
+      const draggedIndex = newOrder.indexOf(draggedCategory);
+      const targetIndex = newOrder.indexOf(targetCategory);
+      
+      newOrder.splice(draggedIndex, 1);
+      newOrder.splice(targetIndex, 0, draggedCategory);
+      
+      setCategoryOrder(newOrder);
+    }
+    setIsDragging(false);
+    setDraggedCategory(null);
+    setDropTarget(null);
   };
 
-  // Экспорт Excel с поддержкой кириллицы
+  const handleDragEnd = () => {
+    setIsDragging(false);
+    setDraggedCategory(null);
+    setDropTarget(null);
+  };
+
+  // Сортировка оборудования
+  const handleSort = (key: string) => {
+    setSortConfig(current => {
+      if (!current || current.key !== key) {
+        return { key, direction: 'asc' };
+      }
+      if (current.direction === 'asc') {
+        return { key, direction: 'desc' };
+      }
+      return null;
+    });
+  };
+
+  const sortedEquipment = useMemo(() => {
+    if (!sortConfig) return filteredEquipment;
+    
+    return [...filteredEquipment].sort((a, b) => {
+      const aValue = (a as any)[sortConfig.key];
+      const bValue = (b as any)[sortConfig.key];
+      
+      if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [filteredEquipment, sortConfig]);
+
+  const toggleCategory = (category: string) => {
+    setCollapsedCategories(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(category)) {
+        newSet.delete(category);
+      } else {
+        newSet.add(category);
+      }
+      return newSet;
+    });
+  };
+
   // Форматирование даты в dd.mm.yyyy
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '-';
@@ -839,130 +240,187 @@ export function EstimateBuilder({
     return date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
-  // Экспорт в Excel в стиле файла сметы
+  // Экспорт в Excel с поддержкой логотипа
   const exportExcel = useCallback(async () => {
-    // Создаем массив строк для Excel (AOA - array of arrays)
-    const wsData: any[][] = [];
-    
-    // Шапка с настройками PDF (компания, реквизиты)
-    if (pdfSettings.companyName) {
-      wsData.push([pdfSettings.companyName, '', '', '', '', '', '', '', '']);
+    const ExcelJS = await import('exceljs');
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Смета');
+
+    let currentRow = 1;
+
+    // Добавляем логотип если есть
+    if (pdfSettings.logo) {
+      try {
+        // Конвертируем base64 в буфер
+        const base64Data = pdfSettings.logo.split(',')[1];
+        if (base64Data) {
+          const imageBuffer = Buffer.from(base64Data, 'base64');
+          
+          // Определяем тип изображения
+          const imageType = pdfSettings.logo.includes('image/png') ? 'png' : 
+                           pdfSettings.logo.includes('image/jpeg') ? 'jpeg' : 'png';
+          
+          const imageId = workbook.addImage({
+            buffer: imageBuffer,
+            extension: imageType as 'png' | 'jpeg',
+          });
+
+          worksheet.addImage(imageId, {
+            tl: { col: 0, row: 0 },
+            ext: { width: 150, height: 60 },
+          });
+          
+          currentRow = 4; // Сдвигаем начало данных после логотипа
+        }
+      } catch (e) {
+        console.error('Error adding logo:', e);
+      }
     }
+
+    // Шапка с настройками PDF
+    if (pdfSettings.companyName) {
+      worksheet.getCell(currentRow, 2).value = pdfSettings.companyName;
+      worksheet.getCell(currentRow, 2).font = { bold: true, size: 14 };
+      currentRow++;
+    }
+    
     if (pdfSettings.companyDetails) {
       pdfSettings.companyDetails.split('\n').forEach(line => {
-        wsData.push([line, '', '', '', '', '', '', '', '']);
+        worksheet.getCell(currentRow, 2).value = line;
+        worksheet.getCell(currentRow, 2).font = { size: 10 };
+        currentRow++;
       });
     }
+    
     if (pdfSettings.companyName || pdfSettings.companyDetails) {
-      wsData.push(['', '', '', '', '', '', '', '', '']); // Пустая строка после шапки
+      currentRow++; // Пустая строка
     }
-    
+
     // Заголовок сметы
-    wsData.push(['', 'Коммерческое предложение:', '', '', '', '', '', '', '']);
-    wsData.push(['', `Заказчик: ${selectedCustomer?.name || 'не указан'}`, '', '', '', '', '', '', '']);
-    wsData.push(['', `Дата и место проведения: ${formatDate(eventDate)}`, '', '', '', '', '', '', '']);
-    wsData.push(['', `Место проведения: ${venue || 'не указано'}`, '', '', '', '', '', '', '']);
-    wsData.push(['', '', '', '', '', '', '', '', '']);
+    worksheet.getCell(currentRow, 2).value = 'Коммерческое предложение:';
+    worksheet.getCell(currentRow, 2).font = { bold: true, size: 12 };
+    currentRow++;
     
+    worksheet.getCell(currentRow, 2).value = `Заказчик: ${selectedCustomer?.name || 'не указан'}`;
+    currentRow++;
+    
+    worksheet.getCell(currentRow, 2).value = `Дата и место проведения: ${formatDate(eventDate)}`;
+    currentRow++;
+    
+    worksheet.getCell(currentRow, 2).value = `Место проведения: ${venue || 'не указано'}`;
+    currentRow++;
+    currentRow++; // Пустая строка
+
     // Шапка таблицы
-    wsData.push(['№', 'Наименование', 'Ед. изм.', 'Кол-во', 'Цена, руб.', 'Коэфф.', 'Стоимость, руб.', '', '']);
-    
-    let rowIndex = 7; // Начало данных (для формул Excel - 1-based)
-    
+    const headerRow = worksheet.getRow(currentRow);
+    headerRow.values = ['№', 'Наименование', 'Ед. изм.', 'Кол-во', 'Цена, руб.', 'Коэфф.', 'Стоимость, руб.'];
+    headerRow.font = { bold: true };
+    headerRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFE3F2FD' }
+    };
+    headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
+    currentRow++;
+
+    const dataStartRow = currentRow;
+
+    // Данные по категориям
     groupedItems.forEach(([category, categoryItems]) => {
       // Заголовок категории
-      wsData.push(['', category, '', '', '', '', '', '', '']);
-      rowIndex++;
-      
+      const categoryRow = worksheet.getRow(currentRow);
+      categoryRow.values = ['', category, '', '', '', '', ''];
+      categoryRow.font = { bold: true };
+      categoryRow.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFF5F5F5' }
+      };
+      currentRow++;
+
       // Позиции категории
-      const categoryStartRow = rowIndex;
       categoryItems.forEach((item, idx) => {
-        const fullName = item.description 
-          ? `${item.name} - ${item.description}` 
-          : item.name;
+        const row = worksheet.getRow(currentRow);
+        row.values = [
+          idx + 1,
+          item.description ? `${item.name} - ${item.description}` : item.name,
+          item.unit || 'шт',
+          item.quantity,
+          item.price,
+          item.coefficient || 1,
+          { formula: `D${currentRow}*E${currentRow}*F${currentRow}` }
+        ];
         
-        wsData.push([
-          idx + 1,                              // №
-          fullName,                             // Наименование (с описанием через " - ")
-          item.unit || 'шт',                    // Ед. изм.
-          item.quantity,                        // Кол-во
-          item.price,                           // Цена
-          item.coefficient || 1,                // Коэфф.
-          { f: `D${rowIndex}*E${rowIndex}*F${rowIndex}` }, // Формула Excel
-          '',
-          ''
-        ]);
-        rowIndex++;
+        // Форматирование ячеек
+        row.getCell(4).numFmt = '#,##0'; // Кол-во
+        row.getCell(5).numFmt = '#,##0.00" ₽"'; // Цена
+        row.getCell(7).numFmt = '#,##0.00" ₽"'; // Стоимость
+        
+        currentRow++;
       });
-      
+
       // Итого по категории
       if (categoryItems.length > 0) {
-        wsData.push(['', '', '', '', '', 'Итого:', { f: `SUM(G${categoryStartRow}:G${rowIndex-1})` }, '', '']);
-        rowIndex++;
+        const totalRow = worksheet.getRow(currentRow);
+        totalRow.values = ['', '', '', '', '', 'Итого:', { formula: `SUM(G${currentRow - categoryItems.length}:G${currentRow - 1})` }];
+        totalRow.font = { bold: true };
+        totalRow.getCell(7).numFmt = '#,##0.00" ₽"';
+        currentRow++;
       }
       
-      // Пустая строка
-      wsData.push(['', '', '', '', '', '', '', '', '']);
-      rowIndex++;
+      currentRow++; // Пустая строка
     });
-    
-    // Общий итог (используем уже посчитанное значение)
-    wsData.push(['', '', '', '', '', 'ИТОГО:', total, '', '']);
-    
-    // Динамический импорт XLSX
-    const XLSX = await import('xlsx');
-    
-    // Создаем worksheet
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
-    
-    // Стиль для границ
-    const borderStyle = { style: 'thin', color: { rgb: '000000' } };
-    const allBorders = {
-      top: borderStyle,
-      bottom: borderStyle,
-      left: borderStyle,
-      right: borderStyle
+
+    // Общий итог
+    const grandTotalRow = worksheet.getRow(currentRow);
+    grandTotalRow.values = ['', '', '', '', '', 'ИТОГО:', total];
+    grandTotalRow.font = { bold: true, size: 12 };
+    grandTotalRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFFFF9C4' }
     };
-    
-    // Применяем границы ко всем ячейкам с данными
-    const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
-    for (let R = range.s.r; R <= range.e.r; ++R) {
-      for (let C = range.s.c; C <= range.e.c; ++C) {
-        const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
-        if (!ws[cellRef]) continue;
-        if (!ws[cellRef].s) ws[cellRef].s = {};
-        ws[cellRef].s.border = allBorders;
-        
-        // Жирный шрифт для заголовка таблицы (строка 6 - индекс 5)
-        if (R === 5) {
-          ws[cellRef].s.font = { bold: true };
-          ws[cellRef].s.fill = { patternType: 'solid', fgColor: { rgb: 'E3F2FD' } };
-        }
+    grandTotalRow.getCell(7).numFmt = '#,##0.00" ₽"';
+
+    // Настройки ширины колонок
+    worksheet.columns = [
+      { width: 5 },   // №
+      { width: 60 },  // Наименование
+      { width: 12 },  // Ед. изм.
+      { width: 10 },  // Кол-во
+      { width: 15 },  // Цена
+      { width: 10 },  // Коэфф.
+      { width: 18 },  // Стоимость
+    ];
+
+    // Границы для всех ячеек с данными
+    for (let row = dataStartRow - 1; row <= currentRow; row++) {
+      for (let col = 1; col <= 7; col++) {
+        const cell = worksheet.getCell(row, col);
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' }
+        };
       }
     }
-    
-    // Настройки ширины колонок
-    ws['!cols'] = [
-      { wch: 5 },   // №
-      { wch: 60 },  // Наименование
-      { wch: 10 },  // Ед. изм.
-      { wch: 10 },  // Кол-во
-      { wch: 12 },  // Цена
-      { wch: 10 },  // Коэфф.
-      { wch: 15 },  // Стоимость
-      { wch: 5 },
-      { wch: 5 }
-    ];
-    
-    // Создаем workbook
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Смета');
-    
+
     // Имя файла
     const fileName = `Смета ${eventName || 'без названия'} ${eventDate || ''}.xlsx`.trim();
     
-    XLSX.writeFile(wb, fileName);
-  }, [eventName, eventDate, groupedItems, total, items, customerId, customers]);
+    // Сохранение файла
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [eventName, eventDate, groupedItems, total, items, customerId, customers, pdfSettings, venue]);
 
   // Печать через браузер
   const handlePrint = () => {
@@ -987,10 +445,6 @@ export function EstimateBuilder({
             <FileSpreadsheet className="w-4 h-4 md:mr-2" />
             <span className="hidden md:inline">Excel</span>
           </Button>
-          <Button variant="outline" size="sm" onClick={exportPDF} className="px-2 md:px-3">
-            <FileText className="w-4 h-4 md:mr-2" />
-            <span className="hidden md:inline">PDF</span>
-          </Button>
           <Button variant="outline" size="sm" onClick={handlePrint} className="px-2 md:px-3">
             <Printer className="w-4 h-4 md:mr-2" />
             <span className="hidden md:inline">Печать</span>
@@ -1002,510 +456,228 @@ export function EstimateBuilder({
         </div>
       </div>
 
-      {/* Mobile Tab Switcher + Desktop Collapse Button */}
-      <div className="flex border-b bg-white">
-        <div className="flex md:hidden flex-1">
-          <button
-            className={`flex-1 py-3 text-sm font-medium ${activeMobileTab === 'equipment' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}
-            onClick={() => setActiveMobileTab('equipment')}
-          >
-            Оборудование
-          </button>
-          <button
-            className={`flex-1 py-3 text-sm font-medium ${activeMobileTab === 'estimate' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}
-            onClick={() => setActiveMobileTab('estimate')}
-          >
-            Смета ({items.length})
-          </button>
-        </div>
-        {/* Desktop: кнопки управления панелями */}
-        <div className="hidden md:flex items-center gap-2">
-          <button
-            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded"
-            onClick={() => {
-              if (isEquipmentFullScreen) {
-                setIsEquipmentFullScreen(false);
-              } else {
-                setIsEquipmentCollapsed(!isEquipmentCollapsed);
-              }
-            }}
-          >
-            {isEquipmentCollapsed || isEquipmentFullScreen ? (
-              <>
-                <ChevronRight className="w-4 h-4" />
-                Оборудование
-              </>
-            ) : (
-              <>
-                <ChevronLeft className="w-4 h-4" />
-                Скрыть
-              </>
-            )}
-          </button>
-          
-          {!isEquipmentCollapsed && (
-            <button
-              className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded"
-              onClick={() => setIsEquipmentFullScreen(!isEquipmentFullScreen)}
-              title={isEquipmentFullScreen ? 'Свернуть' : 'На весь экран'}
-            >
-              {isEquipmentFullScreen ? (
-                <>
-                  <ChevronLeft className="w-4 h-4" />
-                  <span className="text-xs">Смета</span>
-                </>
-              ) : (
-                <>
-                  <ChevronRight className="w-4 h-4" />
-                  <span className="text-xs">Во весь экран</span>
-                </>
-              )}
-            </button>
-          )}
-        </div>
+      {/* Mobile Tab Switcher */}
+      <div className="flex md:hidden border-b bg-white">
+        <button
+          className={`flex-1 py-3 text-sm font-medium ${activeMobileTab === 'equipment' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}
+          onClick={() => setActiveMobileTab('equipment')}
+        >
+          Оборудование
+        </button>
+        <button
+          className={`flex-1 py-3 text-sm font-medium ${activeMobileTab === 'estimate' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}
+          onClick={() => setActiveMobileTab('estimate')}
+        >
+          Смета ({items.length})
+        </button>
       </div>
 
       {/* Основной контент */}
-      <div className="flex-1 flex overflow-hidden print:block">
-        {/* Левая колонка - Оборудование */}
-        <div className={`${activeMobileTab === 'equipment' ? 'flex' : 'hidden'} ${isEquipmentCollapsed ? 'md:hidden' : 'md:flex'} ${isEquipmentFullScreen ? 'md:w-full' : 'md:w-[35%] lg:w-[30%]'} w-full border-r flex-col print:hidden transition-all duration-300`}>
-          <div className="p-3 border-b space-y-2">
-            <div className="flex items-center justify-between">
-              <h2 className="font-semibold flex items-center gap-2 text-sm">
-                <Package className="w-4 h-4" />
-                Оборудование
-              </h2>
-              {onCreateEquipment && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => setIsCreatingEquipment(!isCreatingEquipment)}
-                  className="text-xs"
-                >
-                  {isCreatingEquipment ? 'Отмена' : '+ Добавить'}
-                </Button>
-              )}
-            </div>
-            
-            {/* Форма создания оборудования - компактная */}
-            {isCreatingEquipment && onCreateEquipment && (
-              <div className="bg-blue-50 border rounded p-2 space-y-1.5">
-                <p className="text-xs font-medium text-blue-700">Новое оборудование</p>
-                <div className="grid grid-cols-2 gap-1.5">
-                  <Input
-                    placeholder="Название *"
-                    value={newEquipmentName}
-                    onChange={(e) => setNewEquipmentName(e.target.value)}
-                    className="text-xs h-7 px-2"
-                  />
-                  <select
-                    className="w-full border rounded px-2 text-xs h-7"
-                    value={newEquipmentCategory}
-                    onChange={(e) => setNewEquipmentCategory(e.target.value)}
-                  >
-                    <option value="">Категория *</option>
-                    {categoriesList.map(cat => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="grid grid-cols-3 gap-1.5">
-                  <Input
-                    placeholder="Цена"
-                    type="number"
-                    value={newEquipmentPrice}
-                    onChange={(e) => setNewEquipmentPrice(e.target.value)}
-                    className="text-xs h-7 px-2"
-                  />
-                  <Input
-                    placeholder="Кол-во"
-                    type="number"
-                    value={newEquipmentQuantity}
-                    onChange={(e) => setNewEquipmentQuantity(e.target.value)}
-                    className="text-xs h-7 px-2"
-                  />
-                  <select
-                    className="border rounded px-2 text-xs h-7"
-                    value={newEquipmentUnit}
-                    onChange={(e) => setNewEquipmentUnit(e.target.value)}
-                  >
-                    <option value="шт">шт</option>
-                    <option value="комплект">комплект</option>
-                    <option value="услуга">услуга</option>
-                    <option value="человек">человек</option>
-                    <option value="п.м.">п.м.</option>
-                  </select>
-                </div>
-                <textarea
-                  placeholder="Описание (опционально)"
-                  value={newEquipmentDescription}
-                  onChange={(e) => setNewEquipmentDescription(e.target.value)}
-                  className="w-full border rounded px-2 py-1 text-xs resize-none h-16"
-                  rows={2}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Левая панель - Оборудование */}
+        <div className={`${activeMobileTab === 'equipment' ? 'flex' : 'hidden'} md:flex w-full md:w-1/2 flex-col border-r`}>
+          <div className="p-2 md:p-4 border-b space-y-2">
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Input
+                  placeholder="Поиск оборудования..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
                 />
-                <Button 
-                  size="sm" 
-                  className="w-full h-7 text-xs"
-                  onClick={handleCreateEquipment}
-                  disabled={!newEquipmentName.trim() || !newEquipmentCategory}
-                >
-                  Создать
-                </Button>
               </div>
-            )}
-            
-            <Input
-              placeholder="Поиск..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="text-xs h-8"
-            />
-            <div className="flex gap-1.5 flex-wrap">
-              {['all', ...new Set((equipment || []).map(e => e.category))].map(cat => (
-                <Button
-                  key={cat}
-                  variant={selectedCategory === cat ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setSelectedCategory(cat)}
-                  className="text-xs px-2.5 py-1 h-auto min-h-[28px]"
-                >
-                  {cat === 'all' ? 'Все' : cat}
-                </Button>
+              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                <SelectTrigger className="w-32 md:w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Все категории</SelectItem>
+                  {equipmentCategories.map(cat => (
+                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <ScrollArea className="flex-1">
+            <div className="p-2 md:p-4 space-y-2">
+              {sortedEquipment.map(item => (
+                <Card key={item.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => handleAddItem(item)}>
+                  <CardContent className="p-2 md:p-3">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="font-medium text-sm md:text-base">{item.name}</h3>
+                        <p className="text-xs md:text-sm text-gray-500">{item.category}</p>
+                        {item.description && (
+                          <p className="text-xs text-gray-400 mt-1">{item.description}</p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-sm md:text-base">{item.price.toLocaleString('ru-RU')} ₽</p>
+                        <p className="text-xs text-gray-500">{item.quantity} {item.unit} в наличии</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               ))}
             </div>
-          </div>
-          
-          <div className="flex-1 overflow-auto p-2">
-            <div className="grid grid-cols-1 gap-1">
-              {filteredEquipment.map(item => {
-                const isFullyBooked = item.isFullyBooked;
-                const isInEstimate = items.find(i => i.equipment_id === item.equipment.id);
-                const canAddMore = !isFullyBooked && (!isInEstimate || isInEstimate.quantity < item.availableQuantity);
-                
-                const inEstimateQty = isInEstimate?.quantity || 0;
-                
-                return (
-                  <Card 
-                    key={item.equipment.id} 
-                    className={`transition-all ${
-                      isFullyBooked 
-                        ? 'opacity-50 cursor-not-allowed bg-red-50' 
-                        : canAddMore 
-                          ? 'cursor-pointer hover:border-blue-500 hover:shadow-md' 
-                          : 'opacity-70 cursor-not-allowed bg-yellow-50'
-                    } ${inEstimateQty > 0 ? 'border-blue-400 bg-blue-50/30' : ''}`}
-                    onClick={() => {
-                      if (canAddMore) {
-                        addItem(item);
-                      }
-                    }}
-                  >
-                    <CardContent className="p-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium text-sm truncate">{item.equipment.name}</p>
-                            {inEstimateQty > 0 && (
-                              <Badge className="bg-blue-600 text-white text-[10px] px-1.5 py-0 h-4">
-                                {inEstimateQty} в смете
-                              </Badge>
-                            )}
-                          </div>
-                          <p className="text-[10px] text-gray-500">{item.equipment.category}</p>
-                        </div>
-                        <div className="text-right ml-2">
-                          <p className="text-sm font-semibold">{item.equipment.price.toLocaleString('ru-RU')} ₽</p>
-                          <p className={`text-[10px] ${
-                            item.availableQuantity === 0 
-                              ? 'text-red-600 font-semibold' 
-                              : item.availableQuantity < item.totalQuantity * 0.2 
-                                ? 'text-orange-600' 
-                                : 'text-gray-400'
-                          }`}>
-                            {item.availableQuantity === 0 
-                              ? 'Нет' 
-                              : `${item.availableQuantity}/${item.totalQuantity}`}
-                          </p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          </div>
+          </ScrollArea>
         </div>
 
-        {/* Правая колонка - Смета */}
-        <div className={`${activeMobileTab === 'estimate' ? 'flex' : 'hidden'} ${isEquipmentFullScreen ? 'md:hidden' : 'md:flex'} w-full ${isEquipmentCollapsed ? 'md:w-full' : 'md:w-[65%] lg:w-[70%]'} flex-col print:w-full h-full overflow-auto md:overflow-hidden transition-all duration-300`}>
-          <div className="p-3 border-b space-y-2 print:hidden shrink-0">
-            <div className="flex items-center justify-between">
-              <h2 className="font-semibold flex items-center gap-2 text-sm">
-                <FileText className="w-4 h-4" />
-                Позиции сметы
-                <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-xs">
-                  {items.length} поз.
-                </span>
-              </h2>
-              <span className="text-lg font-bold text-blue-600">
-                {total.toLocaleString('ru-RU')} ₽
-              </span>
-            </div>
+        {/* Правая панель - Смета */}
+        <div className={`${activeMobileTab === 'estimate' ? 'flex' : 'hidden'} md:flex w-full md:w-1/2 flex-col`}>
+          <div className="p-2 md:p-4 border-b space-y-2 md:space-y-4 overflow-y-auto max-h-[40vh] md:max-h-none">
+            <Input
+              placeholder="Название мероприятия"
+              value={eventName}
+              onChange={(e) => setEventName(e.target.value)}
+              className="font-medium"
+            />
             
-            <div className="space-y-2">
-              {/* Первая строка: заказчик и мероприятие */}
-              <div className="grid grid-cols-2 gap-2">
-                <select
-                  className="w-full border rounded-md p-2 text-sm"
-                  value={customerId}
-                  onChange={(e) => { setCustomerId(e.target.value); setIsSaved(false); }}
-                >
-                  <option value="">Заказчик</option>
-                  {(customers || []).map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-                <Input
-                  placeholder="Мероприятие *"
-                  value={eventName}
-                  onChange={(e) => { setEventName(e.target.value); setIsSaved(false); }}
-                  className="text-sm"
-                />
-              </div>
-              {/* Вторая строка: площадка и даты */}
-              <div className="grid grid-cols-3 gap-2">
-                <Input
-                  placeholder="Площадка"
-                  value={venue}
-                  onChange={(e) => { setVenue(e.target.value); setIsSaved(false); }}
-                  className="text-sm"
-                />
-                <Input
-                  type="date"
-                  value={eventStartDate}
-                  onChange={(e) => {
-                    const newDate = e.target.value;
-                    setEventStartDate(newDate);
-                    setEventDate(newDate);
-                    setIsSaved(false);
-                    validateDate(newDate, false); // false = это дата начала
-                  }}
-                  className={`text-sm ${dateError ? 'border-red-500' : ''}`}
-                  title="Начало"
-                />
-                <Input
-                  type="date"
-                  value={eventEndDate}
-                  onChange={(e) => {
-                    const newDate = e.target.value;
-                    setEventEndDate(newDate);
-                    setIsSaved(false);
-                    validateDate(newDate, true); // true = это дата окончания
-                  }}
-                  min={eventStartDate}
-                  className={`text-sm ${dateError ? 'border-red-500' : ''}`}
-                  title="Окончание"
-                />
-              </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start text-left font-normal">
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {eventDate ? format(new Date(eventDate), 'dd.MM.yyyy') : 'Дата'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={eventDate ? new Date(eventDate) : undefined}
+                    onSelect={(date) => date && setEventDate(date.toISOString())}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
               
-              {/* Ошибка даты */}
-              {dateError && (
-                <Alert className="bg-red-50 border-red-200 p-2">
-                  <AlertDescription className="text-xs text-red-600">
-                    <strong>⚠️</strong> {dateError}
-                  </AlertDescription>
-                </Alert>
-              )}
-              
-              {/* Предупреждение о занятости - компактное */}
-              {(eventStartDate || eventDate) && equipmentAvailability.some(eq => eq.occupiedQuantity > 0) && (
-                <Alert className="bg-amber-50 border-amber-200 p-2">
-                  <AlertDescription className="text-xs">
-                    <strong>⚠️</strong> {equipmentAvailability.filter(eq => eq.occupiedQuantity > 0).length} типов занято на эти даты
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {/* Применение шаблона - компактное */}
-              {!estimate && (templates || []).length > 0 && (
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-xs text-gray-500 flex items-center gap-1">
-                    <Layout className="w-3 h-3" />
-                    Шаблон:
-                  </span>
-                  {(templates || []).slice(0, 4).map(template => (
-                    <Button
-                      key={template.id}
-                      variant="outline"
-                      size="sm"
-                      onClick={() => applyTemplate(template)}
-                      className="text-xs px-2 py-0.5 h-6"
-                    >
-                      {template.name}
-                    </Button>
-                  ))}
-                  {(templates || []).length > 4 && (
-                    <select 
-                      className="text-xs border rounded px-2 py-0.5 h-6"
-                      onChange={(e) => {
-                        const template = (templates || []).find(t => t.id === e.target.value);
-                        if (template) applyTemplate(template);
-                        e.target.value = '';
-                      }}
-                    >
-                      <option value="">Ещё...</option>
-                      {(templates || []).slice(4).map(t => (
-                        <option key={t.id} value={t.id}>{t.name}</option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Версия для печати */}
-          <div ref={printRef} className="hidden print:block p-8">
-            {/* Шапка с логотипом и реквизитами */}
-            <div className="flex justify-between items-start mb-6 border-b-2 border-black pb-4">
-              <div className="w-1/2">
-                {pdfSettings.logo && (
-                  <img src={pdfSettings.logo} alt="Logo" className="h-20 object-contain" />
-                )}
-              </div>
-              <div className="w-1/2 text-right text-xs">
-                {pdfSettings.companyName && (
-                  <h2 className="font-bold text-sm mb-1">{pdfSettings.companyName}</h2>
-                )}
-                {pdfSettings.companyDetails && (
-                  <div className="text-gray-600">
-                    {pdfSettings.companyDetails.split('\n').map((line, i) => (
-                      <p key={i}>{line}</p>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <h1 className="text-xl font-bold mb-4 text-center">Коммерческое предложение</h1>
-            
-            <div className="mb-4 text-sm">
-              <p><strong>Мероприятие:</strong> {eventName}</p>
-              <p><strong>Площадка:</strong> {venue || '-'}</p>
-              <p><strong>Дата:</strong> {eventDate ? new Date(eventDate).toLocaleDateString('ru-RU') : '-'}</p>
-            </div>
-
-            {groupedItems.map(([category, categoryItems]) => {
-              const catTotal = categoryItems.reduce((sum, item) => sum + (item.price * item.quantity * (item.coefficient || 1)), 0);
-              return (
-                <div key={category} className="mb-6">
-                  <h3 className="font-bold text-sm bg-gray-100 p-2 border-t-2 border-b border-gray-300">
-                    {category} ({categoryItems.length} поз.)
-                  </h3>
-                  <table className="w-full border-collapse text-sm">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left py-1 px-1 w-8 text-xs">№</th>
-                        <th className="text-left py-1 px-1 text-xs">Наименование</th>
-                        <th className="text-left py-1 px-1 text-xs">Описание</th>
-                        <th className="text-center py-1 px-1 w-10 text-xs">Ед.</th>
-                        <th className="text-center py-1 px-1 w-10 text-xs">Кол</th>
-                        <th className="text-right py-1 px-1 w-16 text-xs">Цена</th>
-                        <th className="text-center py-1 px-1 w-8 text-xs">Кф</th>
-                        <th className="text-right py-1 px-1 w-20 text-xs">Сумма</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {categoryItems.map((item, idx) => (
-                        <tr key={idx} className="border-b">
-                          <td className="py-1 px-1">{idx + 1}</td>
-                          <td className="py-1 px-1">{item.name}</td>
-                          <td className="py-1 px-1 text-xs text-gray-600">{item.description || '-'}</td>
-                          <td className="text-center py-1 px-1">{item.unit || 'шт'}</td>
-                          <td className="text-center py-1 px-1">{item.quantity}</td>
-                          <td className="text-right py-1 px-1 whitespace-nowrap text-xs">{item.price.toLocaleString('ru-RU')}₽</td>
-                          <td className="text-center py-1 px-1">{item.coefficient || 1}</td>
-                          <td className="text-right py-1 px-1 whitespace-nowrap">{(item.price * item.quantity * (item.coefficient || 1)).toLocaleString('ru-RU')}₽</td>
-                        </tr>
-                      ))}
-                      <tr className="bg-gray-50 font-semibold">
-                        <td colSpan={7} className="text-right py-2 px-2">Итого по категории:</td>
-                        <td className="text-right py-2 px-1">{catTotal.toLocaleString('ru-RU')}₽</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              );
-            })}
-
-            <div className="mt-4 text-right font-bold text-lg border-t-2 border-black pt-3">
-              ИТОГО: {total.toLocaleString('ru-RU')}₽
-            </div>
-
-            {/* Подпись и печать */}
-            {(pdfSettings.personName || pdfSettings.position) && (
-              <div className="mt-12 flex justify-between items-end">
-                <div className="w-1/2">
-                  <div className="border-t border-black pt-2 text-sm">
-                    {pdfSettings.position && <p>{pdfSettings.position}</p>}
-                    {pdfSettings.personName && <p className="font-medium">{pdfSettings.personName}</p>}
-                  </div>
-                  {pdfSettings.signature && (
-                    <img src={pdfSettings.signature} alt="Подпись" className="h-10 mt-2" />
-                  )}
-                </div>
-                <div className="w-1/2 text-right">
-                  {pdfSettings.stamp && (
-                    <img src={pdfSettings.stamp} alt="Печать" className="h-16 inline-block" />
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="flex-1 md:overflow-auto p-2 print:hidden">
-            {items.length === 0 ? (
-              <div className="text-center text-gray-400 mt-10">
-                <p>Добавьте оборудование из списка слева</p>
-              </div>
-            ) : (
-              <SortableCategories
-                groupedItems={groupedItems}
-                items={items}
-                equipmentAvailability={equipmentAvailability}
-                onReorder={handleReorderCategories}
-                onRemoveItem={removeItem}
-                onUpdateQuantity={updateQuantity}
-                onUpdateCoefficient={updateCoefficient}
-                onUpdatePrice={updatePrice}
-                getCategoryTotal={getCategoryTotal}
+              <Input
+                placeholder="Место"
+                value={venue}
+                onChange={(e) => setVenue(e.target.value)}
               />
-            )}
+            </div>
+
+            <Select value={customerId} onValueChange={setCustomerId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Выберите заказчика" />
+              </SelectTrigger>
+              <SelectContent>
+                {customers.map(customer => (
+                  <SelectItem key={customer.id} value={customer.id}>
+                    {customer.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
-          {/* Итого убрано - теперь в заголовке */}
+          <ScrollArea className="flex-1">
+            <div className="p-2 md:p-4 space-y-4">
+              {groupedItems.length === 0 ? (
+                <div className="text-center py-8 text-gray-400">
+                  <p>Добавьте оборудование из списка слева</p>
+                </div>
+              ) : (
+                groupedItems.map(([category, categoryItems]) => (
+                  <Card key={category} className={cn(
+                    "transition-all",
+                    isDragging && draggedCategory === category && "opacity-50",
+                    isDragging && dropTarget === category && "ring-2 ring-blue-400"
+                  )}>
+                    <CardHeader 
+                      className="p-2 md:p-3 cursor-move"
+                      draggable
+                      onDragStart={() => handleDragStart(category)}
+                      onDragOver={(e) => handleDragOver(e, category)}
+                      onDrop={(e) => handleDrop(e, category)}
+                      onDragEnd={handleDragEnd}
+                    >
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-sm md:text-base flex items-center gap-2">
+                          <GripVertical className="w-4 h-4 text-gray-400" />
+                          {category}
+                          <Badge variant="secondary">{categoryItems.length}</Badge>
+                        </CardTitle>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => toggleCategory(category)}
+                        >
+                          {collapsedCategories.has(category) ? (
+                            <ChevronDown className="w-4 h-4" />
+                          ) : (
+                            <ChevronUp className="w-4 h-4" />
+                          )}
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    
+                    {!collapsedCategories.has(category) && (
+                      <CardContent className="p-0">
+                        <div className="space-y-2 p-2 md:p-3">
+                          {categoryItems.map((item, idx) => (
+                            <div key={item.id} className="flex items-center gap-2 p-2 bg-gray-50 rounded">
+                              <span className="text-xs text-gray-400 w-6">{idx + 1}</span>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-sm truncate">{item.name}</p>
+                                <p className="text-xs text-gray-500">
+                                  {(item.price * item.quantity * (item.coefficient || 1)).toLocaleString('ru-RU')} ₽
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Input
+                                  type="number"
+                                  value={item.quantity}
+                                  onChange={(e) => handleUpdateItem(item.id, { quantity: parseInt(e.target.value) || 1 })}
+                                  className="w-14 md:w-16 h-8 text-sm"
+                                  min={1}
+                                />
+                                <Input
+                                  type="number"
+                                  value={item.coefficient || 1}
+                                  onChange={(e) => handleUpdateItem(item.id, { coefficient: parseFloat(e.target.value) || 1 })}
+                                  className="w-14 md:w-16 h-8 text-sm"
+                                  step={0.1}
+                                  min={0.1}
+                                />
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDuplicateItem(item)}
+                                >
+                                  <Copy className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleRemoveItem(item.id)}
+                                >
+                                  <Trash2 className="w-4 h-4 text-red-500" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    )}
+                  </Card>
+                ))
+              )}
+            </div>
+          </ScrollArea>
+
+          <div className="p-2 md:p-4 border-t bg-gray-50">
+            <div className="flex justify-between items-center">
+              <span className="text-sm md:text-base text-gray-600">Итого:</span>
+              <span className="text-xl md:text-2xl font-bold">{total.toLocaleString('ru-RU')} ₽</span>
+            </div>
+          </div>
         </div>
       </div>
-      
-      {/* Диалог подтверждения выхода */}
-      <Dialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
-        <DialogContent className="rounded-xl">
-          <DialogHeader>
-            <DialogTitle>Несохранённые изменения</DialogTitle>
-            <DialogDescription>
-              Смета не была сохранена. Вы уверены, что хотите выйти? Все изменения будут потеряны.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex gap-3 justify-end pt-4">
-            <Button variant="outline" onClick={() => setShowExitConfirm(false)}>
-              Остаться
-            </Button>
-            <Button variant="destructive" onClick={() => { setShowExitConfirm(false); onClose(); }}>
-              Выйти без сохранения
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
