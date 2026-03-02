@@ -17,14 +17,14 @@ import {
   Clock,
   AlertCircle
 } from 'lucide-react';
-import type { Contract, PDFSettings, ContractType, ContractStatus } from '../types';
+import type { Contract, ContractTemplate, PDFSettings, ContractType, ContractStatus } from '../types';
 import { CONTRACT_TYPE_LABELS, CONTRACT_STATUS_LABELS, CONTRACT_STATUS_COLORS } from '../types';
 import { ContractForm } from './ContractForm';
 import { ContractPreview } from './ContractPreview';
 
 interface ContractManagerProps {
   contracts: Contract[];
-  templates: Contract[];
+  templates: ContractTemplate[];
   customers: any[];
   estimates: any[];
   pdfSettings: PDFSettings;

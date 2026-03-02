@@ -1,6 +1,17 @@
 -- ============================================
 -- Таблицы для работы с договорами
 -- ============================================
+-- Инструкция: Выполните этот скрипт в Supabase Dashboard → SQL Editor
+-- ============================================
+
+-- Проверяем существование функции update_updated_at_column
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
 -- 1. Таблица шаблонов договоров
 CREATE TABLE IF NOT EXISTS contract_templates (
@@ -14,6 +25,11 @@ CREATE TABLE IF NOT EXISTS contract_templates (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Добавляем уникальное ограничение для шаблона по умолчанию (только один default на тип)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_contract_templates_default_type 
+  ON contract_templates (type, is_default) 
+  WHERE is_default = TRUE;
 
 -- 2. Таблица договоров
 CREATE TABLE IF NOT EXISTS contracts (
@@ -53,6 +69,12 @@ CREATE TABLE IF NOT EXISTS contracts (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Индекс для быстрого поиска по номеру договора
+CREATE INDEX IF NOT EXISTS idx_contracts_number ON contracts (number);
+CREATE INDEX IF NOT EXISTS idx_contracts_customer_id ON contracts (customer_id);
+CREATE INDEX IF NOT EXISTS idx_contracts_status ON contracts (status);
+CREATE INDEX IF NOT EXISTS idx_contracts_date ON contracts (date);
+
 -- 3. Связующая таблица: договор ↔ смета (многие-ко-многим)
 CREATE TABLE IF NOT EXISTS contract_estimates (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -62,6 +84,9 @@ CREATE TABLE IF NOT EXISTS contract_estimates (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   UNIQUE(contract_id, estimate_id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_contract_estimates_contract_id ON contract_estimates (contract_id);
+CREATE INDEX IF NOT EXISTS idx_contract_estimates_estimate_id ON contract_estimates (estimate_id);
 
 -- ============================================
 -- RLS (Row Level Security)
@@ -167,11 +192,15 @@ END $$;
 -- Начальные данные: шаблон договора услуг
 -- ============================================
 
-INSERT INTO contract_templates (name, type, content, description, is_default) VALUES
-(
-  'Договор возмездного оказания услуг (стандартный)',
-  'service',
-  '<!DOCTYPE html>
+-- Проверяем, есть ли уже шаблоны
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM contract_templates WHERE is_default = TRUE AND type = 'service') THEN
+    INSERT INTO contract_templates (name, type, content, description, is_default) VALUES
+    (
+      'Договор возмездного оказания услуг (стандартный)',
+      'service',
+      '<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
@@ -298,7 +327,13 @@ INSERT INTO contract_templates (name, type, content, description, is_default) VA
   </div>
 </body>
 </html>',
-  'Стандартный шаблон договора на оказание услуг по техническому оснащению мероприятий',
-  TRUE
-)
-ON CONFLICT DO NOTHING;
+      'Стандартный шаблон договора на оказание услуг по техническому оснащению мероприятий',
+      TRUE
+    );
+  END IF;
+END $$;
+
+-- ============================================
+-- Проверка создания таблиц
+-- ============================================
+SELECT 'Таблицы созданы успешно!' as status;

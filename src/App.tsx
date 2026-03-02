@@ -125,11 +125,18 @@ function App() {
       return customPerm.allowed;
     }
     // Если нет кастомного - используем роль
-    return hasAccess(userRole, tabId);
+    const hasRoleAccess = hasAccess(userRole, tabId);
+    // DEBUG: убрать после проверки
+    console.log(`[Access Check] tab: ${tabId}, role: ${userRole}, allowed: ${hasRoleAccess}`);
+    return hasRoleAccess;
   };
   
   // Фильтруем доступные вкладки
   const navItems = allNavItems.filter(item => checkAccess(item.id));
+  
+  // DEBUG: убрать после проверки
+  console.log('[Nav Items]', navItems.map(i => i.id));
+  console.log('[User Role]', userRole, '[Profile]', profile);
 
   // При загрузке профиля переключаем на первую доступную вкладку (если текущая недоступна)
   useEffect(() => {
