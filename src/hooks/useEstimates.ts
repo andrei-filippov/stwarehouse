@@ -176,25 +176,49 @@ export function useEstimates(userId: string | undefined) {
   }, [fetchEstimates, userId, stopEditing]);
 
   const createEstimate = async (estimate: Omit<Estimate, 'id' | 'created_at' | 'updated_at'>, items: Omit<EstimateItem, 'id' | 'estimate_id'>[], userId: string, creatorName?: string, categoryOrder?: string[]) => {
-    // Подготавливаем данные сметы с датами и user_id
-    const estimateToSave: any = {
-      ...estimate,
-      user_id: userId,
+    // Подготавливаем базовые данные сметы (только поля которые точно есть в БД)
+    const baseEstimate: any = {
+      event_name: estimate.event_name,
+      venue: estimate.venue,
       event_date: estimate.event_start_date || estimate.event_date,
+      customer_id: estimate.customer_id,
+      total: estimate.total,
+      user_id: userId,
       creator_name: creatorName
     };
     
-    // Добавляем порядок категорий если есть
-    if (categoryOrder && categoryOrder.length > 0) {
-      estimateToSave.category_order = categoryOrder;
-    }
+    // Пробуем создать смету сначала с новыми полями
+    let estimateData: any = null;
+    let estimateError: any = null;
     
-    // Создаем смету
-    const { data: estimateData, error: estimateError } = await supabase
+    // Пробуем с новыми полями (category_order как JSONB)
+    const estimateWithNewFields = {
+      ...baseEstimate,
+      event_start_date: estimate.event_start_date,
+      event_end_date: estimate.event_end_date,
+      category_order: categoryOrder && categoryOrder.length > 0 ? JSON.stringify(categoryOrder) : null
+    };
+    
+    const result1 = await supabase
       .from('estimates')
-      .insert([estimateToSave])
+      .insert([estimateWithNewFields])
       .select()
       .single();
+    
+    if (result1.error) {
+      console.log('Failed with new fields, trying without:', result1.error.message);
+      // Пробуем без новых полей (fallback)
+      const result2 = await supabase
+        .from('estimates')
+        .insert([baseEstimate])
+        .select()
+        .single();
+      
+      estimateData = result2.data;
+      estimateError = result2.error;
+    } else {
+      estimateData = result1.data;
+    }
     
     if (estimateError || !estimateData) {
       console.error('Create estimate error:', estimateError);
@@ -232,30 +256,45 @@ export function useEstimates(userId: string | undefined) {
   };
 
   const updateEstimate = async (id: string, estimate: Partial<Estimate>, items?: EstimateItem[], userId?: string, categoryOrder?: string[]) => {
-    // Подготавливаем данные для обновления
-    const estimateToUpdate: any = {
-      ...estimate,
+    // Базовые поля для обновления
+    const baseUpdate: any = {
+      event_name: estimate.event_name,
+      venue: estimate.venue,
       event_date: estimate.event_start_date || estimate.event_date,
+      customer_id: estimate.customer_id,
+      total: estimate.total,
       updated_at: new Date().toISOString()
     };
     
-    // Добавляем порядок категорий если передан
-    if (categoryOrder && categoryOrder.length > 0) {
-      estimateToUpdate.category_order = categoryOrder;
-    } else if (estimate.category_order) {
-      estimateToUpdate.category_order = estimate.category_order;
-    }
+    // Пробуем с новыми полями (category_order как JSONB)
+    const updateWithNewFields = {
+      ...baseUpdate,
+      event_start_date: estimate.event_start_date,
+      event_end_date: estimate.event_end_date,
+      category_order: categoryOrder && categoryOrder.length > 0 ? JSON.stringify(categoryOrder) : 
+                       estimate.category_order ? JSON.stringify(estimate.category_order) : null
+    };
     
-    // Добавляем user_id если передан (для новых записей)
     if (userId) {
-      estimateToUpdate.user_id = userId;
+      updateWithNewFields.user_id = userId;
+      baseUpdate.user_id = userId;
     }
     
     // Обновляем смету
-    const { error: estimateError } = await supabase
+    let { error: estimateError } = await supabase
       .from('estimates')
-      .update(estimateToUpdate)
+      .update(updateWithNewFields)
       .eq('id', id);
+    
+    // Если ошибка - пробуем без новых полей
+    if (estimateError) {
+      console.log('Update failed with new fields, trying without:', estimateError.message);
+      const result = await supabase
+        .from('estimates')
+        .update(baseUpdate)
+        .eq('id', id);
+      estimateError = result.error;
+    }
     
     if (estimateError) {
       toast.error('Ошибка при обновлении сметы', { description: estimateError.message });
