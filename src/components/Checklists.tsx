@@ -296,7 +296,7 @@ export const ChecklistsManager = memo(function ChecklistsManager({
 
       {/* Диалог создания чек-листа */}
       <Dialog open={isChecklistDialogOpen} onOpenChange={setIsChecklistDialogOpen}>
-        <DialogContent className="max-w-2xl w-[95%] md:w-full max-h-[90vh] overflow-y-auto" aria-describedby="checklist-dialog-desc">
+        <DialogContent className="max-w-4xl w-[95%] md:w-full max-h-[90vh] overflow-y-auto" aria-describedby="checklist-dialog-desc">
           <DialogHeader>
             <DialogTitle>Создать чек-лист</DialogTitle>
             <DialogDescription id="checklist-dialog-desc">Создайте чек-лист на основе сметы</DialogDescription>
@@ -311,7 +311,7 @@ export const ChecklistsManager = memo(function ChecklistsManager({
 
       {/* Диалог просмотра чек-листа */}
       <Dialog open={!!selectedChecklist} onOpenChange={handleDeselectChecklist}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto" aria-describedby="view-checklist-desc">
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto" aria-describedby="view-checklist-desc">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ClipboardCheck className="w-5 h-5" />
@@ -794,9 +794,9 @@ function exportChecklistToPDF(checklist: Checklist) {
         h1 { text-align: center; font-size: 18px; margin-bottom: 5px; }
         .subtitle { text-align: center; font-size: 12px; color: #666; margin-bottom: 15px; }
         .info { font-size: 11px; margin-bottom: 15px; padding: 10px; background: #f5f5f5; border-radius: 4px; }
-        .category { font-size: 13px; font-weight: bold; margin-top: 12px; margin-bottom: 6px; color: #2980b9; border-bottom: 1px solid #2980b9; padding-bottom: 2px; }
+        .category { font-size: 14px; font-weight: bold; margin-top: 15px; margin-bottom: 8px; color: #2980b9; border-bottom: 2px solid #2980b9; padding-bottom: 4px; }
         .category.equipment { color: #27ae60; border-bottom-color: #27ae60; }
-        .item { font-size: 10px; margin: 4px 0; display: flex; align-items: center; }
+        .item { font-size: 13px; margin: 4px 0; padding: 6px 0; display: flex; align-items: center; border-bottom: 1px dotted #ccc; }
         .checkbox { width: 12px; height: 12px; border: 1px solid #333; margin-right: 8px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
         .checkbox.checked { background: #2980b9; color: white; border-color: #2980b9; }
         .notes { margin-top: 15px; padding: 10px; background: #fffacd; border-radius: 4px; font-size: 10px; }

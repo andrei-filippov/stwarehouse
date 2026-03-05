@@ -203,9 +203,14 @@ export async function exportContractToDOCX(contract: Contract, pdfSettings: PDFS
     if (pdfSettings.companyName) {
       headerChildren.push(
         new Paragraph({
-          text: pdfSettings.companyName,
-          bold: true,
-          size: 24, // 12pt
+          children: [
+            new TextRun({
+              text: pdfSettings.companyName,
+              bold: true,
+              size: 24, // 12pt
+              color: "000000",
+            }),
+          ],
           spacing: { after: 100 },
         })
       );
@@ -215,8 +220,13 @@ export async function exportContractToDOCX(contract: Contract, pdfSettings: PDFS
       pdfSettings.companyDetails.split('\n').forEach(line => {
         headerChildren.push(
           new Paragraph({
-            text: line,
-            size: 20, // 10pt
+            children: [
+              new TextRun({
+                text: line,
+                size: 20, // 10pt
+                color: "000000",
+              }),
+            ],
             spacing: { after: 50 },
           })
         );
@@ -245,13 +255,24 @@ export async function exportContractToDOCX(contract: Contract, pdfSettings: PDFS
   // Заголовок
   children.push(
     new Paragraph({
-      text: 'ДОГОВОР ВОЗМЕЗДНОГО ОКАЗАНИЯ УСЛУГ',
-      heading: HeadingLevel.HEADING_1,
+      children: [
+        new TextRun({
+          text: 'ДОГОВОР ВОЗМЕЗДНОГО ОКАЗАНИЯ УСЛУГ',
+          bold: true,
+          size: 28,
+          color: "000000",
+        }),
+      ],
       alignment: AlignmentType.CENTER,
       spacing: { after: 200 },
     }),
     new Paragraph({
-      text: `№ ${data.contract_number} от ${data.contract_date}`,
+      children: [
+        new TextRun({
+          text: `№ ${data.contract_number} от ${data.contract_date}`,
+          color: "000000",
+        }),
+      ],
       alignment: AlignmentType.CENTER,
       spacing: { after: 400 },
     })
@@ -261,18 +282,18 @@ export async function exportContractToDOCX(contract: Contract, pdfSettings: PDFS
   children.push(
     new Paragraph({
       children: [
-        new TextRun({ text: data.executor_name, bold: true }),
-        new TextRun(', именуемое в дальнейшем «Исполнитель», в лице '),
-        new TextRun({ text: data.executor_representative, bold: true }),
-        new TextRun(', действующего на основании '),
-        new TextRun({ text: data.executor_basis, bold: true }),
-        new TextRun(', с одной стороны, и '),
-        new TextRun({ text: data.customer_name, bold: true }),
-        new TextRun(', именуемое в дальнейшем «Заказчик», в лице '),
-        new TextRun({ text: data.customer_representative, bold: true }),
-        new TextRun(', действующего на основании '),
-        new TextRun({ text: data.customer_basis, bold: true }),
-        new TextRun(', с другой стороны, вместе именуемые «Стороны», заключили настоящий договор о нижеследующем:'),
+        new TextRun({ text: data.executor_name, bold: true, color: "000000" }),
+        new TextRun({ text: ', именуемое в дальнейшем «Исполнитель», в лице ', color: "000000" }),
+        new TextRun({ text: data.executor_representative, bold: true, color: "000000" }),
+        new TextRun({ text: ', действующего на основании ', color: "000000" }),
+        new TextRun({ text: data.executor_basis, bold: true, color: "000000" }),
+        new TextRun({ text: ', с одной стороны, и ', color: "000000" }),
+        new TextRun({ text: data.customer_name, bold: true, color: "000000" }),
+        new TextRun({ text: ', именуемое в дальнейшем «Заказчик», в лице ', color: "000000" }),
+        new TextRun({ text: data.customer_representative, bold: true, color: "000000" }),
+        new TextRun({ text: ', действующего на основании ', color: "000000" }),
+        new TextRun({ text: data.customer_basis, bold: true, color: "000000" }),
+        new TextRun({ text: ', с другой стороны, вместе именуемые «Стороны», заключили настоящий договор о нижеследующем:', color: "000000" }),
       ],
       spacing: { after: 300 },
     })
@@ -281,22 +302,25 @@ export async function exportContractToDOCX(contract: Contract, pdfSettings: PDFS
   // Раздел 1: Предмет договора
   children.push(
     new Paragraph({
-      text: '1. Предмет договора',
-      heading: HeadingLevel.HEADING_2,
+      children: [
+        new TextRun({ text: '1. Предмет договора', bold: true, color: "000000" }),
+      ],
       spacing: { before: 300, after: 200 },
     }),
     new Paragraph({
       children: [
-        new TextRun('1.1. По настоящему Договору Исполнитель обязуется по заданию Заказчика оказать услуги по техническому оснащению мероприятия «'),
-        new TextRun({ text: data.event_name, bold: true }),
-        new TextRun('», '),
-        new TextRun({ text: data.event_date, bold: true }),
-        new TextRun('.'),
+        new TextRun({ text: '1.1. По настоящему Договору Исполнитель обязуется по заданию Заказчика оказать услуги по техническому оснащению мероприятия «', color: "000000" }),
+        new TextRun({ text: data.event_name, bold: true, color: "000000" }),
+        new TextRun({ text: '», ', color: "000000" }),
+        new TextRun({ text: data.event_date, bold: true, color: "000000" }),
+        new TextRun({ text: '.', color: "000000" }),
       ],
       spacing: { after: 200 },
     }),
     new Paragraph({
-      text: '1.2. Заказчик обязуется принять и оплатить услуги согласно спецификации (Приложение № 1), являющейся неотъемлемой частью настоящего Договора.',
+      children: [
+        new TextRun({ text: '1.2. Заказчик обязуется принять и оплатить услуги согласно спецификации (Приложение № 1), являющейся неотъемлемой частью настоящего Договора.', color: "000000" }),
+      ],
       spacing: { after: 200 },
     })
   );
@@ -304,22 +328,25 @@ export async function exportContractToDOCX(contract: Contract, pdfSettings: PDFS
   // Раздел 2: Цена и порядок расчетов
   children.push(
     new Paragraph({
-      text: '2. Цена договора и порядок расчетов',
-      heading: HeadingLevel.HEADING_2,
+      children: [
+        new TextRun({ text: '2. Цена договора и порядок расчетов', bold: true, color: "000000" }),
+      ],
       spacing: { before: 300, after: 200 },
     }),
     new Paragraph({
       children: [
-        new TextRun('2.1. Стоимость услуг составляет '),
-        new TextRun({ text: data.total_amount, bold: true }),
-        new TextRun(' ('),
-        new TextRun({ text: data.total_amount_text, italics: true }),
-        new TextRun('), НДС не облагается.'),
+        new TextRun({ text: '2.1. Стоимость услуг составляет ', color: "000000" }),
+        new TextRun({ text: data.total_amount, bold: true, color: "000000" }),
+        new TextRun({ text: ' (', color: "000000" }),
+        new TextRun({ text: data.total_amount_text, italics: true, color: "000000" }),
+        new TextRun({ text: '), НДС не облагается.', color: "000000" }),
       ],
       spacing: { after: 200 },
     }),
     new Paragraph({
-      text: `2.2. ${data.payment_terms}`,
+      children: [
+        new TextRun({ text: `2.2. ${data.payment_terms}`, color: "000000" }),
+      ],
       spacing: { after: 200 },
     })
   );
@@ -327,21 +354,22 @@ export async function exportContractToDOCX(contract: Contract, pdfSettings: PDFS
   // Раздел 3: Сроки
   children.push(
     new Paragraph({
-      text: '3. Сроки оказания услуг',
-      heading: HeadingLevel.HEADING_2,
+      children: [
+        new TextRun({ text: '3. Сроки оказания услуг', bold: true, color: "000000" }),
+      ],
       spacing: { before: 300, after: 200 },
     }),
     new Paragraph({
       children: [
-        new TextRun('3.1. Услуги оказываются: '),
-        new TextRun({ text: data.event_date, bold: true }),
+        new TextRun({ text: '3.1. Услуги оказываются: ', color: "000000" }),
+        new TextRun({ text: data.event_date, bold: true, color: "000000" }),
       ],
       spacing: { after: 200 },
     }),
     new Paragraph({
       children: [
-        new TextRun('3.2. Место оказания услуг: '),
-        new TextRun({ text: data.event_venue, bold: true }),
+        new TextRun({ text: '3.2. Место оказания услуг: ', color: "000000" }),
+        new TextRun({ text: data.event_venue, bold: true, color: "000000" }),
       ],
       spacing: { after: 200 },
     })
@@ -350,16 +378,21 @@ export async function exportContractToDOCX(contract: Contract, pdfSettings: PDFS
   // Раздел 4: Ответственность
   children.push(
     new Paragraph({
-      text: '4. Ответственность сторон',
-      heading: HeadingLevel.HEADING_2,
+      children: [
+        new TextRun({ text: '4. Ответственность сторон', bold: true, color: "000000" }),
+      ],
       spacing: { before: 300, after: 200 },
     }),
     new Paragraph({
-      text: '4.1. Стороны несут ответственность за нарушение условий настоящего Договора в соответствии с законодательством РФ.',
+      children: [
+        new TextRun({ text: '4.1. Стороны несут ответственность за нарушение условий настоящего Договора в соответствии с законодательством РФ.', color: "000000" }),
+      ],
       spacing: { after: 200 },
     }),
     new Paragraph({
-      text: '4.2. Сторона, не исполнившая или ненадлежащим образом исполнившая обязательства, обязана возместить другой стороне причиненные убытки.',
+      children: [
+        new TextRun({ text: '4.2. Сторона, не исполнившая или ненадлежащим образом исполнившая обязательства, обязана возместить другой стороне причиненные убытки.', color: "000000" }),
+      ],
       spacing: { after: 200 },
     })
   );
@@ -367,20 +400,27 @@ export async function exportContractToDOCX(contract: Contract, pdfSettings: PDFS
   // Раздел 5: Заключительные положения
   children.push(
     new Paragraph({
-      text: '5. Заключительные положения',
-      heading: HeadingLevel.HEADING_2,
+      children: [
+        new TextRun({ text: '5. Заключительные положения', bold: true, color: "000000" }),
+      ],
       spacing: { before: 300, after: 200 },
     }),
     new Paragraph({
-      text: '5.1. Настоящий Договор вступает в силу с момента подписания и действует до полного исполнения сторонами своих обязательств.',
+      children: [
+        new TextRun({ text: '5.1. Настоящий Договор вступает в силу с момента подписания и действует до полного исполнения сторонами своих обязательств.', color: "000000" }),
+      ],
       spacing: { after: 200 },
     }),
     new Paragraph({
-      text: '5.2. Договор составлен в двух экземплярах, имеющих одинаковую юридическую силу.',
+      children: [
+        new TextRun({ text: '5.2. Договор составлен в двух экземплярах, имеющих одинаковую юридическую силу.', color: "000000" }),
+      ],
       spacing: { after: 200 },
     }),
     new Paragraph({
-      text: '5.3. Изменения и дополнения к Договору действительны при условии их письменного оформления и подписания обеими Сторонами.',
+      children: [
+        new TextRun({ text: '5.3. Изменения и дополнения к Договору действительны при условии их письменного оформления и подписания обеими Сторонами.', color: "000000" }),
+      ],
       spacing: { after: 300 },
     })
   );
@@ -388,8 +428,9 @@ export async function exportContractToDOCX(contract: Contract, pdfSettings: PDFS
   // Подписи с настройками PDF
   children.push(
     new Paragraph({
-      text: '6. Адреса и реквизиты сторон',
-      heading: HeadingLevel.HEADING_2,
+      children: [
+        new TextRun({ text: '6. Адреса и реквизиты сторон', bold: true, color: "000000" }),
+      ],
       spacing: { before: 300, after: 400 },
     })
   );
@@ -407,23 +448,23 @@ export async function exportContractToDOCX(contract: Contract, pdfSettings: PDFS
           new TableCell({
             width: { size: 50, type: WidthType.PERCENTAGE },
             children: [
-              new Paragraph({ text: 'Исполнитель:', bold: true }),
-              new Paragraph({ text: data.executor_name }),
-              new Paragraph({ text: executorPosition }),
-              new Paragraph({ text: executorName }),
-              new Paragraph({ text: '' }),
-              new Paragraph({ text: '_______________ / _______________' }),
+              new Paragraph({ children: [new TextRun({ text: 'Исполнитель:', bold: true, color: "000000" })] }),
+              new Paragraph({ children: [new TextRun({ text: data.executor_name, color: "000000" })] }),
+              new Paragraph({ children: [new TextRun({ text: executorPosition, color: "000000" })] }),
+              new Paragraph({ children: [new TextRun({ text: executorName, color: "000000" })] }),
+              new Paragraph({ children: [new TextRun({ text: '', color: "000000" })] }),
+              new Paragraph({ children: [new TextRun({ text: '_______________ / _______________', color: "000000" })] }),
             ],
           }),
           new TableCell({
             width: { size: 50, type: WidthType.PERCENTAGE },
             children: [
-              new Paragraph({ text: 'Заказчик:', bold: true }),
-              new Paragraph({ text: data.customer_name }),
-              new Paragraph({ text: data.customer_representative }),
-              new Paragraph({ text: '' }),
-              new Paragraph({ text: '' }),
-              new Paragraph({ text: '_______________ / _______________' }),
+              new Paragraph({ children: [new TextRun({ text: 'Заказчик:', bold: true, color: "000000" })] }),
+              new Paragraph({ children: [new TextRun({ text: data.customer_name, color: "000000" })] }),
+              new Paragraph({ children: [new TextRun({ text: data.customer_representative, color: "000000" })] }),
+              new Paragraph({ children: [new TextRun({ text: '', color: "000000" })] }),
+              new Paragraph({ children: [new TextRun({ text: '', color: "000000" })] }),
+              new Paragraph({ children: [new TextRun({ text: '_______________ / _______________', color: "000000" })] }),
             ],
           }),
         ],
@@ -463,12 +504,12 @@ export async function exportContractToDOCX(contract: Contract, pdfSettings: PDFS
     specRows.push(
       new TableRow({
         children: [
-          new TableCell({ children: [new Paragraph({ text: '№', bold: true })] }),
-          new TableCell({ children: [new Paragraph({ text: 'Наименование', bold: true })] }),
-          new TableCell({ children: [new Paragraph({ text: 'Кол-во', bold: true })] }),
-          new TableCell({ children: [new Paragraph({ text: 'Ед.', bold: true })] }),
-          new TableCell({ children: [new Paragraph({ text: 'Цена', bold: true })] }),
-          new TableCell({ children: [new Paragraph({ text: 'Сумма', bold: true })] }),
+          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: '№', bold: true, color: "000000" })] })] }),
+          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Наименование', bold: true, color: "000000" })] })] }),
+          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Кол-во', bold: true, color: "000000" })] })] }),
+          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Ед.', bold: true, color: "000000" })] })] }),
+          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Цена', bold: true, color: "000000" })] })] }),
+          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Сумма', bold: true, color: "000000" })] })] }),
         ],
       })
     );
@@ -492,7 +533,7 @@ export async function exportContractToDOCX(contract: Contract, pdfSettings: PDFS
             children: [
               new TableCell({
                 columnSpan: 6,
-                children: [new Paragraph({ text: category, bold: true })],
+                children: [new Paragraph({ children: [new TextRun({ text: category, bold: true, color: "000000" })] })],
               }),
             ],
           })
@@ -503,12 +544,12 @@ export async function exportContractToDOCX(contract: Contract, pdfSettings: PDFS
           specRows.push(
             new TableRow({
               children: [
-                new TableCell({ children: [new Paragraph(String(globalIndex++))] }),
-                new TableCell({ children: [new Paragraph(item.name)] }),
-                new TableCell({ children: [new Paragraph(String(item.quantity))] }),
-                new TableCell({ children: [new Paragraph(item.unit)] }),
-                new TableCell({ children: [new Paragraph(item.price.toLocaleString('ru-RU'))] }),
-                new TableCell({ children: [new Paragraph(sum.toLocaleString('ru-RU'))] }),
+                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(globalIndex++), color: "000000" })] })] }),
+                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: item.name, color: "000000" })] })] }),
+                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(item.quantity), color: "000000" })] })] }),
+                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: item.unit, color: "000000" })] })] }),
+                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: item.price.toLocaleString('ru-RU'), color: "000000" })] })] }),
+                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: sum.toLocaleString('ru-RU'), color: "000000" })] })] }),
               ],
             })
           );
