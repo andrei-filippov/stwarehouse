@@ -281,7 +281,7 @@ export const ContractManager = memo(function ContractManager({
 
       {/* Dialog for Contract Form */}
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-[95vw] w-[1400px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingContract ? 'Редактирование договора' : 'Новый договор'}
@@ -303,17 +303,19 @@ export const ContractManager = memo(function ContractManager({
 
       {/* Dialog for Contract Preview */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-        <DialogContent className="max-w-[95vw] w-[1400px] max-h-[95vh] p-0 overflow-hidden flex flex-col">
+        <DialogContent className="max-w-[98vw] w-[1600px] max-h-[95vh] p-0 overflow-hidden flex flex-col">
           <DialogHeader className="px-6 py-4 border-b">
             <DialogTitle>Просмотр договора</DialogTitle>
           </DialogHeader>
-          {previewContract && (
-            <ContractPreview
-              contract={previewContract}
-              pdfSettings={pdfSettings}
-              onClose={handleClosePreview}
-            />
-          )}
+          <div className="flex-1 overflow-hidden">
+            {previewContract && (
+              <ContractPreview
+                contract={previewContract}
+                pdfSettings={pdfSettings}
+                onClose={handleClosePreview}
+              />
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

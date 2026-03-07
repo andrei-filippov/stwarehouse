@@ -375,7 +375,7 @@ export const GoalsManager = memo(function GoalsManager({ tasks, staff, onAdd, on
 
       {/* Диалог создания/редактирования */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-2xl" aria-describedby="task-dialog-desc">
+        <DialogContent className="max-w-3xl" aria-describedby="task-dialog-desc">
           <DialogHeader>
             <DialogTitle>
               {editingTask ? 'Редактировать задачу' : 'Новая задача'}

@@ -268,7 +268,7 @@ export const CustomersManager = memo(function CustomersManager({ customers, user
 
       {/* Диалог добавления/редактирования */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl" aria-describedby="customer-dialog-desc">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto rounded-xl" aria-describedby="customer-dialog-desc">
           <DialogHeader>
             <DialogTitle>{editingCustomer ? 'Редактировать' : 'Добавить'} заказчика</DialogTitle>
             <DialogDescription id="customer-dialog-desc">

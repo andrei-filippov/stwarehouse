@@ -411,7 +411,7 @@ export const Analytics = memo(function Analytics({
       </Card>
 
       <Dialog open={isExpenseDialogOpen} onOpenChange={setIsExpenseDialogOpen}>
-        <DialogContent className="max-w-md" aria-describedby="expense-dialog-desc">
+        <DialogContent className="max-w-xl" aria-describedby="expense-dialog-desc">
           <DialogHeader>
             <DialogTitle>{editingExpense ? 'Редактировать расход' : 'Добавить расход'}</DialogTitle>
             <DialogDescription id="expense-dialog-desc">{editingExpense ? 'Измените данные расхода' : 'Введите данные о новом расходе'}</DialogDescription>

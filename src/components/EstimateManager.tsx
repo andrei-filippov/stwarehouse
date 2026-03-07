@@ -382,7 +382,7 @@ export const EstimateManager = memo(function EstimateManager({
 
       {/* Диалог выбора шаблона */}
       <Dialog open={isTemplateDialogOpen} onOpenChange={setIsTemplateDialogOpen}>
-        <DialogContent className="max-w-md" aria-describedby="template-dialog-desc">
+        <DialogContent className="max-w-xl" aria-describedby="template-dialog-desc">
           <DialogHeader>
             <DialogTitle>Выберите шаблон</DialogTitle>
             <DialogDescription id="template-dialog-desc">

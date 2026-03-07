@@ -298,7 +298,7 @@ export function EquipmentImportDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && resetAndClose()}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col" aria-describedby="import-dialog-desc">
+      <DialogContent className="max-w-[98vw] w-[1600px] max-h-[90vh] overflow-hidden flex flex-col" aria-describedby="import-dialog-desc">
         <DialogHeader>
           <DialogTitle>Импорт оборудования</DialogTitle>
           <DialogDescription id="import-dialog-desc">
@@ -489,7 +489,7 @@ export function EquipmentImportDialog({
         {/* Диалог редактирования одной позиции */}
         {editingItem && (
           <Dialog open={!!editingItem} onOpenChange={() => setEditingItem(null)}>
-            <DialogContent className="max-w-lg" aria-describedby="edit-item-desc">
+            <DialogContent className="max-w-xl" aria-describedby="edit-item-desc">
               <DialogHeader>
                 <DialogTitle>Редактирование позиции</DialogTitle>
                 <DialogDescription id="edit-item-desc">

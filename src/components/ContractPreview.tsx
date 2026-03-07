@@ -4,8 +4,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Card, CardContent } from './ui/card';
 import { Badge } from './ui/badge';
 import { Textarea } from './ui/textarea';
-import { Switch } from './ui/switch';
-import { Label } from './ui/label';
 import { 
   Printer, 
   Download, 
@@ -22,6 +20,7 @@ import {
 import type { Contract, PDFSettings } from '../types';
 import { CONTRACT_STATUS_LABELS, CONTRACT_STATUS_COLORS, CONTRACT_TYPE_LABELS } from '../types';
 import { generateContractHTML, exportContractToDOCX, printContract } from '../lib/contractExport';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 
 interface ContractPreviewProps {
   contract: Contract;
@@ -33,7 +32,7 @@ export function ContractPreview({ contract, pdfSettings, onClose }: ContractPrev
   const [isExportingDOCX, setIsExportingDOCX] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [editedContent, setEditedContent] = useState('');
+  const [editedText, setEditedText] = useState('');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
 
@@ -42,9 +41,16 @@ export function ContractPreview({ contract, pdfSettings, onClose }: ContractPrev
     return generateContractHTML(contract, pdfSettings);
   }, [contract, pdfSettings]);
 
-  // Сохраняем начальное содержимое для редактирования
+  // Извлекаем текстовое содержимое для редактирования
+  const extractTextFromHTML = (html: string): string => {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    return doc.body.innerText || doc.body.textContent || '';
+  };
+
+  // Сохраняем начальное текстовое содержимое для редактирования
   useEffect(() => {
-    setEditedContent(htmlContent);
+    setEditedText(extractTextFromHTML(htmlContent));
   }, [htmlContent]);
 
   // Обработчик экспорта в DOCX
@@ -73,28 +79,20 @@ export function ContractPreview({ contract, pdfSettings, onClose }: ContractPrev
     }
   };
 
-  // Обработчик сохранения отредактированного контента
+  // Обработчик сохранения отредактированного текста
   const handleSaveEdit = () => {
     // Здесь можно добавить логику сохранения в БД
     // Пока просто выходим из режима редактирования
     setIsEditing(false);
-    // Обновляем HTML для отображения
-    if (previewRef.current) {
-      previewRef.current.innerHTML = editedContent;
-    }
-  };
-
-  // Переключение полноэкранного режима
-  const toggleFullscreen = () => {
-    setIsFullscreen(!isFullscreen);
   };
 
   const statusColors = CONTRACT_STATUS_COLORS[contract.status];
 
-  return (
-    <div className={`flex flex-col ${isFullscreen ? 'fixed inset-0 z-50 bg-white' : ''}`}>
+  // Компонент предпросмотра (используется и в диалоге, и в полноэкранном режиме)
+  const PreviewContent = () => (
+    <div className="flex flex-col h-full">
       {/* Header с информацией о договоре */}
-      <div className={`${isFullscreen ? 'p-6 border-b' : ''}`}>
+      <div className="p-4 border-b bg-white">
         <Card>
           <CardContent className="pt-4">
             <div className="flex flex-wrap gap-4 items-center justify-between">
@@ -110,14 +108,6 @@ export function ContractPreview({ contract, pdfSettings, onClose }: ContractPrev
                 <Badge className={`${statusColors.bg} ${statusColors.text} border-0`}>
                   {CONTRACT_STATUS_LABELS[contract.status]}
                 </Badge>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={toggleFullscreen}
-                  title={isFullscreen ? 'Свернуть' : 'На весь экран'}
-                >
-                  {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-                </Button>
               </div>
             </div>
 
@@ -210,16 +200,21 @@ export function ContractPreview({ contract, pdfSettings, onClose }: ContractPrev
           )}
         </div>
 
-        {isFullscreen && (
-          <Button onClick={onClose} variant="outline">
-            <X className="w-4 h-4 mr-2" />
-            Закрыть
-          </Button>
-        )}
+        <Button
+          variant="outline"
+          onClick={() => setIsFullscreen(!isFullscreen)}
+          title={isFullscreen ? 'Свернуть' : 'На весь экран'}
+        >
+          {isFullscreen ? (
+            <><Minimize2 className="w-4 h-4 mr-2" /> Свернуть</>
+          ) : (
+            <><Maximize2 className="w-4 h-4 mr-2" /> На весь экран</>
+          )}
+        </Button>
       </div>
 
       {/* Основной контент */}
-      <Tabs defaultValue="preview" className={`flex-1 flex flex-col ${isFullscreen ? '' : 'min-h-0'}`}>
+      <Tabs defaultValue="preview" className="flex-1 flex flex-col min-h-0">
         <TabsList className="grid w-full grid-cols-2 mx-4 mt-2 max-w-md">
           <TabsTrigger value="preview">
             <Eye className="w-4 h-4 mr-2" />
@@ -233,16 +228,17 @@ export function ContractPreview({ contract, pdfSettings, onClose }: ContractPrev
 
         <TabsContent value="preview" className="flex-1 mt-2 px-4 pb-4 overflow-hidden">
           {isEditing ? (
-            // Режим редактирования
+            // Режим редактирования - показываем только текст
             <div className="h-full flex flex-col">
               <div className="text-sm text-gray-500 mb-2">
                 Режим редактирования. Вы можете изменить текст договора перед печатью или экспортом.
               </div>
               <Textarea
-                value={editedContent}
-                onChange={(e) => setEditedContent(e.target.value)}
-                className="flex-1 font-mono text-sm resize-none"
-                style={{ minHeight: isFullscreen ? 'calc(100vh - 350px)' : '500px' }}
+                value={editedText}
+                onChange={(e) => setEditedText(e.target.value)}
+                className="flex-1 text-sm resize-none font-serif leading-relaxed"
+                placeholder="Текст договора..."
+                style={{ minHeight: '400px' }}
               />
             </div>
           ) : (
@@ -250,23 +246,16 @@ export function ContractPreview({ contract, pdfSettings, onClose }: ContractPrev
             <div 
               ref={previewRef}
               className="border rounded-lg p-8 bg-white h-full overflow-auto shadow-inner"
-              style={{ 
-                maxHeight: isFullscreen ? 'calc(100vh - 280px)' : '60vh',
-                minHeight: isFullscreen ? 'calc(100vh - 280px)' : '500px'
-              }}
             >
               <div 
-                dangerouslySetInnerHTML={{ 
-                  __html: editedContent || htmlContent 
-                }}
+                dangerouslySetInnerHTML={{ __html: htmlContent }}
                 className="contract-preview"
               />
             </div>
           )}
         </TabsContent>
 
-        <TabsContent value="details" className="mt-2 px-4 pb-4 space-y-4 overflow-auto" 
-          style={{ maxHeight: isFullscreen ? 'calc(100vh - 250px)' : '60vh' }}>
+        <TabsContent value="details" className="mt-2 px-4 pb-4 space-y-4 overflow-auto">
           <Card>
             <CardContent className="pt-4 space-y-3">
               <h4 className="font-medium">Основная информация</h4>
@@ -365,12 +354,6 @@ export function ContractPreview({ contract, pdfSettings, onClose }: ContractPrev
         </TabsContent>
       </Tabs>
 
-      {!isFullscreen && (
-        <div className="flex justify-end p-4 border-t">
-          <Button onClick={onClose}>Закрыть</Button>
-        </div>
-      )}
-
       <style>{`
         .contract-preview {
           font-family: "Times New Roman", Times, serif;
@@ -412,4 +395,23 @@ export function ContractPreview({ contract, pdfSettings, onClose }: ContractPrev
       `}</style>
     </div>
   );
+
+  // Если полноэкранный режим - используем Dialog
+  if (isFullscreen) {
+    return (
+      <Dialog open={isFullscreen} onOpenChange={setIsFullscreen}>
+        <DialogContent className="max-w-[98vw] w-full h-[98vh] p-0 overflow-hidden flex flex-col">
+          <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
+            <DialogTitle>Просмотр договора</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-hidden">
+            <PreviewContent />
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // Обычный режим
+  return <PreviewContent />;
 }

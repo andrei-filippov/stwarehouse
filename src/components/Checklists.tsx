@@ -280,7 +280,7 @@ export const ChecklistsManager = memo(function ChecklistsManager({
 
       {/* Диалог создания правила */}
       <Dialog open={isRuleDialogOpen} onOpenChange={setIsRuleDialogOpen}>
-        <DialogContent className="max-w-2xl w-[95%] md:w-full max-h-[90vh] overflow-y-auto" aria-describedby="rule-dialog-desc">
+        <DialogContent className="max-w-3xl w-[95%] md:w-full max-h-[90vh] overflow-y-auto" aria-describedby="rule-dialog-desc">
           <DialogHeader>
             <DialogTitle>Новое правило</DialogTitle>
             <DialogDescription id="rule-dialog-desc">Создайте правило для автоматического формирования чек-листов</DialogDescription>
@@ -296,7 +296,7 @@ export const ChecklistsManager = memo(function ChecklistsManager({
 
       {/* Диалог создания чек-листа */}
       <Dialog open={isChecklistDialogOpen} onOpenChange={setIsChecklistDialogOpen}>
-        <DialogContent className="max-w-4xl w-[95%] md:w-full max-h-[90vh] overflow-y-auto" aria-describedby="checklist-dialog-desc">
+        <DialogContent className="max-w-[95vw] w-[1400px] max-h-[90vh] overflow-y-auto" aria-describedby="checklist-dialog-desc">
           <DialogHeader>
             <DialogTitle>Создать чек-лист</DialogTitle>
             <DialogDescription id="checklist-dialog-desc">Создайте чек-лист на основе сметы</DialogDescription>
@@ -311,7 +311,7 @@ export const ChecklistsManager = memo(function ChecklistsManager({
 
       {/* Диалог просмотра чек-листа */}
       <Dialog open={!!selectedChecklist} onOpenChange={handleDeselectChecklist}>
-        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto" aria-describedby="view-checklist-desc">
+        <DialogContent className="max-w-[95vw] w-[1400px] max-h-[85vh] overflow-y-auto" aria-describedby="view-checklist-desc">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ClipboardCheck className="w-5 h-5" />
@@ -330,7 +330,7 @@ export const ChecklistsManager = memo(function ChecklistsManager({
 
       {/* Диалог калькулятора */}
       <Dialog open={isCalculatorOpen} onOpenChange={setIsCalculatorOpen}>
-        <DialogContent className="max-w-lg w-[95%] md:w-full" aria-describedby="calculator-dialog-desc">
+        <DialogContent className="max-w-xl w-[95%] md:w-full" aria-describedby="calculator-dialog-desc">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Wrench className="w-5 h-5" />

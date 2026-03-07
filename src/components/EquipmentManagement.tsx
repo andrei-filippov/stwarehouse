@@ -486,7 +486,7 @@ export function EquipmentManager({
 
       {/* Диалог импорта */}
       <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
-        <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col" aria-describedby="import-equipment-desc">
+        <DialogContent className="max-w-[95vw] w-[1600px] max-h-[90vh] flex flex-col" aria-describedby="import-equipment-desc">
           <DialogHeader>
             <DialogTitle>Импорт оборудования</DialogTitle>
             <DialogDescription id="import-equipment-desc">Загрузите оборудование из Excel или CSV файла</DialogDescription>
@@ -674,7 +674,7 @@ export function EquipmentManager({
           setEditingItem(null);
         }
       }}>
-        <DialogContent className="max-w-lg" aria-describedby="equipment-form-desc">
+        <DialogContent className="max-w-xl" aria-describedby="equipment-form-desc">
           <DialogHeader>
             <DialogTitle>
               {editingItem ? 'Редактировать оборудование' : 'Добавить оборудование'}

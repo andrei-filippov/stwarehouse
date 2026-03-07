@@ -1102,7 +1102,7 @@ export function EstimateBuilder({
 
       {/* Диалог подтверждения выхода */}
       <Dialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-amber-500" />
@@ -1125,7 +1125,7 @@ export function EstimateBuilder({
 
       {/* Диалог создания оборудования */}
       <Dialog open={showCreateEquipment} onOpenChange={setShowCreateEquipment}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Новое оборудование</DialogTitle>
             <DialogDescription>

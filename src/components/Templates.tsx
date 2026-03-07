@@ -129,7 +129,7 @@ export const TemplatesManager = memo(function TemplatesManager({
 
       {/* Диалог создания/редактирования шаблона */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" aria-describedby="template-dialog-desc">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" aria-describedby="template-dialog-desc">
           <DialogHeader>
             <DialogTitle>
               {editingTemplate ? 'Редактировать шаблон' : 'Новый шаблон'}
