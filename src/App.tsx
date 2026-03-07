@@ -262,7 +262,7 @@ function App() {
             onCreate={createTemplate}
             onUpdate={updateTemplate}
             onDelete={deleteTemplate}
-            loading={templatesLoading}
+            userId={user?.id}
             fabAction={fabAction}
           />
         )}

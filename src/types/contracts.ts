@@ -11,9 +11,15 @@ export type ContractTemplate = {
   user_id?: string;
   name: string;
   type: ContractType;
-  content: string; // HTML-шаблон с плейсхолдерами
+  content: string; // HTML-шаблон с плейсхолдерами (для текстовых шаблонов)
   description?: string;
   is_default: boolean;
+  // Поля для файловых шаблонов
+  is_file_template?: boolean;
+  file_path?: string; // Путь к файлу в Storage
+  file_name?: string; // Оригинальное имя файла
+  file_type?: string; // MIME тип
+  file_size?: number; // Размер в байтах
   created_at?: string;
   updated_at?: string;
 };
