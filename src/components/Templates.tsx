@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { Plus, Trash2, Edit, Copy, FileText, Upload, Download, FileWord } from 'lucide-react';
+import { Plus, Trash2, Edit, Copy, FileText, Upload, Download, FileCode } from 'lucide-react';
 import type { Template, TemplateItem, ContractTemplate, ContractType } from '../types';
 import { CONTRACT_TYPE_LABELS } from '../types';
 import { useContractTemplates } from '../hooks/useContractTemplates';
@@ -50,7 +50,7 @@ export const TemplatesManager = memo(function TemplatesManager({
             Шаблоны смет
           </TabsTrigger>
           <TabsTrigger value="contracts">
-            <FileWord className="w-4 h-4 mr-2" />
+            <FileCode className="w-4 h-4 mr-2" />
             Шаблоны договоров
           </TabsTrigger>
         </TabsList>
@@ -338,7 +338,7 @@ function ContractTemplates({ userId }: ContractTemplatesProps) {
                   <TableCell>
                     {template.is_file_template ? (
                       <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-700">
-                        <FileWord className="w-3 h-3 mr-1" />
+                        <FileCode className="w-3 h-3 mr-1" />
                         {template.file_name?.split('.').pop()?.toUpperCase()}
                       </span>
                     ) : (
