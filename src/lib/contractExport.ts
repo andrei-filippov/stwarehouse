@@ -1,5 +1,6 @@
 import { Document, Paragraph, TextRun, Table, TableCell, TableRow, WidthType, AlignmentType, HeadingLevel, Packer, ImageRun } from 'docx';
 import type { Contract, ContractTemplateData, PDFSettings } from '../types';
+import { numberToWords } from '../types/contracts';
 
 // Конвертация base64 в Uint8Array для изображений
 function base64ToUint8Array(base64: string): Uint8Array {
@@ -109,45 +110,7 @@ function prepareTemplateData(contract: Contract, pdfSettings: PDFSettings): Cont
     return tableHTML;
   };
 
-  // Сумма прописью (упрощённая версия)
-  const numberToWords = (num: number): string => {
-    const ones = ['', 'один', 'два', 'три', 'четыре', 'пять', 'шесть', 'семь', 'восемь', 'девять'];
-    const teens = ['десять', 'одиннадцать', 'двенадцать', 'тринадцать', 'четырнадцать', 'пятнадцать'];
-    const tens = ['', '', 'двадцать', 'тридцать', 'сорок', 'пятьдесят', 'шестьдесят', 'семьдесят', 'восемьдесят', 'девяносто'];
-    const hundreds = ['', 'сто', 'двести', 'триста', 'четыреста', 'пятьсот', 'шестьсот', 'семьсот', 'восемьсот', 'девятьсот'];
-    
-    const rubles = Math.floor(num);
-    const cents = Math.round((num - rubles) * 100);
-    
-    let result = '';
-    
-    if (rubles === 0) return 'ноль рублей';
-    
-    const th = Math.floor(rubles / 1000);
-    const rest = rubles % 1000;
-    
-    if (th > 0) {
-      result += th < 5 ? ['', 'одна тысяча', 'две тысячи', 'три тысячи', 'четыре тысячи'][th] + ' ' : th + ' тысяч ';
-    }
-    
-    const h = Math.floor(rest / 100);
-    const t = Math.floor((rest % 100) / 10);
-    const o = rest % 10;
-    
-    if (h > 0) result += hundreds[h] + ' ';
-    
-    if (t === 1) {
-      result += teens[o] + ' ';
-    } else {
-      if (t > 1) result += tens[t] + ' ';
-      if (o > 0) result += ones[o] + ' ';
-    }
-    
-    result += o === 1 && t !== 1 ? 'рубль' : [2, 3, 4].includes(o) && t !== 1 ? 'рубля' : 'рублей';
-    result += ' ' + cents.toString().padStart(2, '0') + ' копеек';
-    
-    return result.trim();
-  };
+  // Используем numberToWords из types/contracts.ts
 
   const customerTypeLabels: Record<string, string> = {
     company: 'Общество с ограниченной ответственностью',

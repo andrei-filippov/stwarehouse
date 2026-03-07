@@ -179,63 +179,111 @@ export const CONTRACT_STATUS_COLORS: Record<ContractStatus, { bg: string; text: 
   cancelled: { bg: 'bg-red-100', text: 'text-red-700' },
 };
 
-// Форматирование суммы прописью (упрощённая версия)
+// Форматирование суммы прописью (полная версия до миллиардов)
 export function numberToWords(num: number): string {
   const ones = ['', 'один', 'два', 'три', 'четыре', 'пять', 'шесть', 'семь', 'восемь', 'девять'];
+  const onesFeminine = ['', 'одна', 'две', 'три', 'четыре', 'пять', 'шесть', 'семь', 'восемь', 'девять'];
   const teens = ['десять', 'одиннадцать', 'двенадцать', 'тринадцать', 'четырнадцать', 'пятнадцать', 
                  'шестнадцать', 'семнадцать', 'восемнадцать', 'девятнадцать'];
   const tens = ['', '', 'двадцать', 'тридцать', 'сорок', 'пятьдесят', 'шестьдесят', 
                 'семьдесят', 'восемьдесят', 'девяносто'];
   const hundreds = ['', 'сто', 'двести', 'триста', 'четыреста', 'пятьсот', 
                     'шестьсот', 'семьсот', 'восемьсот', 'девятьсот'];
-  const thousands = ['', 'одна тысяча', 'две тысячи', 'три тысячи', 'четыре тысячи'];
+  
+  // Функция для склонения слов
+  const getWordForm = (num: number, forms: [string, string, string]): string => {
+    const n = Math.abs(num) % 100;
+    const n1 = n % 10;
+    if (n > 10 && n < 20) return forms[2];
+    if (n1 > 1 && n1 < 5) return forms[1];
+    if (n1 === 1) return forms[0];
+    return forms[2];
+  };
+  
+  // Функция для преобразования трёхзначного числа в слова
+  const convertThreeDigits = (num: number, isFeminine: boolean = false): string => {
+    if (num === 0) return '';
+    
+    const h = Math.floor(num / 100);
+    const t = Math.floor((num % 100) / 10);
+    const o = num % 10;
+    
+    let result = '';
+    
+    if (h > 0) {
+      result += hundreds[h] + ' ';
+    }
+    
+    if (t === 1) {
+      result += teens[o] + ' ';
+    } else {
+      if (t > 1) result += tens[t] + ' ';
+      if (o > 0) {
+        result += (isFeminine ? onesFeminine[o] : ones[o]) + ' ';
+      }
+    }
+    
+    return result.trim();
+  };
+  
+  // Основная функция преобразования
+  const convertNumber = (num: number): string => {
+    if (num === 0) return 'ноль';
+    
+    const billions = Math.floor(num / 1000000000);
+    const millions = Math.floor((num % 1000000000) / 1000000);
+    const thousands = Math.floor((num % 1000000) / 1000);
+    const rest = num % 1000;
+    
+    let result = '';
+    
+    // Миллиарды
+    if (billions > 0) {
+      result += convertThreeDigits(billions) + ' ' + getWordForm(billions, ['миллиард', 'миллиарда', 'миллиардов']) + ' ';
+    }
+    
+    // Миллионы
+    if (millions > 0) {
+      result += convertThreeDigits(millions) + ' ' + getWordForm(millions, ['миллион', 'миллиона', 'миллионов']) + ' ';
+    }
+    
+    // Тысячи
+    if (thousands > 0) {
+      result += convertThreeDigits(thousands, true) + ' ' + getWordForm(thousands, ['тысяча', 'тысячи', 'тысяч']) + ' ';
+    }
+    
+    // Остаток
+    if (rest > 0 || (billions === 0 && millions === 0 && thousands === 0)) {
+      result += convertThreeDigits(rest);
+    }
+    
+    return result.trim();
+  };
   
   const rubles = Math.floor(num);
   const cents = Math.round((num - rubles) * 100);
   
-  let result = '';
+  if (rubles === 0) return 'ноль рублей 00 копеек';
   
-  if (rubles === 0) return 'ноль рублей';
+  let result = convertNumber(rubles);
   
-  // Упрощённая реализация для чисел до 999999
-  const th = Math.floor(rubles / 1000);
-  const rest = rubles % 1000;
+  // Добавляем склонение "рублей"
+  const rubleForms: [string, string, string] = ['рубль', 'рубля', 'рублей'];
+  const lastTwoDigits = rubles % 100;
+  const lastDigit = rubles % 10;
   
-  if (th > 0) {
-    if (th < 5) {
-      result += thousands[th] + ' ';
-    } else {
-      result += th + ' тысяч ';
-    }
-  }
-  
-  const h = Math.floor(rest / 100);
-  const t = Math.floor((rest % 100) / 10);
-  const o = rest % 10;
-  
-  if (h > 0) result += hundreds[h] + ' ';
-  
-  if (t === 1) {
-    result += teens[o] + ' ';
+  if (lastTwoDigits > 10 && lastTwoDigits < 20) {
+    result += ' ' + rubleForms[2];
+  } else if (lastDigit === 1) {
+    result += ' ' + rubleForms[0];
+  } else if (lastDigit > 1 && lastDigit < 5) {
+    result += ' ' + rubleForms[1];
   } else {
-    if (t > 1) result += tens[t] + ' ';
-    if (o > 0) result += ones[o] + ' ';
+    result += ' ' + rubleForms[2];
   }
   
-  // Склонение "рублей"
-  if (o === 1 && t !== 1) {
-    result += 'рубль';
-  } else if ([2, 3, 4].includes(o) && t !== 1) {
-    result += 'рубля';
-  } else {
-    result += 'рублей';
-  }
-  
-  if (cents > 0) {
-    result += ' ' + cents.toString().padStart(2, '0') + ' копеек';
-  } else {
-    result += ' 00 копеек';
-  }
+  // Добавляем копейки
+  result += ' ' + cents.toString().padStart(2, '0') + ' ' + getWordForm(cents, ['копейка', 'копейки', 'копеек']);
   
   return result.trim();
 }

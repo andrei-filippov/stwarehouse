@@ -1,15 +1,23 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Card, CardContent } from './ui/card';
 import { Badge } from './ui/badge';
+import { Textarea } from './ui/textarea';
+import { Switch } from './ui/switch';
+import { Label } from './ui/label';
 import { 
   Printer, 
   Download, 
   FileText, 
   FileSpreadsheet,
   Loader2,
-  Eye
+  Eye,
+  Edit3,
+  Save,
+  X,
+  Maximize2,
+  Minimize2
 } from 'lucide-react';
 import type { Contract, PDFSettings } from '../types';
 import { CONTRACT_STATUS_LABELS, CONTRACT_STATUS_COLORS, CONTRACT_TYPE_LABELS } from '../types';
@@ -24,11 +32,20 @@ interface ContractPreviewProps {
 export function ContractPreview({ contract, pdfSettings, onClose }: ContractPreviewProps) {
   const [isExportingDOCX, setIsExportingDOCX] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedContent, setEditedContent] = useState('');
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const previewRef = useRef<HTMLDivElement>(null);
 
   // Генерируем HTML для предпросмотра
   const htmlContent = useMemo(() => {
     return generateContractHTML(contract, pdfSettings);
   }, [contract, pdfSettings]);
+
+  // Сохраняем начальное содержимое для редактирования
+  useEffect(() => {
+    setEditedContent(htmlContent);
+  }, [htmlContent]);
 
   // Обработчик экспорта в DOCX
   const handleExportDOCX = async () => {
@@ -56,63 +73,88 @@ export function ContractPreview({ contract, pdfSettings, onClose }: ContractPrev
     }
   };
 
+  // Обработчик сохранения отредактированного контента
+  const handleSaveEdit = () => {
+    // Здесь можно добавить логику сохранения в БД
+    // Пока просто выходим из режима редактирования
+    setIsEditing(false);
+    // Обновляем HTML для отображения
+    if (previewRef.current) {
+      previewRef.current.innerHTML = editedContent;
+    }
+  };
+
+  // Переключение полноэкранного режима
+  const toggleFullscreen = () => {
+    setIsFullscreen(!isFullscreen);
+  };
+
   const statusColors = CONTRACT_STATUS_COLORS[contract.status];
 
   return (
-    <div className="space-y-4">
-      {/* Информация о договоре */}
-      <Card>
-        <CardContent className="pt-4">
-          <div className="flex flex-wrap gap-4 items-center justify-between">
-            <div>
-              <h3 className="text-lg font-bold">Договор № {contract.number}</h3>
-              <p className="text-sm text-gray-500">
-                от {new Date(contract.date).toLocaleDateString('ru-RU')}
-              </p>
+    <div className={`flex flex-col ${isFullscreen ? 'fixed inset-0 z-50 bg-white' : ''}`}>
+      {/* Header с информацией о договоре */}
+      <div className={`${isFullscreen ? 'p-6 border-b' : ''}`}>
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex flex-wrap gap-4 items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold">Договор № {contract.number}</h3>
+                <p className="text-sm text-gray-500">
+                  от {new Date(contract.date).toLocaleDateString('ru-RU')}
+                </p>
+              </div>
+              
+              <div className="flex gap-2 items-center">
+                <Badge variant="outline">{CONTRACT_TYPE_LABELS[contract.type]}</Badge>
+                <Badge className={`${statusColors.bg} ${statusColors.text} border-0`}>
+                  {CONTRACT_STATUS_LABELS[contract.status]}
+                </Badge>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={toggleFullscreen}
+                  title={isFullscreen ? 'Свернуть' : 'На весь экран'}
+                >
+                  {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                </Button>
+              </div>
             </div>
-            
-            <div className="flex gap-2">
-              <Badge variant="outline">{CONTRACT_TYPE_LABELS[contract.type]}</Badge>
-              <Badge className={`${statusColors.bg} ${statusColors.text} border-0`}>
-                {CONTRACT_STATUS_LABELS[contract.status]}
-              </Badge>
-            </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-4 mt-4 text-sm">
-            <div>
-              <span className="text-gray-500">Заказчик:</span>
-              <div className="font-medium">{contract.customer?.name || 'Не указан'}</div>
-            </div>
-            <div>
-              <span className="text-gray-500">Сумма:</span>
-              <div className="font-medium text-lg">
-                {contract.total_amount.toLocaleString('ru-RU')} ₽
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 text-sm">
+              <div>
+                <span className="text-gray-500">Заказчик:</span>
+                <div className="font-medium">{contract.customer?.name || 'Не указан'}</div>
+              </div>
+              <div>
+                <span className="text-gray-500">Сумма:</span>
+                <div className="font-medium text-lg">
+                  {contract.total_amount.toLocaleString('ru-RU')} ₽
+                </div>
+              </div>
+              <div>
+                <span className="text-gray-500">Мероприятие:</span>
+                <div className="font-medium">
+                  {contract.event_name || contract.estimates?.[0]?.estimate?.event_name || 'Не указано'}
+                </div>
+              </div>
+              <div>
+                <span className="text-gray-500">Место:</span>
+                <div className="font-medium">
+                  {contract.venue || contract.estimates?.[0]?.estimate?.venue || 'Не указано'}
+                </div>
               </div>
             </div>
-            <div>
-              <span className="text-gray-500">Мероприятие:</span>
-              <div className="font-medium">
-                {contract.event_name || contract.estimates?.[0]?.estimate?.event_name || 'Не указано'}
-              </div>
-            </div>
-            <div>
-              <span className="text-gray-500">Место:</span>
-              <div className="font-medium">
-                {contract.venue || contract.estimates?.[0]?.estimate?.venue || 'Не указано'}
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Действия */}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2 p-4 border-b bg-gray-50">
         <Button 
           onClick={handlePrint} 
-          disabled={isPrinting}
+          disabled={isPrinting || isEditing}
           variant="outline"
-          className="flex-1"
         >
           {isPrinting ? (
             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -124,9 +166,8 @@ export function ContractPreview({ contract, pdfSettings, onClose }: ContractPrev
         
         <Button 
           onClick={handleExportDOCX} 
-          disabled={isExportingDOCX}
+          disabled={isExportingDOCX || isEditing}
           variant="outline"
-          className="flex-1"
         >
           {isExportingDOCX ? (
             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -135,14 +176,54 @@ export function ContractPreview({ contract, pdfSettings, onClose }: ContractPrev
           )}
           Скачать DOCX
         </Button>
+
+        <div className="flex-1"></div>
+
+        {/* Переключатель редактирования */}
+        <div className="flex items-center gap-2">
+          {isEditing ? (
+            <>
+              <Button 
+                onClick={handleSaveEdit}
+                variant="default"
+                className="bg-green-600 hover:bg-green-700"
+              >
+                <Save className="w-4 h-4 mr-2" />
+                Сохранить
+              </Button>
+              <Button 
+                onClick={() => setIsEditing(false)}
+                variant="outline"
+              >
+                <X className="w-4 h-4 mr-2" />
+                Отмена
+              </Button>
+            </>
+          ) : (
+            <Button 
+              onClick={() => setIsEditing(true)}
+              variant="outline"
+            >
+              <Edit3 className="w-4 h-4 mr-2" />
+              Редактировать
+            </Button>
+          )}
+        </div>
+
+        {isFullscreen && (
+          <Button onClick={onClose} variant="outline">
+            <X className="w-4 h-4 mr-2" />
+            Закрыть
+          </Button>
+        )}
       </div>
 
-      {/* Предпросмотр */}
-      <Tabs defaultValue="preview" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+      {/* Основной контент */}
+      <Tabs defaultValue="preview" className={`flex-1 flex flex-col ${isFullscreen ? '' : 'min-h-0'}`}>
+        <TabsList className="grid w-full grid-cols-2 mx-4 mt-2 max-w-md">
           <TabsTrigger value="preview">
             <Eye className="w-4 h-4 mr-2" />
-            Предпросмотр
+            {isEditing ? 'Редактирование' : 'Предпросмотр'}
           </TabsTrigger>
           <TabsTrigger value="details">
             <FileSpreadsheet className="w-4 h-4 mr-2" />
@@ -150,19 +231,42 @@ export function ContractPreview({ contract, pdfSettings, onClose }: ContractPrev
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="preview" className="mt-4">
-          <div 
-            className="border rounded-lg p-8 bg-white min-h-[500px] overflow-auto"
-            style={{ maxHeight: '60vh' }}
-          >
+        <TabsContent value="preview" className="flex-1 mt-2 px-4 pb-4 overflow-hidden">
+          {isEditing ? (
+            // Режим редактирования
+            <div className="h-full flex flex-col">
+              <div className="text-sm text-gray-500 mb-2">
+                Режим редактирования. Вы можете изменить текст договора перед печатью или экспортом.
+              </div>
+              <Textarea
+                value={editedContent}
+                onChange={(e) => setEditedContent(e.target.value)}
+                className="flex-1 font-mono text-sm resize-none"
+                style={{ minHeight: isFullscreen ? 'calc(100vh - 350px)' : '500px' }}
+              />
+            </div>
+          ) : (
+            // Режим предпросмотра
             <div 
-              dangerouslySetInnerHTML={{ __html: htmlContent }}
-              className="contract-preview"
-            />
-          </div>
+              ref={previewRef}
+              className="border rounded-lg p-8 bg-white h-full overflow-auto shadow-inner"
+              style={{ 
+                maxHeight: isFullscreen ? 'calc(100vh - 280px)' : '60vh',
+                minHeight: isFullscreen ? 'calc(100vh - 280px)' : '500px'
+              }}
+            >
+              <div 
+                dangerouslySetInnerHTML={{ 
+                  __html: editedContent || htmlContent 
+                }}
+                className="contract-preview"
+              />
+            </div>
+          )}
         </TabsContent>
 
-        <TabsContent value="details" className="mt-4 space-y-4">
+        <TabsContent value="details" className="mt-2 px-4 pb-4 space-y-4 overflow-auto" 
+          style={{ maxHeight: isFullscreen ? 'calc(100vh - 250px)' : '60vh' }}>
           <Card>
             <CardContent className="pt-4 space-y-3">
               <h4 className="font-medium">Основная информация</h4>
@@ -261,9 +365,11 @@ export function ContractPreview({ contract, pdfSettings, onClose }: ContractPrev
         </TabsContent>
       </Tabs>
 
-      <div className="flex justify-end pt-4 border-t">
-        <Button onClick={onClose}>Закрыть</Button>
-      </div>
+      {!isFullscreen && (
+        <div className="flex justify-end p-4 border-t">
+          <Button onClick={onClose}>Закрыть</Button>
+        </div>
+      )}
 
       <style>{`
         .contract-preview {
@@ -271,6 +377,8 @@ export function ContractPreview({ contract, pdfSettings, onClose }: ContractPrev
           font-size: 12pt;
           line-height: 1.5;
           color: #000;
+          max-width: 210mm;
+          margin: 0 auto;
         }
         .contract-preview .center {
           text-align: center;

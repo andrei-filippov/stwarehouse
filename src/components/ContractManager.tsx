@@ -303,8 +303,8 @@ export const ContractManager = memo(function ContractManager({
 
       {/* Dialog for Contract Preview */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="max-w-[95vw] w-[1400px] max-h-[95vh] p-0 overflow-hidden flex flex-col">
+          <DialogHeader className="px-6 py-4 border-b">
             <DialogTitle>Просмотр договора</DialogTitle>
           </DialogHeader>
           {previewContract && (
