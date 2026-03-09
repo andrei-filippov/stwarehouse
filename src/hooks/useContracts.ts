@@ -14,34 +14,50 @@ export function useContracts(userId: string | undefined) {
     if (!userId) return;
     setLoading(true);
     
-    const { data, error } = await supabase
-      .from('contracts')
-      .select(`
-        *,
-        customer:customers(*),
-        template:contract_templates(*),
-        estimates:contract_estimates(
+    try {
+      const { data, error } = await supabase
+        .from('contracts')
+        .select(`
           *,
-          estimate:estimates(
+          customer:customers(*),
+          template:contract_templates(*),
+          estimates:contract_estimates(
             *,
-            items:estimate_items(*)
+            estimate:estimates(
+              *,
+              items:estimate_items(*)
+            )
           )
-        )
-      `)
-      .order('created_at', { ascending: false });
-    
-    if (error) {
-      toast.error('Ошибка при загрузке договоров', { description: error.message });
-    } else if (data) {
-      // Преобразуем данные в правильный формат
-      const formattedContracts = data.map((c: any) => ({
-        ...c,
-        estimates: c.estimates?.map((ce: any) => ({
-          ...ce,
-          estimate: ce.estimate
-        })) || []
-      }));
-      setContracts(formattedContracts);
+        `)
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error('Contracts fetch error:', error);
+        toast.error('Ошибка при загрузке договоров', { description: error.message || error.details || 'Неизвестная ошибка' });
+        // Fallback: пробуем загрузить без связанных данных
+        const { data: basicData, error: basicError } = await supabase
+          .from('contracts')
+          .select('*')
+          .order('created_at', { ascending: false });
+        
+        if (!basicError && basicData) {
+          setContracts(basicData as Contract[]);
+          toast.info('Договоры загружены без связанных данных');
+        }
+      } else if (data) {
+        // Преобразуем данные в правильный формат
+        const formattedContracts = data.map((c: any) => ({
+          ...c,
+          estimates: c.estimates?.map((ce: any) => ({
+            ...ce,
+            estimate: ce.estimate
+          })) || []
+        }));
+        setContracts(formattedContracts);
+      }
+    } catch (err) {
+      console.error('Unexpected error fetching contracts:', err);
+      toast.error('Ошибка при загрузке договоров');
     }
     setLoading(false);
   }, [userId]);
