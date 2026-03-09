@@ -1399,6 +1399,7 @@ export function EstimateBuilder({
               </div>
             </div>
           </div>
+        </div>
       </div>
 
       {/* Диалог подтверждения выхода */}
