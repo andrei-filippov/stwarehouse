@@ -118,11 +118,18 @@ export function useAuditLogs(filters?: AuditLogFilters, limit: number = 100) {
   useEffect(() => {
     fetchLogs();
 
-    // Подписка на новые логи
+    // Подписка на новые логи - только если нет фильтров (чтобы не добавлять логи, не соответствующие фильтру)
     const subscription = supabase
       .channel('audit_logs_changes')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'audit_logs' }, (payload) => {
-        setLogs((prev) => [payload.new as AuditLog, ...prev].slice(0, limit));
+        const newLog = payload.new as AuditLog;
+        
+        // Проверяем, соответствует ли новый лог текущим фильтрам
+        if (filters?.action && newLog.action !== filters.action) return;
+        if (filters?.entityType && newLog.entity_type !== filters.entityType) return;
+        if (filters?.userId && newLog.user_id !== filters.userId) return;
+        
+        setLogs((prev) => [newLog, ...prev].slice(0, limit));
         setTotalCount((prev) => prev + 1);
       })
       .subscribe();
@@ -130,7 +137,7 @@ export function useAuditLogs(filters?: AuditLogFilters, limit: number = 100) {
     return () => {
       subscription.unsubscribe();
     };
-  }, [fetchLogs, limit]);
+  }, [fetchLogs, limit, filters?.action, filters?.entityType, filters?.userId]);
 
   return {
     logs,

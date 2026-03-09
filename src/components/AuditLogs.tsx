@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -70,13 +70,13 @@ export function AuditLogs() {
   const [selectedLog, setSelectedLog] = useState<any>(null);
   const [showFilters, setShowFilters] = useState(false);
 
-  const filters = {
+  const filters = useMemo(() => ({
     action: selectedAction === 'all' ? undefined : selectedAction,
     entityType: selectedEntity === 'all' ? undefined : selectedEntity,
     dateFrom: dateFrom || undefined,
     dateTo: dateTo || undefined,
     search: search || undefined,
-  };
+  }), [selectedAction, selectedEntity, dateFrom, dateTo, search]);
 
   const { logs, loading, error, totalCount, refetch } = useAuditLogs(filters, 200);
 
