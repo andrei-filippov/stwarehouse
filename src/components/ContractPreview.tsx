@@ -226,7 +226,7 @@ export function ContractPreview({ contract, pdfSettings, onClose }: ContractPrev
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="preview" className="flex-1 mt-2 px-4 pb-4 overflow-hidden">
+        <TabsContent value="preview" className="flex-1 mt-2 px-4 pb-4 min-h-0">
           {isEditing ? (
             // Режим редактирования - показываем только текст
             <div className="h-full flex flex-col">
@@ -245,17 +245,18 @@ export function ContractPreview({ contract, pdfSettings, onClose }: ContractPrev
             // Режим предпросмотра
             <div 
               ref={previewRef}
-              className="border rounded-lg p-8 bg-white h-full overflow-auto shadow-inner"
+              className="border rounded-lg p-8 bg-white h-full overflow-y-auto shadow-inner"
+              style={{ maxHeight: 'calc(100vh - 350px)' }}
             >
               <div 
                 dangerouslySetInnerHTML={{ __html: htmlContent }}
-                className="contract-preview"
+                className="contract-preview-content"
               />
             </div>
           )}
         </TabsContent>
 
-        <TabsContent value="details" className="mt-2 px-4 pb-4 space-y-4 overflow-auto">
+        <TabsContent value="details" className="mt-2 px-4 pb-4 space-y-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 350px)' }}>
           <Card>
             <CardContent className="pt-4 space-y-3">
               <h4 className="font-medium">Основная информация</h4>
@@ -355,7 +356,7 @@ export function ContractPreview({ contract, pdfSettings, onClose }: ContractPrev
       </Tabs>
 
       <style>{`
-        .contract-preview {
+        .contract-preview-content {
           font-family: "Times New Roman", Times, serif;
           font-size: 12pt;
           line-height: 1.5;
@@ -363,33 +364,33 @@ export function ContractPreview({ contract, pdfSettings, onClose }: ContractPrev
           max-width: 210mm;
           margin: 0 auto;
         }
-        .contract-preview .center {
+        .contract-preview-content .center {
           text-align: center;
         }
-        .contract-preview .bold {
+        .contract-preview-content .bold {
           font-weight: bold;
         }
-        .contract-preview table.spec {
+        .contract-preview-content table.spec {
           width: 100%;
           border-collapse: collapse;
           margin: 15px 0;
           font-size: 10pt;
         }
-        .contract-preview table.spec th,
-        .contract-preview table.spec td {
+        .contract-preview-content table.spec th,
+        .contract-preview-content table.spec td {
           border: 1px solid #000;
           padding: 5px;
           text-align: left;
         }
-        .contract-preview table.spec th {
+        .contract-preview-content table.spec th {
           background-color: #f0f0f0;
         }
-        .contract-preview .signatures {
+        .contract-preview-content .signatures {
           margin-top: 50px;
           display: flex;
           justify-content: space-between;
         }
-        .contract-preview .signature-block {
+        .contract-preview-content .signature-block {
           width: 45%;
         }
       `}</style>
