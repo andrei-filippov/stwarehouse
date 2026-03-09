@@ -1082,7 +1082,7 @@ export function EstimateBuilder({
             {/* Левая панель - Оборудование (35%) */}
             <div 
               className={cn(
-                "flex-col border-r bg-white transition-all duration-300",
+                "flex flex-col h-full border-r bg-white transition-all duration-300",
                 expandedPanel === 'equipment' ? 'w-full' : expandedPanel === 'estimate' ? 'hidden' : 'w-[35%]'
               )}
             >
@@ -1189,7 +1189,7 @@ export function EstimateBuilder({
             {/* Правая панель - Смета (65%) */}
             <div 
               className={cn(
-                "flex-col bg-white transition-all duration-300",
+                "flex flex-col h-full bg-white transition-all duration-300",
                 expandedPanel === 'estimate' ? 'w-full' : expandedPanel === 'equipment' ? 'hidden' : 'w-[65%]'
               )}
             >
