@@ -208,6 +208,13 @@ export function useContracts(userId: string | undefined) {
   // Удаление договора
   const deleteContract = async (id: string) => {
     try {
+      // Проверяем, что договор принадлежит текущему пользователю
+      const contract = contracts.find(c => c.id === id);
+      if (contract && contract.user_id !== userId) {
+        toast.error('Нет прав на удаление этого договора');
+        return { error: new Error('Permission denied') };
+      }
+
       // Сначала удаляем связанные записи в contract_estimates
       const { error: ceError } = await supabase
         .from('contract_estimates')
@@ -222,11 +229,12 @@ export function useContracts(userId: string | undefined) {
       const { error } = await supabase
         .from('contracts')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .eq('user_id', userId || ''); // Дополнительная проверка user_id
       
       if (error) {
-        console.error('Delete contract error:', error);
-        toast.error('Ошибка при удалении договора', { description: error.message });
+        console.error('Delete contract error details:', JSON.stringify(error, null, 2));
+        toast.error('Ошибка при удалении договора', { description: `${error.message} (${error.code})` });
       } else {
         setContracts(prev => prev.filter(c => c.id !== id));
         toast.success('Договор удалён');
