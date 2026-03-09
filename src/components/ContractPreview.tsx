@@ -25,19 +25,25 @@ interface ContractPreviewProps {
   contract: Contract;
   pdfSettings: PDFSettings;
   onClose: () => void;
+  onSaveContent?: (content: string) => void;
 }
 
-export function ContractPreview({ contract, pdfSettings, onClose }: ContractPreviewProps) {
+export function ContractPreview({ contract, pdfSettings, onClose, onSaveContent }: ContractPreviewProps) {
   const [isExportingDOCX, setIsExportingDOCX] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [editedHtml, setEditedHtml] = useState<string | null>(null);
   const previewRef = useRef<HTMLDivElement>(null);
+  const editRef = useRef<HTMLDivElement>(null);
 
   // Генерируем HTML для предпросмотра
   const htmlContent = useMemo(() => {
     return generateContractHTML(contract, pdfSettings);
   }, [contract, pdfSettings]);
+
+  // Текущий контент (отредактированный или оригинальный)
+  const currentContent = editedHtml || htmlContent;
 
   // Обработчик экспорта в DOCX
   const handleExportDOCX = async () => {
@@ -67,8 +73,19 @@ export function ContractPreview({ contract, pdfSettings, onClose }: ContractPrev
 
   // Обработчик сохранения отредактированного текста
   const handleSaveEdit = () => {
-    // Здесь можно добавить логику сохранения в БД
-    // Пока просто выходим из режима редактирования
+    if (editRef.current) {
+      const newContent = editRef.current.innerHTML;
+      setEditedHtml(newContent);
+      // Вызываем callback если передан
+      if (onSaveContent) {
+        onSaveContent(newContent);
+      }
+    }
+    setIsEditing(false);
+  };
+
+  // Обработчик отмены редактирования
+  const handleCancelEdit = () => {
     setIsEditing(false);
   };
 
@@ -168,7 +185,7 @@ export function ContractPreview({ contract, pdfSettings, onClose }: ContractPrev
                 Сохранить
               </Button>
               <Button 
-                onClick={() => setIsEditing(false)}
+                onClick={handleCancelEdit}
                 variant="outline"
               >
                 <X className="w-4 h-4 mr-2" />
@@ -220,11 +237,11 @@ export function ContractPreview({ contract, pdfSettings, onClose }: ContractPrev
                 Режим редактирования. Вы можете изменить текст договора перед печатью или экспортом.
               </div>
               <div
-                ref={previewRef}
+                ref={editRef}
                 className="flex-1 border rounded-lg p-4 bg-white overflow-auto font-serif text-sm leading-relaxed"
                 style={{ minHeight: '400px' }}
                 contentEditable
-                dangerouslySetInnerHTML={{ __html: htmlContent }}
+                dangerouslySetInnerHTML={{ __html: currentContent }}
               />
             </div>
           ) : (
@@ -232,7 +249,7 @@ export function ContractPreview({ contract, pdfSettings, onClose }: ContractPrev
             <div className="border rounded-lg bg-white overflow-hidden shadow-inner">
               <iframe
                 ref={previewRef as any}
-                srcDoc={htmlContent}
+                srcDoc={currentContent}
                 style={{
                   width: '100%',
                   height: '500px',
