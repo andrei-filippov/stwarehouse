@@ -208,12 +208,24 @@ export function useContracts(userId: string | undefined) {
   // Удаление договора
   const deleteContract = async (id: string) => {
     try {
+      // Сначала удаляем связанные записи в contract_estimates
+      const { error: ceError } = await supabase
+        .from('contract_estimates')
+        .delete()
+        .eq('contract_id', id);
+      
+      if (ceError) {
+        console.error('Error deleting contract estimates:', ceError);
+      }
+
+      // Затем удаляем сам договор
       const { error } = await supabase
         .from('contracts')
         .delete()
         .eq('id', id);
       
       if (error) {
+        console.error('Delete contract error:', error);
         toast.error('Ошибка при удалении договора', { description: error.message });
       } else {
         setContracts(prev => prev.filter(c => c.id !== id));
@@ -222,6 +234,7 @@ export function useContracts(userId: string | undefined) {
       return { error };
     } catch (err) {
       console.error('Delete contract error:', err);
+      toast.error('Ошибка при удалении договора');
       return { error: err };
     }
   };
