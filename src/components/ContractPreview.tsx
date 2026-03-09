@@ -32,9 +32,10 @@ export function ContractPreview({ contract, pdfSettings, onClose }: ContractPrev
   const [isExportingDOCX, setIsExportingDOCX] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [editedText, setEditedText] = useState('');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const editedTextRef = useRef<string>('');
 
   // Генерируем HTML для предпросмотра
   const htmlContent = useMemo(() => {
@@ -48,10 +49,13 @@ export function ContractPreview({ contract, pdfSettings, onClose }: ContractPrev
     return doc.body.innerText || doc.body.textContent || '';
   };
 
-  // Сохраняем начальное текстовое содержимое для редактирования
+  // Инициализируем текст при входе в режим редактирования
   useEffect(() => {
-    setEditedText(extractTextFromHTML(htmlContent));
-  }, [htmlContent]);
+    if (isEditing && textareaRef.current) {
+      textareaRef.current.value = extractTextFromHTML(htmlContent);
+      editedTextRef.current = textareaRef.current.value;
+    }
+  }, [isEditing, htmlContent]);
 
   // Обработчик экспорта в DOCX
   const handleExportDOCX = async () => {
@@ -234,8 +238,9 @@ export function ContractPreview({ contract, pdfSettings, onClose }: ContractPrev
                 Режим редактирования. Вы можете изменить текст договора перед печатью или экспортом.
               </div>
               <Textarea
-                value={editedText}
-                onChange={(e) => setEditedText(e.target.value)}
+                ref={textareaRef}
+                defaultValue={extractTextFromHTML(htmlContent)}
+                onChange={(e) => { editedTextRef.current = e.target.value; }}
                 className="flex-1 text-sm resize-none font-serif leading-relaxed"
                 placeholder="Текст договора..."
                 style={{ minHeight: '400px' }}

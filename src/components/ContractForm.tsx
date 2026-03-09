@@ -22,7 +22,6 @@ import {
 } from 'lucide-react';
 import type { Contract, ContractTemplate, ContractType, ContractStatus, PDFSettings } from '../types';
 import { CONTRACT_TYPE_LABELS, CONTRACT_STATUS_LABELS } from '../types';
-import { generateContractHTML } from '../lib/contractExport';
 
 interface ContractFormProps {
   contract: Contract | null;
@@ -86,11 +85,6 @@ export function ContractForm({
   const [selectedEstimateIds, setSelectedEstimateIds] = useState<string[]>(
     contract?.estimates?.map((e: any) => e.estimate_id) || []
   );
-
-  // Предпросмотр договора
-  const [previewContent, setPreviewContent] = useState('');
-  const [editedContent, setEditedContent] = useState('');
-  const [isEditingContent, setIsEditingContent] = useState(false);
 
   // Генерация номера при создании нового договора
   useEffect(() => {
@@ -158,59 +152,17 @@ export function ContractForm({
     );
   };
 
-  // Генерация предпросмотра договора
-  const generatePreview = useCallback(() => {
-    const selectedTemplate = templates.find(t => t.id === templateId);
-    const selectedCustomer = customers.find(c => c.id === customerId);
-    const selectedEstimates = estimates.filter((e: any) => selectedEstimateIds.includes(e.id));
-
-    if (!selectedTemplate) {
-      setPreviewContent('<p>Выберите шаблон договора</p>');
-      return;
-    }
-
-    // Создаём временный объект договора для генерации
-    const tempContract: Contract = {
-      id: 'preview',
-      number,
-      date: date.toISOString(),
-      type,
-      status,
-      template_id: templateId,
-      customer_id: customerId,
-      customer: selectedCustomer,
-      template: selectedTemplate,
-      event_name: eventName,
-      event_start_date: eventStartDate?.toISOString(),
-      event_end_date: eventEndDate?.toISOString(),
-      venue,
-      total_amount: totalAmount,
-      payment_terms: paymentTerms,
-      executor_name: executorName,
-      executor_representative: executorRepresentative,
-      executor_basis: executorBasis,
-      subject,
-      additional_terms: additionalTerms,
-      estimates: selectedEstimates.map((e: any) => ({ estimate_id: e.id, estimate: e })),
-    };
-
-    const html = generateContractHTML(tempContract, pdfSettings);
-    setPreviewContent(html);
-    setEditedContent(html);
-  }, [templateId, customerId, selectedEstimateIds, number, date, type, status, eventName, eventStartDate, eventEndDate, venue, totalAmount, paymentTerms, executorName, executorRepresentative, executorBasis, subject, additionalTerms, templates, customers, estimates, pdfSettings]);
-
   // Выбранный заказчик
   const selectedCustomer = customers.find((c: any) => c.id === customerId);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <Tabs defaultValue="main" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="main">Основное</TabsTrigger>
           <TabsTrigger value="event">Мероприятие</TabsTrigger>
           <TabsTrigger value="finance">Финансы</TabsTrigger>
           <TabsTrigger value="estimates">Сметы ({selectedEstimateIds.length})</TabsTrigger>
-          <TabsTrigger value="preview" onClick={generatePreview}>Предпросмотр</TabsTrigger>
         </TabsList>
 
         {/* Основная информация */}
@@ -553,50 +505,6 @@ export function ContractForm({
               </div>
             </div>
           )}
-        </TabsContent>
-
-        {/* Предпросмотр */}
-        <TabsContent value="preview" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h3 className="font-medium">Предпросмотр договора</h3>
-            <div className="flex gap-2">
-              <Button 
-                type="button" 
-                variant="outline" 
-                size="sm"
-                onClick={() => setIsEditingContent(!isEditingContent)}
-              >
-                {isEditingContent ? 'Просмотр' : 'Редактировать'}
-              </Button>
-              <Button 
-                type="button" 
-                variant="outline" 
-                size="sm"
-                onClick={generatePreview}
-              >
-                Обновить
-              </Button>
-            </div>
-          </div>
-
-          {isEditingContent ? (
-            <Textarea
-              value={editedContent}
-              onChange={(e) => setEditedContent(e.target.value)}
-              rows={20}
-              className="font-mono text-xs"
-            />
-          ) : (
-            <div 
-              className="border rounded-lg p-4 bg-white overflow-auto"
-              style={{ maxHeight: '500px' }}
-              dangerouslySetInnerHTML={{ __html: editedContent || '<p class="text-gray-500">Нажмите "Обновить" для генерации предпросмотра</p>' }}
-            />
-          )}
-
-          <div className="text-sm text-gray-500">
-            <p>💡 Совет: Вы можете отредактировать текст договора перед сохранением, чтобы исправить склонения или предмет договора.</p>
-          </div>
         </TabsContent>
       </Tabs>
 
