@@ -36,6 +36,7 @@ const ACTIONS: { value: AuditAction | 'all'; label: string }[] = [
 const ENTITY_TYPES: { value: EntityType | 'all'; label: string }[] = [
   { value: 'all', label: 'Все типы' },
   { value: 'estimate', label: 'Сметы' },
+  { value: 'estimate_item', label: 'Позиции смет' },
   { value: 'equipment', label: 'Оборудование' },
   { value: 'customer', label: 'Заказчики' },
   { value: 'staff', label: 'Сотрудники' },
@@ -51,6 +52,12 @@ const ACTION_COLORS: Record<string, string> = {
   view: 'bg-gray-100 text-gray-800 border-gray-200',
   login: 'bg-purple-100 text-purple-800 border-purple-200',
   logout: 'bg-orange-100 text-orange-800 border-orange-200',
+};
+
+// Безопасное получение цвета для действия
+const getActionColor = (action: string | undefined): string => {
+  if (!action) return 'bg-gray-100 text-gray-800 border-gray-200';
+  return ACTION_COLORS[action] || 'bg-gray-100 text-gray-800 border-gray-200';
 };
 
 export function AuditLogs() {
@@ -257,8 +264,8 @@ export function AuditLogs() {
                           </div>
                         </td>
                         <td className="py-2 px-3">
-                          <Badge variant="outline" className={ACTION_COLORS[log.action] || ''}>
-                            {getActionLabel(log.action)}
+                          <Badge variant="outline" className={getActionColor(log.action)}>
+                            {getActionLabel(log.action as any)}
                           </Badge>
                         </td>
                         <td className="py-2 px-3 text-gray-600">
@@ -300,8 +307,8 @@ export function AuditLogs() {
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <p className="text-gray-500">Пользователь</p>
-                  <p className="font-medium">{selectedLog.user_name}</p>
-                  <p className="text-gray-400 text-xs">{selectedLog.user_email}</p>
+                  <p className="font-medium">{selectedLog?.user_name || 'Неизвестно'}</p>
+                  <p className="text-gray-400 text-xs">{selectedLog?.user_email || ''}</p>
                 </div>
                 <div>
                   <p className="text-gray-500">Время</p>
@@ -309,13 +316,13 @@ export function AuditLogs() {
                 </div>
                 <div>
                   <p className="text-gray-500">Действие</p>
-                  <Badge className={ACTION_COLORS[selectedLog.action]}>
-                    {getActionLabel(selectedLog.action)}
+                  <Badge className={getActionColor(selectedLog?.action)}>
+                    {getActionLabel(selectedLog?.action as any)}
                   </Badge>
                 </div>
                 <div>
                   <p className="text-gray-500">Объект</p>
-                  <p className="font-medium">{getEntityLabel(selectedLog.entity_type)}</p>
+                  <p className="font-medium">{getEntityLabel(selectedLog?.entity_type as any)}</p>
                   {selectedLog.entity_name && (
                     <p className="text-gray-400 text-xs truncate">{selectedLog.entity_name}</p>
                   )}

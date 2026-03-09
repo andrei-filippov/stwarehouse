@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 
 export type AuditAction = 'create' | 'update' | 'delete' | 'view' | 'login' | 'logout';
-export type EntityType = 'estimate' | 'equipment' | 'customer' | 'staff' | 'contract' | 'user' | 'template';
+export type EntityType = 'estimate' | 'estimate_item' | 'equipment' | 'customer' | 'staff' | 'contract' | 'user' | 'template';
 
 export interface AuditLog {
   id: string;
@@ -38,6 +38,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
 
 const ENTITY_LABELS: Record<EntityType, string> = {
   estimate: 'Смета',
+  estimate_item: 'Позиция сметы',
   equipment: 'Оборудование',
   customer: 'Заказчик',
   staff: 'Сотрудник',
