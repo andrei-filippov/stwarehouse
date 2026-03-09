@@ -333,7 +333,7 @@ BEGIN
       'create',
       'contract',
       NEW.id,
-      NEW.number || ' - ' || NEW.title,
+      NEW.number || ' - ' || COALESCE(NEW.event_name, 'Без названия'),
       NULL,
       to_jsonb(NEW)
     );
@@ -343,7 +343,7 @@ BEGIN
       'update',
       'contract',
       NEW.id,
-      NEW.number || ' - ' || NEW.title,
+      NEW.number || ' - ' || COALESCE(NEW.event_name, 'Без названия'),
       to_jsonb(OLD),
       to_jsonb(NEW)
     );
@@ -353,7 +353,7 @@ BEGIN
       'delete',
       'contract',
       OLD.id,
-      OLD.number || ' - ' || OLD.title,
+      OLD.number || ' - ' || COALESCE(OLD.event_name, 'Без названия'),
       to_jsonb(OLD),
       NULL
     );
