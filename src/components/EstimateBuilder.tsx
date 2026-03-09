@@ -756,7 +756,7 @@ export function EstimateBuilder({
         </div>
 
         {/* Основной контент */}
-        <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+        <div className="flex-1 relative overflow-hidden md:flex">
           
           {/* ==========================================
               МОБИЛЬНАЯ ВЕРСИЯ: Только одна панель в DOM
@@ -1068,7 +1068,7 @@ export function EstimateBuilder({
               ДЕСКТОПНАЯ ВЕРСИЯ: Обе панели side-by-side
               ========================================== */}
           
-          <div className="hidden">
+          <div className="hidden md:flex flex-1 overflow-hidden">
             {/* Левая панель - Оборудование (35%) */}
             <div 
               className={cn(
