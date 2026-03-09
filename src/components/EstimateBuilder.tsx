@@ -756,7 +756,7 @@ export function EstimateBuilder({
         </div>
 
         {/* Основной контент */}
-        <div className="flex-1 flex overflow-hidden relative">
+        <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
           
           {/* ==========================================
               МОБИЛЬНАЯ ВЕРСИЯ: Только одна панель в DOM
@@ -764,7 +764,7 @@ export function EstimateBuilder({
           
           {/* Мобильная панель Оборудования */}
           {activeMobileTab === 'equipment' && (
-            <div className="flex md:hidden flex-col w-full h-full bg-white">
+            <div className="flex flex-col w-full h-full bg-white md:hidden">
               {/* Поиск и фильтр */}
               <div className="p-2 border-b space-y-2 shrink-0 bg-gray-50">
                 <div className="relative">
@@ -853,7 +853,7 @@ export function EstimateBuilder({
           
           {/* Мобильная панель Сметы */}
           {activeMobileTab === 'estimate' && (
-            <div className="flex md:hidden flex-col w-full h-full bg-white">
+            <div className="flex flex-col w-full h-full bg-white md:hidden">
               {/* Шапка сметы - компактная */}
               <div className="p-2 border-b space-y-2 shrink-0 bg-gray-50">
                 <Input
@@ -1068,7 +1068,7 @@ export function EstimateBuilder({
               ДЕСКТОПНАЯ ВЕРСИЯ: Обе панели side-by-side
               ========================================== */}
           
-          <div className="hidden md:flex flex-1 overflow-hidden">
+          <div className="hidden">
             {/* Левая панель - Оборудование (35%) */}
             <div 
               className={cn(
