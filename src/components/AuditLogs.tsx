@@ -5,7 +5,7 @@ import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Badge } from './ui/badge';
 import { ScrollArea } from './ui/scroll-area';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { useAuditLogs, getActionLabel, getEntityLabel, type AuditAction, type EntityType } from '../hooks/useAuditLogs';
 import { useAuth } from '../hooks/useAuth';
 import { 
@@ -228,9 +228,21 @@ export function AuditLogs() {
 
           {/* Таблица логов */}
           {error ? (
-            <div className="text-center py-8 text-red-500">
-              <p>Ошибка загрузки логов</p>
-              <p className="text-sm">{error.message}</p>
+            <div className="text-center py-8">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-red-100 mb-3">
+                <History className="w-6 h-6 text-red-500" />
+              </div>
+              <p className="text-red-600 font-medium">Ошибка загрузки логов</p>
+              <p className="text-sm text-gray-500 mt-1">{error.message}</p>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleRefresh} 
+                className="mt-3"
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Повторить
+              </Button>
             </div>
           ) : logs.length === 0 ? (
             <div className="text-center py-8 text-gray-400">
@@ -298,9 +310,12 @@ export function AuditLogs() {
 
       {/* Диалог деталей */}
       <Dialog open={!!selectedLog} onOpenChange={() => setSelectedLog(null)}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-auto">
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-auto" aria-describedby="audit-log-description">
           <DialogHeader>
             <DialogTitle>Детали действия</DialogTitle>
+            <DialogDescription id="audit-log-description">
+              Подробная информация об изменении
+            </DialogDescription>
           </DialogHeader>
           {selectedLog && (
             <div className="space-y-4">

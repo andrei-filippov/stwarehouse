@@ -102,8 +102,13 @@ export function useAuditLogs(filters?: AuditLogFilters, limit: number = 100) {
 
       setLogs(data as AuditLog[] || []);
       setTotalCount(count || 0);
-    } catch (err) {
-      setError(err as Error);
+    } catch (err: any) {
+      // Обрабатываем ошибки сети
+      if (err?.message === 'Failed to fetch' || err?.message?.includes('network') || err?.message?.includes('connection')) {
+        setError(new Error('Ошибка подключения к серверу. Проверьте интернет-соединение.'));
+      } else {
+        setError(err as Error);
+      }
       console.error('Error fetching audit logs:', err);
     } finally {
       setLoading(false);
