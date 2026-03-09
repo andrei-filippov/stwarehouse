@@ -15,8 +15,8 @@ interface BottomNavProps {
 export function BottomNav({ activeTab, onTabChange, availableTabs, onSignOut, onFabClick }: BottomNavProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   
-  // Скрываем FAB на дашборде
-  const showFab = activeTab !== 'dashboard' && onFabClick !== undefined;
+  // Скрываем FAB на дашборде и сметах (там свой интерфейс создания)
+  const showFab = activeTab !== 'dashboard' && activeTab !== 'estimates' && onFabClick !== undefined;
 
   // Основные вкладки для Bottom Nav (максимум 4 + меню)
   const mainTabs = [
