@@ -73,3 +73,24 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer utilities {
+  /* Улучшения для мобильных устройств */
+  .touch-manipulation {
+    touch-action: manipulation;
+  }
+  
+  /* Предотвращаем двойной tap zoom на мобильных */
+  button, a, [role="button"] {
+    touch-action: manipulation;
+  }
+  
+  /* Скрываем scrollbar но сохраняем функциональность */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}

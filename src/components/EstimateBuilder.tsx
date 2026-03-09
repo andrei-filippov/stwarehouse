@@ -1002,17 +1002,18 @@ export function EstimateBuilder({
                               const itemTotal = item.price * item.quantity * (item.coefficient || 1);
                               
                               return (
-                                <div key={item.id} className="flex items-center gap-2 p-2 bg-gray-50 rounded">
-                                  <span className="text-xs text-gray-400 w-6 shrink-0">{idx + 1}</span>
-                                  <div className="flex-1 min-w-0">
+                                <div key={item.id} className="flex flex-col sm:flex-row sm:items-center gap-2 p-2 bg-gray-50 rounded">
+                                  {/* Верхняя строка: номер и название */}
+                                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <span className="text-xs text-gray-400 w-5 shrink-0">{idx + 1}</span>
                                     <p className="font-medium text-sm truncate">{item.name}</p>
                                   </div>
                                   
-                                  {/* Поля ввода с подписями */}
-                                  <div className="flex items-center gap-1 shrink-0">
+                                  {/* Нижняя строка: поля ввода (на мобильном) / справа (на десктопе) */}
+                                  <div className="flex items-center gap-1.5 sm:gap-1 shrink-0 pl-7 sm:pl-0">
                                     {/* Количество */}
                                     <div className="flex flex-col items-center">
-                                      <Label className="text-[9px] text-gray-500 mb-0.5">Кол-во</Label>
+                                      <Label className="text-[9px] text-gray-500 mb-0.5 hidden sm:block">Кол-во</Label>
                                       <Input
                                         type="number"
                                         value={item.quantity}
@@ -1022,14 +1023,14 @@ export function EstimateBuilder({
                                             handleUpdateItem(item.id, { quantity: val === '' ? 1 : Math.max(1, val) });
                                           }
                                         }}
-                                        className="w-14 md:w-16 h-8 text-sm text-center"
+                                        className="w-16 sm:w-14 md:w-16 h-8 text-sm text-center"
                                         min={1}
                                       />
                                     </div>
                                     
                                     {/* Коэффициент */}
                                     <div className="flex flex-col items-center">
-                                      <Label className="text-[9px] text-gray-500 mb-0.5">Коэф.</Label>
+                                      <Label className="text-[9px] text-gray-500 mb-0.5 hidden sm:block">Коэф.</Label>
                                       <Input
                                         type="number"
                                         value={item.coefficient || 1}
@@ -1039,7 +1040,7 @@ export function EstimateBuilder({
                                             handleUpdateItem(item.id, { coefficient: val === '' ? 1 : Math.max(0.1, val) });
                                           }
                                         }}
-                                        className="w-14 md:w-16 h-8 text-sm text-center"
+                                        className="w-16 sm:w-14 md:w-16 h-8 text-sm text-center"
                                         step={0.1}
                                         min={0.1}
                                       />
@@ -1047,7 +1048,7 @@ export function EstimateBuilder({
                                     
                                     {/* Сумма (ручной ввод) */}
                                     <div className="flex flex-col items-center">
-                                      <Label className="text-[9px] text-gray-500 mb-0.5">Сумма</Label>
+                                      <Label className="text-[9px] text-gray-500 mb-0.5 hidden sm:block">Сумма</Label>
                                       <Input
                                         type="number"
                                         value={Math.round(itemTotal)}
@@ -1057,7 +1058,7 @@ export function EstimateBuilder({
                                             handleUpdateTotal(item.id, val);
                                           }
                                         }}
-                                        className="w-20 md:w-24 h-8 text-sm text-right font-medium"
+                                        className="w-20 sm:w-20 md:w-24 h-8 text-sm text-right font-medium"
                                         min={0}
                                       />
                                     </div>
@@ -1066,7 +1067,7 @@ export function EstimateBuilder({
                                       variant="ghost"
                                       size="sm"
                                       onClick={() => handleDuplicateItem(item)}
-                                      className="ml-1"
+                                      className="h-8 w-8 p-0 ml-1"
                                     >
                                       <Copy className="w-4 h-4" />
                                     </Button>
@@ -1074,6 +1075,7 @@ export function EstimateBuilder({
                                       variant="ghost"
                                       size="sm"
                                       onClick={() => handleRemoveItem(item.id)}
+                                      className="h-8 w-8 p-0"
                                     >
                                       <Trash2 className="w-4 h-4 text-red-500" />
                                     </Button>

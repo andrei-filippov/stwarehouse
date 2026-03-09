@@ -260,58 +260,75 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
           setCurrentDate(day);
         }}
         className={cn(
-          "min-h-[100px] p-2 rounded-xl border-2 cursor-pointer transition-all duration-200 relative group",
+          "min-h-[60px] sm:min-h-[100px] p-1 sm:p-2 rounded-lg sm:rounded-xl border-2 cursor-pointer transition-all duration-200 relative group",
           isCurrentMonth 
             ? "bg-white border-gray-100 hover:border-blue-300 hover:shadow-lg" 
             : "bg-gray-50/50 border-gray-100 text-gray-400",
-          isToday && "ring-2 ring-blue-500 ring-offset-2",
+          isToday && "ring-2 ring-blue-500 ring-offset-1 sm:ring-offset-2",
           hasEvents && isCurrentMonth && "bg-gradient-to-br from-blue-50/50 to-white"
         )}
       >
         <div className={cn(
-          "font-semibold text-sm mb-1 w-7 h-7 flex items-center justify-center rounded-full",
+          "font-semibold text-xs sm:text-sm mb-0.5 sm:mb-1 w-5 h-5 sm:w-7 sm:h-7 flex items-center justify-center rounded-full",
           isToday ? "bg-blue-600 text-white" : "text-gray-700",
           !isCurrentMonth && "text-gray-400"
         )}>
           {format(day, 'd')}
         </div>
         
-        {hasEvents && (
-          <div className="space-y-1">
-            {dayEstimates.slice(0, 2).map((estimate, i) => {
-              const isMultiDay = (estimate.event_start_date || estimate.event_date) !== (estimate.event_end_date || estimate.event_date);
-              
-              return (
-                <div
-                  key={i}
-                  className={cn(
-                    "text-xs px-2 py-1 rounded-lg font-medium truncate shadow-sm",
-                    isMultiDay 
-                      ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white" 
-                      : "bg-gradient-to-r from-blue-500 to-indigo-500 text-white"
-                  )}
-                  title={estimate.event_name}
-                >
-                  {estimate.event_name}
-                </div>
-              );
-            })}
-            {dayEstimates.length > 2 && (
-              <Badge variant="secondary" className="text-xs w-full justify-center">
-                +{dayEstimates.length - 2} ещё
-              </Badge>
-            )}
-          </div>
-        )}
+        {/* На мобильном показываем только точки-индикаторы */}
+        <div className="sm:hidden">
+          {hasEvents && (
+            <div className="flex flex-wrap gap-0.5 mt-1">
+              {dayEstimates.slice(0, 3).map((_, i) => (
+                <div key={i} className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+              ))}
+              {dayEstimates.length > 3 && (
+                <span className="text-[8px] text-gray-400">+</span>
+              )}
+            </div>
+          )}
+        </div>
         
-        {/* Индикатор наличия событий */}
-        {hasEvents && dayEstimates.length <= 2 && (
-          <div className="absolute bottom-2 right-2 flex gap-0.5">
-            {dayEstimates.map((_, i) => (
-              <div key={i} className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-            ))}
-          </div>
-        )}
+        {/* На десктопе показываем названия событий */}
+        <div className="hidden sm:block">
+          {hasEvents && (
+            <div className="space-y-1">
+              {dayEstimates.slice(0, 2).map((estimate, i) => {
+                const isMultiDay = (estimate.event_start_date || estimate.event_date) !== (estimate.event_end_date || estimate.event_date);
+                
+                return (
+                  <div
+                    key={i}
+                    className={cn(
+                      "text-xs px-2 py-1 rounded-lg font-medium truncate shadow-sm",
+                      isMultiDay 
+                        ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white" 
+                        : "bg-gradient-to-r from-blue-500 to-indigo-500 text-white"
+                    )}
+                    title={estimate.event_name}
+                  >
+                    {estimate.event_name}
+                  </div>
+                );
+              })}
+              {dayEstimates.length > 2 && (
+                <Badge variant="secondary" className="text-xs w-full justify-center">
+                  +{dayEstimates.length - 2} ещё
+                </Badge>
+              )}
+            </div>
+          )}
+          
+          {/* Индикатор наличия событий */}
+          {hasEvents && dayEstimates.length <= 2 && (
+            <div className="absolute bottom-2 right-2 flex gap-0.5">
+              {dayEstimates.map((_, i) => (
+                <div key={i} className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     );
   };
@@ -320,7 +337,63 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
   const renderWeekView = () => {
     return (
       <div className="space-y-4">
-        <div className="grid grid-cols-7 gap-2">
+        {/* На мобильном - горизонтальный скролл */}
+        <div className="sm:hidden overflow-x-auto pb-2 -mx-2 px-2">
+          <div className="flex gap-2 min-w-max">
+            {days.map((day, idx) => {
+              const dateStr = format(day, 'yyyy-MM-dd');
+              const dayEstimates = estimatesByDate.get(dateStr) || [];
+              const isToday = isDateToday(day);
+              
+              return (
+                <div
+                  key={idx}
+                  onClick={() => setSelectedDate(day)}
+                  className={cn(
+                    "w-[140px] min-h-[300px] p-2 rounded-xl border-2 cursor-pointer transition-all flex-shrink-0",
+                    "bg-white border-gray-100 hover:border-blue-300 hover:shadow-lg",
+                    isToday && "ring-2 ring-blue-500 ring-offset-1 bg-blue-50/30"
+                  )}
+                >
+                  <div className={cn(
+                    "text-center pb-2 mb-2 border-b",
+                    isToday ? "border-blue-500" : "border-gray-100"
+                  )}>
+                    <div className="text-[10px] text-gray-500 uppercase font-medium">{weekDays[idx]}</div>
+                    <div className={cn(
+                      "text-xl font-bold mt-1",
+                      isToday ? "text-blue-600" : "text-gray-800"
+                    )}>
+                      {format(day, 'd')}
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-1.5">
+                    {dayEstimates.map((estimate, i) => (
+                      <div
+                        key={i}
+                        className="p-1.5 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-xs shadow-md"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedEstimate(estimate);
+                        }}
+                      >
+                        <div className="font-medium truncate">{estimate.event_name}</div>
+                        <div className="text-[10px] opacity-90 flex items-center gap-0.5 mt-0.5">
+                          <MapPin className="w-2.5 h-2.5" />
+                          <span className="truncate">{estimate.venue || 'Без площадки'}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        
+        {/* На десктопе - сетка */}
+        <div className="hidden sm:grid grid-cols-7 gap-2">
           {days.map((day, idx) => {
             const dateStr = format(day, 'yyyy-MM-dd');
             const dayEstimates = estimatesByDate.get(dateStr) || [];
@@ -383,39 +456,39 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
     const isToday = isDateToday(day);
 
     return (
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         <div className={cn(
-          "p-6 rounded-2xl border-2",
+          "p-3 sm:p-6 rounded-xl sm:rounded-2xl border-2",
           isToday 
             ? "bg-gradient-to-br from-blue-50 via-white to-indigo-50 border-blue-300" 
             : "bg-white border-gray-200"
         )}>
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-3xl font-bold text-gray-800">
+          <div className="flex items-center justify-between mb-4 sm:mb-6">
+            <div className="min-w-0 flex-1">
+              <h2 className="text-lg sm:text-3xl font-bold text-gray-800 truncate">
                 {format(day, 'EEEE', { locale: ru })}
               </h2>
               <p className={cn(
-                "text-lg mt-1",
+                "text-sm sm:text-lg mt-1",
                 isToday ? "text-blue-600 font-medium" : "text-gray-500"
               )}>
                 {format(day, 'd MMMM yyyy', { locale: ru })}
-                {isToday && <Badge className="ml-2 bg-blue-600">Сегодня</Badge>}
+                {isToday && <Badge className="ml-2 bg-blue-600 text-xs">Сегодня</Badge>}
               </p>
             </div>
-            <div className="text-right">
-              <div className="text-5xl font-bold text-gray-800">{format(day, 'd')}</div>
-              <div className="text-lg text-gray-500">{format(day, 'MMM', { locale: ru })}</div>
+            <div className="text-right shrink-0 ml-4">
+              <div className="text-3xl sm:text-5xl font-bold text-gray-800">{format(day, 'd')}</div>
+              <div className="text-sm sm:text-lg text-gray-500">{format(day, 'MMM', { locale: ru })}</div>
             </div>
           </div>
 
           {dayEstimates.length === 0 ? (
-            <div className="text-center py-12 text-gray-400">
-              <CalendarIcon className="w-16 h-16 mx-auto mb-4 opacity-30" />
-              <p className="text-lg">Нет мероприятий на этот день</p>
+            <div className="text-center py-8 sm:py-12 text-gray-400">
+              <CalendarIcon className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 opacity-30" />
+              <p className="text-base sm:text-lg">Нет мероприятий на этот день</p>
             </div>
           ) : (
-            <div className="grid gap-4">
+            <div className="grid gap-3 sm:gap-4">
               {dayEstimates.map((estimate, i) => (
                 <Card 
                   key={i} 
@@ -423,27 +496,27 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
                   onClick={() => setSelectedEstimate(estimate)}
                 >
                   <div className="flex">
-                    <div className="w-2 bg-gradient-to-b from-blue-500 to-indigo-500" />
-                    <CardContent className="flex-1 p-4">
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <h3 className="text-xl font-bold text-gray-800 mb-2">{estimate.event_name}</h3>
-                          <div className="flex flex-wrap gap-4 text-sm text-gray-600">
+                    <div className="w-1.5 sm:w-2 bg-gradient-to-b from-blue-500 to-indigo-500" />
+                    <CardContent className="flex-1 p-3 sm:p-4">
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-base sm:text-xl font-bold text-gray-800 mb-1 sm:mb-2 truncate">{estimate.event_name}</h3>
+                          <div className="flex flex-wrap gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600">
                             <span className="flex items-center gap-1">
-                              <MapPin className="w-4 h-4 text-gray-400" />
-                              {estimate.venue || 'Площадка не указана'}
+                              <MapPin className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400" />
+                              <span className="truncate">{estimate.venue || 'Площадка не указана'}</span>
                             </span>
                             {estimate.creator_name && (
-                              <span className="flex items-center gap-1">
+                              <span className="flex items-center gap-1 hidden sm:flex">
                                 <User className="w-4 h-4 text-gray-400" />
                                 {estimate.creator_name}
                               </span>
                             )}
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div className="text-sm text-gray-500">
-                            {estimate.items?.length || 0} позиций
+                        <div className="text-right shrink-0">
+                          <div className="text-xs sm:text-sm text-gray-500">
+                            {estimate.items?.length || 0} поз.
                           </div>
                         </div>
                       </div>
@@ -462,55 +535,55 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
     <div className="space-y-6">
       {/* Шапка с навигацией */}
       <Card className="shadow-lg">
-        <CardHeader className="pb-4">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-lg">
-                <CalendarIcon className="w-6 h-6 text-white" />
+        <CardHeader className="pb-3 sm:pb-4 px-3 sm:px-6">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-4">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="p-1.5 sm:p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg sm:rounded-xl shadow-lg">
+                <CalendarIcon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
-              <div>
-                <CardTitle className="text-2xl">Календарь мероприятий</CardTitle>
-                <p className="text-sm text-gray-500 mt-0.5">Управление событиями и бронированием</p>
+              <div className="min-w-0">
+                <CardTitle className="text-lg sm:text-2xl truncate">Календарь мероприятий</CardTitle>
+                <p className="text-xs sm:text-sm text-gray-500 mt-0.5 hidden sm:block">Управление событиями и бронированием</p>
               </div>
             </div>
             
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
               {/* Переключатель видов */}
               <ToggleGroup 
                 type="single" 
                 value={view} 
                 onValueChange={(v) => v && setView(v as CalendarView)}
-                className="bg-gray-100 p-1 rounded-lg"
+                className="bg-gray-100 p-0.5 sm:p-1 rounded-lg"
               >
-                <ToggleGroupItem value="month" aria-label="Месяц" className="gap-1.5">
+                <ToggleGroupItem value="month" aria-label="Месяц" className="gap-1 h-8 w-8 sm:h-9 sm:w-auto sm:px-3 p-0">
                   <LayoutGrid className="w-4 h-4" />
                   <span className="hidden sm:inline">Месяц</span>
                 </ToggleGroupItem>
-                <ToggleGroupItem value="week" aria-label="Неделя" className="gap-1.5">
+                <ToggleGroupItem value="week" aria-label="Неделя" className="gap-1 h-8 w-8 sm:h-9 sm:w-auto sm:px-3 p-0">
                   <Columns3 className="w-4 h-4" />
                   <span className="hidden sm:inline">Неделя</span>
                 </ToggleGroupItem>
-                <ToggleGroupItem value="day" aria-label="День" className="gap-1.5">
+                <ToggleGroupItem value="day" aria-label="День" className="gap-1 h-8 w-8 sm:h-9 sm:w-auto sm:px-3 p-0">
                   <Square className="w-4 h-4" />
                   <span className="hidden sm:inline">День</span>
                 </ToggleGroupItem>
               </ToggleGroup>
 
               {/* Навигация */}
-              <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg">
-                <Button variant="ghost" size="icon" onClick={navigatePrev} className="h-9 w-9">
-                  <ChevronLeft className="w-5 h-5" />
+              <div className="flex items-center gap-0.5 sm:gap-1 bg-gray-100 p-0.5 sm:p-1 rounded-lg">
+                <Button variant="ghost" size="icon" onClick={navigatePrev} className="h-8 w-8 sm:h-9 sm:w-9">
+                  <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
                 </Button>
                 <Button 
                   variant="ghost" 
                   size="sm" 
                   onClick={navigateToday}
-                  className="font-semibold min-w-[120px] px-3"
+                  className="font-semibold min-w-[100px] sm:min-w-[120px] px-2 sm:px-3 h-8 sm:h-9 text-xs sm:text-sm"
                 >
                   {headerTitle}
                 </Button>
-                <Button variant="ghost" size="icon" onClick={navigateNext} className="h-9 w-9">
-                  <ChevronRight className="w-5 h-5" />
+                <Button variant="ghost" size="icon" onClick={navigateNext} className="h-8 w-8 sm:h-9 sm:w-9">
+                  <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
                 </Button>
               </div>
             </div>
@@ -521,16 +594,17 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
           {view === 'month' && (
             <>
               {/* Заголовки дней недели */}
-              <div className="grid grid-cols-7 gap-2 mb-3">
+              <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-1 sm:mb-3">
                 {weekDays.map(day => (
-                  <div key={day} className="text-center font-semibold text-sm py-3 text-gray-500 uppercase tracking-wider">
-                    {day}
+                  <div key={day} className="text-center font-semibold text-[10px] sm:text-sm py-1 sm:py-3 text-gray-500 uppercase tracking-wider">
+                    <span className="sm:hidden">{day.charAt(0)}</span>
+                    <span className="hidden sm:inline">{day}</span>
                   </div>
                 ))}
               </div>
 
               {/* Сетка дней */}
-              <div className="grid grid-cols-7 gap-2">
+              <div className="grid grid-cols-7 gap-1 sm:gap-2">
                 {days.map((day, idx) => renderMonthDay(day, idx))}
               </div>
             </>
@@ -545,7 +619,7 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
 
       {/* Диалог с деталями дня */}
       <Dialog open={!!selectedDate} onOpenChange={() => setSelectedDate(null)}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-auto" aria-describedby="day-details-desc">
+        <DialogContent className="max-w-[95vw] sm:max-w-3xl max-h-[85vh] overflow-auto p-4 sm:p-6" aria-describedby="day-details-desc">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl">
               <CalendarIcon className="w-5 h-5 text-blue-500" />
@@ -630,18 +704,18 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
             {/* Занятость оборудования */}
             {selectedDate && selectedDateEstimates.length > 0 && (
               <div>
-                <h3 className="font-semibold mb-3 flex items-center gap-2 text-lg">
-                  <Package className="w-5 h-5 text-purple-500" />
+                <h3 className="font-semibold mb-2 sm:mb-3 flex items-center gap-2 text-base sm:text-lg">
+                  <Package className="w-4 h-4 sm:w-5 sm:h-5 text-purple-500" />
                   Занятость оборудования
                 </h3>
-                <div className="grid grid-cols-2 gap-2 max-h-60 overflow-auto">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 sm:max-h-60 overflow-auto">
                   {getEquipmentAvailability(selectedDate)
                     .filter(eq => eq.occupied > 0)
                     .map(eq => (
                       <div
                         key={eq.id}
                         className={cn(
-                          "p-3 rounded-lg text-sm border",
+                          "p-2 sm:p-3 rounded-lg text-xs sm:text-sm border",
                           eq.isFullyBooked
                             ? 'bg-red-50 border-red-200 text-red-800'
                             : eq.available < eq.quantity * 0.2
@@ -671,7 +745,7 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
 
       {/* Диалог с деталями сметы */}
       <Dialog open={!!selectedEstimate} onOpenChange={() => setSelectedEstimate(null)}>
-        <DialogContent className="max-w-2xl" aria-describedby="estimate-details-desc">
+        <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[85vh] overflow-auto p-4 sm:p-6" aria-describedby="estimate-details-desc">
           <DialogHeader>
             <DialogTitle className="text-xl">{selectedEstimate?.event_name}</DialogTitle>
             <DialogDescription id="estimate-details-desc">
@@ -680,7 +754,7 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
           </DialogHeader>
           {selectedEstimate && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4 text-sm bg-gray-50 p-4 rounded-xl">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm bg-gray-50 p-3 sm:p-4 rounded-xl">
                 <div>
                   <p className="text-gray-500 mb-1">Площадка</p>
                   <p className="font-medium flex items-center gap-1">

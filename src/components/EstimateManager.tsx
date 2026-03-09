@@ -296,29 +296,30 @@ export const EstimateManager = memo(function EstimateManager({
                   className={`overflow-hidden cursor-pointer hover:shadow-md transition-shadow ${estimate.is_editing ? 'border-blue-300 bg-blue-50/50' : ''}`}
                   onClick={() => handleEdit(estimate)}
                 >
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-start mb-2">
+                  <CardContent className="p-3 sm:p-4">
+                    {/* Верхняя строка: название и кнопки */}
+                    <div className="flex justify-between items-start gap-2">
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-base truncate">
+                        <h3 className="font-semibold text-sm sm:text-base break-words leading-tight">
                           {estimate.event_name}
                           {estimate.is_editing && (
-                            <span className="ml-2 inline-flex items-center gap-1 text-xs text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded">
+                            <span className="ml-1.5 inline-flex items-center gap-1 text-[10px] text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded align-middle">
                               <Loader2 className="w-3 h-3 animate-spin" />
                             </span>
                           )}
                         </h3>
-                        <p className="text-sm text-gray-500 truncate">{estimate.venue || 'Без площадки'}</p>
+                        <p className="text-xs sm:text-sm text-gray-500 truncate mt-0.5">{estimate.venue || 'Без площадки'}</p>
                         {estimate.is_editing && (
-                          <p className="text-xs text-blue-600 mt-1">
+                          <p className="text-[10px] text-blue-600 mt-1">
                             Редактирует: {estimate.editor_name || 'другой пользователь'}
                           </p>
                         )}
                       </div>
-                      <div className="flex gap-1 ml-2">
+                      <div className="flex gap-1 shrink-0">
                         <Button 
                           variant="ghost" 
                           size="sm"
-                          className="h-8 w-8 p-0"
+                          className="h-9 w-9 p-0 touch-manipulation"
                           disabled={estimate.is_editing && estimate.editing_by !== currentUserId}
                           onClick={(e) => {
                             e.stopPropagation();
@@ -334,7 +335,7 @@ export const EstimateManager = memo(function EstimateManager({
                         <Button 
                           variant="ghost" 
                           size="sm"
-                          className="h-8 w-8 p-0"
+                          className="h-9 w-9 p-0 touch-manipulation"
                           onClick={(e) => {
                             e.stopPropagation();
                             onDelete(estimate.id);
@@ -345,30 +346,33 @@ export const EstimateManager = memo(function EstimateManager({
                       </div>
                     </div>
                     
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-sm text-gray-600">
-                        📅 {new Date(estimate.event_start_date || estimate.event_date).toLocaleDateString('ru-RU')}
-                      </span>
-                      {isMultiDay && (
-                        <span className="text-xs text-gray-500">
-                          — {new Date(estimate.event_end_date || estimate.event_date).toLocaleDateString('ru-RU')}
-                        </span>
-                      )}
-                    </div>
-                    
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        {estimate.customer_name && (
-                          <span className="text-sm text-gray-600 flex items-center gap-1">
-                            <Users className="w-3 h-3" />
-                            {estimate.customer_name}
+                    {/* Дата */}
+                    <div className="flex items-center gap-1.5 mt-2 text-xs sm:text-sm text-gray-600">
+                      <span>📅</span>
+                      <span>
+                        {new Date(estimate.event_start_date || estimate.event_date).toLocaleDateString('ru-RU')}
+                        {isMultiDay && (
+                          <span className="text-gray-500 ml-1">
+                            — {new Date(estimate.event_end_date || estimate.event_date).toLocaleDateString('ru-RU')}
                           </span>
                         )}
-                        <span className="text-sm text-gray-500">
-                          {estimate.items?.length || 0} поз.
+                      </span>
+                    </div>
+                    
+                    {/* Низ: заказчик, позиции, сумма */}
+                    <div className="flex items-end justify-between mt-2 pt-2 border-t border-gray-100">
+                      <div className="flex flex-col gap-0.5 min-w-0">
+                        {estimate.customer_name && (
+                          <span className="text-xs text-gray-600 flex items-center gap-1 truncate">
+                            <Users className="w-3 h-3 shrink-0" />
+                            <span className="truncate">{estimate.customer_name}</span>
+                          </span>
+                        )}
+                        <span className="text-xs text-gray-500">
+                          {estimate.items?.length || 0} позиций
                         </span>
                       </div>
-                      <span className="font-bold text-lg text-blue-600">
+                      <span className="font-bold text-base sm:text-lg text-blue-600 shrink-0">
                         {estimate.total.toLocaleString('ru-RU')} ₽
                       </span>
                     </div>
