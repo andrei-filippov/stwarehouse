@@ -243,13 +243,13 @@ export function ContractPreview({ contract, pdfSettings, onClose }: ContractPrev
             </div>
           ) : (
             // Режим предпросмотра - используем iframe для изоляции стилей
-            <div className="border rounded-lg bg-white h-full overflow-hidden shadow-inner" style={{ maxHeight: 'calc(100vh - 350px)' }}>
+            <div className="border rounded-lg bg-white overflow-hidden shadow-inner">
               <iframe
                 ref={previewRef as any}
                 srcDoc={htmlContent}
                 style={{
                   width: '100%',
-                  height: '100%',
+                  height: '500px',
                   border: 'none',
                 }}
                 title="Предпросмотр договора"
