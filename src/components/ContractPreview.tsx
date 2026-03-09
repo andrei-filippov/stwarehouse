@@ -242,22 +242,17 @@ export function ContractPreview({ contract, pdfSettings, onClose }: ContractPrev
               />
             </div>
           ) : (
-            // Режим предпросмотра
-            <div 
-              ref={previewRef}
-              className="border rounded-lg p-8 bg-white h-full overflow-y-auto shadow-inner"
-              style={{ maxHeight: 'calc(100vh - 350px)' }}
-            >
-              <div 
-                dangerouslySetInnerHTML={{ __html: htmlContent }}
+            // Режим предпросмотра - используем iframe для изоляции стилей
+            <div className="border rounded-lg bg-white h-full overflow-hidden shadow-inner" style={{ maxHeight: 'calc(100vh - 350px)' }}>
+              <iframe
+                ref={previewRef as any}
+                srcDoc={htmlContent}
                 style={{
-                  fontFamily: '"Times New Roman", Times, serif',
-                  fontSize: '12pt',
-                  lineHeight: '1.5',
-                  color: '#000',
-                  maxWidth: '210mm',
-                  margin: '0 auto',
+                  width: '100%',
+                  height: '100%',
+                  border: 'none',
                 }}
+                title="Предпросмотр договора"
               />
             </div>
           )}
