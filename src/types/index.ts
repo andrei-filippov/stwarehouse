@@ -213,3 +213,7 @@ export {
   numberToWords,
   generateContractNumber 
 } from './contracts';
+
+// Audit Logs
+export type { AuditLog, AuditAction, EntityType, AuditLogFilters } from '../hooks/useAuditLogs';
+export { getActionLabel, getEntityLabel } from '../hooks/useAuditLogs';

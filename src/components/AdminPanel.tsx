@@ -9,7 +9,8 @@ import {
   ChevronUp,
   Save,
   RefreshCw,
-  UserCog
+  UserCog,
+  History
 } from 'lucide-react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
@@ -28,6 +29,7 @@ import {
   type TabId,
   type EffectivePermission,
 } from '../lib/permissions';
+import { AuditLogs } from './AuditLogs';
 
 interface User {
   id: string;
@@ -41,6 +43,7 @@ interface AdminPanelProps {
 }
 
 export function AdminPanel({ currentUserId }: AdminPanelProps) {
+  const [activeTab, setActiveTab] = useState<'users' | 'logs'>('users');
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
@@ -157,15 +160,55 @@ export function AdminPanel({ currentUserId }: AdminPanelProps) {
             <Shield className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-gray-900">Управление доступом</h2>
-            <p className="text-sm text-gray-500">Назначайте роли и настраивайте индивидуальные разрешения</p>
+            <h2 className="text-xl font-bold text-gray-900">Администрирование</h2>
+            <p className="text-sm text-gray-500">Управление доступом и журнал аудита</p>
           </div>
         </div>
-        <Button variant="outline" onClick={loadUsers} className="gap-2">
-          <RefreshCw className="w-4 h-4" />
-          Обновить
-        </Button>
+        {activeTab === 'users' && (
+          <Button variant="outline" onClick={loadUsers} className="gap-2">
+            <RefreshCw className="w-4 h-4" />
+            Обновить
+          </Button>
+        )}
       </div>
+
+      {/* Табы */}
+      <div className="border-b">
+        <div className="flex gap-4">
+          <button
+            onClick={() => setActiveTab('users')}
+            className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'users'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4" />
+              Пользователи
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveTab('logs')}
+            className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'logs'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <History className="w-4 h-4" />
+              Журнал аудита
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {/* Контент */}
+      {activeTab === 'logs' ? (
+        <AuditLogs />
+      ) : (
+        <div className="space-y-6">
 
       {/* Легенда */}
       <Card className="p-4 bg-gray-50/50 border-gray-200">
@@ -345,6 +388,8 @@ export function AdminPanel({ currentUserId }: AdminPanelProps) {
           <Users className="w-12 h-12 text-gray-300 mx-auto mb-4" />
           <p className="text-gray-500">Пользователей не найдено</p>
         </Card>
+      )}
+        </div>
       )}
     </div>
   );
