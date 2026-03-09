@@ -93,4 +93,16 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+  
+  /* Плавная прокрутка для iOS */
+  .overscroll-contain {
+    overscroll-behavior: contain;
+  }
+  
+  /* Улучшенная прокрутка на тач-устройствах */
+  .touch-scroll {
+    -webkit-overflow-scrolling: touch;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
 }

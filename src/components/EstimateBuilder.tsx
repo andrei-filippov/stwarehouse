@@ -756,29 +756,329 @@ export function EstimateBuilder({
         </div>
 
         {/* Основной контент */}
-        <div className="flex-1 flex overflow-hidden">
-          {/* Левая панель - Оборудование (30%) */}
-          <div 
-            className={cn(
-              "flex-col border-r bg-white transition-all duration-300",
-              activeMobileTab === 'equipment' ? 'flex' : 'hidden md:flex',
-              expandedPanel === 'equipment' ? 'w-full' : expandedPanel === 'estimate' ? 'hidden' : 'w-[35%]'
-            )}
-          >
-            {/* Заголовок панели с кнопкой разворачивания */}
-            <div className="p-2 md:p-3 border-b bg-gray-50 flex items-center justify-between shrink-0">
-              <span className="font-medium text-sm">Оборудование</span>
-              <div className="flex items-center gap-1">
-                {/* Кнопка фильтра категорий (только мобильный) */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowCategoryFilter(!showCategoryFilter)}
-                  className="h-8 w-8 p-0 md:hidden"
-                  title="Фильтр категорий"
+        <div className="flex-1 flex overflow-hidden relative">
+          
+          {/* ==========================================
+              МОБИЛЬНАЯ ВЕРСИЯ: Только одна панель в DOM
+              ========================================== */}
+          
+          {/* Мобильная панель Оборудования */}
+          {activeMobileTab === 'equipment' && (
+            <div className="flex md:hidden flex-col w-full h-full bg-white">
+              {/* Поиск и фильтр */}
+              <div className="p-2 border-b space-y-2 shrink-0 bg-gray-50">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    placeholder="Поиск оборудования..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 h-10"
+                  />
+                </div>
+                
+                {/* Фильтр категорий - компактный select */}
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white h-10"
                 >
-                  <Settings2 className="w-4 h-4" />
-                </Button>
+                  <option value="all">Все категории</option>
+                  {equipmentCategories.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+              
+              {/* Список оборудования */}
+              <div className="flex-1 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
+                <div className="p-2 space-y-2 pb-20">
+                  {filteredEquipment.length === 0 ? (
+                    <div className="text-center py-8 text-gray-400">
+                      <p>Ничего не найдено</p>
+                    </div>
+                  ) : (
+                    filteredEquipment.map(item => {
+                      const usedQty = getUsedQuantity(item.id);
+                      const bookedQty = getBookedQuantity(item.id);
+                      const totalUsed = usedQty + bookedQty;
+                      const availableQty = item.quantity - totalUsed;
+                      
+                      return (
+                        <Card 
+                          key={item.id} 
+                          className={cn(
+                            "transition-shadow",
+                            availableQty > 0 ? "cursor-pointer active:scale-[0.98]" : "opacity-50"
+                          )} 
+                          onClick={() => availableQty > 0 && handleAddItem(item)}
+                        >
+                          <CardContent className="p-3">
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1 min-w-0 mr-2">
+                                <h3 className="font-medium text-sm truncate">{item.name}</h3>
+                                <p className="text-xs text-gray-500">{item.category}</p>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <p className="font-bold text-sm">{item.price.toLocaleString('ru-RU')} ₽</p>
+                                <p className={cn(
+                                  "text-xs",
+                                  availableQty <= 0 ? "text-red-500 font-medium" : "text-gray-500"
+                                )}>
+                                  {availableQty} / {item.quantity} {item.unit}
+                                </p>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+              
+              {/* Кнопка перехода к смете (плавающая) */}
+              {items.length > 0 && (
+                <div className="fixed bottom-20 left-4 right-4 z-30 md:hidden">
+                  <Button 
+                    className="w-full shadow-lg"
+                    onClick={() => setActiveMobileTab('estimate')}
+                  >
+                    Перейти к смете ({items.length})
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* Мобильная панель Сметы */}
+          {activeMobileTab === 'estimate' && (
+            <div className="flex md:hidden flex-col w-full h-full bg-white">
+              {/* Шапка сметы - компактная */}
+              <div className="p-2 border-b space-y-2 shrink-0 bg-gray-50">
+                <Input
+                  placeholder="Название мероприятия"
+                  value={eventName}
+                  onChange={(e) => setEventName(e.target.value)}
+                  className="h-10 font-medium"
+                />
+                
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    type="date"
+                    value={eventStartDate ? eventStartDate.split('T')[0] : ''}
+                    onChange={(e) => {
+                      const date = e.target.value;
+                      if (date) {
+                        setEventStartDate(new Date(date).toISOString());
+                        if (!eventEndDate || new Date(eventEndDate) < new Date(date)) {
+                          setEventEndDate(new Date(date).toISOString());
+                        }
+                      } else {
+                        setEventStartDate('');
+                      }
+                    }}
+                    className="h-9 text-xs"
+                  />
+                  <Input
+                    type="date"
+                    value={eventEndDate ? eventEndDate.split('T')[0] : ''}
+                    onChange={(e) => {
+                      const date = e.target.value;
+                      if (date) {
+                        const newEnd = new Date(date);
+                        if (eventStartDate && newEnd < new Date(eventStartDate)) {
+                          alert('Дата окончания не может быть раньше даты начала');
+                          return;
+                        }
+                        setEventEndDate(newEnd.toISOString());
+                      } else {
+                        setEventEndDate('');
+                      }
+                    }}
+                    className="h-9 text-xs"
+                    min={eventStartDate ? eventStartDate.split('T')[0] : undefined}
+                  />
+                </div>
+                
+                <Input
+                  placeholder="Место проведения"
+                  value={venue}
+                  onChange={(e) => setVenue(e.target.value)}
+                  className="h-9 text-sm"
+                />
+
+                <select
+                  value={customerId}
+                  onChange={(e) => setCustomerId(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-md text-sm h-9 bg-white"
+                >
+                  <option value="">Заказчик</option>
+                  {customers.map(customer => (
+                    <option key={customer.id} value={customer.id}>
+                      {customer.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              {/* Список позиций сметы */}
+              <div className="flex-1 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
+                <div className="p-2 space-y-3 pb-32">
+                  {groupedItems.length === 0 ? (
+                    <div className="text-center py-8 text-gray-400">
+                      <p>Добавьте оборудование</p>
+                      <Button 
+                        variant="outline" 
+                        className="mt-4"
+                        onClick={() => setActiveMobileTab('equipment')}
+                      >
+                        Перейти к оборудованию
+                      </Button>
+                    </div>
+                  ) : (
+                    groupedItems.map(([category, categoryItems]) => (
+                      <Card key={category} className="overflow-hidden">
+                        <CardHeader 
+                          className="p-2 cursor-move bg-gray-50"
+                          draggable
+                          onDragStart={() => handleDragStart(category)}
+                          onDragOver={(e) => handleDragOver(e, category)}
+                          onDrop={(e) => handleDrop(e, category)}
+                          onDragEnd={handleDragEnd}
+                        >
+                          <div className="flex items-center justify-between">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              <GripVertical className="w-4 h-4 text-gray-400" />
+                              {category}
+                              <Badge variant="secondary" className="text-xs">{categoryItems.length}</Badge>
+                            </CardTitle>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => toggleCategory(category)}
+                              className="h-7 w-7 p-0"
+                            >
+                              {collapsedCategories.has(category) ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                            </Button>
+                          </div>
+                        </CardHeader>
+                        
+                        {!collapsedCategories.has(category) && (
+                          <CardContent className="p-0">
+                            <div className="divide-y">
+                              {categoryItems.map((item, idx) => {
+                                const itemTotal = item.price * item.quantity * (item.coefficient || 1);
+                                
+                                return (
+                                  <div key={item.id} className="p-3 bg-white">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <span className="text-xs text-gray-400 w-5">{idx + 1}</span>
+                                      <p className="font-medium text-sm flex-1 truncate">{item.name}</p>
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-2 pl-7">
+                                      <div className="flex items-center gap-1">
+                                        <Input
+                                          type="number"
+                                          value={item.quantity}
+                                          onChange={(e) => {
+                                            const val = e.target.value === '' ? '' : parseInt(e.target.value);
+                                            if (val === '' || !isNaN(val)) {
+                                              handleUpdateItem(item.id, { quantity: val === '' ? 1 : Math.max(1, val) });
+                                            }
+                                          }}
+                                          className="w-14 h-8 text-sm text-center"
+                                          min={1}
+                                        />
+                                        <span className="text-xs text-gray-400">×</span>
+                                        <Input
+                                          type="number"
+                                          value={item.coefficient || 1}
+                                          onChange={(e) => {
+                                            const val = e.target.value === '' ? '' : parseFloat(e.target.value);
+                                            if (val === '' || !isNaN(val)) {
+                                              handleUpdateItem(item.id, { coefficient: val === '' ? 1 : Math.max(0.1, val) });
+                                            }
+                                          }}
+                                          className="w-14 h-8 text-sm text-center"
+                                          step={0.1}
+                                          min={0.1}
+                                        />
+                                      </div>
+                                      
+                                      <div className="flex-1 text-right">
+                                        <Input
+                                          type="number"
+                                          value={Math.round(itemTotal)}
+                                          onChange={(e) => {
+                                            const val = parseFloat(e.target.value);
+                                            if (!isNaN(val) && val >= 0) {
+                                              handleUpdateTotal(item.id, val);
+                                            }
+                                          }}
+                                          className="w-20 h-8 text-sm text-right font-medium inline-block"
+                                          min={0}
+                                        />
+                                        <span className="text-xs text-gray-500 ml-1">₽</span>
+                                      </div>
+                                      
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleRemoveItem(item.id)}
+                                        className="h-8 w-8 p-0 text-red-500"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </CardContent>
+                        )}
+                      </Card>
+                    ))
+                  )}
+                </div>
+              </div>
+              
+              {/* Фиксированная панель с Итого и кнопками */}
+              <div className="fixed bottom-[72px] left-0 right-0 bg-white border-t p-3 shadow-lg z-30 md:hidden">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-xs text-gray-500">Итого:</span>
+                    <div className="text-xl font-bold">{total.toLocaleString('ru-RU')} ₽</div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={exportPDF} className="h-10 px-3">
+                      PDF
+                    </Button>
+                    <Button size="sm" onClick={handleSave} disabled={!eventName || items.length === 0} className="h-10 px-4">
+                      Сохранить
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* ==========================================
+              ДЕСКТОПНАЯ ВЕРСИЯ: Обе панели side-by-side
+              ========================================== */}
+          
+          <div className="hidden md:flex flex-1 overflow-hidden">
+            {/* Левая панель - Оборудование (35%) */}
+            <div 
+              className={cn(
+                "flex-col border-r bg-white transition-all duration-300",
+                expandedPanel === 'equipment' ? 'w-full' : expandedPanel === 'estimate' ? 'hidden' : 'w-[35%]'
+              )}
+            >
+              {/* Заголовок панели */}
+              <div className="p-3 border-b bg-gray-50 flex items-center justify-between shrink-0">
+                <span className="font-medium text-sm">Оборудование</span>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -788,133 +1088,104 @@ export function EstimateBuilder({
                   {expandedPanel === 'equipment' ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
                 </Button>
               </div>
-            </div>
 
-            <div className="p-2 md:p-3 border-b space-y-2 shrink-0">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <Input
-                  placeholder="Поиск..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 h-9"
-                />
-              </div>
-              
-              {/* Фильтр категорий - десктоп: кнопки */}
-              <div className="hidden md:flex flex-wrap gap-1">
-                <button
-                  onClick={() => setSelectedCategory('all')}
-                  className={cn(
-                    "px-2 py-1 text-xs rounded border transition-colors",
-                    selectedCategory === 'all' 
-                      ? "bg-blue-600 text-white border-blue-600" 
-                      : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-                  )}
-                >
-                  Все
-                </button>
-                {equipmentCategories.map(cat => (
+              <div className="p-3 border-b space-y-2 shrink-0">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    placeholder="Поиск..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 h-9"
+                  />
+                </div>
+                
+                {/* Фильтр категорий - кнопки */}
+                <div className="flex flex-wrap gap-1">
                   <button
-                    key={cat}
-                    onClick={() => setSelectedCategory(cat)}
+                    onClick={() => setSelectedCategory('all')}
                     className={cn(
-                      "px-2 py-1 text-xs rounded border transition-colors truncate max-w-[120px]",
-                      selectedCategory === cat 
+                      "px-2 py-1 text-xs rounded border transition-colors",
+                      selectedCategory === 'all' 
                         ? "bg-blue-600 text-white border-blue-600" 
                         : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
                     )}
-                    title={cat}
                   >
-                    {cat}
+                    Все
                   </button>
-                ))}
-              </div>
-              
-              {/* Фильтр категорий - мобильный: выпадающий список */}
-              {showCategoryFilter && (
-                <div className="md:hidden">
-                  <select
-                    value={selectedCategory}
-                    onChange={(e) => setSelectedCategory(e.target.value)}
-                    className="w-full px-2 py-1.5 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="all">Все категории</option>
-                    {equipmentCategories.map(cat => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </div>
-
-            <div className="flex-1 overflow-y-auto">
-              <div className="p-1.5 md:p-3 space-y-1.5 md:space-y-2">
-                {filteredEquipment.map(item => {
-                  const usedQty = getUsedQuantity(item.id);
-                  const bookedQty = getBookedQuantity(item.id);
-                  const totalUsed = usedQty + bookedQty;
-                  const availableQty = item.quantity - totalUsed;
-                  
-                  return (
-                    <Card 
-                      key={item.id} 
+                  {equipmentCategories.map(cat => (
+                    <button
+                      key={cat}
+                      onClick={() => setSelectedCategory(cat)}
                       className={cn(
-                        "transition-shadow",
-                        availableQty > 0 ? "cursor-pointer hover:shadow-md" : "opacity-50 cursor-not-allowed"
-                      )} 
-                      onClick={() => availableQty > 0 && handleAddItem(item)}
+                        "px-2 py-1 text-xs rounded border transition-colors truncate max-w-[120px]",
+                        selectedCategory === cat 
+                          ? "bg-blue-600 text-white border-blue-600" 
+                          : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                      )}
+                      title={cat}
                     >
-                      <CardContent className="p-2 md:p-2.5">
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1 min-w-0 mr-2">
-                            <h3 className="font-medium text-sm md:text-base truncate">{item.name}</h3>
-                            <p className="text-xs text-gray-500 truncate">{item.category}</p>
-                            {item.description && (
-                              <p className="text-xs text-gray-400 mt-1 truncate">{item.description}</p>
-                            )}
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto">
+                <div className="p-3 space-y-2">
+                  {filteredEquipment.map(item => {
+                    const usedQty = getUsedQuantity(item.id);
+                    const bookedQty = getBookedQuantity(item.id);
+                    const totalUsed = usedQty + bookedQty;
+                    const availableQty = item.quantity - totalUsed;
+                    
+                    return (
+                      <Card 
+                        key={item.id} 
+                        className={cn(
+                          "transition-shadow",
+                          availableQty > 0 ? "cursor-pointer hover:shadow-md" : "opacity-50 cursor-not-allowed"
+                        )} 
+                        onClick={() => availableQty > 0 && handleAddItem(item)}
+                      >
+                        <CardContent className="p-2.5">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1 min-w-0 mr-2">
+                              <h3 className="font-medium text-sm truncate">{item.name}</h3>
+                              <p className="text-xs text-gray-500 truncate">{item.category}</p>
+                              {item.description && (
+                                <p className="text-xs text-gray-400 mt-1 truncate">{item.description}</p>
+                              )}
+                            </div>
+                            <div className="text-right shrink-0">
+                              <p className="font-bold text-sm">{item.price.toLocaleString('ru-RU')} ₽</p>
+                              <p className={cn(
+                                "text-xs",
+                                availableQty <= 0 ? "text-red-500 font-medium" : bookedQty > 0 ? "text-amber-600" : "text-gray-500"
+                              )}>
+                                {availableQty} свободно / {item.quantity} {item.unit}
+                                {bookedQty > 0 && <span className="block text-[10px]">({bookedQty} в других сметах)</span>}
+                              </p>
+                            </div>
                           </div>
-                          <div className="text-right shrink-0">
-                            <p className="font-bold text-sm md:text-base">{item.price.toLocaleString('ru-RU')} ₽</p>
-                            <p className={cn(
-                              "text-xs",
-                              availableQty <= 0 ? "text-red-500 font-medium" : bookedQty > 0 ? "text-amber-600" : "text-gray-500"
-                            )}>
-                              {availableQty} свободно / {item.quantity} {item.unit}
-                              {bookedQty > 0 && <span className="block text-[10px]">({bookedQty} в других сметах)</span>}
-                            </p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Правая панель - Смета (70%) */}
-          <div 
-            className={cn(
-              "flex-col bg-white transition-all duration-300 relative",
-              activeMobileTab === 'estimate' ? 'flex' : 'hidden md:flex',
-              expandedPanel === 'estimate' ? 'w-full' : expandedPanel === 'equipment' ? 'hidden' : 'w-[65%]'
-            )}
-          >
-            {/* Заголовок панели с кнопкой разворачивания */}
-            <div className="p-2 md:p-3 border-b bg-gray-50 flex items-center justify-between shrink-0">
-              <span className="font-medium text-sm">Смета</span>
-              <div className="flex items-center gap-2">
-                {/* Мобильный переключатель сворачивания шапки */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsHeaderCollapsed(!isHeaderCollapsed)}
-                  className="h-8 px-2 md:hidden text-xs"
-                >
-                  {isHeaderCollapsed ? 'Развернуть' : 'Свернуть'}
-                  {isHeaderCollapsed ? <ChevronDown className="w-4 h-4 ml-1" /> : <ChevronUp className="w-4 h-4 ml-1" />}
-                </Button>
+            {/* Правая панель - Смета (65%) */}
+            <div 
+              className={cn(
+                "flex-col bg-white transition-all duration-300",
+                expandedPanel === 'estimate' ? 'w-full' : expandedPanel === 'equipment' ? 'hidden' : 'w-[65%]'
+              )}
+            >
+              {/* Заголовок панели */}
+              <div className="p-3 border-b bg-gray-50 flex items-center justify-between shrink-0">
+                <span className="font-medium text-sm">Смета</span>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -924,16 +1195,9 @@ export function EstimateBuilder({
                   {expandedPanel === 'estimate' ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
                 </Button>
               </div>
-            </div>
 
-            {/* Шапка сметы - сворачиваемая на мобильном */}
-            <div className={cn(
-              "border-b bg-gray-50/50 shrink-0 overflow-hidden transition-all duration-300",
-              isHeaderCollapsed ? 'max-h-0 md:max-h-none md:p-2 md:pb-3' : 'max-h-[500px]',
-              !isHeaderCollapsed && 'p-2 pb-3'
-            )}>
-              {/* На десктопе всегда показываем */}
-              <div className="hidden md:block space-y-3">
+              {/* Шапка сметы */}
+              <div className="p-3 border-b space-y-3 shrink-0 bg-gray-50/50">
                 <Input
                   placeholder="Название мероприятия"
                   value={eventName}
@@ -1006,136 +1270,57 @@ export function EstimateBuilder({
                 </select>
               </div>
 
-              {/* На мобильном - компактная версия */}
-              <div className="md:hidden space-y-2">
-                <Input
-                  placeholder="Название"
-                  value={eventName}
-                  onChange={(e) => setEventName(e.target.value)}
-                  className="h-9 text-sm"
-                />
-                
-                <div className="grid grid-cols-2 gap-2">
-                  <Input
-                    type="date"
-                    value={eventStartDate ? eventStartDate.split('T')[0] : ''}
-                    onChange={(e) => {
-                      const date = e.target.value;
-                      if (date) {
-                        setEventStartDate(new Date(date).toISOString());
-                        if (!eventEndDate || new Date(eventEndDate) < new Date(date)) {
-                          setEventEndDate(new Date(date).toISOString());
-                        }
-                      } else {
-                        setEventStartDate('');
-                      }
-                    }}
-                    className="h-9 text-xs"
-                  />
-                  <Input
-                    type="date"
-                    value={eventEndDate ? eventEndDate.split('T')[0] : ''}
-                    onChange={(e) => {
-                      const date = e.target.value;
-                      if (date) {
-                        const newEnd = new Date(date);
-                        if (eventStartDate && newEnd < new Date(eventStartDate)) {
-                          alert('Дата окончания не может быть раньше даты начала');
-                          return;
-                        }
-                        setEventEndDate(newEnd.toISOString());
-                      } else {
-                        setEventEndDate('');
-                      }
-                    }}
-                    className="h-9 text-xs"
-                    min={eventStartDate ? eventStartDate.split('T')[0] : undefined}
-                  />
-                </div>
-                
-                <Input
-                  placeholder="Место"
-                  value={venue}
-                  onChange={(e) => setVenue(e.target.value)}
-                  className="h-9 text-sm"
-                />
-
-                <select
-                  value={customerId}
-                  onChange={(e) => setCustomerId(e.target.value)}
-                  className="w-full px-2 py-1.5 border rounded-md text-sm h-9"
-                >
-                  <option value="">Заказчик</option>
-                  {customers.map(customer => (
-                    <option key={customer.id} value={customer.id}>
-                      {customer.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto">
-              <div className="p-1.5 md:p-3 space-y-3 md:space-y-4 pb-20 md:pb-4">
-                {groupedItems.length === 0 ? (
-                  <div className="text-center py-8 text-gray-400">
-                    <p>Добавьте оборудование из списка слева</p>
-                  </div>
-                ) : (
-                  groupedItems.map(([category, categoryItems]) => (
-                    <Card key={category} className={cn(
-                      "transition-all",
-                      isDragging && draggedCategory === category && "opacity-50",
-                      isDragging && dropTarget === category && "ring-2 ring-blue-400"
-                    )}>
-                      <CardHeader 
-                        className="p-2 md:p-2.5 cursor-move"
-                        draggable
-                        onDragStart={() => handleDragStart(category)}
-                        onDragOver={(e) => handleDragOver(e, category)}
-                        onDrop={(e) => handleDrop(e, category)}
-                        onDragEnd={handleDragEnd}
-                      >
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-sm md:text-sm flex items-center gap-2">
-                            <GripVertical className="w-4 h-4 text-gray-400 shrink-0" />
-                            <span className="truncate">{category}</span>
-                            <Badge variant="secondary" className="shrink-0 text-xs">{categoryItems.length}</Badge>
-                          </CardTitle>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => toggleCategory(category)}
-                            className="shrink-0 h-7 w-7 p-0"
-                          >
-                            {collapsedCategories.has(category) ? (
-                              <ChevronDown className="w-4 h-4" />
-                            ) : (
-                              <ChevronUp className="w-4 h-4" />
-                            )}
-                          </Button>
-                        </div>
-                      </CardHeader>
-                      
-                      {!collapsedCategories.has(category) && (
-                        <CardContent className="p-0">
-                          <div className="space-y-1.5 p-1.5 md:p-2">
-                            {categoryItems.map((item, idx) => {
-                              const itemTotal = item.price * item.quantity * (item.coefficient || 1);
-                              
-                              return (
-                                <div key={item.id} className="flex flex-col sm:flex-row sm:items-center gap-2 p-2 bg-gray-50 rounded">
-                                  {/* Верхняя строка: номер и название */}
-                                  <div className="flex items-center gap-2 min-w-0 flex-1">
+              {/* Список позиций */}
+              <div className="flex-1 overflow-y-auto">
+                <div className="p-3 space-y-4">
+                  {groupedItems.length === 0 ? (
+                    <div className="text-center py-8 text-gray-400">
+                      <p>Добавьте оборудование из списка слева</p>
+                    </div>
+                  ) : (
+                    groupedItems.map(([category, categoryItems]) => (
+                      <Card key={category} className={cn(
+                        "transition-all",
+                        isDragging && draggedCategory === category && "opacity-50",
+                        isDragging && dropTarget === category && "ring-2 ring-blue-400"
+                      )}>
+                        <CardHeader 
+                          className="p-2.5 cursor-move bg-gray-50"
+                          draggable
+                          onDragStart={() => handleDragStart(category)}
+                          onDragOver={(e) => handleDragOver(e, category)}
+                          onDrop={(e) => handleDrop(e, category)}
+                          onDragEnd={handleDragEnd}
+                        >
+                          <div className="flex items-center justify-between">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              <GripVertical className="w-4 h-4 text-gray-400 shrink-0" />
+                              <span className="truncate">{category}</span>
+                              <Badge variant="secondary" className="shrink-0 text-xs">{categoryItems.length}</Badge>
+                            </CardTitle>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => toggleCategory(category)}
+                              className="shrink-0 h-7 w-7 p-0"
+                            >
+                              {collapsedCategories.has(category) ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                            </Button>
+                          </div>
+                        </CardHeader>
+                        
+                        {!collapsedCategories.has(category) && (
+                          <CardContent className="p-0">
+                            <div className="space-y-2 p-2">
+                              {categoryItems.map((item, idx) => {
+                                const itemTotal = item.price * item.quantity * (item.coefficient || 1);
+                                
+                                return (
+                                  <div key={item.id} className="flex items-center gap-2 p-2 bg-gray-50 rounded">
                                     <span className="text-xs text-gray-400 w-5 shrink-0">{idx + 1}</span>
-                                    <p className="font-medium text-sm truncate">{item.name}</p>
-                                  </div>
-                                  
-                                  {/* Нижняя строка: поля ввода (на мобильном) / справа (на десктопе) */}
-                                  <div className="flex items-center gap-1.5 sm:gap-1 shrink-0 pl-7 sm:pl-0">
-                                    {/* Количество */}
-                                    <div className="flex flex-col items-center">
-                                      <Label className="text-[9px] text-gray-500 mb-0.5 hidden sm:block">Кол-во</Label>
+                                    <p className="font-medium text-sm flex-1 truncate">{item.name}</p>
+                                    
+                                    <div className="flex items-center gap-1 shrink-0">
                                       <Input
                                         type="number"
                                         value={item.quantity}
@@ -1145,14 +1330,10 @@ export function EstimateBuilder({
                                             handleUpdateItem(item.id, { quantity: val === '' ? 1 : Math.max(1, val) });
                                           }
                                         }}
-                                        className="w-16 sm:w-14 md:w-16 h-8 text-sm text-center"
+                                        className="w-14 h-8 text-sm text-center"
                                         min={1}
                                       />
-                                    </div>
-                                    
-                                    {/* Коэффициент */}
-                                    <div className="flex flex-col items-center">
-                                      <Label className="text-[9px] text-gray-500 mb-0.5 hidden sm:block">Коэф.</Label>
+                                      
                                       <Input
                                         type="number"
                                         value={item.coefficient || 1}
@@ -1162,15 +1343,11 @@ export function EstimateBuilder({
                                             handleUpdateItem(item.id, { coefficient: val === '' ? 1 : Math.max(0.1, val) });
                                           }
                                         }}
-                                        className="w-16 sm:w-14 md:w-16 h-8 text-sm text-center"
+                                        className="w-14 h-8 text-sm text-center"
                                         step={0.1}
                                         min={0.1}
                                       />
-                                    </div>
-                                    
-                                    {/* Сумма (ручной ввод) */}
-                                    <div className="flex flex-col items-center">
-                                      <Label className="text-[9px] text-gray-500 mb-0.5 hidden sm:block">Сумма</Label>
+                                      
                                       <Input
                                         type="number"
                                         value={Math.round(itemTotal)}
@@ -1180,56 +1357,48 @@ export function EstimateBuilder({
                                             handleUpdateTotal(item.id, val);
                                           }
                                         }}
-                                        className="w-20 sm:w-20 md:w-24 h-8 text-sm text-right font-medium"
+                                        className="w-20 h-8 text-sm text-right font-medium"
                                         min={0}
                                       />
+                                      
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleDuplicateItem(item)}
+                                        className="h-8 w-8 p-0"
+                                      >
+                                        <Copy className="w-4 h-4" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleRemoveItem(item.id)}
+                                        className="h-8 w-8 p-0"
+                                      >
+                                        <Trash2 className="w-4 h-4 text-red-500" />
+                                      </Button>
                                     </div>
-                                    
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => handleDuplicateItem(item)}
-                                      className="h-8 w-8 p-0 ml-1"
-                                    >
-                                      <Copy className="w-4 h-4" />
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => handleRemoveItem(item.id)}
-                                      className="h-8 w-8 p-0"
-                                    >
-                                      <Trash2 className="w-4 h-4 text-red-500" />
-                                    </Button>
                                   </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </CardContent>
-                      )}
-                    </Card>
-                  ))
-                )}
+                                );
+                              })}
+                            </div>
+                          </CardContent>
+                        )}
+                      </Card>
+                    ))
+                  )}
+                </div>
               </div>
-            </div>
 
-            {/* Фиксированная панель Итого на мобильном */}
-            <div className={cn(
-              "border-t bg-gray-50 shrink-0",
-              "md:relative md:p-2 md:px-4",
-              "fixed bottom-[72px] left-0 right-0 p-2 px-4 z-40 shadow-lg md:shadow-none md:bottom-auto"
-            )}>
-              <div className="flex justify-between items-center max-w-7xl mx-auto">
-                <span className="text-sm md:text-base text-gray-600">Итого:</span>
-                <span className="text-lg md:text-2xl font-bold">{total.toLocaleString('ru-RU')} ₽</span>
+              {/* Панель Итого */}
+              <div className="border-t bg-gray-50 p-3 px-4 shrink-0">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Итого:</span>
+                  <span className="text-2xl font-bold">{total.toLocaleString('ru-RU')} ₽</span>
+                </div>
               </div>
             </div>
-            
-            {/* Отступ для мобильного чтобы контент не скрывался под фиксированной панелью */}
-            <div className="h-14 md:hidden" />
           </div>
-        </div>
       </div>
 
       {/* Диалог подтверждения выхода */}
