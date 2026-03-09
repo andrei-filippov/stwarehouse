@@ -470,6 +470,7 @@ export async function exportContractToDOCX(contract: Contract, pdfSettings: PDFS
         children: [
           new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: '№', bold: true, color: "000000" })] })] }),
           new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Наименование', bold: true, color: "000000" })] })] }),
+          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Описание', bold: true, color: "000000" })] })] }),
           new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Кол-во', bold: true, color: "000000" })] })] }),
           new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Ед.', bold: true, color: "000000" })] })] }),
           new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Цена', bold: true, color: "000000" })] })] }),
@@ -496,7 +497,7 @@ export async function exportContractToDOCX(contract: Contract, pdfSettings: PDFS
           new TableRow({
             children: [
               new TableCell({
-                columnSpan: 6,
+                columnSpan: 7,
                 children: [new Paragraph({ children: [new TextRun({ text: category, bold: true, color: "000000" })] })],
               }),
             ],
@@ -510,6 +511,7 @@ export async function exportContractToDOCX(contract: Contract, pdfSettings: PDFS
               children: [
                 new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(globalIndex++), color: "000000" })] })] }),
                 new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: item.name, color: "000000" })] })] }),
+                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: item.description || '', color: "000000" })] })] }),
                 new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(item.quantity), color: "000000" })] })] }),
                 new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: item.unit, color: "000000" })] })] }),
                 new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: item.price.toLocaleString('ru-RU'), color: "000000" })] })] }),
@@ -525,8 +527,8 @@ export async function exportContractToDOCX(contract: Contract, pdfSettings: PDFS
     specRows.push(
       new TableRow({
         children: [
-          new TableCell({ columnSpan: 5, children: [new Paragraph({ text: 'Итого:', bold: true, alignment: AlignmentType.RIGHT })] }),
-          new TableCell({ children: [new Paragraph({ text: data.total_amount, bold: true })] }),
+          new TableCell({ columnSpan: 6, children: [new Paragraph({ children: [new TextRun({ text: 'Итого:', bold: true, color: "000000" })], alignment: AlignmentType.RIGHT })] }),
+          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: data.total_amount, bold: true, color: "000000" })] })] }),
         ],
       })
     );
