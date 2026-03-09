@@ -105,4 +105,29 @@
     overflow-y: auto;
     overscroll-behavior: contain;
   }
+  
+  /* Анимация сворачивания/разворачивания */
+  .collapse-enter {
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-out, opacity 0.2s ease-out;
+  }
+  
+  .collapse-enter-active {
+    max-height: 500px;
+    opacity: 1;
+  }
+  
+  .collapse-exit {
+    max-height: 500px;
+    opacity: 1;
+    overflow: hidden;
+    transition: max-height 0.3s ease-in, opacity 0.2s ease-in;
+  }
+  
+  .collapse-exit-active {
+    max-height: 0;
+    opacity: 0;
+  }
 }

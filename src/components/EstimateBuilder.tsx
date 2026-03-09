@@ -854,72 +854,92 @@ export function EstimateBuilder({
           {/* Мобильная панель Сметы */}
           {activeMobileTab === 'estimate' && (
             <div className="flex flex-col w-full h-full bg-white md:hidden">
-              {/* Шапка сметы - компактная */}
-              <div className="p-2 border-b space-y-2 shrink-0 bg-gray-50">
-                <Input
-                  placeholder="Название мероприятия"
-                  value={eventName}
-                  onChange={(e) => setEventName(e.target.value)}
-                  className="h-10 font-medium"
-                />
-                
-                <div className="grid grid-cols-2 gap-2">
+              {/* Шапка сметы - сворачиваемая */}
+              <div className="border-b shrink-0 bg-gray-50">
+                {/* Всегда видимая часть - название и кнопка */}
+                <div className="p-2 flex items-center gap-2">
                   <Input
-                    type="date"
-                    value={eventStartDate ? eventStartDate.split('T')[0] : ''}
-                    onChange={(e) => {
-                      const date = e.target.value;
-                      if (date) {
-                        setEventStartDate(new Date(date).toISOString());
-                        if (!eventEndDate || new Date(eventEndDate) < new Date(date)) {
-                          setEventEndDate(new Date(date).toISOString());
-                        }
-                      } else {
-                        setEventStartDate('');
-                      }
-                    }}
-                    className="h-9 text-xs"
+                    placeholder="Название мероприятия"
+                    value={eventName}
+                    onChange={(e) => setEventName(e.target.value)}
+                    className="h-10 font-medium flex-1"
                   />
-                  <Input
-                    type="date"
-                    value={eventEndDate ? eventEndDate.split('T')[0] : ''}
-                    onChange={(e) => {
-                      const date = e.target.value;
-                      if (date) {
-                        const newEnd = new Date(date);
-                        if (eventStartDate && newEnd < new Date(eventStartDate)) {
-                          alert('Дата окончания не может быть раньше даты начала');
-                          return;
-                        }
-                        setEventEndDate(newEnd.toISOString());
-                      } else {
-                        setEventEndDate('');
-                      }
-                    }}
-                    className="h-9 text-xs"
-                    min={eventStartDate ? eventStartDate.split('T')[0] : undefined}
-                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsHeaderCollapsed(!isHeaderCollapsed)}
+                    className="h-10 px-2 shrink-0"
+                  >
+                    {isHeaderCollapsed ? (
+                      <ChevronDown className="w-5 h-5" />
+                    ) : (
+                      <ChevronUp className="w-5 h-5" />
+                    )}
+                  </Button>
                 </div>
                 
-                <Input
-                  placeholder="Место проведения"
-                  value={venue}
-                  onChange={(e) => setVenue(e.target.value)}
-                  className="h-9 text-sm"
-                />
+                {/* Скрываемая часть */}
+                {!isHeaderCollapsed && (
+                  <div className="px-2 pb-2 space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input
+                        type="date"
+                        value={eventStartDate ? eventStartDate.split('T')[0] : ''}
+                        onChange={(e) => {
+                          const date = e.target.value;
+                          if (date) {
+                            setEventStartDate(new Date(date).toISOString());
+                            if (!eventEndDate || new Date(eventEndDate) < new Date(date)) {
+                              setEventEndDate(new Date(date).toISOString());
+                            }
+                          } else {
+                            setEventStartDate('');
+                          }
+                        }}
+                        className="h-9 text-xs"
+                      />
+                      <Input
+                        type="date"
+                        value={eventEndDate ? eventEndDate.split('T')[0] : ''}
+                        onChange={(e) => {
+                          const date = e.target.value;
+                          if (date) {
+                            const newEnd = new Date(date);
+                            if (eventStartDate && newEnd < new Date(eventStartDate)) {
+                              alert('Дата окончания не может быть раньше даты начала');
+                              return;
+                            }
+                            setEventEndDate(newEnd.toISOString());
+                          } else {
+                            setEventEndDate('');
+                          }
+                        }}
+                        className="h-9 text-xs"
+                        min={eventStartDate ? eventStartDate.split('T')[0] : undefined}
+                      />
+                    </div>
+                    
+                    <Input
+                      placeholder="Место проведения"
+                      value={venue}
+                      onChange={(e) => setVenue(e.target.value)}
+                      className="h-9 text-sm"
+                    />
 
-                <select
-                  value={customerId}
-                  onChange={(e) => setCustomerId(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-md text-sm h-9 bg-white"
-                >
-                  <option value="">Заказчик</option>
-                  {customers.map(customer => (
-                    <option key={customer.id} value={customer.id}>
-                      {customer.name}
-                    </option>
-                  ))}
-                </select>
+                    <select
+                      value={customerId}
+                      onChange={(e) => setCustomerId(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-md text-sm h-9 bg-white"
+                    >
+                      <option value="">Заказчик</option>
+                      {customers.map(customer => (
+                        <option key={customer.id} value={customer.id}>
+                          {customer.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
               
               {/* Список позиций сметы */}
