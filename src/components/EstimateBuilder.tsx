@@ -1064,21 +1064,11 @@ export function EstimateBuilder({
                 </div>
               </div>
               
-              {/* Фиксированная панель с Итого и кнопками */}
-              <div className="fixed bottom-[72px] left-0 right-0 bg-white border-t p-3 shadow-lg z-30 md:hidden">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="text-xs text-gray-500">Итого:</span>
-                    <div className="text-xl font-bold">{total.toLocaleString('ru-RU')} ₽</div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={exportPDF} className="h-10 px-3">
-                      PDF
-                    </Button>
-                    <Button size="sm" onClick={handleSave} disabled={!eventName || items.length === 0} className="h-10 px-4">
-                      Сохранить
-                    </Button>
-                  </div>
+              {/* Фиксированная панель с Итого */}
+              <div className="fixed bottom-[72px] left-0 right-0 bg-white border-t p-2 shadow-lg z-30 md:hidden">
+                <div className="flex items-center justify-center">
+                  <span className="text-sm text-gray-500 mr-2">Итого:</span>
+                  <span className="text-lg font-bold">{total.toLocaleString('ru-RU')} ₽</span>
                 </div>
               </div>
             </div>
