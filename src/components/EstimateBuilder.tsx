@@ -27,7 +27,8 @@ import {
   Minimize2,
   X,
   AlertTriangle,
-  PackagePlus
+  PackagePlus,
+  Settings2
 } from 'lucide-react';
 import type { Equipment, Estimate, EstimateItem, Customer, PDFSettings } from '../types';
 import { cn } from '../lib/utils';
@@ -70,6 +71,12 @@ export function EstimateBuilder({
   const [activeMobileTab, setActiveMobileTab] = useState<'equipment' | 'estimate'>('equipment');
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const [categoryOrder, setCategoryOrder] = useState<string[]>(estimate?.category_order || equipmentCategories);
+  
+  // Состояние для сворачивания шапки сметы на мобильном
+  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(true);
+  
+  // Состояние для показа фильтра категорий
+  const [showCategoryFilter, setShowCategoryFilter] = useState(false);
   
   // Состояние для разворачивания панелей
   const [expandedPanel, setExpandedPanel] = useState<'none' | 'equipment' | 'estimate'>('none');
@@ -692,38 +699,40 @@ export function EstimateBuilder({
 
   return (
     <>
-      <div className="fixed inset-0 bg-white z-50 flex flex-col">
+      <div className="fixed inset-0 bg-white z-40 flex flex-col">
         {/* Шапка */}
-        <div className="border-b p-2 md:p-4 flex items-center justify-between bg-gray-50 print:hidden">
-          <div className="flex items-center gap-2 md:gap-4">
-            <Button variant="ghost" size="sm" onClick={handleClose} className="px-2">
-              <ChevronLeft className="w-5 h-5 md:mr-2" />
-              <span className="hidden md:inline">Назад</span>
+        <div className="border-b p-1.5 md:p-3 flex items-center justify-between bg-gray-50 print:hidden shrink-0">
+          <div className="flex items-center gap-1.5 md:gap-3">
+            <Button variant="ghost" size="sm" onClick={handleClose} className="h-8 w-8 md:w-auto p-0 md:px-2">
+              <ChevronLeft className="w-5 h-5" />
+              <span className="hidden md:inline ml-2">Назад</span>
             </Button>
-            <h1 className="text-base md:text-xl font-bold truncate max-w-[150px] md:max-w-none">
+            <h1 className="text-sm md:text-xl font-bold truncate max-w-[120px] md:max-w-none">
               {estimate ? 'Редактирование' : 'Новая смета'}
             </h1>
           </div>
-          <div className="flex items-center gap-1 md:gap-2">
+          <div className="flex items-center gap-1">
             {onCreateEquipment && (
-              <Button variant="outline" size="sm" onClick={() => setShowCreateEquipment(true)} className="px-2 md:px-3">
-                <PackagePlus className="w-4 h-4 md:mr-2" />
-                <span className="hidden md:inline">Новое</span>
+              <Button variant="outline" size="sm" onClick={() => setShowCreateEquipment(true)} className="h-8 w-8 md:w-auto p-0 md:px-2" title="Новое оборудование">
+                <PackagePlus className="w-4 h-4" />
+                <span className="hidden md:inline ml-2">Новое</span>
               </Button>
             )}
-            <Button variant="outline" size="sm" onClick={exportExcel} className="px-2 md:px-3 hidden sm:flex">
-              <FileSpreadsheet className="w-4 h-4 md:mr-2" />
-              <span className="hidden md:inline">Excel</span>
+            {/* Excel только на десктопе */}
+            <Button variant="outline" size="sm" onClick={exportExcel} className="hidden md:flex h-8 px-2">
+              <FileSpreadsheet className="w-4 h-4 mr-2" />
+              Excel
             </Button>
-            <Button variant="outline" size="sm" onClick={exportPDF} className="px-2 md:px-3">
-              <FileText className="w-4 h-4 md:mr-2" />
-              <span className="hidden md:inline">PDF</span>
+            {/* На мобильном только иконки */}
+            <Button variant="outline" size="sm" onClick={exportPDF} className="h-8 w-8 md:w-auto p-0 md:px-2" title="PDF">
+              <FileText className="w-4 h-4" />
+              <span className="hidden md:inline ml-2">PDF</span>
             </Button>
-            <Button variant="outline" size="sm" onClick={handlePrint} className="px-2 md:px-3">
-              <Printer className="w-4 h-4 md:mr-2" />
-              <span className="hidden md:inline">Печать</span>
+            <Button variant="outline" size="sm" onClick={handlePrint} className="hidden md:flex h-8 px-2">
+              <Printer className="w-4 h-4 mr-2" />
+              Печать
             </Button>
-            <Button size="sm" onClick={handleSave} disabled={!eventName || items.length === 0} className="px-2 md:px-3">
+            <Button size="sm" onClick={handleSave} disabled={!eventName || items.length === 0} className="h-8 px-2 md:px-3">
               <Save className="w-4 h-4 md:mr-2" />
               <span className="hidden md:inline">Сохранить</span>
             </Button>
@@ -759,29 +768,41 @@ export function EstimateBuilder({
             {/* Заголовок панели с кнопкой разворачивания */}
             <div className="p-2 md:p-3 border-b bg-gray-50 flex items-center justify-between shrink-0">
               <span className="font-medium text-sm">Оборудование</span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setExpandedPanel(expandedPanel === 'equipment' ? 'none' : 'equipment')}
-                className="h-8 w-8 p-0"
-              >
-                {expandedPanel === 'equipment' ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-              </Button>
+              <div className="flex items-center gap-1">
+                {/* Кнопка фильтра категорий (только мобильный) */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowCategoryFilter(!showCategoryFilter)}
+                  className="h-8 w-8 p-0 md:hidden"
+                  title="Фильтр категорий"
+                >
+                  <Settings2 className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setExpandedPanel(expandedPanel === 'equipment' ? 'none' : 'equipment')}
+                  className="h-8 w-8 p-0"
+                >
+                  {expandedPanel === 'equipment' ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                </Button>
+              </div>
             </div>
 
-            <div className="p-2 md:p-4 border-b space-y-2 shrink-0">
+            <div className="p-2 md:p-3 border-b space-y-2 shrink-0">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <Input
-                  placeholder="Поиск оборудования..."
+                  placeholder="Поиск..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9"
+                  className="pl-9 h-9"
                 />
               </div>
               
-              {/* Фильтр категорий - кнопками для видимости */}
-              <div className="flex flex-wrap gap-1">
+              {/* Фильтр категорий - десктоп: кнопки */}
+              <div className="hidden md:flex flex-wrap gap-1">
                 <button
                   onClick={() => setSelectedCategory('all')}
                   className={cn(
@@ -809,10 +830,26 @@ export function EstimateBuilder({
                   </button>
                 ))}
               </div>
+              
+              {/* Фильтр категорий - мобильный: выпадающий список */}
+              {showCategoryFilter && (
+                <div className="md:hidden">
+                  <select
+                    value={selectedCategory}
+                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    className="w-full px-2 py-1.5 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="all">Все категории</option>
+                    {equipmentCategories.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
 
             <div className="flex-1 overflow-y-auto">
-              <div className="p-2 md:p-4 space-y-2">
+              <div className="p-1.5 md:p-3 space-y-1.5 md:space-y-2">
                 {filteredEquipment.map(item => {
                   const usedQty = getUsedQuantity(item.id);
                   const bookedQty = getBookedQuantity(item.id);
@@ -828,7 +865,7 @@ export function EstimateBuilder({
                       )} 
                       onClick={() => availableQty > 0 && handleAddItem(item)}
                     >
-                      <CardContent className="p-2 md:p-3">
+                      <CardContent className="p-2 md:p-2.5">
                         <div className="flex justify-between items-start">
                           <div className="flex-1 min-w-0 mr-2">
                             <h3 className="font-medium text-sm md:text-base truncate">{item.name}</h3>
@@ -859,7 +896,7 @@ export function EstimateBuilder({
           {/* Правая панель - Смета (70%) */}
           <div 
             className={cn(
-              "flex-col bg-white transition-all duration-300",
+              "flex-col bg-white transition-all duration-300 relative",
               activeMobileTab === 'estimate' ? 'flex' : 'hidden md:flex',
               expandedPanel === 'estimate' ? 'w-full' : expandedPanel === 'equipment' ? 'hidden' : 'w-[65%]'
             )}
@@ -867,28 +904,118 @@ export function EstimateBuilder({
             {/* Заголовок панели с кнопкой разворачивания */}
             <div className="p-2 md:p-3 border-b bg-gray-50 flex items-center justify-between shrink-0">
               <span className="font-medium text-sm">Смета</span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setExpandedPanel(expandedPanel === 'estimate' ? 'none' : 'estimate')}
-                className="h-8 w-8 p-0"
-              >
-                {expandedPanel === 'estimate' ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-              </Button>
+              <div className="flex items-center gap-2">
+                {/* Мобильный переключатель сворачивания шапки */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsHeaderCollapsed(!isHeaderCollapsed)}
+                  className="h-8 px-2 md:hidden text-xs"
+                >
+                  {isHeaderCollapsed ? 'Развернуть' : 'Свернуть'}
+                  {isHeaderCollapsed ? <ChevronDown className="w-4 h-4 ml-1" /> : <ChevronUp className="w-4 h-4 ml-1" />}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setExpandedPanel(expandedPanel === 'estimate' ? 'none' : 'estimate')}
+                  className="h-8 w-8 p-0"
+                >
+                  {expandedPanel === 'estimate' ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                </Button>
+              </div>
             </div>
 
-            <div className="p-2 md:p-4 border-b space-y-3 shrink-0">
-              <Input
-                placeholder="Название мероприятия"
-                value={eventName}
-                onChange={(e) => setEventName(e.target.value)}
-                className="font-medium"
-              />
-              
-              {/* Две даты - начало и окончание */}
-              <div className="grid grid-cols-2 gap-2">
-                <div className="relative">
-                  <Label className="text-[10px] text-gray-500 mb-1 block">Начало</Label>
+            {/* Шапка сметы - сворачиваемая на мобильном */}
+            <div className={cn(
+              "border-b bg-gray-50/50 shrink-0 overflow-hidden transition-all duration-300",
+              isHeaderCollapsed ? 'max-h-0 md:max-h-none md:p-2 md:pb-3' : 'max-h-[500px]',
+              !isHeaderCollapsed && 'p-2 pb-3'
+            )}>
+              {/* На десктопе всегда показываем */}
+              <div className="hidden md:block space-y-3">
+                <Input
+                  placeholder="Название мероприятия"
+                  value={eventName}
+                  onChange={(e) => setEventName(e.target.value)}
+                  className="font-medium"
+                />
+                
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="relative">
+                    <Label className="text-[10px] text-gray-500 mb-1 block">Начало</Label>
+                    <Input
+                      type="date"
+                      value={eventStartDate ? eventStartDate.split('T')[0] : ''}
+                      onChange={(e) => {
+                        const date = e.target.value;
+                        if (date) {
+                          setEventStartDate(new Date(date).toISOString());
+                          if (!eventEndDate || new Date(eventEndDate) < new Date(date)) {
+                            setEventEndDate(new Date(date).toISOString());
+                          }
+                        } else {
+                          setEventStartDate('');
+                        }
+                      }}
+                      className="text-sm"
+                    />
+                  </div>
+                  
+                  <div className="relative">
+                    <Label className="text-[10px] text-gray-500 mb-1 block">Окончание</Label>
+                    <Input
+                      type="date"
+                      value={eventEndDate ? eventEndDate.split('T')[0] : ''}
+                      onChange={(e) => {
+                        const date = e.target.value;
+                        if (date) {
+                          const newEnd = new Date(date);
+                          if (eventStartDate && newEnd < new Date(eventStartDate)) {
+                            alert('Дата окончания не может быть раньше даты начала');
+                            return;
+                          }
+                          setEventEndDate(newEnd.toISOString());
+                        } else {
+                          setEventEndDate('');
+                        }
+                      }}
+                      className="text-sm"
+                      min={eventStartDate ? eventStartDate.split('T')[0] : undefined}
+                    />
+                  </div>
+                </div>
+                
+                <Input
+                  placeholder="Место проведения"
+                  value={venue}
+                  onChange={(e) => setVenue(e.target.value)}
+                />
+
+                <select
+                  value={customerId}
+                  onChange={(e) => setCustomerId(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Выберите заказчика</option>
+                  {customers.map(customer => (
+                    <option key={customer.id} value={customer.id}>
+                      {customer.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* На мобильном - компактная версия */}
+              <div className="md:hidden space-y-2">
+                <Input
+                  placeholder="Название"
+                  value={eventName}
+                  onChange={(e) => setEventName(e.target.value)}
+                  className="h-9 text-sm"
+                />
+                
+                <div className="grid grid-cols-2 gap-2">
                   <Input
                     type="date"
                     value={eventStartDate ? eventStartDate.split('T')[0] : ''}
@@ -896,7 +1023,6 @@ export function EstimateBuilder({
                       const date = e.target.value;
                       if (date) {
                         setEventStartDate(new Date(date).toISOString());
-                        // Если окончание не установлено или раньше начала, устанавливаем = начало
                         if (!eventEndDate || new Date(eventEndDate) < new Date(date)) {
                           setEventEndDate(new Date(date).toISOString());
                         }
@@ -904,12 +1030,8 @@ export function EstimateBuilder({
                         setEventStartDate('');
                       }
                     }}
-                    className="text-sm"
+                    className="h-9 text-xs"
                   />
-                </div>
-                
-                <div className="relative">
-                  <Label className="text-[10px] text-gray-500 mb-1 block">Окончание</Label>
                   <Input
                     type="date"
                     value={eventEndDate ? eventEndDate.split('T')[0] : ''}
@@ -917,7 +1039,6 @@ export function EstimateBuilder({
                       const date = e.target.value;
                       if (date) {
                         const newEnd = new Date(date);
-                        // Не даем выбрать окончание раньше начала
                         if (eventStartDate && newEnd < new Date(eventStartDate)) {
                           alert('Дата окончания не может быть раньше даты начала');
                           return;
@@ -927,34 +1048,35 @@ export function EstimateBuilder({
                         setEventEndDate('');
                       }
                     }}
-                    className="text-sm"
+                    className="h-9 text-xs"
                     min={eventStartDate ? eventStartDate.split('T')[0] : undefined}
                   />
                 </div>
-              </div>
-              
-              <Input
-                placeholder="Место проведения"
-                value={venue}
-                onChange={(e) => setVenue(e.target.value)}
-              />
+                
+                <Input
+                  placeholder="Место"
+                  value={venue}
+                  onChange={(e) => setVenue(e.target.value)}
+                  className="h-9 text-sm"
+                />
 
-              <select
-                value={customerId}
-                onChange={(e) => setCustomerId(e.target.value)}
-                className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Выберите заказчика</option>
-                {customers.map(customer => (
-                  <option key={customer.id} value={customer.id}>
-                    {customer.name}
-                  </option>
-                ))}
-              </select>
+                <select
+                  value={customerId}
+                  onChange={(e) => setCustomerId(e.target.value)}
+                  className="w-full px-2 py-1.5 border rounded-md text-sm h-9"
+                >
+                  <option value="">Заказчик</option>
+                  {customers.map(customer => (
+                    <option key={customer.id} value={customer.id}>
+                      {customer.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto">
-              <div className="p-2 md:p-4 space-y-4">
+              <div className="p-1.5 md:p-3 space-y-3 md:space-y-4 pb-20 md:pb-4">
                 {groupedItems.length === 0 ? (
                   <div className="text-center py-8 text-gray-400">
                     <p>Добавьте оборудование из списка слева</p>
@@ -967,7 +1089,7 @@ export function EstimateBuilder({
                       isDragging && dropTarget === category && "ring-2 ring-blue-400"
                     )}>
                       <CardHeader 
-                        className="p-2 md:p-3 cursor-move"
+                        className="p-2 md:p-2.5 cursor-move"
                         draggable
                         onDragStart={() => handleDragStart(category)}
                         onDragOver={(e) => handleDragOver(e, category)}
@@ -975,16 +1097,16 @@ export function EstimateBuilder({
                         onDragEnd={handleDragEnd}
                       >
                         <div className="flex items-center justify-between">
-                          <CardTitle className="text-sm md:text-base flex items-center gap-2">
+                          <CardTitle className="text-sm md:text-sm flex items-center gap-2">
                             <GripVertical className="w-4 h-4 text-gray-400 shrink-0" />
                             <span className="truncate">{category}</span>
-                            <Badge variant="secondary" className="shrink-0">{categoryItems.length}</Badge>
+                            <Badge variant="secondary" className="shrink-0 text-xs">{categoryItems.length}</Badge>
                           </CardTitle>
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => toggleCategory(category)}
-                            className="shrink-0"
+                            className="shrink-0 h-7 w-7 p-0"
                           >
                             {collapsedCategories.has(category) ? (
                               <ChevronDown className="w-4 h-4" />
@@ -997,7 +1119,7 @@ export function EstimateBuilder({
                       
                       {!collapsedCategories.has(category) && (
                         <CardContent className="p-0">
-                          <div className="space-y-2 p-2 md:p-3">
+                          <div className="space-y-1.5 p-1.5 md:p-2">
                             {categoryItems.map((item, idx) => {
                               const itemTotal = item.price * item.quantity * (item.coefficient || 1);
                               
@@ -1092,12 +1214,20 @@ export function EstimateBuilder({
               </div>
             </div>
 
-            <div className="p-2 md:p-4 border-t bg-gray-50 shrink-0">
-              <div className="flex justify-between items-center">
+            {/* Фиксированная панель Итого на мобильном */}
+            <div className={cn(
+              "border-t bg-gray-50 shrink-0",
+              "md:relative md:p-2 md:px-4",
+              "fixed bottom-[72px] left-0 right-0 p-2 px-4 z-40 shadow-lg md:shadow-none md:bottom-auto"
+            )}>
+              <div className="flex justify-between items-center max-w-7xl mx-auto">
                 <span className="text-sm md:text-base text-gray-600">Итого:</span>
-                <span className="text-xl md:text-2xl font-bold">{total.toLocaleString('ru-RU')} ₽</span>
+                <span className="text-lg md:text-2xl font-bold">{total.toLocaleString('ru-RU')} ₽</span>
               </div>
             </div>
+            
+            {/* Отступ для мобильного чтобы контент не скрывался под фиксированной панелью */}
+            <div className="h-14 md:hidden" />
           </div>
         </div>
       </div>
