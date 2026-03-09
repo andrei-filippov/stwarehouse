@@ -34,7 +34,45 @@ export function generateContractHTML(contract: Contract, pdfSettings: PDFSetting
   // Вставляем шапку перед содержимым договора
   html = html.replace('<body>', `<body>${headerHTML}`);
 
-  return html;
+  // Добавляем scoped стили только для контента договора
+  const scopedStyles = `
+    <style>
+      .contract-preview-inner {
+        font-family: "Times New Roman", Times, serif;
+        font-size: 12pt;
+        line-height: 1.5;
+        color: #000;
+      }
+      .contract-preview-inner .center { text-align: center; }
+      .contract-preview-inner .bold { font-weight: bold; }
+      .contract-preview-inner table.spec {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 15px 0;
+        font-size: 10pt;
+      }
+      .contract-preview-inner table.spec th,
+      .contract-preview-inner table.spec td {
+        border: 1px solid #000;
+        padding: 5px;
+        text-align: left;
+      }
+      .contract-preview-inner table.spec th {
+        background-color: #f0f0f0;
+      }
+      .contract-preview-inner .signatures {
+        margin-top: 50px;
+        display: flex;
+        justify-content: space-between;
+      }
+      .contract-preview-inner .signature-block {
+        width: 45%;
+      }
+    </style>
+  `;
+
+  // Оборачиваем содержимое в div с классом для scoped стилей
+  return `${scopedStyles}<div class="contract-preview-inner">${html}</div>`;
 }
 
 // Генерация шапки с настройками PDF

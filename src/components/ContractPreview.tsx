@@ -250,7 +250,14 @@ export function ContractPreview({ contract, pdfSettings, onClose }: ContractPrev
             >
               <div 
                 dangerouslySetInnerHTML={{ __html: htmlContent }}
-                className="contract-preview-content"
+                style={{
+                  fontFamily: '"Times New Roman", Times, serif',
+                  fontSize: '12pt',
+                  lineHeight: '1.5',
+                  color: '#000',
+                  maxWidth: '210mm',
+                  margin: '0 auto',
+                }}
               />
             </div>
           )}
@@ -355,45 +362,7 @@ export function ContractPreview({ contract, pdfSettings, onClose }: ContractPrev
         </TabsContent>
       </Tabs>
 
-      <style>{`
-        .contract-preview-content {
-          font-family: "Times New Roman", Times, serif;
-          font-size: 12pt;
-          line-height: 1.5;
-          color: #000;
-          max-width: 210mm;
-          margin: 0 auto;
-        }
-        .contract-preview-content .center {
-          text-align: center;
-        }
-        .contract-preview-content .bold {
-          font-weight: bold;
-        }
-        .contract-preview-content table.spec {
-          width: 100%;
-          border-collapse: collapse;
-          margin: 15px 0;
-          font-size: 10pt;
-        }
-        .contract-preview-content table.spec th,
-        .contract-preview-content table.spec td {
-          border: 1px solid #000;
-          padding: 5px;
-          text-align: left;
-        }
-        .contract-preview-content table.spec th {
-          background-color: #f0f0f0;
-        }
-        .contract-preview-content .signatures {
-          margin-top: 50px;
-          display: flex;
-          justify-content: space-between;
-        }
-        .contract-preview-content .signature-block {
-          width: 45%;
-        }
-      `}</style>
+
     </div>
   );
 
