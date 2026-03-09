@@ -1,9 +1,8 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Card, CardContent } from './ui/card';
 import { Badge } from './ui/badge';
-import { Textarea } from './ui/textarea';
 import { 
   Printer, 
   Download, 
@@ -34,28 +33,11 @@ export function ContractPreview({ contract, pdfSettings, onClose }: ContractPrev
   const [isEditing, setIsEditing] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const editedTextRef = useRef<string>('');
 
   // Генерируем HTML для предпросмотра
   const htmlContent = useMemo(() => {
     return generateContractHTML(contract, pdfSettings);
   }, [contract, pdfSettings]);
-
-  // Извлекаем текстовое содержимое для редактирования
-  const extractTextFromHTML = (html: string): string => {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
-    return doc.body.innerText || doc.body.textContent || '';
-  };
-
-  // Инициализируем текст при входе в режим редактирования
-  useEffect(() => {
-    if (isEditing && textareaRef.current) {
-      textareaRef.current.value = extractTextFromHTML(htmlContent);
-      editedTextRef.current = textareaRef.current.value;
-    }
-  }, [isEditing, htmlContent]);
 
   // Обработчик экспорта в DOCX
   const handleExportDOCX = async () => {
@@ -232,18 +214,17 @@ export function ContractPreview({ contract, pdfSettings, onClose }: ContractPrev
 
         <TabsContent value="preview" className="flex-1 mt-2 px-4 pb-4 min-h-0">
           {isEditing ? (
-            // Режим редактирования - показываем только текст
+            // Режим редактирования - показываем HTML с таблицами
             <div className="h-full flex flex-col">
               <div className="text-sm text-gray-500 mb-2">
                 Режим редактирования. Вы можете изменить текст договора перед печатью или экспортом.
               </div>
-              <Textarea
-                ref={textareaRef}
-                defaultValue={extractTextFromHTML(htmlContent)}
-                onChange={(e) => { editedTextRef.current = e.target.value; }}
-                className="flex-1 text-sm resize-none font-serif leading-relaxed"
-                placeholder="Текст договора..."
+              <div
+                ref={previewRef}
+                className="flex-1 border rounded-lg p-4 bg-white overflow-auto font-serif text-sm leading-relaxed"
                 style={{ minHeight: '400px' }}
+                contentEditable
+                dangerouslySetInnerHTML={{ __html: htmlContent }}
               />
             </div>
           ) : (
