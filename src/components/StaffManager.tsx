@@ -450,11 +450,6 @@ export const StaffManager = memo(function StaffManager({ staff, onAdd, onUpdate,
                       <TableCell>{idx + 1}</TableCell>
                       <TableCell className="font-medium">
                         {s.full_name}
-                        {s.birth_date && (
-                          <span className="block text-xs text-gray-500">
-                            {new Date().getFullYear() - new Date(s.birth_date).getFullYear()} лет
-                          </span>
-                        )}
                       </TableCell>
                       <TableCell>{s.position}</TableCell>
                       <TableCell>{s.phone || '-'}</TableCell>
@@ -517,11 +512,6 @@ export const StaffManager = memo(function StaffManager({ staff, onAdd, onUpdate,
                           )}
                         </div>
                         <p className="text-sm text-gray-600">{s.position}</p>
-                        {s.birth_date && (
-                          <p className="text-xs text-gray-500">
-                            {new Date().getFullYear() - new Date(s.birth_date).getFullYear()} лет
-                          </p>
-                        )}
                       </div>
                     </div>
                     <div className="flex gap-1 ml-2">
