@@ -95,23 +95,36 @@ export function useCompany() {
     try {
       const { data, error } = await supabase
         .from('company_members')
-        .select(`
-          *,
-          user:user_id (id, email, raw_user_meta_data)
-        `)
+        .select('*')
         .eq('company_id', companyId)
         .order('joined_at', { ascending: false });
 
       if (error) throw error;
 
+      // Загружаем данные пользователей отдельно через profiles
+      const userIds = (data || []).map(m => m.user_id).filter(Boolean);
+      let userData: Record<string, any> = {};
+      
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, name, email')
+          .in('id', userIds);
+        
+        if (profiles) {
+          profiles.forEach((p: any) => {
+            userData[p.id] = p;
+          });
+        }
+      }
+
       // Преобразуем данные
       const formattedMembers: CompanyMember[] = (data || []).map(m => ({
         ...m,
-        user: m.user ? {
-          id: m.user.id,
-          email: m.user.email,
-          name: m.user.raw_user_meta_data?.name,
-          avatar_url: m.user.raw_user_meta_data?.avatar_url,
+        user: userData[m.user_id] ? {
+          id: m.user_id,
+          email: userData[m.user_id].email,
+          name: userData[m.user_id].name,
         } : undefined,
       }));
 
