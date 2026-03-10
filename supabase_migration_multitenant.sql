@@ -221,7 +221,13 @@ BEGIN
     
     -- Обновляем все таблицы - привязываем к компании
     UPDATE equipment SET company_id = new_company_id WHERE user_id = user_record.user_id;
-    UPDATE categories SET company_id = new_company_id WHERE user_id = user_record.user_id;
+    -- categories не имеет user_id, обновим позже отдельно
+    -- (связываем через оборудование)
+    UPDATE categories SET company_id = new_company_id 
+    WHERE id IN (
+      SELECT DISTINCT category_id FROM equipment 
+      WHERE company_id = new_company_id AND category_id IS NOT NULL
+    );
     UPDATE estimates SET company_id = new_company_id WHERE user_id = user_record.user_id;
     UPDATE estimate_items SET company_id = new_company_id WHERE estimate_id IN (
       SELECT id FROM estimates WHERE user_id = user_record.user_id
