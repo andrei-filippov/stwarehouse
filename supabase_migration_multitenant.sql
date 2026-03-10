@@ -259,7 +259,11 @@ BEGIN
       UPDATE cable_categories SET company_id = new_company_id WHERE user_id = user_record.user_id;
     END IF;
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'cable_inventory') THEN
-      UPDATE cable_inventory SET company_id = new_company_id WHERE user_id = user_record.user_id;
+      -- cable_inventory не имеет user_id, обновляем через cable_categories
+      UPDATE cable_inventory SET company_id = new_company_id 
+      WHERE category_id IN (
+        SELECT id FROM cable_categories WHERE company_id = new_company_id
+      );
     END IF;
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'expenses') THEN
       UPDATE expenses SET company_id = new_company_id WHERE user_id = user_record.user_id;
