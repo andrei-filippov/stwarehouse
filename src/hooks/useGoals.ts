@@ -1,132 +1,110 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
 import { supabase } from '../lib/supabase';
-import type { Task } from '../types/goals';
+import type { Task } from '../types';
 
-export function useGoals(userId: string | undefined) {
+export function useGoals(companyId: string | undefined) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(false);
 
   const fetchTasks = useCallback(async () => {
+    if (!companyId) return;
     setLoading(true);
     
     const { data, error } = await supabase
       .from('goals')
       .select('*')
-      .order('due_date', { ascending: true })
-      .order('priority', { ascending: false });
+      .eq('company_id', companyId)
+      .order('created_at', { ascending: false });
     
     if (error) {
       toast.error('Ошибка при загрузке задач', { description: error.message });
-    } else if (data) {
-      setTasks(data as Task[]);
+    } else {
+      setTasks(data || []);
     }
     setLoading(false);
-  }, []);
+  }, [companyId]);
+
+  const addTask = useCallback(async (task: Partial<Task>) => {
+    if (!companyId) return { error: new Error('No company selected') };
+    
+    try {
+      const { error } = await supabase
+        .from('goals')
+        .insert({ ...task, company_id: companyId });
+
+      if (error) throw error;
+
+      await fetchTasks();
+      toast.success('Задача добавлена');
+      return { error: null };
+    } catch (err: any) {
+      toast.error('Ошибка при добавлении', { description: err.message });
+      return { error: err };
+    }
+  }, [companyId, fetchTasks]);
+
+  const updateTask = useCallback(async (id: string, updates: Partial<Task>) => {
+    if (!companyId) return { error: new Error('No company selected') };
+    
+    try {
+      const { error } = await supabase
+        .from('goals')
+        .update(updates)
+        .eq('id', id)
+        .eq('company_id', companyId);
+
+      if (error) throw error;
+
+      await fetchTasks();
+      toast.success('Задача обновлена');
+      return { error: null };
+    } catch (err: any) {
+      toast.error('Ошибка при обновлении', { description: err.message });
+      return { error: err };
+    }
+  }, [companyId, fetchTasks]);
+
+  const deleteTask = useCallback(async (id: string) => {
+    if (!companyId) return { error: new Error('No company selected') };
+    
+    try {
+      const { error } = await supabase
+        .from('goals')
+        .delete()
+        .eq('id', id)
+        .eq('company_id', companyId);
+
+      if (error) throw error;
+
+      await fetchTasks();
+      toast.success('Задача удалена');
+      return { error: null };
+    } catch (err: any) {
+      toast.error('Ошибка при удалении', { description: err.message });
+      return { error: err };
+    }
+  }, [companyId, fetchTasks]);
 
   useEffect(() => {
     fetchTasks();
-  }, []);
+  }, [fetchTasks]);
 
-  const addTask = async (task: Omit<Task, 'id' | 'created_at' | 'updated_at'>) => {
-    const taskData: any = {
-      title: task.title,
-      user_id: task.user_id || userId
+  useEffect(() => {
+    if (!companyId) return;
+
+    const channel = supabase
+      .channel('goals-changes')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'goals', filter: `company_id=eq.${companyId}` },
+        () => fetchTasks()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
     };
-    
-    if (task.description) taskData.description = task.description;
-    if (task.category) taskData.category = task.category;
-    if (task.priority) taskData.priority = task.priority;
-    if (task.status) taskData.status = task.status;
-    if (task.due_date) taskData.due_date = task.due_date;
-    if (task.assigned_to) taskData.assigned_to = task.assigned_to;
-    
-    const { data, error } = await supabase
-      .from('goals')
-      .insert([taskData])
-      .select()
-      .single();
-    
-    if (error) {
-      toast.error('Ошибка при добавлении задачи', { description: error.message });
-    } else if (data) {
-      setTasks(prev => [...prev, data as Task]);
-      toast.success('Задача добавлена', { description: task.title });
-    }
-    return { error, data };
-  };
-
-  const updateTask = async (id: string, updates: Partial<Task>) => {
-    if (!id) {
-      toast.error('Ошибка: не указан ID задачи');
-      return { error: new Error('Task ID is required') };
-    }
-    
-    // Фильтруем undefined и пустые строки для UUID полей
-    const updateData: any = { updated_at: new Date().toISOString() };
-    
-    if (updates.title !== undefined) updateData.title = updates.title;
-    if (updates.description !== undefined) updateData.description = updates.description;
-    if (updates.category !== undefined) updateData.category = updates.category;
-    if (updates.priority !== undefined) updateData.priority = updates.priority;
-    if (updates.status !== undefined) updateData.status = updates.status;
-    if (updates.due_date !== undefined) updateData.due_date = updates.due_date;
-    if (updates.assigned_to !== undefined) updateData.assigned_to = updates.assigned_to || null;
-    
-    if (updates.status === 'completed' && !updates.completed_at) {
-      updateData.completed_at = new Date().toISOString();
-    }
-    
-    const { error } = await supabase
-      .from('goals')
-      .update(updateData)
-      .eq('id', id);
-    
-    if (error) {
-      toast.error('Ошибка при обновлении задачи', { description: error.message });
-    } else {
-      setTasks(prev => prev.map(t => 
-        t.id === id ? { ...t, ...updates } : t
-      ));
-      if (updates.status === 'completed') {
-        toast.success('Задача выполнена!');
-      }
-    }
-    return { error };
-  };
-
-  const deleteTask = async (id: string) => {
-    if (!id) {
-      toast.error('Ошибка: не указан ID задачи');
-      return { error: new Error('Task ID is required') };
-    }
-    
-    const { error } = await supabase
-      .from('goals')
-      .delete()
-      .eq('id', id);
-    
-    if (error) {
-      toast.error('Ошибка при удалении задачи', { description: error.message });
-    } else {
-      setTasks(prev => prev.filter(t => t.id !== id));
-      toast.success('Задача удалена');
-    }
-    return { error };
-  };
-
-  const getStats = () => {
-    const today = format(new Date(), 'yyyy-MM-dd');
-    return {
-      total: tasks.length,
-      pending: tasks.filter(t => t.status === 'pending').length,
-      inProgress: tasks.filter(t => t.status === 'in_progress').length,
-      completed: tasks.filter(t => t.status === 'completed').length,
-      overdue: tasks.filter(t => t.due_date < today && t.status !== 'completed' && t.status !== 'cancelled').length,
-      today: tasks.filter(t => t.due_date === today).length,
-    };
-  };
+  }, [fetchTasks, companyId]);
 
   return {
     tasks,
@@ -134,7 +112,6 @@ export function useGoals(userId: string | undefined) {
     addTask,
     updateTask,
     deleteTask,
-    getStats,
-    refresh: fetchTasks,
+    refresh: fetchTasks
   };
 }
