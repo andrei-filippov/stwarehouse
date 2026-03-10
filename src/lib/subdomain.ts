@@ -31,12 +31,13 @@ export function getCompanyUrl(subdomain: string): string {
   const hostname = window.location.hostname;
   
   if (hostname.includes('vercel.app')) {
-    // company-slug--project-name.vercel.app
-    const projectName = hostname.split('--')[1] || hostname;
-    return `${subdomain}--${projectName}`;
+    // Vercel формат: project-name.vercel.app
+    // Для поддомена используем path-based подход
+    // или редирект на тот же домен с сохранением в localStorage
+    return hostname;
   }
   
-  // Кастомный домен
+  // Кастомный домен: subdomain.stwarehouse.ru
   const domain = hostname.split('.').slice(1).join('.');
   return `${subdomain}.${domain}`;
 }

@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui
 import { Building2, Mail, Lock, User } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { generateSlug } from '../../lib/subdomain';
+import { getCompanyPath, saveSelectedCompany } from '../../lib/companyUrl';
 
 interface RegisterCompanyFormProps {
   onSuccess: () => void;
@@ -84,16 +85,13 @@ export function RegisterCompanyForm({ onSuccess, onLogin }: RegisterCompanyFormP
 
       if (memberError) throw memberError;
 
-      // 4. Редирект на поддомен (если не localhost)
-      const hostname = window.location.hostname;
-      if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
-        const protocol = window.location.protocol;
-        const newUrl = `${protocol}//${slug}.${hostname}`;
-        window.location.href = newUrl;
-        return;
-      }
-
-      onSuccess();
+      // 4. Сохраняем выбранную компанию и редиректим
+      saveSelectedCompany(slug);
+      
+      // Редирект на страницу компании
+      const path = getCompanyPath(slug);
+      window.location.href = path;
+      return;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ошибка регистрации');
     } finally {

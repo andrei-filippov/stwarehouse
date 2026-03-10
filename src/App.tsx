@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Package, User } from 'lucide-react';
 import { useAuth } from './hooks/useAuth';
 import { CompanyProvider, useCompanyContext } from './contexts/CompanyContext';
+import { getSlugFromPath, saveSelectedCompany } from './lib/companyUrl';
 import { RegisterCompanyForm } from './components/auth/RegisterCompanyForm';
 import { CompanySelector } from './components/auth/CompanySelector';
 import { Auth } from './components/Auth';
@@ -88,8 +89,17 @@ function App() {
 
 // Внутренний компонент с доступом к компании
 function AppContent({ user, profile, permissions, signOut }: any) {
-  const { company, loading: companyLoading } = useCompanyContext();
+  const { company, loading: companyLoading, switchCompany } = useCompanyContext();
   const [showRegister, setShowRegister] = useState(false);
+
+  // Обработка пути /c/company-slug
+  useEffect(() => {
+    const slugFromPath = getSlugFromPath();
+    if (slugFromPath) {
+      saveSelectedCompany(slugFromPath);
+      // Здесь можно загрузить компанию по slug
+    }
+  }, []);
 
   if (companyLoading) {
     return (

@@ -4,6 +4,10 @@
   "framework": null,
   "rewrites": [
     {
+      "source": "/c/:slug*",
+      "destination": "/index.html"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
