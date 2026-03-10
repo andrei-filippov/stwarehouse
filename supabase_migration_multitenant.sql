@@ -128,7 +128,18 @@ ALTER TABLE expenses ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES compani
 ALTER TABLE goals ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES companies(id);
 
 -- ============================================
--- 4. Миграция существующих данных
+-- 4. Отключаем триггеры аудита на время миграции
+-- ============================================
+
+ALTER TABLE equipment DISABLE TRIGGER log_equipment_changes;
+ALTER TABLE estimates DISABLE TRIGGER log_estimate_changes;
+ALTER TABLE customers DISABLE TRIGGER log_customer_changes;
+ALTER TABLE staff DISABLE TRIGGER log_staff_changes;
+ALTER TABLE contracts DISABLE TRIGGER log_contract_changes;
+ALTER TABLE contract_templates DISABLE TRIGGER log_contract_template_changes;
+
+-- ============================================
+-- 5. Миграция существующих данных
 -- ============================================
 
 DO $$
@@ -233,7 +244,18 @@ BEGIN
 END $$;
 
 -- ============================================
--- 5. Делаем company_id NOT NULL (после миграции)
+-- 5. Включаем триггеры аудита обратно
+-- ============================================
+
+ALTER TABLE equipment ENABLE TRIGGER log_equipment_changes;
+ALTER TABLE estimates ENABLE TRIGGER log_estimate_changes;
+ALTER TABLE customers ENABLE TRIGGER log_customer_changes;
+ALTER TABLE staff ENABLE TRIGGER log_staff_changes;
+ALTER TABLE contracts ENABLE TRIGGER log_contract_changes;
+ALTER TABLE contract_templates ENABLE TRIGGER log_contract_template_changes;
+
+-- ============================================
+-- 6. Делаем company_id NOT NULL (после миграции)
 -- ============================================
 
 ALTER TABLE equipment ALTER COLUMN company_id SET NOT NULL;
@@ -244,7 +266,7 @@ ALTER TABLE invoices ALTER COLUMN company_id SET NOT NULL;
 ALTER TABLE acts ALTER COLUMN company_id SET NOT NULL;
 
 -- ============================================
--- 6. Создаём индексы
+-- 7. Создаём индексы
 -- ============================================
 
 CREATE INDEX IF NOT EXISTS idx_companies_inn ON companies(inn);
@@ -259,7 +281,7 @@ CREATE INDEX IF NOT EXISTS idx_invoices_company_id ON invoices(company_id);
 CREATE INDEX IF NOT EXISTS idx_acts_company_id ON acts(company_id);
 
 -- ============================================
--- 7. RLS (Row Level Security) для companies
+-- 8. RLS (Row Level Security) для companies
 -- ============================================
 
 ALTER TABLE companies ENABLE ROW LEVEL SECURITY;
@@ -318,7 +340,7 @@ CREATE POLICY "Owners and admins can manage members"
   );
 
 -- ============================================
--- 8. Обновляем RLS для всех таблиц (company_id вместо user_id)
+-- 9. Обновляем RLS для всех таблиц (company_id вместо user_id)
 -- ============================================
 
 -- Equipment
@@ -550,7 +572,7 @@ CREATE POLICY "Company members can delete acts" ON acts FOR DELETE
   ));
 
 -- ============================================
--- 9. Real-time подписки
+-- 10. Real-time подписки
 -- ============================================
 
 DO $$
@@ -571,7 +593,7 @@ BEGIN
 END $$;
 
 -- ============================================
--- 10. Триггеры для обновления updated_at
+-- 11. Триггеры для обновления updated_at
 -- ============================================
 
 DROP TRIGGER IF EXISTS update_companies_updated_at ON companies;
