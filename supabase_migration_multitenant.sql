@@ -392,10 +392,12 @@ CREATE POLICY "Company owners and admins can update"
   );
 
 -- Политики для company_members
-DROP POLICY IF EXISTS "Members can view company members" ON company_members;
-CREATE POLICY "Members can view company members" 
+-- Пользователь может видеть СВОИ членства (где он сам участник)
+DROP POLICY IF EXISTS "Users can view own memberships" ON company_members;
+CREATE POLICY "Users can view own memberships" 
   ON company_members FOR SELECT 
   USING (
+    user_id = auth.uid() OR  -- свои членства
     EXISTS (
       SELECT 1 FROM company_members AS cm
       WHERE cm.company_id = company_members.company_id 
@@ -404,9 +406,16 @@ CREATE POLICY "Members can view company members"
     )
   );
 
+-- Пользователь может вставлять свои членства (при регистрации)
+DROP POLICY IF EXISTS "Users can insert own memberships" ON company_members;
+CREATE POLICY "Users can insert own memberships" 
+  ON company_members FOR INSERT
+  WITH CHECK (user_id = auth.uid());
+
+-- Owners и admins могут управлять членами
 DROP POLICY IF EXISTS "Owners and admins can manage members" ON company_members;
 CREATE POLICY "Owners and admins can manage members" 
-  ON company_members FOR ALL
+  ON company_members FOR UPDATE
   USING (
     EXISTS (
       SELECT 1 FROM company_members AS cm
