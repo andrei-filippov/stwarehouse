@@ -10,6 +10,7 @@
 
 CREATE TABLE IF NOT EXISTS companies (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug TEXT UNIQUE, -- для поддомена: company.stwarehouse.ru
   name TEXT NOT NULL,
   inn TEXT,
   kpp TEXT,

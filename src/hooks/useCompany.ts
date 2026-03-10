@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { getSubdomain } from '../lib/subdomain';
 import type { Company, CompanyMember, CompanyRole } from '../types/company';
 
 export function useCompany() {
@@ -22,7 +23,38 @@ export function useCompany() {
         return;
       }
 
-      // Ищем активное членство пользователя
+      // Проверяем поддомен
+      const subdomain = getSubdomain();
+      
+      if (subdomain) {
+        // Ищем компанию по slug
+        const { data: companyBySlug, error: slugError } = await supabase
+          .from('companies')
+          .select('*')
+          .eq('slug', subdomain)
+          .single();
+        
+        if (companyBySlug && !slugError) {
+          // Проверяем, есть ли пользователь в этой компании
+          const { data: memberData } = await supabase
+            .from('company_members')
+            .select('*')
+            .eq('company_id', companyBySlug.id)
+            .eq('user_id', user.id)
+            .eq('status', 'active')
+            .single();
+          
+          if (memberData) {
+            setCompany(companyBySlug);
+            setMyMember(memberData);
+            await loadMembers(companyBySlug.id);
+            setLoading(false);
+            return;
+          }
+        }
+      }
+
+      // Ищем активное членство пользователя (если нет поддомена или компания не найдена)
       const { data: memberData, error: memberError } = await supabase
         .from('company_members')
         .select(`
