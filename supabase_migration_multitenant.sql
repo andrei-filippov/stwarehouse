@@ -99,23 +99,33 @@ ALTER TABLE invoices ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES compani
 ALTER TABLE acts ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES companies(id);
 ALTER TABLE act_items ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES companies(id);
 
--- Чек-листы
-ALTER TABLE checklist_rules ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES companies(id);
-ALTER TABLE checklists ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES companies(id);
+-- Чек-листы (если существуют)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'checklist_rules') THEN
+    ALTER TABLE checklist_rules ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES companies(id);
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'checklists') THEN
+    ALTER TABLE checklists ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES companies(id);
+  END IF;
+END $$;
 
--- Кабели
-ALTER TABLE cable_categories ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES companies(id);
-ALTER TABLE cable_inventory ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES companies(id);
+-- Кабели (если существуют)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'cable_categories') THEN
+    ALTER TABLE cable_categories ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES companies(id);
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'cable_inventory') THEN
+    ALTER TABLE cable_inventory ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES companies(id);
+  END IF;
+END $$;
 
 -- Расходы
 ALTER TABLE expenses ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES companies(id);
 
 -- Цели/задачи
 ALTER TABLE goals ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES companies(id);
-ALTER TABLE goal_notes ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES companies(id);
-
--- Аудит
-ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES companies(id);
 
 -- ============================================
 -- 4. Миграция существующих данных
@@ -201,16 +211,23 @@ BEGIN
     UPDATE act_items SET company_id = new_company_id WHERE act_id IN (
       SELECT id FROM acts WHERE user_id = user_record.user_id
     );
-    UPDATE checklist_rules SET company_id = new_company_id WHERE user_id = user_record.user_id;
-    UPDATE checklists SET company_id = new_company_id WHERE user_id = user_record.user_id;
-    UPDATE cable_categories SET company_id = new_company_id WHERE user_id = user_record.user_id;
-    UPDATE cable_inventory SET company_id = new_company_id WHERE user_id = user_record.user_id;
-    UPDATE expenses SET company_id = new_company_id WHERE user_id = user_record.user_id;
+    -- Опциональные таблицы (с проверкой существования)
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'checklist_rules') THEN
+      UPDATE checklist_rules SET company_id = new_company_id WHERE user_id = user_record.user_id;
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'checklists') THEN
+      UPDATE checklists SET company_id = new_company_id WHERE user_id = user_record.user_id;
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'cable_categories') THEN
+      UPDATE cable_categories SET company_id = new_company_id WHERE user_id = user_record.user_id;
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'cable_inventory') THEN
+      UPDATE cable_inventory SET company_id = new_company_id WHERE user_id = user_record.user_id;
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'expenses') THEN
+      UPDATE expenses SET company_id = new_company_id WHERE user_id = user_record.user_id;
+    END IF;
     UPDATE goals SET company_id = new_company_id WHERE user_id = user_record.user_id;
-    UPDATE goal_notes SET company_id = new_company_id WHERE goal_id IN (
-      SELECT id FROM goals WHERE user_id = user_record.user_id
-    );
-    UPDATE audit_logs SET company_id = new_company_id WHERE user_id = user_record.user_id;
     
   END LOOP;
 END $$;
