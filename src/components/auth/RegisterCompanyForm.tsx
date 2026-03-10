@@ -84,6 +84,15 @@ export function RegisterCompanyForm({ onSuccess, onLogin }: RegisterCompanyFormP
 
       if (memberError) throw memberError;
 
+      // 4. Редирект на поддомен (если не localhost)
+      const hostname = window.location.hostname;
+      if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
+        const protocol = window.location.protocol;
+        const newUrl = `${protocol}//${slug}.${hostname}`;
+        window.location.href = newUrl;
+        return;
+      }
+
       onSuccess();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ошибка регистрации');
