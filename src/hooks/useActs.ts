@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Act, ActItem, ActStatus } from '../types';
 
-export function useActs(contractId?: string) {
+export function useActs(contractId?: string, companyId?: string) {
   const [acts, setActs] = useState<Act[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -15,7 +15,7 @@ export function useActs(contractId?: string) {
         .from('acts')
         .select(`
           *,
-          items:act_items (*),
+          items:act_items(*),
           contract:contract_id (
             id,
             number,
@@ -34,6 +34,7 @@ export function useActs(contractId?: string) {
             date
           )
         `)
+        .eq('company_id', companyId)
         .order('date', { ascending: false });
       
       if (contractId) {
@@ -50,14 +51,16 @@ export function useActs(contractId?: string) {
     } finally {
       setLoading(false);
     }
-  }, [contractId]);
+  }, [contractId, companyId]);
 
   const createAct = useCallback(async (act: Partial<Act>, items: Partial<ActItem>[]) => {
     try {
+      if (!companyId) throw new Error('No company selected');
+      
       // Создаем акт
       const { data: actData, error: actError } = await supabase
         .from('acts')
-        .insert(act)
+        .insert({ ...act, company_id: companyId })
         .select()
         .single();
       
@@ -68,6 +71,7 @@ export function useActs(contractId?: string) {
         const itemsWithActId = items.map((item, index) => ({
           ...item,
           act_id: actData.id,
+          company_id: companyId,
           order_index: index,
         }));
         
@@ -83,15 +87,18 @@ export function useActs(contractId?: string) {
     } catch (err) {
       return { data: null, error: err instanceof Error ? err.message : 'Ошибка создания акта' };
     }
-  }, [fetchActs]);
+  }, [fetchActs, companyId]);
 
   const updateAct = useCallback(async (id: string, updates: Partial<Act>, items?: Partial<ActItem>[]) => {
     try {
+      if (!companyId) throw new Error('No company selected');
+      
       // Обновляем акт
       const { error: actError } = await supabase
         .from('acts')
         .update(updates)
-        .eq('id', id);
+        .eq('id', id)
+        .eq('company_id', companyId);
       
       if (actError) throw actError;
       
@@ -105,6 +112,7 @@ export function useActs(contractId?: string) {
           const itemsWithActId = items.map((item, index) => ({
             ...item,
             act_id: id,
+            company_id: companyId,
             order_index: index,
           }));
           
@@ -121,14 +129,17 @@ export function useActs(contractId?: string) {
     } catch (err) {
       return { error: err instanceof Error ? err.message : 'Ошибка обновления акта' };
     }
-  }, [fetchActs]);
+  }, [fetchActs, companyId]);
 
   const deleteAct = useCallback(async (id: string) => {
     try {
+      if (!companyId) throw new Error('No company selected');
+      
       const { error: deleteError } = await supabase
         .from('acts')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .eq('company_id', companyId);
       
       if (deleteError) throw deleteError;
       
@@ -137,10 +148,12 @@ export function useActs(contractId?: string) {
     } catch (err) {
       return { error: err instanceof Error ? err.message : 'Ошибка удаления акта' };
     }
-  }, [fetchActs]);
+  }, [fetchActs, companyId]);
 
   const getNextNumber = useCallback(async (year: number): Promise<string> => {
     try {
+      if (!companyId) return `001-${year}А`;
+      
       const { data, error: rpcError } = await supabase
         .rpc('get_next_act_number', { p_year: year });
       
@@ -151,7 +164,7 @@ export function useActs(contractId?: string) {
       console.error('Error getting next act number:', err);
       return `001-${year}А`;
     }
-  }, []);
+  }, [companyId]);
 
   useEffect(() => {
     fetchActs();
@@ -159,14 +172,16 @@ export function useActs(contractId?: string) {
 
   // Real-time subscription
   useEffect(() => {
+    if (!companyId) return;
+    
     const channel = supabase
       .channel('acts-changes')
       .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'acts' },
+        { event: '*', schema: 'public', table: 'acts', filter: `company_id=eq.${companyId}` },
         () => fetchActs()
       )
       .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'act_items' },
+        { event: '*', schema: 'public', table: 'act_items', filter: `company_id=eq.${companyId}` },
         () => fetchActs()
       )
       .subscribe();
@@ -174,7 +189,7 @@ export function useActs(contractId?: string) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [fetchActs]);
+  }, [fetchActs, companyId]);
 
   return {
     acts,

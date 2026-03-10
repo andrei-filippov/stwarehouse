@@ -1,23 +1,11 @@
-import { useState, useEffect, memo, useCallback, useMemo } from 'react';
-import { Package, Search } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Package, User } from 'lucide-react';
 import { useAuth } from './hooks/useAuth';
 import { CompanyProvider, useCompanyContext } from './contexts/CompanyContext';
 import { RegisterCompanyForm } from './components/auth/RegisterCompanyForm';
 import { CompanySelector } from './components/auth/CompanySelector';
-import { useEquipment } from './hooks/useEquipment';
-import { useEstimates } from './hooks/useEstimates';
-import { useTemplates } from './hooks/useTemplates';
-import { useChecklists } from './hooks/useChecklists';
-import { useStaff } from './hooks/useStaff';
-import { useGoals } from './hooks/useGoals';
-import { useCustomers } from './hooks/useCustomers';
-import { useCableInventory } from './hooks/useCableInventory';
-import { useExpenses } from './hooks/useExpenses';
-import { useContracts } from './hooks/useContracts';
 import { Auth } from './components/Auth';
 import { EquipmentManager } from './components/EquipmentManagement';
-
-// Lazy loading для тяжёлых компонентов
 import { EstimateManager } from './components/EstimateManager';
 import { TemplatesManager } from './components/Templates';
 import { ChecklistsManager } from './components/Checklists';
@@ -34,18 +22,26 @@ import { AccessDenied } from './components/AccessDenied';
 import { BottomNav } from './components/BottomNav';
 import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './components/Dashboard';
-import { Button } from './components/ui/button';
 import { CommandMenu } from './components/CommandMenu';
-
 import { Spinner } from './components/ui/spinner';
+
+import { useEquipment } from './hooks/useEquipment';
+import { useEstimates } from './hooks/useEstimates';
+import { useTemplates } from './hooks/useTemplates';
+import { useChecklists } from './hooks/useChecklists';
+import { useStaff } from './hooks/useStaff';
+import { useGoals } from './hooks/useGoals';
+import { useCustomers } from './hooks/useCustomers';
+import { useCableInventory } from './hooks/useCableInventory';
+import { useExpenses } from './hooks/useExpenses';
+import { useContracts } from './hooks/useContracts';
+
 import { 
   BarChart3,
   Building2,
   FileText, 
   Layout, 
   Settings, 
-  LogOut,
-  User,
   Calendar,
   ClipboardCheck,
   Users,
@@ -55,102 +51,13 @@ import {
   FileSignature
 } from 'lucide-react';
 import type { PDFSettings as PDFSettingsType } from './types';
+import { hasAccess, getRoleLabel, type UserRole, type TabId } from './lib/permissions';
 
 type Tab = TabId;
 
-import { hasAccess, getRoleLabel, type UserRole, type TabId } from './lib/permissions';
-
+// Основной компонент приложения
 function App() {
   const { user, profile, permissions, loading: authLoading, signIn, signUp, signOut } = useAuth();
-  const { equipment, categories, loading: equipmentLoading, addEquipment, updateEquipment, deleteEquipment, bulkInsert, addCategory, deleteCategory } = useEquipment(user?.id);
-  const { estimates, loading: estimatesLoading, createEstimate, updateEstimate, deleteEstimate, startEditing, stopEditing } = useEstimates(user?.id);
-  const { templates, loading: templatesLoading, createTemplate, updateTemplate, deleteTemplate } = useTemplates(user?.id);
-  const { checklists, rules, loading: checklistsLoading, createRule, deleteRule, createChecklist, updateChecklistItem, deleteChecklist } = useChecklists(user?.id, estimates);
-  const { staff, loading: staffLoading, addStaff, updateStaff, deleteStaff } = useStaff(user?.id);
-  const { tasks, loading: goalsLoading, addTask, updateTask, deleteTask } = useGoals(user?.id);
-  const { customers, loading: customersLoading, error: customersError, addCustomer, updateCustomer, deleteCustomer } = useCustomers(user?.id);
-  const { categories: cableCategories, inventory: cableInventory, movements: cableMovements, stats: cableStats, loading: cableLoading, addCategory: addCableCategory, updateCategory: updateCableCategory, deleteCategory: deleteCableCategory, upsertInventory: upsertCableInventory, updateInventoryQty: updateCableInventoryQty, deleteInventory: deleteCableInventory, issueCable, returnCable } = useCableInventory(user?.id);
-  const { expenses, loading: expensesLoading, addExpense, updateExpense, deleteExpense } = useExpenses(user?.id);
-  const { contracts, templates: contractTemplates, loading: contractsLoading, createContract, updateContract, deleteContract, getNextContractNumber } = useContracts(user?.id);
-  const analyticsData = { equipment, estimates, staff, customers, expenses, onAddExpense: addExpense, onUpdateExpense: updateExpense, onDeleteExpense: deleteExpense };
-  
-  const [activeTab, setActiveTab] = useState<Tab>('dashboard');
-  const [fabAction, setFabAction] = useState(0);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  
-  // Обработчик нажатия FAB (плюсик в мобильной версии)
-  const handleFabClick = useCallback(() => {
-    setFabAction(prev => prev + 1);
-  }, []);
-  const [pdfSettings, setPdfSettings] = useState<PDFSettingsType>({
-    logo: null,
-    companyName: '',
-    companyDetails: '',
-    position: '',
-    personName: '',
-    signature: null,
-    stamp: null
-  });
-
-  useEffect(() => {
-    const saved = localStorage.getItem('pdfSettings');
-    if (saved) {
-      setPdfSettings(JSON.parse(saved));
-    }
-  }, []);
-
-  // Список всех вкладок (определяем до использования)
-  const allNavItems = [
-    { id: 'dashboard' as Tab, label: 'Дашборд', icon: BarChart3 },
-    { id: 'equipment' as Tab, label: 'Оборудование', icon: Package },
-    { id: 'estimates' as Tab, label: 'Сметы', icon: FileText },
-    { id: 'templates' as Tab, label: 'Шаблоны', icon: Layout },
-    { id: 'calendar' as Tab, label: 'Календарь', icon: Calendar },
-    { id: 'checklists' as Tab, label: 'Чек-листы', icon: ClipboardCheck },
-    { id: 'staff' as Tab, label: 'Персонал', icon: Users },
-    { id: 'goals' as Tab, label: 'Задачи', icon: Target },
-    { id: 'cables' as Tab, label: 'Коммутация', icon: Cable },
-    { id: 'analytics' as Tab, label: 'Аналитика', icon: BarChart3 },
-    { id: 'customers' as Tab, label: 'Заказчики', icon: Building2 },
-    { id: 'contracts' as Tab, label: 'Договоры', icon: FileSignature },
-    { id: 'settings' as Tab, label: 'Настройки PDF', icon: Settings },
-    { id: 'admin' as Tab, label: 'Админ', icon: Shield },
-  ];
-
-  // Получаем роль пользователя
-  const userRole = (profile?.role || 'manager') as UserRole;
-  
-  // Проверка доступа с учётом кастомных разрешений
-  const checkAccess = (tabId: TabId): boolean => {
-    // Сначала проверяем кастомное разрешение
-    const customPerm = permissions?.find(p => p.tab_id === tabId);
-    if (customPerm) {
-      return customPerm.allowed;
-    }
-    // Если нет кастомного - используем роль
-    const hasRoleAccess = hasAccess(userRole, tabId);
-      return hasRoleAccess;
-  };
-  
-  // Фильтруем доступные вкладки
-  const navItems = allNavItems.filter(item => checkAccess(item.id));
-  
-
-
-  // При загрузке профиля переключаем на первую доступную вкладку (если текущая недоступна)
-  useEffect(() => {
-    if (profile && navItems.length > 0) {
-      const currentTabAccessible = checkAccess(activeTab);
-      if (!currentTabAccessible) {
-        setActiveTab(navItems[0].id);
-      }
-    }
-  }, [profile, permissions, navItems, activeTab]);
-
-  const savePdfSettings = (settings: PDFSettingsType) => {
-    setPdfSettings(settings);
-    localStorage.setItem('pdfSettings', JSON.stringify(settings));
-  };
 
   if (authLoading) {
     return (
@@ -172,14 +79,15 @@ function App() {
       <AppContent 
         user={user}
         profile={profile}
-        // ... все остальные пропсы
+        permissions={permissions}
+        signOut={signOut}
       />
     </CompanyProvider>
   );
 }
 
 // Внутренний компонент с доступом к компании
-function AppContent({ user, profile, ...props }: any) {
+function AppContent({ user, profile, permissions, signOut }: any) {
   const { company, loading: companyLoading } = useCompanyContext();
   const [showRegister, setShowRegister] = useState(false);
 
@@ -213,6 +121,102 @@ function AppContent({ user, profile, ...props }: any) {
       </div>
     );
   }
+
+  // Основной контент с компанией
+  return (
+    <MainApp 
+      user={user}
+      profile={profile}
+      permissions={permissions}
+      company={company}
+      signOut={signOut}
+    />
+  );
+}
+
+// Основной компонент с хуками
+function MainApp({ user, profile, permissions, company, signOut }: any) {
+  const companyId = company?.id;
+  const userRole = (profile?.role || 'manager') as UserRole;
+
+  // Хуки с companyId
+  const { equipment, categories, loading: equipmentLoading, addEquipment, updateEquipment, deleteEquipment, bulkInsert, addCategory, deleteCategory } = useEquipment(companyId);
+  const { estimates, loading: estimatesLoading, createEstimate, updateEstimate, deleteEstimate, startEditing, stopEditing } = useEstimates(companyId);
+  const { templates, loading: templatesLoading, createTemplate, updateTemplate, deleteTemplate } = useTemplates(companyId);
+  const { checklists, rules, loading: checklistsLoading, createRule, deleteRule, createChecklist, updateChecklistItem, deleteChecklist } = useChecklists(companyId, estimates);
+  const { staff, loading: staffLoading, addStaff, updateStaff, deleteStaff } = useStaff(companyId);
+  const { tasks, loading: goalsLoading, addTask, updateTask, deleteTask } = useGoals(companyId);
+  const { customers, loading: customersLoading, error: customersError, addCustomer, updateCustomer, deleteCustomer } = useCustomers(companyId);
+  const { categories: cableCategories, inventory: cableInventory, movements: cableMovements, stats: cableStats, loading: cableLoading, addCategory: addCableCategory, updateCategory: updateCableCategory, deleteCategory: deleteCableCategory, upsertInventory: upsertCableInventory, updateInventoryQty: updateCableInventoryQty, deleteInventory: deleteCableInventory, issueCable, returnCable } = useCableInventory(companyId);
+  const { expenses, loading: expensesLoading, addExpense, updateExpense, deleteExpense } = useExpenses(companyId);
+  const { contracts, templates: contractTemplates, loading: contractsLoading, createContract, updateContract, deleteContract, getNextContractNumber } = useContracts(companyId);
+
+  const [activeTab, setActiveTab] = useState<Tab>('dashboard');
+  const [fabAction, setFabAction] = useState(0);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [pdfSettings, setPdfSettings] = useState<PDFSettingsType>({
+    logo: null,
+    companyName: company?.name || '',
+    companyDetails: `${company?.legal_address || ''}\nИНН: ${company?.inn || ''}`,
+    position: '',
+    personName: profile?.name || '',
+    signature: null,
+    stamp: null
+  });
+
+  useEffect(() => {
+    const saved = localStorage.getItem('pdfSettings');
+    if (saved) {
+      setPdfSettings(JSON.parse(saved));
+    }
+  }, []);
+
+  const handleFabClick = useCallback(() => {
+    setFabAction(prev => prev + 1);
+  }, []);
+
+  const savePdfSettings = (settings: PDFSettingsType) => {
+    setPdfSettings(settings);
+    localStorage.setItem('pdfSettings', JSON.stringify(settings));
+  };
+
+  // Проверка доступа
+  const checkAccess = (tabId: TabId): boolean => {
+    const customPerm = permissions?.find((p: any) => p.tab_id === tabId);
+    if (customPerm) return customPerm.allowed;
+    return hasAccess(userRole, tabId);
+  };
+
+  // Список вкладок
+  const allNavItems = useMemo(() => [
+    { id: 'dashboard' as Tab, label: 'Дашборд', icon: BarChart3 },
+    { id: 'equipment' as Tab, label: 'Оборудование', icon: Package },
+    { id: 'estimates' as Tab, label: 'Сметы', icon: FileText },
+    { id: 'templates' as Tab, label: 'Шаблоны', icon: Layout },
+    { id: 'calendar' as Tab, label: 'Календарь', icon: Calendar },
+    { id: 'checklists' as Tab, label: 'Чек-листы', icon: ClipboardCheck },
+    { id: 'staff' as Tab, label: 'Персонал', icon: Users },
+    { id: 'goals' as Tab, label: 'Задачи', icon: Target },
+    { id: 'cables' as Tab, label: 'Коммутация', icon: Cable },
+    { id: 'analytics' as Tab, label: 'Аналитика', icon: BarChart3 },
+    { id: 'customers' as Tab, label: 'Заказчики', icon: Building2 },
+    { id: 'contracts' as Tab, label: 'Договоры', icon: FileSignature },
+    { id: 'settings' as Tab, label: 'Настройки PDF', icon: Settings },
+    { id: 'admin' as Tab, label: 'Админ', icon: Shield },
+  ], []);
+
+  const navItems = allNavItems.filter(item => checkAccess(item.id));
+
+  useEffect(() => {
+    if (profile && navItems.length > 0) {
+      const currentTabAccessible = checkAccess(activeTab);
+      if (!currentTabAccessible) {
+        setActiveTab(navItems[0].id);
+      }
+    }
+  }, [profile, permissions, navItems, activeTab]);
+
+  const analyticsData = { equipment, estimates, staff, customers, expenses, onAddExpense: addExpense, onUpdateExpense: updateExpense, onDeleteExpense: deleteExpense };
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -257,188 +261,188 @@ function AppContent({ user, profile, ...props }: any) {
       {/* Main Content */}
       <main className="flex-1 pt-16 md:pt-0 pb-20 md:pb-0 overflow-auto">
         <div className="p-4 md:p-6 max-w-7xl mx-auto">
-        {activeTab === 'dashboard' && (
-          <Dashboard
-            equipment={equipment}
-            estimates={estimates}
-            customers={customers}
-            staff={staff}
-            goals={tasks}
-            onTabChange={setActiveTab}
-            checkAccess={checkAccess}
-          />
-        )}
-
-        {activeTab === 'equipment' && (
-          <EquipmentManager
-            equipment={equipment}
-            categories={categories}
-            userId={user?.id}
-            onAdd={addEquipment}
-            onUpdate={updateEquipment}
-            onDelete={deleteEquipment}
-            onBulkInsert={bulkInsert}
-            onAddCategory={addCategory}
-            onDeleteCategory={deleteCategory}
-            loading={equipmentLoading}
-            fabAction={fabAction}
-          />
-        )}
-
-        {activeTab === 'estimates' && (
-          <EstimateManager
-            estimates={estimates}
-            equipment={equipment}
-            templates={templates}
-            customers={customers}
-            pdfSettings={pdfSettings}
-            equipmentCategories={(categories || []).map(c => c.name)}
-            onCreate={(estimate, items, categoryOrder) => createEstimate(estimate, items, user!.id, profile?.name, categoryOrder)}
-            onUpdate={(id, estimate, items, categoryOrder) => updateEstimate(id, estimate, items, user!.id, categoryOrder)}
-            onDelete={deleteEstimate}
-            onCreateEquipment={addEquipment}
-            onStartEditing={startEditing}
-            onStopEditing={stopEditing}
-            currentUserId={user?.id}
-            fabAction={fabAction}
-          />
-        )}
-
-        {activeTab === 'templates' && (
-          <TemplatesManager
-            templates={templates}
-            categories={categories}
-            equipment={equipment}
-            onCreate={createTemplate}
-            onUpdate={updateTemplate}
-            onDelete={deleteTemplate}
-            userId={user?.id}
-            fabAction={fabAction}
-          />
-        )}
-
-        {activeTab === 'calendar' && (
-          <EventCalendar
-            estimates={estimates}
-            equipment={equipment}
-          />
-        )}
-
-        {activeTab === 'checklists' && (
-          <ChecklistsManager
-            estimates={estimates}
-            equipment={equipment}
-            categories={categories}
-            checklists={checklists}
-            rules={rules}
-            onCreateRule={createRule}
-            onDeleteRule={deleteRule}
-            onCreateChecklist={createChecklist}
-            onUpdateChecklistItem={updateChecklistItem}
-            onDeleteChecklist={deleteChecklist}
-            loading={checklistsLoading}
-            fabAction={fabAction}
-          />
-        )}
-
-        {activeTab === 'staff' && (
-          <StaffManager
-            staff={staff}
-            onAdd={addStaff}
-            onUpdate={updateStaff}
-            onDelete={deleteStaff}
-            loading={staffLoading}
-            fabAction={fabAction}
-          />
-        )}
-
-        {activeTab === 'goals' && (
-          <GoalsManager
-            tasks={tasks}
-            staff={staff}
-            onAdd={addTask}
-            onUpdate={updateTask}
-            onDelete={deleteTask}
-            loading={goalsLoading}
-            fabAction={fabAction}
-          />
-        )}
-
-        {activeTab === 'cables' && (
-          <CableManager
-            categories={cableCategories}
-            inventory={cableInventory}
-            movements={cableMovements}
-            stats={cableStats}
-            loading={cableLoading}
-            onAddCategory={addCableCategory}
-            onUpdateCategory={updateCableCategory}
-            onDeleteCategory={deleteCableCategory}
-            onUpsertInventory={upsertCableInventory}
-            onUpdateInventoryQty={updateCableInventoryQty}
-            onDeleteInventory={deleteCableInventory}
-            onIssueCable={issueCable}
-            onReturnCable={returnCable}
-            fabAction={fabAction}
-          />
-        )}
-
-        {activeTab === 'analytics' && (
-          <Analytics 
-            equipment={equipment}
-            estimates={estimates}
-            staff={staff}
-            customers={customers}
-            expenses={expenses}
-            onAddExpense={addExpense}
-            onUpdateExpense={updateExpense}
-            onDeleteExpense={deleteExpense}
-          />
-        )}
-
-        {activeTab === 'customers' && (
-          <CustomersManager
-            customers={customers}
-            userId={user?.id}
-            onAdd={addCustomer}
-            onUpdate={updateCustomer}
-            onDelete={deleteCustomer}
-            loading={customersLoading}
-            error={customersError}
-            fabAction={fabAction}
-          />
-        )}
-
-        {activeTab === 'contracts' && (
-          checkAccess('contracts') ? (
-            <ContractManager
-              contracts={contracts}
-              templates={contractTemplates}
-              customers={customers}
+          {activeTab === 'dashboard' && (
+            <Dashboard
+              equipment={equipment}
               estimates={estimates}
-              pdfSettings={pdfSettings}
-              onCreate={createContract}
-              onUpdate={updateContract}
-              onDelete={deleteContract}
-              getNextNumber={getNextContractNumber}
+              customers={customers}
+              staff={staff}
+              goals={tasks}
+              onTabChange={setActiveTab}
+              checkAccess={checkAccess}
+            />
+          )}
+
+          {activeTab === 'equipment' && (
+            <EquipmentManager
+              equipment={equipment}
+              categories={categories}
+              userId={user?.id}
+              onAdd={addEquipment}
+              onUpdate={updateEquipment}
+              onDelete={deleteEquipment}
+              onBulkInsert={bulkInsert}
+              onAddCategory={addCategory}
+              onDeleteCategory={deleteCategory}
+              loading={equipmentLoading}
               fabAction={fabAction}
             />
-          ) : (
-            <AccessDenied role={userRole} requiredRole="Администратор" />
-          )
-        )}
+          )}
 
-        {activeTab === 'settings' && (
-          <PDFSettings settings={pdfSettings} onSave={savePdfSettings} />
-        )}
+          {activeTab === 'estimates' && (
+            <EstimateManager
+              estimates={estimates}
+              equipment={equipment}
+              templates={templates}
+              customers={customers}
+              pdfSettings={pdfSettings}
+              equipmentCategories={(categories || []).map((c: any) => c.name)}
+              onCreate={(estimate, items, categoryOrder) => createEstimate(estimate, items, user!.id, profile?.name, categoryOrder)}
+              onUpdate={(id, estimate, items, categoryOrder) => updateEstimate(id, estimate, items, user!.id, categoryOrder)}
+              onDelete={deleteEstimate}
+              onCreateEquipment={addEquipment}
+              onStartEditing={startEditing}
+              onStopEditing={stopEditing}
+              currentUserId={user?.id}
+              fabAction={fabAction}
+            />
+          )}
 
-        {activeTab === 'admin' && (
-          checkAccess('admin') ? (
-            <AdminPanel currentUserId={user?.id} />
-          ) : (
-            <AccessDenied role={userRole} requiredRole="Администратор" />
-          )
-        )}
+          {activeTab === 'templates' && (
+            <TemplatesManager
+              templates={templates}
+              categories={categories}
+              equipment={equipment}
+              onCreate={createTemplate}
+              onUpdate={updateTemplate}
+              onDelete={deleteTemplate}
+              userId={user?.id}
+              fabAction={fabAction}
+            />
+          )}
+
+          {activeTab === 'calendar' && (
+            <EventCalendar
+              estimates={estimates}
+              equipment={equipment}
+            />
+          )}
+
+          {activeTab === 'checklists' && (
+            <ChecklistsManager
+              estimates={estimates}
+              equipment={equipment}
+              categories={categories}
+              checklists={checklists}
+              rules={rules}
+              onCreateRule={createRule}
+              onDeleteRule={deleteRule}
+              onCreateChecklist={createChecklist}
+              onUpdateChecklistItem={updateChecklistItem}
+              onDeleteChecklist={deleteChecklist}
+              loading={checklistsLoading}
+              fabAction={fabAction}
+            />
+          )}
+
+          {activeTab === 'staff' && (
+            <StaffManager
+              staff={staff}
+              onAdd={addStaff}
+              onUpdate={updateStaff}
+              onDelete={deleteStaff}
+              loading={staffLoading}
+              fabAction={fabAction}
+            />
+          )}
+
+          {activeTab === 'goals' && (
+            <GoalsManager
+              tasks={tasks}
+              staff={staff}
+              onAdd={addTask}
+              onUpdate={updateTask}
+              onDelete={deleteTask}
+              loading={goalsLoading}
+              fabAction={fabAction}
+            />
+          )}
+
+          {activeTab === 'cables' && (
+            <CableManager
+              categories={cableCategories}
+              inventory={cableInventory}
+              movements={cableMovements}
+              stats={cableStats}
+              loading={cableLoading}
+              onAddCategory={addCableCategory}
+              onUpdateCategory={updateCableCategory}
+              onDeleteCategory={deleteCableCategory}
+              onUpsertInventory={upsertCableInventory}
+              onUpdateInventoryQty={updateCableInventoryQty}
+              onDeleteInventory={deleteCableInventory}
+              onIssueCable={issueCable}
+              onReturnCable={returnCable}
+              fabAction={fabAction}
+            />
+          )}
+
+          {activeTab === 'analytics' && (
+            <Analytics 
+              equipment={equipment}
+              estimates={estimates}
+              staff={staff}
+              customers={customers}
+              expenses={expenses}
+              onAddExpense={addExpense}
+              onUpdateExpense={updateExpense}
+              onDeleteExpense={deleteExpense}
+            />
+          )}
+
+          {activeTab === 'customers' && (
+            <CustomersManager
+              customers={customers}
+              userId={user?.id}
+              onAdd={addCustomer}
+              onUpdate={updateCustomer}
+              onDelete={deleteCustomer}
+              loading={customersLoading}
+              error={customersError}
+              fabAction={fabAction}
+            />
+          )}
+
+          {activeTab === 'contracts' && (
+            checkAccess('contracts') ? (
+              <ContractManager
+                contracts={contracts}
+                templates={contractTemplates}
+                customers={customers}
+                estimates={estimates}
+                pdfSettings={pdfSettings}
+                onCreate={createContract}
+                onUpdate={updateContract}
+                onDelete={deleteContract}
+                getNextNumber={getNextContractNumber}
+                fabAction={fabAction}
+              />
+            ) : (
+              <AccessDenied role={userRole} requiredRole="Администратор" />
+            )
+          )}
+
+          {activeTab === 'settings' && (
+            <PDFSettings settings={pdfSettings} onSave={savePdfSettings} />
+          )}
+
+          {activeTab === 'admin' && (
+            checkAccess('admin') ? (
+              <AdminPanel currentUserId={user?.id} />
+            ) : (
+              <AccessDenied role={userRole} requiredRole="Администратор" />
+            )
+          )}
         </div>
       </main>
 
@@ -455,4 +459,3 @@ function AppContent({ user, profile, ...props }: any) {
 }
 
 export default App;
-
