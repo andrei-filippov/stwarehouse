@@ -131,12 +131,32 @@ ALTER TABLE goals ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES companies(
 -- 4. Отключаем триггеры аудита на время миграции
 -- ============================================
 
-ALTER TABLE equipment DISABLE TRIGGER log_equipment_changes;
-ALTER TABLE estimates DISABLE TRIGGER log_estimate_changes;
-ALTER TABLE customers DISABLE TRIGGER log_customer_changes;
-ALTER TABLE staff DISABLE TRIGGER log_staff_changes;
-ALTER TABLE contracts DISABLE TRIGGER log_contract_changes;
-ALTER TABLE contract_templates DISABLE TRIGGER log_contract_template_changes;
+-- Отключаем триггеры аудита (если существуют)
+DO $$
+BEGIN
+  -- Проверяем и отключаем триггеры
+  IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'equipment_audit_trigger') THEN
+    ALTER TABLE equipment DISABLE TRIGGER equipment_audit_trigger;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'estimate_audit_trigger') THEN
+    ALTER TABLE estimates DISABLE TRIGGER estimate_audit_trigger;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'customer_audit_trigger') THEN
+    ALTER TABLE customers DISABLE TRIGGER customer_audit_trigger;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'staff_audit_trigger') THEN
+    ALTER TABLE staff DISABLE TRIGGER staff_audit_trigger;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'contract_audit_trigger') THEN
+    ALTER TABLE contracts DISABLE TRIGGER contract_audit_trigger;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'contract_template_audit_trigger') THEN
+    ALTER TABLE contract_templates DISABLE TRIGGER contract_template_audit_trigger;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'estimate_item_audit_trigger') THEN
+    ALTER TABLE estimate_items DISABLE TRIGGER estimate_item_audit_trigger;
+  END IF;
+END $$;
 
 -- ============================================
 -- 5. Миграция существующих данных
@@ -247,12 +267,31 @@ END $$;
 -- 5. Включаем триггеры аудита обратно
 -- ============================================
 
-ALTER TABLE equipment ENABLE TRIGGER log_equipment_changes;
-ALTER TABLE estimates ENABLE TRIGGER log_estimate_changes;
-ALTER TABLE customers ENABLE TRIGGER log_customer_changes;
-ALTER TABLE staff ENABLE TRIGGER log_staff_changes;
-ALTER TABLE contracts ENABLE TRIGGER log_contract_changes;
-ALTER TABLE contract_templates ENABLE TRIGGER log_contract_template_changes;
+-- Включаем триггеры аудита обратно
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'equipment_audit_trigger') THEN
+    ALTER TABLE equipment ENABLE TRIGGER equipment_audit_trigger;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'estimate_audit_trigger') THEN
+    ALTER TABLE estimates ENABLE TRIGGER estimate_audit_trigger;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'customer_audit_trigger') THEN
+    ALTER TABLE customers ENABLE TRIGGER customer_audit_trigger;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'staff_audit_trigger') THEN
+    ALTER TABLE staff ENABLE TRIGGER staff_audit_trigger;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'contract_audit_trigger') THEN
+    ALTER TABLE contracts ENABLE TRIGGER contract_audit_trigger;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'contract_template_audit_trigger') THEN
+    ALTER TABLE contract_templates ENABLE TRIGGER contract_template_audit_trigger;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'estimate_item_audit_trigger') THEN
+    ALTER TABLE estimate_items ENABLE TRIGGER estimate_item_audit_trigger;
+  END IF;
+END $$;
 
 -- ============================================
 -- 6. Делаем company_id NOT NULL (после миграции)
