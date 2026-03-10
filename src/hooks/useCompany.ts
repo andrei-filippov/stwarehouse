@@ -59,8 +59,7 @@ export function useCompany() {
         .from('company_members')
         .select(`
           *,
-          company:company_id (*),
-          user:user_id (id, email, raw_user_meta_data)
+          company:company_id (*)
         `)
         .eq('user_id', user.id)
         .eq('status', 'active')
