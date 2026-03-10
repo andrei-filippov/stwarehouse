@@ -1,6 +1,6 @@
 import { Document, Paragraph, Table, TableCell, TableRow, TextRun, AlignmentType, 
          Header, Footer, PageNumber, BorderStyle } from 'docx';
-import { saveAs } from 'file-saver';
+import { downloadBlob } from './fileDownload';
 import { Packer } from 'docx';
 import type { Invoice, PDFSettings } from '../types';
 import { numberToWords } from '../types';
@@ -397,5 +397,5 @@ export async function exportInvoiceToDOCX(invoice: Invoice, settings: PDFSetting
   });
 
   const blob = await Packer.toBlob(doc);
-  saveAs(blob, `Счет_${invoice.number}_${new Date(invoice.date).toISOString().split('T')[0]}.docx`);
+  downloadBlob(blob, `Счет_${invoice.number}_${new Date(invoice.date).toISOString().split('T')[0]}.docx`);
 }

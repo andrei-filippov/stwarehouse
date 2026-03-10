@@ -1,6 +1,6 @@
 import { Document, Paragraph, Table, TableCell, TableRow, TextRun, AlignmentType, 
          BorderStyle } from 'docx';
-import { saveAs } from 'file-saver';
+import { downloadBlob } from './fileDownload';
 import { Packer } from 'docx';
 import type { Act, PDFSettings } from '../types';
 import { numberToWords } from '../types';
@@ -406,5 +406,5 @@ export async function exportActToDOCX(act: Act, settings: PDFSettings): Promise<
   });
 
   const blob = await Packer.toBlob(doc);
-  saveAs(blob, `Акт_${act.number}_${format(new Date(act.date), 'yyyy-MM-dd')}.docx`);
+  downloadBlob(blob, `Акт_${act.number}_${format(new Date(act.date), 'yyyy-MM-dd')}.docx`);
 }
