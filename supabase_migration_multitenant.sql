@@ -274,36 +274,6 @@ BEGIN
 END $$;
 
 -- ============================================
--- 5. Включаем триггеры аудита обратно
--- ============================================
-
--- Включаем триггеры аудита обратно
-DO $$
-BEGIN
-  IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'equipment_audit_trigger') THEN
-    ALTER TABLE equipment ENABLE TRIGGER equipment_audit_trigger;
-  END IF;
-  IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'estimate_audit_trigger') THEN
-    ALTER TABLE estimates ENABLE TRIGGER estimate_audit_trigger;
-  END IF;
-  IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'customer_audit_trigger') THEN
-    ALTER TABLE customers ENABLE TRIGGER customer_audit_trigger;
-  END IF;
-  IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'staff_audit_trigger') THEN
-    ALTER TABLE staff ENABLE TRIGGER staff_audit_trigger;
-  END IF;
-  IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'contract_audit_trigger') THEN
-    ALTER TABLE contracts ENABLE TRIGGER contract_audit_trigger;
-  END IF;
-  IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'contract_template_audit_trigger') THEN
-    ALTER TABLE contract_templates ENABLE TRIGGER contract_template_audit_trigger;
-  END IF;
-  IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'estimate_item_audit_trigger') THEN
-    ALTER TABLE estimate_items ENABLE TRIGGER estimate_item_audit_trigger;
-  END IF;
-END $$;
-
--- ============================================
 -- 6. Проверяем и исправляем NULL значения (если есть)
 -- ============================================
 
@@ -359,7 +329,36 @@ CREATE INDEX IF NOT EXISTS idx_invoices_company_id ON invoices(company_id);
 CREATE INDEX IF NOT EXISTS idx_acts_company_id ON acts(company_id);
 
 -- ============================================
--- 9. RLS (Row Level Security) для companies
+-- 9. Включаем триггеры аудита обратно
+-- ============================================
+
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'equipment_audit_trigger') THEN
+    ALTER TABLE equipment ENABLE TRIGGER equipment_audit_trigger;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'estimate_audit_trigger') THEN
+    ALTER TABLE estimates ENABLE TRIGGER estimate_audit_trigger;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'customer_audit_trigger') THEN
+    ALTER TABLE customers ENABLE TRIGGER customer_audit_trigger;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'staff_audit_trigger') THEN
+    ALTER TABLE staff ENABLE TRIGGER staff_audit_trigger;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'contract_audit_trigger') THEN
+    ALTER TABLE contracts ENABLE TRIGGER contract_audit_trigger;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'contract_template_audit_trigger') THEN
+    ALTER TABLE contract_templates ENABLE TRIGGER contract_template_audit_trigger;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'estimate_item_audit_trigger') THEN
+    ALTER TABLE estimate_items ENABLE TRIGGER estimate_item_audit_trigger;
+  END IF;
+END $$;
+
+-- ============================================
+-- 11. RLS (Row Level Security) для companies
 -- ============================================
 
 ALTER TABLE companies ENABLE ROW LEVEL SECURITY;
