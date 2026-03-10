@@ -304,7 +304,36 @@ BEGIN
 END $$;
 
 -- ============================================
--- 6. Делаем company_id NOT NULL (после миграции)
+-- 6. Проверяем и исправляем NULL значения (если есть)
+-- ============================================
+
+-- Для записей без company_id создаём "общую" компанию
+DO $$
+DECLARE
+  default_company_id UUID;
+BEGIN
+  -- Создаём компанию по умолчанию для orphaned записей
+  INSERT INTO companies (name, email, plan)
+  VALUES ('Общая компания', 'default@example.com', 'free')
+  ON CONFLICT DO NOTHING
+  RETURNING id INTO default_company_id;
+  
+  -- Если компания уже существовала, получаем её id
+  IF default_company_id IS NULL THEN
+    SELECT id INTO default_company_id FROM companies WHERE email = 'default@example.com' LIMIT 1;
+  END IF;
+  
+  -- Обновляем orphaned записи
+  UPDATE equipment SET company_id = default_company_id WHERE company_id IS NULL;
+  UPDATE estimates SET company_id = default_company_id WHERE company_id IS NULL;
+  UPDATE customers SET company_id = default_company_id WHERE company_id IS NULL;
+  UPDATE contracts SET company_id = default_company_id WHERE company_id IS NULL;
+  UPDATE invoices SET company_id = default_company_id WHERE company_id IS NULL;
+  UPDATE acts SET company_id = default_company_id WHERE company_id IS NULL;
+END $$;
+
+-- ============================================
+-- 7. Делаем company_id NOT NULL (после миграции)
 -- ============================================
 
 ALTER TABLE equipment ALTER COLUMN company_id SET NOT NULL;
@@ -315,7 +344,7 @@ ALTER TABLE invoices ALTER COLUMN company_id SET NOT NULL;
 ALTER TABLE acts ALTER COLUMN company_id SET NOT NULL;
 
 -- ============================================
--- 7. Создаём индексы
+-- 8. Создаём индексы
 -- ============================================
 
 CREATE INDEX IF NOT EXISTS idx_companies_inn ON companies(inn);
@@ -330,7 +359,7 @@ CREATE INDEX IF NOT EXISTS idx_invoices_company_id ON invoices(company_id);
 CREATE INDEX IF NOT EXISTS idx_acts_company_id ON acts(company_id);
 
 -- ============================================
--- 8. RLS (Row Level Security) для companies
+-- 9. RLS (Row Level Security) для companies
 -- ============================================
 
 ALTER TABLE companies ENABLE ROW LEVEL SECURITY;
@@ -389,7 +418,7 @@ CREATE POLICY "Owners and admins can manage members"
   );
 
 -- ============================================
--- 9. Обновляем RLS для всех таблиц (company_id вместо user_id)
+-- 10. Обновляем RLS для всех таблиц (company_id вместо user_id)
 -- ============================================
 
 -- Equipment
@@ -621,7 +650,7 @@ CREATE POLICY "Company members can delete acts" ON acts FOR DELETE
   ));
 
 -- ============================================
--- 10. Real-time подписки
+-- 11. Real-time подписки
 -- ============================================
 
 DO $$
@@ -642,7 +671,7 @@ BEGIN
 END $$;
 
 -- ============================================
--- 11. Триггеры для обновления updated_at
+-- 12. Триггеры для обновления updated_at
 -- ============================================
 
 DROP TRIGGER IF EXISTS update_companies_updated_at ON companies;
