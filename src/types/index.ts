@@ -236,3 +236,24 @@ export {
 // Audit Logs
 export type { AuditLog, AuditAction, EntityType, AuditLogFilters } from '../hooks/useAuditLogs';
 export { getActionLabel, getEntityLabel } from '../hooks/useAuditLogs';
+
+// Company (Multitenancy)
+export type { 
+  Company, 
+  CompanyMember, 
+  CompanyContextType,
+  CompanyPlan,
+  CompanyRole,
+  MemberStatus
+} from './company';
+export { 
+  COMPANY_ROLE_LABELS,
+  MEMBER_STATUS_LABELS,
+  COMPANY_PLAN_LABELS,
+  COMPANY_ROLE_COLORS,
+  ROLE_PERMISSIONS,
+  hasPermission,
+  getCompanyRoleLabel,
+  getMemberStatusLabel,
+  getCompanyPlanLabel
+} from './company';

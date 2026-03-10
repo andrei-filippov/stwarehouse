@@ -1,6 +1,9 @@
 import { useState, useEffect, memo, useCallback, useMemo } from 'react';
 import { Package, Search } from 'lucide-react';
 import { useAuth } from './hooks/useAuth';
+import { CompanyProvider, useCompanyContext } from './contexts/CompanyContext';
+import { RegisterCompanyForm } from './components/auth/RegisterCompanyForm';
+import { CompanySelector } from './components/auth/CompanySelector';
 import { useEquipment } from './hooks/useEquipment';
 import { useEstimates } from './hooks/useEstimates';
 import { useTemplates } from './hooks/useTemplates';
@@ -162,6 +165,53 @@ function App() {
 
   if (!user) {
     return <Auth onSignIn={signIn} onSignUp={signUp} />;
+  }
+
+  return (
+    <CompanyProvider>
+      <AppContent 
+        user={user}
+        profile={profile}
+        // ... все остальные пропсы
+      />
+    </CompanyProvider>
+  );
+}
+
+// Внутренний компонент с доступом к компании
+function AppContent({ user, profile, ...props }: any) {
+  const { company, loading: companyLoading } = useCompanyContext();
+  const [showRegister, setShowRegister] = useState(false);
+
+  if (companyLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Spinner className="w-8 h-8" />
+      </div>
+    );
+  }
+
+  // Если нет компании - показываем форму регистрации или выбор
+  if (!company) {
+    if (showRegister) {
+      return (
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <RegisterCompanyForm 
+            onSuccess={() => window.location.reload()}
+            onLogin={() => setShowRegister(false)}
+          />
+        </div>
+      );
+    }
+
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <CompanySelector 
+          onSelect={() => window.location.reload()}
+          onCreateNew={() => setShowRegister(true)}
+        />
+      </div>
+    );
   }
 
   return (
@@ -405,3 +455,4 @@ function App() {
 }
 
 export default App;
+

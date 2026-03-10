@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "auto_allow": {
+      "file_read": true,
+      "file_write": true,
+      "file_delete": true,
+      "shell_execute": true,
+      "git_operations": true,
+      "web_search": true
+    }
+  },
+  "behavior": {
+    "ask_before_large_changes": false,
+    "confirm_destructive_operations": false,
+    "show_diff_before_apply": false
+  }
+}
