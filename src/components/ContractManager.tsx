@@ -141,7 +141,10 @@ export const ContractManager = memo(function ContractManager({
         contract={selectedContract}
         pdfSettings={pdfSettings}
         onBack={handleCloseDetail}
-        onEditContract={() => handleEdit(selectedContract)}
+        onEditContract={() => {
+          handleCloseDetail();
+          handleEdit(selectedContract);
+        }}
       />
     );
   }

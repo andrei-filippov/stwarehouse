@@ -38,6 +38,7 @@ import { InvoicePreview } from './InvoicePreview';
 import { ActPreview } from './ActPreview';
 import { useInvoices } from '../hooks/useInvoices';
 import { useActs } from '../hooks/useActs';
+import { supabase } from '../lib/supabase';
 
 interface ContractDetailProps {
   contract: Contract;
@@ -97,13 +98,36 @@ export function ContractDetail({
   }, []);
 
   const handleSaveInvoice = useCallback(async (data: Partial<Invoice>) => {
-    if (editingInvoice) {
-      await updateInvoice(editingInvoice.id, data);
-    } else {
-      await createInvoice(data);
+    try {
+      // Получаем текущего пользователя
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        alert('Ошибка: пользователь не авторизован');
+        return;
+      }
+      
+      // Добавляем user_id к данным
+      const invoiceData = { ...data, user_id: user.id };
+      
+      let result;
+      if (editingInvoice) {
+        result = await updateInvoice(editingInvoice.id, invoiceData);
+      } else {
+        result = await createInvoice(invoiceData);
+      }
+      
+      if (result?.error) {
+        console.error('Error saving invoice:', result.error);
+        alert('Ошибка при сохранении счета: ' + result.error);
+        return;
+      }
+      
+      setIsInvoiceFormOpen(false);
+      setEditingInvoice(null);
+    } catch (err) {
+      console.error('Exception saving invoice:', err);
+      alert('Ошибка при сохранении счета');
     }
-    setIsInvoiceFormOpen(false);
-    setEditingInvoice(null);
   }, [editingInvoice, createInvoice, updateInvoice]);
 
   const handleDeleteInvoice = useCallback(async (invoice: Invoice) => {
@@ -129,13 +153,36 @@ export function ContractDetail({
   }, []);
 
   const handleSaveAct = useCallback(async (data: Partial<Act>, items: Partial<any>[]) => {
-    if (editingAct) {
-      await updateAct(editingAct.id, data, items);
-    } else {
-      await createAct(data, items);
+    try {
+      // Получаем текущего пользователя
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        alert('Ошибка: пользователь не авторизован');
+        return;
+      }
+      
+      // Добавляем user_id к данным
+      const actData = { ...data, user_id: user.id };
+      
+      let result;
+      if (editingAct) {
+        result = await updateAct(editingAct.id, actData, items);
+      } else {
+        result = await createAct(actData, items);
+      }
+      
+      if (result?.error) {
+        console.error('Error saving act:', result.error);
+        alert('Ошибка при сохранении акта: ' + result.error);
+        return;
+      }
+      
+      setIsActFormOpen(false);
+      setEditingAct(null);
+    } catch (err) {
+      console.error('Exception saving act:', err);
+      alert('Ошибка при сохранении акта');
     }
-    setIsActFormOpen(false);
-    setEditingAct(null);
   }, [editingAct, createAct, updateAct]);
 
   const handleDeleteAct = useCallback(async (act: Act) => {
