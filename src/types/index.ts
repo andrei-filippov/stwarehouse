@@ -214,6 +214,25 @@ export {
   generateContractNumber 
 } from './contracts';
 
+// Invoices and Acts
+export type { 
+  Invoice, 
+  Act, 
+  ActItem, 
+  InvoiceStatus, 
+  ActStatus 
+} from './invoices';
+export { 
+  INVOICE_STATUS_LABELS, 
+  ACT_STATUS_LABELS,
+  INVOICE_STATUS_COLORS,
+  ACT_STATUS_COLORS,
+  getInvoiceStatusLabel,
+  getActStatusLabel,
+  generateInvoiceNumber,
+  generateActNumber
+} from './invoices';
+
 // Audit Logs
 export type { AuditLog, AuditAction, EntityType, AuditLogFilters } from '../hooks/useAuditLogs';
 export { getActionLabel, getEntityLabel } from '../hooks/useAuditLogs';

@@ -9,8 +9,7 @@ import {
   Trash2, 
   FileText, 
   Eye,
-  Printer,
-  Download,
+  ChevronRight,
   FileSignature,
   CheckCircle,
   XCircle,
@@ -21,6 +20,7 @@ import type { Contract, ContractTemplate, PDFSettings, ContractType, ContractSta
 import { CONTRACT_TYPE_LABELS, CONTRACT_STATUS_LABELS, CONTRACT_STATUS_COLORS } from '../types';
 import { ContractForm } from './ContractForm';
 import { ContractPreview } from './ContractPreview';
+import { ContractDetail } from './ContractDetail';
 
 interface ContractManagerProps {
   contracts: Contract[];
@@ -60,6 +60,7 @@ export const ContractManager = memo(function ContractManager({
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [editingContract, setEditingContract] = useState<Contract | null>(null);
   const [previewContract, setPreviewContract] = useState<Contract | null>(null);
+  const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
 
   // Открытие формы при нажатии FAB
   useEffect(() => {
@@ -85,6 +86,14 @@ export const ContractManager = memo(function ContractManager({
   const handlePreview = useCallback((contract: Contract) => {
     setPreviewContract(contract);
     setIsPreviewOpen(true);
+  }, []);
+
+  const handleOpenDetail = useCallback((contract: Contract) => {
+    setSelectedContract(contract);
+  }, []);
+
+  const handleCloseDetail = useCallback(() => {
+    setSelectedContract(null);
   }, []);
 
   const handleCloseForm = useCallback(() => {
@@ -125,6 +134,18 @@ export const ContractManager = memo(function ContractManager({
     return `${new Date(start).toLocaleDateString('ru-RU')} — ${new Date(end).toLocaleDateString('ru-RU')}`;
   };
 
+  // Если выбран договор, показываем детальный вид
+  if (selectedContract) {
+    return (
+      <ContractDetail
+        contract={selectedContract}
+        pdfSettings={pdfSettings}
+        onBack={handleCloseDetail}
+        onEditContract={() => handleEdit(selectedContract)}
+      />
+    );
+  }
+
   return (
     <div className="space-y-4">
       <Card>
@@ -163,7 +184,11 @@ export const ContractManager = memo(function ContractManager({
                   contracts.map((contract) => {
                     const statusColors = CONTRACT_STATUS_COLORS[contract.status];
                     return (
-                      <TableRow key={contract.id}>
+                      <TableRow 
+                        key={contract.id}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => handleOpenDetail(contract)}
+                      >
                         <TableCell>
                           <div className="font-medium">№ {contract.number}</div>
                           <div className="text-sm text-gray-500">
@@ -188,7 +213,7 @@ export const ContractManager = memo(function ContractManager({
                           </span>
                         </TableCell>
                         <TableCell>
-                          <div className="flex gap-1">
+                          <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                             <Button 
                               variant="ghost" 
                               size="sm"
@@ -236,7 +261,7 @@ export const ContractManager = memo(function ContractManager({
                   <Card 
                     key={contract.id} 
                     className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
-                    onClick={() => handleEdit(contract)}
+                    onClick={() => handleOpenDetail(contract)}
                   >
                     <CardContent className="p-4">
                       <div className="flex justify-between items-start mb-2">
@@ -269,6 +294,23 @@ export const ContractManager = memo(function ContractManager({
                         <div className="font-bold">
                           {contract.total_amount.toLocaleString('ru-RU')} ₽
                         </div>
+                      </div>
+
+                      <div className="flex justify-end gap-1 mt-3 pt-3 border-t" onClick={(e) => e.stopPropagation()}>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handlePreview(contract)}
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleEdit(contract)}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
                       </div>
                     </CardContent>
                   </Card>
