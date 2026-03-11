@@ -44,12 +44,16 @@ export function useTemplates(companyId: string | undefined) {
       if (templateError) throw templateError;
 
       if (items.length > 0) {
-        const itemsWithTemplateId = items.map((item, index) => ({
-          ...item,
-          template_id: newTemplate.id,
-          company_id: companyId,
-          order_index: index
-        }));
+        const itemsWithTemplateId = items.map((item, index) => {
+          // Удаляем id, чтобы PostgreSQL сгенерировал новый UUID
+          const { id, ...itemWithoutId } = item;
+          return {
+            ...itemWithoutId,
+            template_id: newTemplate.id,
+            company_id: companyId,
+            order_index: index
+          };
+        });
 
         const { error: itemsError } = await supabase
           .from('template_items')
@@ -90,12 +94,16 @@ export function useTemplates(companyId: string | undefined) {
           .eq('template_id', id);
 
         if (items.length > 0) {
-          const itemsWithTemplateId = items.map((item, index) => ({
-            ...item,
-            template_id: id,
-            company_id: companyId,
-            order_index: index
-          }));
+          const itemsWithTemplateId = items.map((item, index) => {
+            // Удаляем id, чтобы PostgreSQL сгенерировал новый UUID
+            const { id: itemId, ...itemWithoutId } = item;
+            return {
+              ...itemWithoutId,
+              template_id: id,
+              company_id: companyId,
+              order_index: index
+            };
+          });
 
           const { error: itemsError } = await supabase
             .from('template_items')

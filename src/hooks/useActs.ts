@@ -68,12 +68,16 @@ export function useActs(contractId?: string, companyId?: string) {
       
       // Создаем позиции
       if (items.length > 0) {
-        const itemsWithActId = items.map((item, index) => ({
-          ...item,
-          act_id: actData.id,
-          company_id: companyId,
-          order_index: index,
-        }));
+        const itemsWithActId = items.map((item, index) => {
+          // Удаляем id, чтобы PostgreSQL сгенерировал новый UUID
+          const { id, ...itemWithoutId } = item;
+          return {
+            ...itemWithoutId,
+            act_id: actData.id,
+            company_id: companyId,
+            order_index: index,
+          };
+        });
         
         const { error: itemsError } = await supabase
           .from('act_items')
@@ -109,12 +113,16 @@ export function useActs(contractId?: string, companyId?: string) {
         
         // Добавляем новые
         if (items.length > 0) {
-          const itemsWithActId = items.map((item, index) => ({
-            ...item,
-            act_id: id,
-            company_id: companyId,
-            order_index: index,
-          }));
+          const itemsWithActId = items.map((item, index) => {
+            // Удаляем id, чтобы PostgreSQL сгенерировал новый UUID
+            const { id: itemId, ...itemWithoutId } = item;
+            return {
+              ...itemWithoutId,
+              act_id: id,
+              company_id: companyId,
+              order_index: index,
+            };
+          });
           
           const { error: itemsError } = await supabase
             .from('act_items')

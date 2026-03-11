@@ -42,7 +42,7 @@ export function useEstimates(companyId: string | undefined) {
         if (profiles) {
           profiles.forEach((p: any) => {
             editorNames[p.id] = p.name;
-          });
+          });;
         }
       }
       
@@ -138,12 +138,17 @@ export function useEstimates(companyId: string | undefined) {
 
       // Создаём позиции с company_id
       if (items.length > 0) {
-        const itemsWithIds = items.map((item, index) => ({
-          ...item,
-          estimate_id: newEstimate.id,
-          company_id: companyId,
-          order_index: index
-        }));
+        const itemsWithIds = items.map((item, index) => {
+          // Удаляем id, чтобы PostgreSQL сгенерировал новый UUID
+          // и оставляем только валидные поля
+          const { id, ...itemWithoutId } = item;
+          return {
+            ...itemWithoutId,
+            estimate_id: newEstimate.id,
+            company_id: companyId,
+            order_index: index
+          };
+        });;
 
         const { error: itemsError } = await supabase
           .from('estimate_items')
@@ -192,12 +197,17 @@ export function useEstimates(companyId: string | undefined) {
 
       // Создаём новые позиции
       if (items.length > 0) {
-        const itemsWithIds = items.map((item, index) => ({
-          ...item,
-          estimate_id: id,
-          company_id: companyId,
-          order_index: index
-        }));
+        const itemsWithIds = items.map((item, index) => {
+          // Удаляем id, чтобы PostgreSQL сгенерировал новый UUID
+          // и оставляем только валидные поля
+          const { id: _, ...itemWithoutId } = item;
+          return {
+            ...itemWithoutId,
+            estimate_id: id,
+            company_id: companyId,
+            order_index: index
+          };
+        })
 
         const { error: itemsError } = await supabase
           .from('estimate_items')

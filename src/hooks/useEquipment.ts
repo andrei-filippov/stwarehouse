@@ -107,7 +107,11 @@ export function useEquipment(companyId: string | undefined) {
     if (!companyId) return { error: new Error('No company selected') };
     
     try {
-      const itemsWithCompany = items.map(item => ({ ...item, company_id: companyId }));
+      const itemsWithCompany = items.map(item => {
+        // Удаляем id, чтобы PostgreSQL сгенерировал новый UUID
+        const { id, ...itemWithoutId } = item;
+        return { ...itemWithoutId, company_id: companyId };
+      });
       const { error } = await supabase
         .from('equipment')
         .insert(itemsWithCompany);
