@@ -121,11 +121,16 @@ export function useEstimates(companyId: string | undefined) {
     if (!companyId) return { error: new Error('No company selected') };
     
     try {
+      // Удаляем поля которые могут вызвать ошибки
+      const { id, items: _, ...estimateClean } = estimate;
+      
+      console.log('Creating estimate with data:', estimateClean);
+      
       // Создаём смету с company_id
       const { data: newEstimate, error: estimateError } = await supabase
         .from('estimates')
         .insert({
-          ...estimate,
+          ...estimateClean,
           company_id: companyId,
           user_id: userId,
           creator_name: creatorName,

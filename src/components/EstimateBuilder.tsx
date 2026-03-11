@@ -276,10 +276,10 @@ export function EstimateBuilder({
   const handleSave = () => {
     const estimateData = {
       event_name: eventName,
-      venue,
-      event_start_date: eventStartDate,
-      event_end_date: eventEndDate,
-      customer_id: customerId || null,  // Преобразуем пустую строку в null
+      venue: venue || null,
+      event_start_date: eventStartDate || null,
+      event_end_date: eventEndDate || null,
+      customer_id: customerId || null,
       total,
     };
     setHasUnsavedChanges(false);
