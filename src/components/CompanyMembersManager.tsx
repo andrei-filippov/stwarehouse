@@ -33,7 +33,7 @@ const getRoleOptions = (): { value: CompanyRole; label: string }[] => [
 ];
 
 export function CompanyMembersManager({
-  members,
+  members = [],
   currentUserId,
   canManage,
   onInvite,

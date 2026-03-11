@@ -59,7 +59,7 @@ export function Sidebar({
   userRole,
   collapsed,
   onToggleCollapse,
-  companies,
+  companies = [],
   currentCompany,
   onSelectCompany,
   onCreateCompany,

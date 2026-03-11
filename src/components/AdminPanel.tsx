@@ -53,7 +53,7 @@ interface AdminPanelProps {
   onUpdateMemberRole?: (memberId: string, role: CompanyRole) => Promise<{ error?: string }>;
 }
 
-export function AdminPanel({ currentUserId, company, members, myRole, onUpdateCompany, onInviteMember, onRemoveMember, onUpdateMemberRole }: AdminPanelProps) {
+export function AdminPanel({ currentUserId, company, members = [], myRole, onUpdateCompany, onInviteMember, onRemoveMember, onUpdateMemberRole }: AdminPanelProps) {
   const [activeTab, setActiveTab] = useState<'users' | 'logs' | 'company' | 'team'>('team');
   const canManageCompany = myRole === 'owner' || myRole === 'admin';
   const [users, setUsers] = useState<User[]>([]);

@@ -13,7 +13,7 @@ interface CompanySettingsProps {
   canEdit: boolean;
 }
 
-export function CompanySettings({ company, onUpdate, canEdit }: CompanySettingsProps) {
+export function CompanySettings({ company = null, onUpdate, canEdit }: CompanySettingsProps) {
   const [formData, setFormData] = useState<Partial<Company>>({});
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
