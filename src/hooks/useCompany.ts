@@ -103,18 +103,20 @@ export function useCompany() {
         throw memberError;
       }
 
-      if (memberData) {
+      if (memberData && memberData.company) {
         console.log('Found company:', memberData.company?.name);
         setCompany(memberData.company);
         setMyMember(memberData);
+        // Загружаем всех членов компании только если есть компания
+        await loadMembers(memberData.company_id);
       } else {
         console.log('No company membership found');
         setCompany(null);
         setMyMember(null);
+        setLoading(false);
+        isLoadingRef.current = false;
+        return;
       }
-
-      // Загружаем всех членов компании
-      await loadMembers(memberData.company_id);
     } catch (err) {
       console.error('Error in loadCompany:', err);
       setError(err instanceof Error ? err.message : 'Ошибка загрузки компании');
