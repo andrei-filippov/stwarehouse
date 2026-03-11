@@ -61,15 +61,12 @@ export function useCompany() {
       // Ищем активное членство пользователя (если нет поддомена или компания не найдена)
       const { data: memberData, error: memberError } = await supabase
         .from('company_members')
-        .select(`
-          *,
-          company:company_id (*)
-        `)
+        .select('*, company:company_id(*)')
         .eq('user_id', user.id)
         .eq('status', 'active')
         .order('joined_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (memberError) {
         if (memberError.code === 'PGRST116') {

@@ -58,8 +58,25 @@ export function RegisterCompanyForm({ onSuccess, onLogin }: RegisterCompanyFormP
       if (authError) throw authError;
       if (!authData.user) throw new Error('Ошибка регистрации');
 
-      // 2. Создаём компанию со slug
-      const slug = generateSlug(formData.companyName);
+      // 2. Генерируем уникальный slug
+      let slug = generateSlug(formData.companyName);
+      let suffix = 1;
+      
+      // Проверяем уникальность slug
+      while (true) {
+        const { data: existing } = await supabase
+          .from('companies')
+          .select('id')
+          .eq('slug', slug)
+          .maybeSingle();
+        
+        if (!existing) break;
+        
+        suffix++;
+        slug = `${generateSlug(formData.companyName)}-${suffix}`;
+      }
+
+      // 3. Создаём компанию
       const { data: company, error: companyError } = await supabase
         .from('companies')
         .insert({
