@@ -134,7 +134,7 @@ export function Sidebar(props: SidebarProps) {
       {/* User & Company */}
       <div className="p-3 border-t space-y-2">
         {/* Company Selector */}
-        {companies.length > 1 && (
+        {companies.length > 0 && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button 
