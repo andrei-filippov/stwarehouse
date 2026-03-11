@@ -15,10 +15,19 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  FileSignature
+  FileSignature,
+  Plus
 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu';
 import { Button } from './ui/button';
 import type { TabId } from '../lib/permissions';
+import { useCompanyContext } from '../contexts/CompanyContext';
 
 interface SidebarProps {
   activeTab: TabId;
@@ -31,16 +40,10 @@ interface SidebarProps {
   onToggleCollapse: () => void;
 }
 
-export function Sidebar({ 
-  activeTab, 
-  onTabChange, 
-  availableTabs, 
-  onSignOut,
-  userName,
-  userRole,
-  collapsed,
-  onToggleCollapse
-}: SidebarProps) {
+export function Sidebar(props: SidebarProps) {
+  const { activeTab, onTabChange, availableTabs, onSignOut, userName, userRole, collapsed, onToggleCollapse } = props;
+  const ctx = useCompanyContext();
+
   const mainTabs = availableTabs.filter(tab => 
     ['equipment', 'estimates', 'calendar', 'customers', 'contracts'].includes(tab.id)
   );
@@ -74,6 +77,10 @@ export function Sidebar({
       </button>
     );
   };
+
+  const companies = ctx.companies || [];
+  const currentCompany = ctx.company;
+  const onSwitchCompany = ctx.switchCompany;
 
   return (
     <aside 
@@ -123,8 +130,43 @@ export function Sidebar({
         )}
       </div>
 
-      {/* User */}
+      {/* User & Company */}
       <div className="p-3 border-t space-y-2">
+        {/* Company Selector */}
+        {companies.length > 1 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                variant="ghost" 
+                className={`w-full justify-start text-gray-700 hover:text-blue-600 hover:bg-blue-50 ${collapsed ? 'justify-center px-2' : ''}`}
+                title={collapsed ? currentCompany?.name : undefined}
+              >
+                <Building2 className="w-5 h-5 shrink-0" />
+                {!collapsed && (
+                  <span className="ml-2 truncate flex-1 text-left">{currentCompany?.name || 'Выберите компанию'}</span>
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-56">
+              <div className="px-2 py-1.5 text-sm font-semibold text-gray-500">
+                Ваши компании
+              </div>
+              <DropdownMenuSeparator />
+              {companies.map(company => (
+                <DropdownMenuItem 
+                  key={company.id}
+                  onClick={() => onSwitchCompany(company.id)}
+                  className={company.id === currentCompany?.id ? 'bg-blue-50 text-blue-700' : ''}
+                >
+                  <Building2 className="w-4 h-4 mr-2" />
+                  {company.name}
+                  {company.id === currentCompany?.id && <span className="ml-auto text-xs">✓</span>}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+        
         {!collapsed && userName && (
           <div className="px-3 py-2">
             <p className="text-sm font-medium text-gray-900 truncate">{userName}</p>
