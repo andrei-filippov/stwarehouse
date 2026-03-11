@@ -224,18 +224,34 @@ export function useCableInventory(companyId: string | undefined) {
     fetchMovements();
   }, [fetchCategories, fetchInventory, fetchMovements]);
 
+  // Статистика по категориям для CableManager
   const stats = useMemo(() => {
-    const totalLength = inventory.reduce((sum, item) => sum + item.length * item.quantity, 0);
-    const issuedLength = movements
-      .filter(m => !m.is_returned)
-      .reduce((sum, m) => sum + m.length * m.quantity, 0);
+    const result: Record<string, { totalLength: number; totalQty: number; issuedQty: number }> = {};
     
-    return {
-      totalLength,
-      issuedLength,
-      availableLength: totalLength - issuedLength
-    };
-  }, [inventory, movements]);
+    // Инициализируем все категории
+    categories.forEach(cat => {
+      result[cat.id] = { totalLength: 0, totalQty: 0, issuedQty: 0 };
+    });
+    
+    // Считаем инвентарь по категориям
+    inventory.forEach(item => {
+      if (result[item.category_id]) {
+        result[item.category_id].totalLength += item.length * item.quantity;
+        result[item.category_id].totalQty += item.quantity;
+      }
+    });
+    
+    // Считаем выданное по категориям
+    movements
+      .filter(m => !m.is_returned)
+      .forEach(m => {
+        if (result[m.category_id]) {
+          result[m.category_id].issuedQty += m.quantity;
+        }
+      });
+    
+    return result;
+  }, [inventory, movements, categories]);
 
   return {
     categories,
