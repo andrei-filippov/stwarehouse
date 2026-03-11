@@ -274,9 +274,13 @@ export function EstimateBuilder({
   };
 
   const handleSave = () => {
+    // event_date - обязательное поле для обратной совместимости
+    const eventDate = eventStartDate || eventEndDate || new Date().toISOString();
+    
     const estimateData = {
       event_name: eventName,
       venue: venue || null,
+      event_date: eventDate,  // Обязательное поле
       event_start_date: eventStartDate || null,
       event_end_date: eventEndDate || null,
       customer_id: customerId || null,

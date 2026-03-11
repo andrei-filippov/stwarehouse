@@ -124,8 +124,6 @@ export function useEstimates(companyId: string | undefined) {
       // Удаляем поля которые могут вызвать ошибки
       const { id, items: _, ...estimateClean } = estimate;
       
-      console.log('Creating estimate with data:', estimateClean);
-      
       // Создаём смету с company_id
       const { data: newEstimate, error: estimateError } = await supabase
         .from('estimates')
