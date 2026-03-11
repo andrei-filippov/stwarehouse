@@ -208,6 +208,7 @@ export function useCompany() {
       const { data, error } = await supabase.rpc('invite_company_member', {
         p_company_id: company.id,
         p_role: role,
+        p_email: email,
         p_position: position || null,
       });
 
