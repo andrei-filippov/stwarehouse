@@ -88,10 +88,20 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
   }, [companyId, fetchRules]);
 
   const createChecklist = useCallback(async (estimateId: string) => {
-    if (!companyId) return { error: new Error('No company selected') };
+    console.log('Creating checklist:', { estimateId, companyId, estimatesCount: estimates.length });
+    
+    if (!companyId) {
+      console.error('No company selected');
+      return { error: new Error('No company selected') };
+    }
     
     const estimate = estimates.find(e => e.id === estimateId);
-    if (!estimate) return { error: new Error('Смета не найдена') };
+    console.log('Found estimate:', estimate);
+    
+    if (!estimate) {
+      console.error('Estimate not found');
+      return { error: new Error('Смета не найдена') };
+    }
 
     try {
       // Генерируем чек-лист на основе правил
@@ -117,7 +127,15 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
         });
       });
 
-      const { error } = await supabase
+      console.log('Inserting checklist:', {
+        estimate_id: estimateId,
+        company_id: companyId,
+        event_name: estimate.event_name,
+        event_date: estimate.event_date,
+        itemsCount: items.length
+      });
+
+      const { data, error } = await supabase
         .from('checklists')
         .insert({
           estimate_id: estimateId,
@@ -125,7 +143,10 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
           event_name: estimate.event_name,
           event_date: estimate.event_date,
           items: items
-        });
+        })
+        .select();
+
+      console.log('Insert result:', { data, error });
 
       if (error) throw error;
 
@@ -133,6 +154,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
       toast.success('Чек-лист создан');
       return { error: null };
     } catch (err: any) {
+      console.error('Create checklist error:', err);
       toast.error('Ошибка при создании чек-листа', { description: err.message });
       return { error: err };
     }
