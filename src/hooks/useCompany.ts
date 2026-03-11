@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { getSubdomain } from '../lib/subdomain';
+import { getSubdomain, generateSlug } from '../lib/subdomain';
 import { getSelectedCompany, saveSelectedCompany } from '../lib/companyUrl';
 import type { Company, CompanyMember, CompanyRole } from '../types/company';
 
@@ -158,35 +158,24 @@ export function useCompany() {
     }
   }, []);
 
-  // Создание компании
+  // Создание компании через RPC (обходит RLS)
   const createCompany = useCallback(async (companyData: Partial<Company>) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Пользователь не авторизован');
+      // Генерируем slug если не передан
+      let slug = companyData.slug || generateSlug(companyData.name || '');
+      
+      const { data, error } = await supabase.rpc('create_company_with_owner', {
+        p_name: companyData.name,
+        p_slug: slug,
+        p_email: companyData.email || '',
+        p_plan: companyData.plan || 'free',
+      });
 
-      // Создаём компанию
-      const { data: company, error: companyError } = await supabase
-        .from('companies')
-        .insert(companyData)
-        .select()
-        .single();
-
-      if (companyError) throw companyError;
-
-      // Добавляем пользователя как владельца
-      const { error: memberError } = await supabase
-        .from('company_members')
-        .insert({
-          company_id: company.id,
-          user_id: user.id,
-          role: 'owner',
-          status: 'active',
-        });
-
-      if (memberError) throw memberError;
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
 
       await loadCompany();
-      return { data: company, error: null };
+      return { data: { id: data.company_id, slug: data.slug, ...companyData }, error: null };
     } catch (err) {
       return { data: null, error: err instanceof Error ? err.message : 'Ошибка создания компании' };
     }
