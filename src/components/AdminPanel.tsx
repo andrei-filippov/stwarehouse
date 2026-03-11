@@ -246,20 +246,13 @@ export function AdminPanel({ currentUserId, company, members = [], myRole, onUpd
       {activeTab === 'logs' ? (
         <AuditLogs />
       ) : activeTab === 'company' ? (
-        <CompanySettings 
-          company={company}
-          onUpdate={onUpdateCompany || (async () => ({ error: 'Не реализовано' }))}
-          canEdit={canManageCompany}
-        />
+        <div className="p-8 text-center">
+          <p>Настройки компании (временно отключено)</p>
+        </div>
       ) : activeTab === 'team' ? (
-        <CompanyMembersManager
-          members={members || []}
-          currentUserId={currentUserId}
-          canManage={canManageCompany}
-          onInvite={onInviteMember || (async () => ({ error: 'Не реализовано' }))}
-          onRemove={onRemoveMember || (async () => ({ error: 'Не реализовано' }))}
-          onUpdateRole={onUpdateMemberRole}
-        />
+        <div className="p-8 text-center">
+          <p>Управление командой (временно отключено)</p>
+        </div>
       ) : (
         <div className="space-y-6">
 

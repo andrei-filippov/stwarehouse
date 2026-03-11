@@ -15,24 +15,10 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  FileSignature,
-  Plus,
-  UserPlus
+  FileSignature
 } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from './ui/dropdown-menu';
 import { Button } from './ui/button';
 import type { TabId } from '../lib/permissions';
-
-interface Company {
-  id: string;
-  name: string;
-}
 
 interface SidebarProps {
   activeTab: TabId;
@@ -43,32 +29,18 @@ interface SidebarProps {
   userRole?: string;
   collapsed: boolean;
   onToggleCollapse: () => void;
-  companies?: Company[];
-  currentCompany?: Company;
-  onSelectCompany?: (companyId: string) => void;
-  onCreateCompany?: () => void;
-  onManageMembers?: () => void;
 }
 
-export function Sidebar(props: SidebarProps) {
-  const {
-    activeTab,
-    onTabChange,
-    availableTabs,
-    onSignOut,
-    userName,
-    userRole,
-    collapsed,
-    onToggleCollapse,
-    currentCompany,
-    onSelectCompany,
-    onCreateCompany,
-    onManageMembers
-  } = props;
-
-  // Use different variable name to avoid any scope issues
-  const userCompanies = props.companies || [];
-
+export function Sidebar({ 
+  activeTab, 
+  onTabChange, 
+  availableTabs, 
+  onSignOut,
+  userName,
+  userRole,
+  collapsed,
+  onToggleCollapse
+}: SidebarProps) {
   const mainTabs = availableTabs.filter(tab => 
     ['equipment', 'estimates', 'calendar', 'customers', 'contracts'].includes(tab.id)
   );
@@ -100,60 +72,6 @@ export function Sidebar(props: SidebarProps) {
         {!collapsed && <span className="text-sm font-medium">{tab.label}</span>}
         {!collapsed && isActive && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white" />}
       </button>
-    );
-  };
-
-  // Company selector section - only render if we have companies
-  const renderCompanySelector = () => {
-    if (userCompanies.length === 0 || !onSelectCompany) {
-      return null;
-    }
-
-    return (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button 
-            variant="ghost" 
-            className={`w-full justify-start text-gray-700 hover:text-blue-600 hover:bg-blue-50 ${collapsed ? 'justify-center px-2' : ''}`}
-            title={collapsed ? currentCompany?.name : undefined}
-          >
-            <Building2 className="w-5 h-5 shrink-0" />
-            {!collapsed && (
-              <span className="ml-2 truncate flex-1 text-left">{currentCompany?.name || 'Выберите компанию'}</span>
-            )}
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-56">
-          <div className="px-2 py-1.5 text-sm font-semibold text-gray-500">
-            Ваши компании
-          </div>
-          <DropdownMenuSeparator />
-          {userCompanies.map((companyItem: Company) => (
-            <DropdownMenuItem 
-              key={companyItem.id}
-              onClick={() => onSelectCompany && onSelectCompany(companyItem.id)}
-              className={companyItem.id === currentCompany?.id ? 'bg-blue-50 text-blue-700' : ''}
-            >
-              <Building2 className="w-4 h-4 mr-2" />
-              {companyItem.name}
-              {companyItem.id === currentCompany?.id && <span className="ml-auto text-xs">✓</span>}
-            </DropdownMenuItem>
-          ))}
-          <DropdownMenuSeparator />
-          {onCreateCompany && (
-            <DropdownMenuItem onClick={onCreateCompany}>
-              <Plus className="w-4 h-4 mr-2" />
-              Создать компанию
-            </DropdownMenuItem>
-          )}
-          {onManageMembers && (
-            <DropdownMenuItem onClick={onManageMembers}>
-              <UserPlus className="w-4 h-4 mr-2" />
-              Пригласить в компанию
-            </DropdownMenuItem>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
     );
   };
 
@@ -205,11 +123,8 @@ export function Sidebar(props: SidebarProps) {
         )}
       </div>
 
-      {/* User & Company */}
+      {/* User */}
       <div className="p-3 border-t space-y-2">
-        {/* Company Selector */}
-        {renderCompanySelector()}
-        
         {!collapsed && userName && (
           <div className="px-3 py-2">
             <p className="text-sm font-medium text-gray-900 truncate">{userName}</p>

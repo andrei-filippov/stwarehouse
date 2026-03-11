@@ -246,10 +246,6 @@ function MainApp({ user, profile, permissions, company, signOut, onSwitchCompany
           userRole={getRoleLabel(userRole)}
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-          companies={companies || []}
-          currentCompany={company || undefined}
-          onSelectCompany={switchCompany}
-          onCreateCompany={() => setShowRegister(true)}
         />
       </div>
 
