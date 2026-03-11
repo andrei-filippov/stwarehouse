@@ -247,17 +247,17 @@ export function useCompany() {
     }
   }, [company, loadMembers, myMember]);
 
-  // Удаление сотрудника
+  // Удаление сотрудника через RPC
   const removeMember = useCallback(async (memberId: string) => {
     try {
       if (!company) throw new Error('Компания не выбрана');
 
-      const { error } = await supabase
-        .from('company_members')
-        .delete()
-        .eq('id', memberId);
+      const { data, error } = await supabase.rpc('delete_company_member', {
+        p_member_id: memberId
+      });
 
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       await loadMembers(company.id);
       return { error: null };
