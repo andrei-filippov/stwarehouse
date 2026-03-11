@@ -1,4 +1,5 @@
 -- Исправление RLS политик для company_members
+-- Используем существующую функцию is_company_member(uuid)
 
 -- 1. Включаем RLS
 ALTER TABLE company_members ENABLE ROW LEVEL SECURITY;
@@ -9,31 +10,16 @@ DROP POLICY IF EXISTS "company_members_insert" ON company_members;
 DROP POLICY IF EXISTS "company_members_update" ON company_members;
 DROP POLICY IF EXISTS "company_members_delete" ON company_members;
 
--- 3. Удаляем старую функцию и создаём новую
-DROP FUNCTION IF EXISTS is_company_member(uuid);
-
-CREATE OR REPLACE FUNCTION is_company_member(p_company_id uuid)
-RETURNS boolean AS $$
-BEGIN
-  RETURN EXISTS (
-    SELECT 1 FROM company_members
-    WHERE company_id = p_company_id
-    AND user_id = auth.uid()
-    AND status = 'active'
-  );
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- 4. Политика SELECT - видят все члены компании
+-- 3. Политика SELECT - видят все члены компании
 CREATE POLICY "company_members_select"
   ON company_members
   FOR SELECT
   TO authenticated
   USING (is_company_member(company_id));
 
--- 5. Политика INSERT - разрешаем вставку для:
---    - Активных членов компании
---    - При создании компании (проверяем через company_id)
+-- 4. Политика INSERT - разрешаем вставку:
+--    - При создании компании (user_id = текущий пользователь, role = owner)
+--    - Или если пользователь уже активный член этой компании
 CREATE POLICY "company_members_insert"
   ON company_members
   FOR INSERT
@@ -46,41 +32,42 @@ CREATE POLICY "company_members_insert"
     is_company_member(company_id)
   );
 
--- 6. Политика UPDATE - только админы и владельцы
+-- 5. Политика UPDATE - только админы и владельцы
 CREATE POLICY "company_members_update"
   ON company_members
   FOR UPDATE
   TO authenticated
   USING (
     EXISTS (
-      SELECT 1 FROM company_members
-      WHERE company_id = company_members.company_id
-      AND user_id = auth.uid()
-      AND role IN ('owner', 'admin')
-      AND status = 'active'
+      SELECT 1 FROM company_members cm
+      WHERE cm.company_id = company_members.company_id
+      AND cm.user_id = auth.uid()
+      AND cm.role IN ('owner', 'admin')
+      AND cm.status = 'active'
     )
   );
 
--- 7. Политика DELETE - только владельцы
+-- 6. Политика DELETE - только владельцы
 CREATE POLICY "company_members_delete"
   ON company_members
   FOR DELETE
   TO authenticated
   USING (
     EXISTS (
-      SELECT 1 FROM company_members
-      WHERE company_id = company_members.company_id
-      AND user_id = auth.uid()
-      AND role = 'owner'
-      AND status = 'active'
+      SELECT 1 FROM company_members cm
+      WHERE cm.company_id = company_members.company_id
+      AND cm.user_id = auth.uid()
+      AND cm.role = 'owner'
+      AND cm.status = 'active'
     )
   );
 
--- 8. Разрешаем anon читать (если нужно для публичных страниц)
--- CREATE POLICY "company_members_select_anon"
---   ON company_members
---   FOR SELECT
---   TO anon
---   USING (false); -- или true если нужно
+-- 7. Разрешаем видеть свои членства для создания компании
+-- Это нужно чтобы пользователь мог создать первую компанию
+CREATE POLICY "company_members_select_own"
+  ON company_members
+  FOR SELECT
+  TO authenticated
+  USING (user_id = auth.uid());
 
 COMMIT;
