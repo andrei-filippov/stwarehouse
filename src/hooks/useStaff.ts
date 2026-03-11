@@ -60,11 +60,16 @@ export function useStaff(companyId: string | undefined) {
       // Сначала проверим существует ли сотрудник
       const { data: checkData, error: checkError } = await supabase
         .from('staff')
-        .select('id, full_name, company_id')
+        .select('*')
         .eq('id', id)
         .single();
       
       console.log('Check staff exists:', { checkData, checkError });
+      console.log('Company comparison:', { 
+        staffCompanyId: checkData?.company_id, 
+        currentCompanyId: companyId,
+        match: checkData?.company_id === companyId 
+      });
       
       if (checkError) {
         console.error('Staff not found:', checkError);
