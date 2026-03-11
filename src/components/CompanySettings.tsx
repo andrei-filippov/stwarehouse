@@ -5,7 +5,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { toast } from 'sonner';
-import type { Company } from '../types/company';
+import type { Company } from '../types';
 
 interface CompanySettingsProps {
   company: Company | null;

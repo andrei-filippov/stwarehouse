@@ -150,7 +150,7 @@ export function Sidebar({
       {/* User & Company */}
       <div className="p-3 border-t space-y-2">
         {/* Company Selector */}
-        {companies && companies.length > 0 && onSelectCompany && (
+        {companies?.length > 0 && onSelectCompany && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button 
@@ -169,7 +169,7 @@ export function Sidebar({
                 Ваши компании
               </div>
               <DropdownMenuSeparator />
-              {companies.map(company => (
+              {(companies || []).map(company => (
                 <DropdownMenuItem 
                   key={company.id}
                   onClick={() => onSelectCompany(company.id)}

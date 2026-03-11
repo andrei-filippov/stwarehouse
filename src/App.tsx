@@ -246,7 +246,7 @@ function MainApp({ user, profile, permissions, company, signOut, onSwitchCompany
           userRole={getRoleLabel(userRole)}
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-          companies={companies}
+          companies={companies || []}
           currentCompany={company || undefined}
           onSelectCompany={switchCompany}
           onCreateCompany={() => setShowRegister(true)}
@@ -465,7 +465,7 @@ function MainApp({ user, profile, permissions, company, signOut, onSwitchCompany
               <AdminPanel 
                 currentUserId={user?.id}
                 company={company}
-                members={members}
+                members={members || []}
                 myRole={myMember?.role}
                 onUpdateCompany={updateCompany}
                 onInviteMember={inviteMember}

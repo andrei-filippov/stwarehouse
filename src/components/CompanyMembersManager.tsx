@@ -6,7 +6,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
-import type { CompanyMember, CompanyRole } from '../types/company';
+import type { CompanyMember, CompanyRole } from '../types';
 import { COMPANY_ROLE_LABELS } from '../types/company';
 
 interface CompanyMembersManagerProps {
@@ -26,10 +26,10 @@ const ROLE_COLORS: Record<CompanyRole, string> = {
   viewer: 'bg-gray-100 text-gray-800 border-gray-200',
 };
 
-const ROLE_OPTIONS: { value: CompanyRole; label: string }[] = [
-  { value: 'manager', label: COMPANY_ROLE_LABELS.manager },
-  { value: 'accountant', label: COMPANY_ROLE_LABELS.accountant },
-  { value: 'viewer', label: COMPANY_ROLE_LABELS.viewer },
+const getRoleOptions = (): { value: CompanyRole; label: string }[] => [
+  { value: 'manager', label: COMPANY_ROLE_LABELS?.manager || 'Менеджер' },
+  { value: 'accountant', label: COMPANY_ROLE_LABELS?.accountant || 'Бухгалтер' },
+  { value: 'viewer', label: COMPANY_ROLE_LABELS?.viewer || 'Наблюдатель' },
 ];
 
 export function CompanyMembersManager({
@@ -105,8 +105,8 @@ export function CompanyMembersManager({
     }
   };
 
-  const activeMembers = members.filter(m => m.status === 'active');
-  const pendingMembers = members.filter(m => m.status === 'pending');
+  const activeMembers = (members || []).filter(m => m.status === 'active');
+  const pendingMembers = (members || []).filter(m => m.status === 'pending');
 
   return (
     <div className="space-y-6">
@@ -169,7 +169,7 @@ export function CompanyMembersManager({
                     onChange={(e) => setInviteRole(e.target.value as CompanyRole)}
                     className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
                   >
-                    {ROLE_OPTIONS.map(opt => (
+                    {getRoleOptions().map(opt => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
                   </select>
@@ -232,7 +232,7 @@ export function CompanyMembersManager({
                           </Badge>
                         )}
                         <Badge variant="outline" className={ROLE_COLORS[member.role]}>
-                          {COMPANY_ROLE_LABELS[member.role]}
+                          {COMPANY_ROLE_LABELS?.[member.role] || member.role}
                         </Badge>
                       </div>
                       <div className="text-sm text-gray-500">
@@ -249,7 +249,7 @@ export function CompanyMembersManager({
                         onChange={(e) => handleRoleChange(member, e.target.value as CompanyRole)}
                         className="text-sm border rounded-md px-2 py-1 bg-white"
                       >
-                        {ROLE_OPTIONS.map(opt => (
+                        {getRoleOptions().map(opt => (
                           <option key={opt.value} value={opt.value}>{opt.label}</option>
                         ))}
                       </select>
@@ -302,7 +302,7 @@ export function CompanyMembersManager({
                           {member.user?.email || 'Приглашение отправлено'}
                         </span>
                         <Badge variant="outline" className={ROLE_COLORS[member.role]}>
-                          {COMPANY_ROLE_LABELS[member.role]}
+                          {COMPANY_ROLE_LABELS?.[member.role] || member.role}
                         </Badge>
                       </div>
                       <div className="text-sm text-gray-500">

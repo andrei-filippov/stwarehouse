@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { CompanySettings } from './CompanySettings';
 import { CompanyMembersManager } from './CompanyMembersManager';
-import type { Company, CompanyMember, CompanyRole } from '../types/company';
+import type { Company, CompanyMember, CompanyRole } from '../types';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
