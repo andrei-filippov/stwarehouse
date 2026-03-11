@@ -98,12 +98,18 @@ function AppContent({ user, profile, permissions, signOut }: any) {
   const [showRegister, setShowRegister] = useState(false);
   const [showCompanySelector, setShowCompanySelector] = useState(false);
 
-  // Обработка пути /c/company-slug
+  // Обработка пути /c/company-slug и query параметров
   useEffect(() => {
     const slugFromPath = getSlugFromPath();
     if (slugFromPath) {
       saveSelectedCompany(slugFromPath);
-      // Здесь можно загрузить компанию по slug
+    }
+    // Проверяем query параметр createCompany
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('createCompany') === '1') {
+      setShowRegister(true);
+      // Очищаем параметр
+      window.history.replaceState({}, '', window.location.pathname);
     }
   }, []);
 

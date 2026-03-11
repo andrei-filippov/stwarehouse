@@ -16,7 +16,8 @@ import {
   ChevronLeft,
   ChevronRight,
   FileSignature,
-  Plus
+  Plus,
+  UserPlus
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -163,6 +164,11 @@ export function Sidebar(props: SidebarProps) {
                   {company.id === currentCompany?.id && <span className="ml-auto text-xs">✓</span>}
                 </DropdownMenuItem>
               ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => window.location.href = '/?createCompany=1'}>
+                <Plus className="w-4 h-4 mr-2" />
+                Создать компанию
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         )}
