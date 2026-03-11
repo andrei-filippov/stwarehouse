@@ -89,7 +89,12 @@ function App() {
 
 // Внутренний компонент с доступом к компании
 function AppContent({ user, profile, permissions, signOut }: any) {
-  const { company, companies, members, myMember, updateCompany, inviteMember, removeMember, updateMemberRole, loading: companyLoading, switchCompany, loadCompany, loadUserCompanies } = useCompanyContext();
+  const companyContext = useCompanyContext();
+  const company = companyContext.company;
+  const myRoleName = companyContext.myMember?.role || '';
+  const companyName = companyContext.company?.name || '';
+  const companyLoading = companyContext.loading;
+  const loadCompany = companyContext.loadCompany;
   const [showRegister, setShowRegister] = useState(false);
   const [showCompanySelector, setShowCompanySelector] = useState(false);
 
@@ -460,8 +465,8 @@ function MainApp({ user, profile, permissions, company, signOut, onSwitchCompany
             checkAccess('admin') ? (
               <AdminPanel 
                 currentUserId={user?.id}
-                companyName={company?.name || ''}
-                myRoleName={myMember?.role || ''}
+                companyName={companyName}
+                myRoleName={myRoleName}
               />
             ) : (
               <AccessDenied role={userRole} requiredRole="Администратор" />
