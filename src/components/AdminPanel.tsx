@@ -1,14 +1,15 @@
-import { Shield, History, Building2 } from 'lucide-react';
+import { Shield, History } from 'lucide-react';
 import { Card } from './ui/card';
 import { AuditLogs } from './AuditLogs';
+import { useCompanyContext } from '../contexts/CompanyContext';
 
 interface AdminPanelProps {
   currentUserId?: string;
-  companyName?: string;
-  myRoleName?: string;
 }
 
-export function AdminPanel({ currentUserId, companyName, myRoleName }: AdminPanelProps) {
+export function AdminPanel({ currentUserId }: AdminPanelProps) {
+  const ctx = useCompanyContext();
+  
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -23,13 +24,12 @@ export function AdminPanel({ currentUserId, companyName, myRoleName }: AdminPane
         </div>
       </div>
 
-      {companyName && (
+      {ctx.company && (
         <Card className="p-4">
           <div className="flex items-center gap-2">
-            <Building2 className="w-5 h-5 text-blue-500" />
-            <span className="font-medium">{companyName}</span>
-            {myRoleName && (
-              <span className="ml-2 text-sm text-gray-500">({myRoleName})</span>
+            <span className="font-medium">{ctx.company.name}</span>
+            {ctx.myMember?.role && (
+              <span className="ml-2 text-sm text-gray-500">({ctx.myMember.role})</span>
             )}
           </div>
         </Card>
