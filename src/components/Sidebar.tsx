@@ -15,7 +15,8 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  FileSignature
+  FileSignature,
+  SwitchCamera
 } from 'lucide-react';
 import { Button } from './ui/button';
 import type { TabId } from '../lib/permissions';
@@ -29,6 +30,8 @@ interface SidebarProps {
   userRole?: string;
   collapsed: boolean;
   onToggleCollapse: () => void;
+  onSwitchCompany?: () => void;
+  companyName?: string;
 }
 
 export function Sidebar({ 
@@ -39,7 +42,9 @@ export function Sidebar({
   userName,
   userRole,
   collapsed,
-  onToggleCollapse
+  onToggleCollapse,
+  onSwitchCompany,
+  companyName
 }: SidebarProps) {
   const mainTabs = availableTabs.filter(tab => 
     ['equipment', 'estimates', 'calendar', 'customers', 'contracts'].includes(tab.id)
@@ -125,11 +130,29 @@ export function Sidebar({
 
       {/* User & Logout */}
       <div className="p-3 border-t space-y-2">
+        {!collapsed && companyName && (
+          <div className="px-3 py-1 mb-1">
+            <p className="text-xs text-gray-400 uppercase tracking-wider">Компания</p>
+            <p className="text-sm font-medium text-gray-900 truncate">{companyName}</p>
+          </div>
+        )}
         {!collapsed && userName && (
           <div className="px-3 py-2 mb-2">
             <p className="text-sm font-medium text-gray-900 truncate">{userName}</p>
             <p className="text-xs text-gray-500">{userRole}</p>
           </div>
+        )}
+        
+        {onSwitchCompany && (
+          <Button 
+            variant="ghost" 
+            className={`w-full justify-start text-gray-600 hover:text-blue-600 hover:bg-blue-50 ${collapsed ? 'justify-center px-2' : ''}`}
+            onClick={onSwitchCompany}
+            title={collapsed ? 'Сменить компанию' : undefined}
+          >
+            <SwitchCamera className="w-5 h-5 shrink-0" />
+            {!collapsed && <span className="ml-2">Сменить компанию</span>}
+          </Button>
         )}
         
         <Button 

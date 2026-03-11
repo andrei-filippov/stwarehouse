@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { getSubdomain } from '../lib/subdomain';
+import { getSelectedCompany, saveSelectedCompany } from '../lib/companyUrl';
 import type { Company, CompanyMember, CompanyRole } from '../types/company';
 
 export function useCompany() {
@@ -23,15 +24,17 @@ export function useCompany() {
         return;
       }
 
-      // Проверяем поддомен
+      // Проверяем поддомен или сохранённый выбор
       const subdomain = getSubdomain();
+      const savedSlug = getSelectedCompany();
+      const targetSlug = subdomain || savedSlug;
       
-      if (subdomain) {
+      if (targetSlug) {
         // Ищем компанию по slug
         const { data: companyBySlug, error: slugError } = await supabase
           .from('companies')
           .select('*')
-          .eq('slug', subdomain)
+          .eq('slug', targetSlug)
           .single();
         
         if (companyBySlug && !slugError) {

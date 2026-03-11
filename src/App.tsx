@@ -89,8 +89,9 @@ function App() {
 
 // Внутренний компонент с доступом к компании
 function AppContent({ user, profile, permissions, signOut }: any) {
-  const { company, loading: companyLoading, switchCompany } = useCompanyContext();
+  const { company, loading: companyLoading, switchCompany, loadCompany } = useCompanyContext();
   const [showRegister, setShowRegister] = useState(false);
+  const [showCompanySelector, setShowCompanySelector] = useState(false);
 
   // Обработка пути /c/company-slug
   useEffect(() => {
@@ -109,8 +110,8 @@ function AppContent({ user, profile, permissions, signOut }: any) {
     );
   }
 
-  // Если нет компании - показываем форму регистрации или выбор
-  if (!company) {
+  // Если нет компании или запрошен выбор - показываем форму регистрации или выбор
+  if (!company || showCompanySelector) {
     if (showRegister) {
       return (
         <div className="min-h-screen flex items-center justify-center p-4">
@@ -125,7 +126,10 @@ function AppContent({ user, profile, permissions, signOut }: any) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <CompanySelector 
-          onSelect={() => window.location.reload()}
+          onSelect={() => {
+            setShowCompanySelector(false);
+            loadCompany();
+          }}
           onCreateNew={() => setShowRegister(true)}
         />
       </div>
@@ -140,12 +144,13 @@ function AppContent({ user, profile, permissions, signOut }: any) {
       permissions={permissions}
       company={company}
       signOut={signOut}
+      onSwitchCompany={() => setShowCompanySelector(true)}
     />
   );
 }
 
 // Основной компонент с хуками
-function MainApp({ user, profile, permissions, company, signOut }: any) {
+function MainApp({ user, profile, permissions, company, signOut, onSwitchCompany }: any) {
   const companyId = company?.id;
   const userRole = (profile?.role || 'manager') as UserRole;
 
@@ -241,6 +246,8 @@ function MainApp({ user, profile, permissions, company, signOut }: any) {
           userRole={getRoleLabel(userRole)}
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+          onSwitchCompany={onSwitchCompany}
+          companyName={company?.name}
         />
       </div>
 

@@ -3,6 +3,7 @@ import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
 import { Building2, Plus, Check, ChevronRight } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { saveSelectedCompany } from '../../lib/companyUrl';
 import type { Company, CompanyMember } from '../../types/company';
 
 interface CompanySelectorProps {
@@ -64,7 +65,10 @@ export function CompanySelector({ onSelect, onCreateNew }: CompanySelectorProps)
         {companies.map((member) => (
           <button
             key={member.id}
-            onClick={() => onSelect(member.company_id)}
+            onClick={() => {
+              saveSelectedCompany(member.company.slug);
+              onSelect(member.company_id);
+            }}
             className="w-full flex items-center gap-3 p-4 border rounded-lg hover:bg-muted transition-colors text-left"
           >
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
