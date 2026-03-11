@@ -700,6 +700,26 @@ function ChecklistView({
     return acc;
   }, {} as Record<string, ChecklistItem[]>);
 
+  // Сортируем категории по category_order из сметы
+  const sortedCategories = useMemo(() => {
+    if (!grouped) return [];
+    const categories = Object.keys(grouped);
+    
+    if (checklist.category_order && checklist.category_order.length > 0) {
+      // Сортируем по заданному порядку
+      return categories.sort((a, b) => {
+        const indexA = checklist.category_order!.indexOf(a);
+        const indexB = checklist.category_order!.indexOf(b);
+        // Если категория не найдена в order, ставим её в конец
+        if (indexA === -1) return 1;
+        if (indexB === -1) return -1;
+        return indexA - indexB;
+      });
+    }
+    
+    return categories;
+  }, [grouped, checklist.category_order]);
+
   const categoryNames: Record<string, string> = {
     equipment: 'Оборудование из сметы',
     tool: 'Инструменты',
@@ -727,13 +747,13 @@ function ChecklistView({
       )}
 
       <div className="space-y-4">
-        {grouped && Object.entries(grouped).map(([category, items]) => (
+        {grouped && sortedCategories.map((category) => (
           <div key={category}>
             <h4 className="font-semibold mb-2 text-sm text-gray-700">
               {categoryNames[category] || category}
             </h4>
             <div className="space-y-1">
-              {items.map((item, idx) => {
+              {grouped[category].map((item, idx) => {
                 const checked = isChecked(item);
                 return (
                   <div 

@@ -96,45 +96,35 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
       // Генерируем чек-лист: оборудование из сметы + дополнительные элементы из правил
       const items: any[] = [...customItems];
       
-      console.log('Estimate:', estimate);
-      console.log('Estimate items:', estimate.items);
-      
       // 1. Добавляем всё оборудование из сметы
-      if (estimate.items && estimate.items.length > 0) {
-        estimate.items.forEach(item => {
-          console.log('Adding item:', item);
-          items.push({
-            name: item.name,
-            quantity: item.quantity,
-            category: item.category || 'equipment',
-            is_required: true,
-            is_checked: false
-          });
-          
-          // 2. Для каждого оборудования проверяем правила и добавляем дополнительные элементы
-          const matchingRules = rules.filter(rule => 
-            rule.condition_type === 'category' 
-              ? item.category === rule.condition_value
-              : item.name.includes(rule.condition_value)
-          );
-          
-          matchingRules.forEach(rule => {
-            rule.items?.forEach(ruleItem => {
-              items.push({
-                name: ruleItem.name,
-                quantity: ruleItem.quantity * item.quantity,
-                category: ruleItem.category,
-                is_required: ruleItem.is_required,
-                is_checked: false
-              });
+      estimate.items?.forEach(item => {
+        items.push({
+          name: item.name,
+          quantity: item.quantity,
+          category: item.category || 'equipment',
+          is_required: true,
+          is_checked: false
+        });
+        
+        // 2. Для каждого оборудования проверяем правила и добавляем дополнительные элементы
+        const matchingRules = rules.filter(rule => 
+          rule.condition_type === 'category' 
+            ? item.category === rule.condition_value
+            : item.name.includes(rule.condition_value)
+        );
+        
+        matchingRules.forEach(rule => {
+          rule.items?.forEach(ruleItem => {
+            items.push({
+              name: ruleItem.name,
+              quantity: ruleItem.quantity * item.quantity,
+              category: ruleItem.category,
+              is_required: ruleItem.is_required,
+              is_checked: false
             });
           });
         });
-      } else {
-        console.log('No items in estimate');
-      }
-      
-      console.log('Total items:', items.length);
+      });
 
       const insertData = {
         estimate_id: estimate.id,
@@ -142,7 +132,8 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
         event_name: estimate.event_name,
         event_date: estimate.event_date || null,
         items: items,
-        notes: notes || null
+        notes: notes || null,
+        category_order: estimate.category_order || null
       };
       
       console.log('Inserting checklist:', insertData);

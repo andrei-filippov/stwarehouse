@@ -1,8 +1,16 @@
--- Миграция: добавление поля category_order в таблицу estimates
--- для сохранения порядка категорий после drag-and-drop
+-- ============================================
+-- Добавление колонки category_order в checklists
+-- ============================================
 
--- Добавляем поле category_order (JSONB массив)
-ALTER TABLE estimates ADD COLUMN IF NOT EXISTS category_order JSONB DEFAULT '[]'::jsonb;
+-- Добавляем колонку category_order
+ALTER TABLE checklists 
+ADD COLUMN IF NOT EXISTS category_order JSONB;
 
--- Комментарий к полю
-COMMENT ON COLUMN estimates.category_order IS 'Порядок категорий в смете (массив названий категорий)';
+-- Проверяем результат
+SELECT 
+    column_name,
+    data_type,
+    is_nullable
+FROM information_schema.columns 
+WHERE table_name = 'checklists' 
+  AND column_name = 'category_order';
