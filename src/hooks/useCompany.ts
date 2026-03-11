@@ -25,6 +25,16 @@ export function useCompany() {
         return;
       }
 
+      // Проверяем и принимаем приглашения
+      try {
+        const { data: inviteData } = await supabase.rpc('accept_company_invitation');
+        if (inviteData?.found) {
+          console.log('Invitation accepted for company:', inviteData.company_id);
+        }
+      } catch (e) {
+        console.log('No pending invitations');
+      }
+
       // Проверяем поддомен или сохранённый выбор
       const subdomain = getSubdomain();
       const savedSlug = getSelectedCompany();
