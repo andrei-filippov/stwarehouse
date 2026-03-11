@@ -5,6 +5,7 @@ import { CompanyProvider, useCompanyContext } from './contexts/CompanyContext';
 import { getSlugFromPath, saveSelectedCompany } from './lib/companyUrl';
 import { RegisterCompanyForm } from './components/auth/RegisterCompanyForm';
 import { CompanySelector } from './components/auth/CompanySelector';
+import { CompanyWelcome } from './components/CompanyWelcome';
 import { InvitationsList } from './components/InvitationsList';
 import { Auth } from './components/Auth';
 import { EquipmentManager } from './components/EquipmentManagement';
@@ -135,11 +136,12 @@ function AppContent({ user, profile, permissions, signOut }: any) {
     );
   }
 
-  // Если нет компании или запрошен выбор - показываем форму регистрации, выбор или приглашения
-  if (!company || showCompanySelector) {
+  // Если нет компании - показываем welcome экран
+  if (!company) {
+    // Если есть приглашения - показываем их
+    // Иначе показываем welcome с выбором
     return (
       <>
-        {/* Показываем приглашения если есть */}
         <InvitationsList onAccept={() => {
           loadCompany();
         }} />
@@ -152,17 +154,30 @@ function AppContent({ user, profile, permissions, signOut }: any) {
             />
           </div>
         ) : (
-          <div className="min-h-screen flex items-center justify-center p-4">
-            <CompanySelector 
-              onSelect={() => {
-                setShowCompanySelector(false);
-                loadCompany();
-              }}
-              onCreateNew={() => setShowRegister(true)}
-            />
-          </div>
+          <CompanyWelcome 
+            onCreateCompany={() => setShowRegister(true)}
+            onCheckInvitations={() => {
+              // Перезагружаем чтобы проверить приглашения
+              loadCompany();
+            }}
+          />
         )}
       </>
+    );
+  }
+  
+  // Если запрошен выбор компании
+  if (showCompanySelector) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <CompanySelector 
+          onSelect={() => {
+            setShowCompanySelector(false);
+            loadCompany();
+          }}
+          onCreateNew={() => setShowRegister(true)}
+        />
+      </div>
     );
   }
 
