@@ -461,12 +461,7 @@ function MainApp({ user, profile, permissions, company, signOut, onSwitchCompany
               <AdminPanel 
                 currentUserId={user?.id}
                 company={company}
-                members={members || []}
                 myRole={myMember?.role}
-                onUpdateCompany={updateCompany}
-                onInviteMember={inviteMember}
-                onRemoveMember={removeMember}
-                onUpdateMemberRole={updateMemberRole}
               />
             ) : (
               <AccessDenied role={userRole} requiredRole="Администратор" />

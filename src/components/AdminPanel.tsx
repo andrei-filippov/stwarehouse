@@ -13,9 +13,7 @@ import {
   History,
   Building2
 } from 'lucide-react';
-import { CompanySettings } from './CompanySettings';
-import { CompanyMembersManager } from './CompanyMembersManager';
-import type { Company, CompanyMember, CompanyRole } from '../types';
+import type { Company } from '../types';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -45,17 +43,11 @@ interface User {
 interface AdminPanelProps {
   currentUserId?: string;
   company?: Company | null;
-  members?: CompanyMember[];
   myRole?: string | null;
-  onUpdateCompany?: (updates: Partial<Company>) => Promise<{ error?: string }>;
-  onInviteMember?: (email: string, role: CompanyRole, position?: string) => Promise<{ error?: string }>;
-  onRemoveMember?: (memberId: string) => Promise<{ error?: string }>;
-  onUpdateMemberRole?: (memberId: string, role: CompanyRole) => Promise<{ error?: string }>;
 }
 
-export function AdminPanel({ currentUserId, company, members = [], myRole, onUpdateCompany, onInviteMember, onRemoveMember, onUpdateMemberRole }: AdminPanelProps) {
-  const [activeTab, setActiveTab] = useState<'users' | 'logs' | 'company' | 'team'>('team');
-  const canManageCompany = myRole === 'owner' || myRole === 'admin';
+export function AdminPanel({ currentUserId, company, myRole }: AdminPanelProps) {
+  const [activeTab, setActiveTab] = useState<'users' | 'logs' | 'company'>('company');
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
@@ -188,19 +180,6 @@ export function AdminPanel({ currentUserId, company, members = [], myRole, onUpd
       <div className="border-b">
         <div className="flex gap-4">
           <button
-            onClick={() => setActiveTab('team')}
-            className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === 'team'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <Users className="w-4 h-4" />
-              Команда
-            </div>
-          </button>
-          <button
             onClick={() => setActiveTab('company')}
             className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
               activeTab === 'company'
@@ -248,10 +227,6 @@ export function AdminPanel({ currentUserId, company, members = [], myRole, onUpd
       ) : activeTab === 'company' ? (
         <div className="p-8 text-center">
           <p>Настройки компании (временно отключено)</p>
-        </div>
-      ) : activeTab === 'team' ? (
-        <div className="p-8 text-center">
-          <p>Управление командой (временно отключено)</p>
         </div>
       ) : (
         <div className="space-y-6">
