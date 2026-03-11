@@ -9,13 +9,15 @@ DROP POLICY IF EXISTS "company_members_insert" ON company_members;
 DROP POLICY IF EXISTS "company_members_update" ON company_members;
 DROP POLICY IF EXISTS "company_members_delete" ON company_members;
 
--- 3. Создаём функцию для проверки принадлежности к компании
-CREATE OR REPLACE FUNCTION is_company_member(company_uuid uuid)
+-- 3. Удаляем старую функцию и создаём новую
+DROP FUNCTION IF EXISTS is_company_member(uuid);
+
+CREATE OR REPLACE FUNCTION is_company_member(p_company_id uuid)
 RETURNS boolean AS $$
 BEGIN
   RETURN EXISTS (
     SELECT 1 FROM company_members
-    WHERE company_id = company_uuid
+    WHERE company_id = p_company_id
     AND user_id = auth.uid()
     AND status = 'active'
   );
