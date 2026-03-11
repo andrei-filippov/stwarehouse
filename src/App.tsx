@@ -461,6 +461,7 @@ function MainApp({ user, profile, permissions, company, signOut, onSwitchCompany
               <AdminPanel 
                 currentUserId={user?.id}
                 company={company}
+                myRole={myMember?.role}
               />
             ) : (
               <AccessDenied role={userRole} requiredRole="Администратор" />

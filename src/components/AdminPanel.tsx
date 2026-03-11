@@ -5,9 +5,10 @@ import { AuditLogs } from './AuditLogs';
 interface AdminPanelProps {
   currentUserId?: string;
   company?: { id: string; name: string } | null;
+  myRole?: string | null;
 }
 
-export function AdminPanel({ currentUserId, company }: AdminPanelProps) {
+export function AdminPanel({ currentUserId, company, myRole }: AdminPanelProps) {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -27,6 +28,9 @@ export function AdminPanel({ currentUserId, company }: AdminPanelProps) {
           <div className="flex items-center gap-2">
             <Building2 className="w-5 h-5 text-blue-500" />
             <span className="font-medium">{company.name}</span>
+            {myRole && (
+              <span className="ml-2 text-sm text-gray-500">({myRole})</span>
+            )}
           </div>
         </Card>
       )}
