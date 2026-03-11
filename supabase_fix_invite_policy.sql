@@ -21,6 +21,7 @@ CREATE POLICY "company_members_insert"
 
 -- Разрешаем просмотр приглашений для компании
 DROP POLICY IF EXISTS "company_members_select_own" ON company_members;
+DROP POLICY IF EXISTS "company_members_select" ON company_members;
 
 CREATE POLICY "company_members_select"
   ON company_members
