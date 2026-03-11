@@ -52,18 +52,30 @@ export function useStaff(companyId: string | undefined) {
       // Удаляем id из updates на случай если он там есть
       const { id: _, ...cleanUpdates } = updates as any;
       
-      const { error } = await supabase
+      console.log('Updating staff:', { id, companyId, cleanUpdates });
+      
+      const { data, error } = await supabase
         .from('staff')
         .update(cleanUpdates)
         .eq('id', id)
-        .eq('company_id', companyId);
+        .eq('company_id', companyId)
+        .select();
+
+      console.log('Update result:', { data, error });
 
       if (error) throw error;
+      
+      if (!data || data.length === 0) {
+        console.warn('No rows updated - check if staff exists with this id and company_id');
+        toast.error('Сотрудник не найден или нет прав на редактирование');
+        return { error: new Error('No rows updated') };
+      }
 
       await fetchStaff();
       toast.success('Данные обновлены');
       return { error: null };
     } catch (err: any) {
+      console.error('Update error:', err);
       toast.error('Ошибка при обновлении', { description: err.message });
       return { error: err };
     }
