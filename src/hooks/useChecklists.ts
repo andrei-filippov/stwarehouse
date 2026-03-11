@@ -119,16 +119,23 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
         });
       });
 
-      const { error } = await supabase
+      const insertData = {
+        estimate_id: estimate.id,
+        company_id: companyId,
+        event_name: estimate.event_name,
+        event_date: estimate.event_date || null,
+        items: items,
+        notes: notes || null
+      };
+      
+      console.log('Inserting checklist:', insertData);
+
+      const { data, error } = await supabase
         .from('checklists')
-        .insert({
-          estimate_id: estimate.id,
-          company_id: companyId,
-          event_name: estimate.event_name,
-          event_date: estimate.event_date,
-          items: items,
-          notes: notes || null
-        });
+        .insert(insertData)
+        .select();
+
+      console.log('Insert result:', { data, error });
 
       if (error) throw error;
 
