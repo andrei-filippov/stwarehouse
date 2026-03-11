@@ -6,12 +6,12 @@ import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
 
 interface Invitation {
-  id: string;
+  invitation_id: string;
   company_id: string;
   company_name: string;
-  role: string;
-  position?: string;
-  invited_by_name: string;
+  member_role: string;
+  member_position?: string;
+  inviter_name: string;
   invited_at: string;
 }
 
@@ -21,7 +21,14 @@ export function InvitationsList({ onAccept }: { onAccept: () => void }) {
   const [processing, setProcessing] = useState<string | null>(null);
 
   useEffect(() => {
-    loadInvitations();
+    // Проверяем авторизацию перед загрузкой
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+      loadInvitations();
+    });
   }, []);
 
   const loadInvitations = async () => {
@@ -86,7 +93,7 @@ export function InvitationsList({ onAccept }: { onAccept: () => void }) {
         </CardHeader>
         <CardContent className="space-y-4">
           {invitations.map((inv) => (
-            <div key={inv.id} className="border rounded-lg p-4 space-y-2">
+            <div key={inv.invitation_id} className="border rounded-lg p-4 space-y-2">
               <div className="flex items-start gap-3">
                 <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
                   <Building2 className="w-5 h-5 text-blue-600" />
@@ -94,15 +101,15 @@ export function InvitationsList({ onAccept }: { onAccept: () => void }) {
                 <div className="flex-1">
                   <h4 className="font-medium">{inv.company_name}</h4>
                   <p className="text-sm text-gray-500">
-                    Роль: {inv.role === 'manager' ? 'Менеджер' : 
-                           inv.role === 'admin' ? 'Администратор' : 
-                           inv.role === 'accountant' ? 'Бухгалтер' : 'Наблюдатель'}
+                    Роль: {inv.member_role === 'manager' ? 'Менеджер' : 
+                           inv.member_role === 'admin' ? 'Администратор' : 
+                           inv.member_role === 'accountant' ? 'Бухгалтер' : 'Наблюдатель'}
                   </p>
-                  {inv.position && (
-                    <p className="text-sm text-gray-500">Должность: {inv.position}</p>
+                  {inv.member_position && (
+                    <p className="text-sm text-gray-500">Должность: {inv.member_position}</p>
                   )}
                   <p className="text-xs text-gray-400 mt-1">
-                    Пригласил: {inv.invited_by_name}
+                    Пригласил: {inv.inviter_name}
                   </p>
                 </div>
               </div>
@@ -110,8 +117,8 @@ export function InvitationsList({ onAccept }: { onAccept: () => void }) {
                 <Button
                   size="sm"
                   className="flex-1"
-                  onClick={() => handleAccept(inv.id)}
-                  disabled={processing === inv.id}
+                  onClick={() => handleAccept(inv.invitation_id)}
+                  disabled={processing === inv.invitation_id}
                 >
                   <Check className="w-4 h-4 mr-1" />
                   Принять
@@ -120,8 +127,8 @@ export function InvitationsList({ onAccept }: { onAccept: () => void }) {
                   size="sm"
                   variant="outline"
                   className="flex-1"
-                  onClick={() => handleDecline(inv.id)}
-                  disabled={processing === inv.id}
+                  onClick={() => handleDecline(inv.invitation_id)}
+                  disabled={processing === inv.invitation_id}
                 >
                   <X className="w-4 h-4 mr-1" />
                   Отклонить
