@@ -1,5 +1,4 @@
 -- Настройка RLS для company_members без рекурсии
--- Важно: используем SECURITY DEFINER функции или прямые проверки
 
 -- 1. Сначала включаем RLS
 ALTER TABLE company_members ENABLE ROW LEVEL SECURITY;
@@ -11,8 +10,7 @@ DROP POLICY IF EXISTS "company_members_insert" ON company_members;
 DROP POLICY IF EXISTS "company_members_update" ON company_members;
 DROP POLICY IF EXISTS "company_members_delete" ON company_members;
 
--- 3. Создаём функцию для проверки членства (SECURITY DEFINER - выполняется с правами владельца)
--- Это безопасно, так как функция не делает RLS-проверок
+-- 3. Создаём функцию для проверки членства (SECURITY DEFINER)
 CREATE OR REPLACE FUNCTION check_company_access(p_company_id uuid, p_required_role text DEFAULT null)
 RETURNS boolean
 LANGUAGE plpgsql
@@ -34,7 +32,7 @@ BEGIN
       SELECT 1 FROM company_members
       WHERE company_id = p_company_id
       AND user_id = auth.uid()
-      AND role = p_required_role::company_role
+      AND role = p_required_role
       AND status = 'active'
     );
   END IF;

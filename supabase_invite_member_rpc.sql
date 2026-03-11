@@ -31,9 +31,9 @@ BEGIN
     RETURN jsonb_build_object('error', 'No permission to invite');
   END IF;
 
-  -- Создаём приглашение
+  -- Создаём приглашение (роль как text, преобразуется автоматически)
   INSERT INTO company_members (company_id, user_id, role, position, invited_by, status)
-  VALUES (p_company_id, null, p_role::company_role, p_position, v_inviter_id, 'pending');
+  VALUES (p_company_id, null, p_role, p_position, v_inviter_id, 'pending');
 
   RETURN jsonb_build_object('success', true);
 EXCEPTION
