@@ -49,9 +49,12 @@ export function useStaff(companyId: string | undefined) {
     if (!companyId) return { error: new Error('No company selected') };
     
     try {
+      // Удаляем id из updates на случай если он там есть
+      const { id: _, ...cleanUpdates } = updates as any;
+      
       const { error } = await supabase
         .from('staff')
-        .update(updates)
+        .update(cleanUpdates)
         .eq('id', id)
         .eq('company_id', companyId);
 
