@@ -10,8 +10,12 @@ import {
   Save,
   RefreshCw,
   UserCog,
-  History
+  History,
+  Building2
 } from 'lucide-react';
+import { CompanySettings } from './CompanySettings';
+import { CompanyMembersManager } from './CompanyMembersManager';
+import type { Company, CompanyMember, CompanyRole } from '../types/company';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -40,10 +44,18 @@ interface User {
 
 interface AdminPanelProps {
   currentUserId?: string;
+  company?: Company | null;
+  members?: CompanyMember[];
+  myRole?: string | null;
+  onUpdateCompany?: (updates: Partial<Company>) => Promise<{ error?: string }>;
+  onInviteMember?: (email: string, role: CompanyRole, position?: string) => Promise<{ error?: string }>;
+  onRemoveMember?: (memberId: string) => Promise<{ error?: string }>;
+  onUpdateMemberRole?: (memberId: string, role: CompanyRole) => Promise<{ error?: string }>;
 }
 
-export function AdminPanel({ currentUserId }: AdminPanelProps) {
-  const [activeTab, setActiveTab] = useState<'users' | 'logs'>('users');
+export function AdminPanel({ currentUserId, company, members, myRole, onUpdateCompany, onInviteMember, onRemoveMember, onUpdateMemberRole }: AdminPanelProps) {
+  const [activeTab, setActiveTab] = useState<'users' | 'logs' | 'company' | 'team'>('team');
+  const canManageCompany = myRole === 'owner' || myRole === 'admin';
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
@@ -176,6 +188,32 @@ export function AdminPanel({ currentUserId }: AdminPanelProps) {
       <div className="border-b">
         <div className="flex gap-4">
           <button
+            onClick={() => setActiveTab('team')}
+            className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'team'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4" />
+              Команда
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveTab('company')}
+            className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'company'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Building2 className="w-4 h-4" />
+              Реквизиты
+            </div>
+          </button>
+          <button
             onClick={() => setActiveTab('users')}
             className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
               activeTab === 'users'
@@ -184,8 +222,8 @@ export function AdminPanel({ currentUserId }: AdminPanelProps) {
             }`}
           >
             <div className="flex items-center gap-2">
-              <Users className="w-4 h-4" />
-              Пользователи
+              <Shield className="w-4 h-4" />
+              Доступ
             </div>
           </button>
           <button
@@ -207,6 +245,21 @@ export function AdminPanel({ currentUserId }: AdminPanelProps) {
       {/* Контент */}
       {activeTab === 'logs' ? (
         <AuditLogs />
+      ) : activeTab === 'company' ? (
+        <CompanySettings 
+          company={company}
+          onUpdate={onUpdateCompany || (async () => ({ error: 'Не реализовано' }))}
+          canEdit={canManageCompany}
+        />
+      ) : activeTab === 'team' ? (
+        <CompanyMembersManager
+          members={members || []}
+          currentUserId={currentUserId}
+          canManage={canManageCompany}
+          onInvite={onInviteMember || (async () => ({ error: 'Не реализовано' }))}
+          onRemove={onRemoveMember || (async () => ({ error: 'Не реализовано' }))}
+          onUpdateRole={onUpdateMemberRole}
+        />
       ) : (
         <div className="space-y-6">
 

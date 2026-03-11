@@ -67,17 +67,20 @@ export type CompanyMember = {
 // Контекст компании
 export type CompanyContextType = {
   company: Company | null;
+  companies: Company[];
   members: CompanyMember[];
   myRole: CompanyRole | null;
   myMember: CompanyMember | null;
-  isLoading: boolean;
+  loading: boolean;
   isOwner: boolean;
   isAdmin: boolean;
   canManage: boolean; // owner или admin
+  error: string | null;
   
   // Действия
+  loadCompany: () => Promise<void>;
+  loadUserCompanies: () => Promise<void>;
   switchCompany: (companyId: string) => void;
-  refreshCompany: () => Promise<void>;
   inviteMember: (email: string, role: CompanyRole, position?: string) => Promise<{ error?: string }>;
   removeMember: (memberId: string) => Promise<{ error?: string }>;
   updateMemberRole: (memberId: string, role: CompanyRole) => Promise<{ error?: string }>;

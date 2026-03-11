@@ -89,7 +89,7 @@ function App() {
 
 // Внутренний компонент с доступом к компании
 function AppContent({ user, profile, permissions, signOut }: any) {
-  const { company, loading: companyLoading, switchCompany, loadCompany } = useCompanyContext();
+  const { company, companies, members, myMember, updateCompany, inviteMember, removeMember, updateMemberRole, loading: companyLoading, switchCompany, loadCompany, loadUserCompanies } = useCompanyContext();
   const [showRegister, setShowRegister] = useState(false);
   const [showCompanySelector, setShowCompanySelector] = useState(false);
 
@@ -246,8 +246,10 @@ function MainApp({ user, profile, permissions, company, signOut, onSwitchCompany
           userRole={getRoleLabel(userRole)}
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-          onSwitchCompany={onSwitchCompany}
-          companyName={company?.name}
+          companies={companies}
+          currentCompany={company || undefined}
+          onSelectCompany={switchCompany}
+          onCreateCompany={() => setShowRegister(true)}
         />
       </div>
 
@@ -460,7 +462,16 @@ function MainApp({ user, profile, permissions, company, signOut, onSwitchCompany
 
           {activeTab === 'admin' && (
             checkAccess('admin') ? (
-              <AdminPanel currentUserId={user?.id} />
+              <AdminPanel 
+                currentUserId={user?.id}
+                company={company}
+                members={members}
+                myRole={myMember?.role}
+                onUpdateCompany={updateCompany}
+                onInviteMember={inviteMember}
+                onRemoveMember={removeMember}
+                onUpdateMemberRole={updateMemberRole}
+              />
             ) : (
               <AccessDenied role={userRole} requiredRole="Администратор" />
             )

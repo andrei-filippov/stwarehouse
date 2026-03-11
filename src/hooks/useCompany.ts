@@ -6,6 +6,7 @@ import type { Company, CompanyMember, CompanyRole } from '../types/company';
 
 export function useCompany() {
   const [company, setCompany] = useState<Company | null>(null);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [members, setMembers] = useState<CompanyMember[]>([]);
   const [myMember, setMyMember] = useState<CompanyMember | null>(null);
   const [loading, setLoading] = useState(true);
@@ -90,6 +91,29 @@ export function useCompany() {
       setError(err instanceof Error ? err.message : 'Ошибка загрузки компании');
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  // Загрузка всех компаний пользователя
+  const loadUserCompanies = useCallback(async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('company_members')
+        .select(`
+          company:company_id (*)
+        `)
+        .eq('user_id', user.id)
+        .eq('status', 'active');
+
+      if (error) throw error;
+
+      const userCompanies = (data || []).map((m: any) => m.company).filter(Boolean);
+      setCompanies(userCompanies);
+    } catch (err) {
+      console.error('Error loading user companies:', err);
     }
   }, []);
 
@@ -278,7 +302,8 @@ export function useCompany() {
 
   useEffect(() => {
     loadCompany();
-  }, [loadCompany]);
+    loadUserCompanies();
+  }, [loadCompany, loadUserCompanies]);
 
   // Подписка на изменения
   useEffect(() => {
@@ -299,6 +324,7 @@ export function useCompany() {
 
   return {
     company,
+    companies,
     members,
     myMember,
     myRole,
@@ -310,6 +336,7 @@ export function useCompany() {
     
     // Действия
     loadCompany,
+    loadUserCompanies,
     createCompany,
     updateCompany,
     inviteMember,

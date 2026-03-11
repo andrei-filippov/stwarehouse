@@ -16,10 +16,23 @@ import {
   ChevronLeft,
   ChevronRight,
   FileSignature,
-  SwitchCamera
+  Plus,
+  UserPlus
 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu';
 import { Button } from './ui/button';
 import type { TabId } from '../lib/permissions';
+
+interface Company {
+  id: string;
+  name: string;
+}
 
 interface SidebarProps {
   activeTab: TabId;
@@ -30,8 +43,11 @@ interface SidebarProps {
   userRole?: string;
   collapsed: boolean;
   onToggleCollapse: () => void;
-  onSwitchCompany?: () => void;
-  companyName?: string;
+  companies?: Company[];
+  currentCompany?: Company;
+  onSelectCompany?: (companyId: string) => void;
+  onCreateCompany?: () => void;
+  onManageMembers?: () => void;
 }
 
 export function Sidebar({ 
@@ -43,8 +59,11 @@ export function Sidebar({
   userRole,
   collapsed,
   onToggleCollapse,
-  onSwitchCompany,
-  companyName
+  companies,
+  currentCompany,
+  onSelectCompany,
+  onCreateCompany,
+  onManageMembers
 }: SidebarProps) {
   const mainTabs = availableTabs.filter(tab => 
     ['equipment', 'estimates', 'calendar', 'customers', 'contracts'].includes(tab.id)
@@ -128,31 +147,61 @@ export function Sidebar({
         )}
       </div>
 
-      {/* User & Logout */}
+      {/* User & Company */}
       <div className="p-3 border-t space-y-2">
-        {!collapsed && companyName && (
-          <div className="px-3 py-1 mb-1">
-            <p className="text-xs text-gray-400 uppercase tracking-wider">Компания</p>
-            <p className="text-sm font-medium text-gray-900 truncate">{companyName}</p>
-          </div>
+        {/* Company Selector */}
+        {companies && companies.length > 0 && onSelectCompany && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                variant="ghost" 
+                className={`w-full justify-start text-gray-700 hover:text-blue-600 hover:bg-blue-50 ${collapsed ? 'justify-center px-2' : ''}`}
+                title={collapsed ? currentCompany?.name : undefined}
+              >
+                <Building2 className="w-5 h-5 shrink-0" />
+                {!collapsed && (
+                  <span className="ml-2 truncate flex-1 text-left">{currentCompany?.name || 'Выберите компанию'}</span>
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-56">
+              <div className="px-2 py-1.5 text-sm font-semibold text-gray-500">
+                Ваши компании
+              </div>
+              <DropdownMenuSeparator />
+              {companies.map(company => (
+                <DropdownMenuItem 
+                  key={company.id}
+                  onClick={() => onSelectCompany(company.id)}
+                  className={company.id === currentCompany?.id ? 'bg-blue-50 text-blue-700' : ''}
+                >
+                  <Building2 className="w-4 h-4 mr-2" />
+                  {company.name}
+                  {company.id === currentCompany?.id && <span className="ml-auto text-xs">✓</span>}
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+              {onCreateCompany && (
+                <DropdownMenuItem onClick={onCreateCompany}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Создать компанию
+                </DropdownMenuItem>
+              )}
+              {onManageMembers && (
+                <DropdownMenuItem onClick={onManageMembers}>
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Пригласить в компанию
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
+        
         {!collapsed && userName && (
-          <div className="px-3 py-2 mb-2">
+          <div className="px-3 py-2">
             <p className="text-sm font-medium text-gray-900 truncate">{userName}</p>
             <p className="text-xs text-gray-500">{userRole}</p>
           </div>
-        )}
-        
-        {onSwitchCompany && (
-          <Button 
-            variant="ghost" 
-            className={`w-full justify-start text-gray-600 hover:text-blue-600 hover:bg-blue-50 ${collapsed ? 'justify-center px-2' : ''}`}
-            onClick={onSwitchCompany}
-            title={collapsed ? 'Сменить компанию' : undefined}
-          >
-            <SwitchCamera className="w-5 h-5 shrink-0" />
-            {!collapsed && <span className="ml-2">Сменить компанию</span>}
-          </Button>
         )}
         
         <Button 
