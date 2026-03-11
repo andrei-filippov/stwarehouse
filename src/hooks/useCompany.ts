@@ -208,22 +208,16 @@ export function useCompany() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Пользователь не авторизован');
 
-      // Ищем пользователя по email
-      const { data: existingUser, error: userError } = await supabase
-        .rpc('get_user_by_email', { email });
-
-      if (userError && userError.code !== 'PGRST116') throw userError;
-
-      // Создаём приглашение
+      // Создаём приглашение (user_id будет null, примет при регистрации)
       const { error: inviteError } = await supabase
         .from('company_members')
         .insert({
           company_id: company.id,
-          user_id: existingUser?.id || null,
+          user_id: null,
           role,
           position,
           invited_by: user.id,
-          status: existingUser ? 'active' : 'pending',
+          status: 'pending',
         });
 
       if (inviteError) throw inviteError;
