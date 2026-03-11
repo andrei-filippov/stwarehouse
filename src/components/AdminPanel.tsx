@@ -1,12 +1,13 @@
-import { Shield, Users, History } from 'lucide-react';
+import { Shield, History, Building2 } from 'lucide-react';
 import { Card } from './ui/card';
 import { AuditLogs } from './AuditLogs';
 
 interface AdminPanelProps {
   currentUserId?: string;
+  company?: { id: string; name: string } | null;
 }
 
-export function AdminPanel({ currentUserId }: AdminPanelProps) {
+export function AdminPanel({ currentUserId, company }: AdminPanelProps) {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -20,6 +21,15 @@ export function AdminPanel({ currentUserId }: AdminPanelProps) {
           </div>
         </div>
       </div>
+
+      {company && (
+        <Card className="p-4">
+          <div className="flex items-center gap-2">
+            <Building2 className="w-5 h-5 text-blue-500" />
+            <span className="font-medium">{company.name}</span>
+          </div>
+        </Card>
+      )}
 
       <div className="border-b">
         <div className="flex gap-4">

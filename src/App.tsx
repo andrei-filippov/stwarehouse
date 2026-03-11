@@ -458,7 +458,10 @@ function MainApp({ user, profile, permissions, company, signOut, onSwitchCompany
 
           {activeTab === 'admin' && (
             checkAccess('admin') ? (
-              <AdminPanel currentUserId={user?.id} />
+              <AdminPanel 
+                currentUserId={user?.id}
+                company={company}
+              />
             ) : (
               <AccessDenied role={userRole} requiredRole="Администратор" />
             )
