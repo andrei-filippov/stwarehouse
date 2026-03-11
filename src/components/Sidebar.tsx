@@ -50,21 +50,26 @@ interface SidebarProps {
   onManageMembers?: () => void;
 }
 
-export function Sidebar({ 
-  activeTab, 
-  onTabChange, 
-  availableTabs, 
-  onSignOut,
-  userName,
-  userRole,
-  collapsed,
-  onToggleCollapse,
-  companies = [],
-  currentCompany,
-  onSelectCompany,
-  onCreateCompany,
-  onManageMembers
-}: SidebarProps) {
+export function Sidebar(props: SidebarProps) {
+  const {
+    activeTab,
+    onTabChange,
+    availableTabs,
+    onSignOut,
+    userName,
+    userRole,
+    collapsed,
+    onToggleCollapse,
+    companies: companiesProp,
+    currentCompany,
+    onSelectCompany,
+    onCreateCompany,
+    onManageMembers
+  } = props;
+
+  // Ensure companies is always an array
+  const companies = companiesProp || [];
+
   const mainTabs = availableTabs.filter(tab => 
     ['equipment', 'estimates', 'calendar', 'customers', 'contracts'].includes(tab.id)
   );
@@ -150,7 +155,7 @@ export function Sidebar({
       {/* User & Company */}
       <div className="p-3 border-t space-y-2">
         {/* Company Selector */}
-        {companies?.length > 0 && onSelectCompany && (
+        {companies.length > 0 && onSelectCompany && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button 
@@ -169,7 +174,7 @@ export function Sidebar({
                 Ваши компании
               </div>
               <DropdownMenuSeparator />
-              {(companies || []).map(company => (
+              {companies.map(company => (
                 <DropdownMenuItem 
                   key={company.id}
                   onClick={() => onSelectCompany(company.id)}
