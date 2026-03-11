@@ -200,27 +200,19 @@ export function useCompany() {
     }
   }, [company, loadCompany]);
 
-  // Приглашение сотрудника
+  // Приглашение сотрудника через RPC
   const inviteMember = useCallback(async (email: string, role: CompanyRole, position?: string) => {
     try {
       if (!company) throw new Error('Компания не выбрана');
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Пользователь не авторизован');
+      const { data, error } = await supabase.rpc('invite_company_member', {
+        p_company_id: company.id,
+        p_role: role,
+        p_position: position || null,
+      });
 
-      // Создаём приглашение (user_id будет null, примет при регистрации)
-      const { error: inviteError } = await supabase
-        .from('company_members')
-        .insert({
-          company_id: company.id,
-          user_id: null,
-          role,
-          position,
-          invited_by: user.id,
-          status: 'pending',
-        });
-
-      if (inviteError) throw inviteError;
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       await loadMembers(company.id);
       return { error: null };
