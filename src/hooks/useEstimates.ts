@@ -42,7 +42,7 @@ export function useEstimates(companyId: string | undefined) {
         if (profiles) {
           profiles.forEach((p: any) => {
             editorNames[p.id] = p.name;
-          });;
+          });
         }
       }
       
@@ -148,7 +148,7 @@ export function useEstimates(companyId: string | undefined) {
             company_id: companyId,
             order_index: index
           };
-        });;
+        });
 
         const { error: itemsError } = await supabase
           .from('estimate_items')

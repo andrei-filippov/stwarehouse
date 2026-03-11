@@ -279,7 +279,7 @@ export function EstimateBuilder({
       venue,
       event_start_date: eventStartDate,
       event_end_date: eventEndDate,
-      customer_id: customerId,
+      customer_id: customerId || null,  // Преобразуем пустую строку в null
       total,
     };
     setHasUnsavedChanges(false);

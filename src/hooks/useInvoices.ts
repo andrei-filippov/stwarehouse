@@ -54,9 +54,12 @@ export function useInvoices(contractId?: string, companyId?: string) {
     try {
       if (!companyId) throw new Error('No company selected');
       
+      // Удаляем id, чтобы PostgreSQL сгенерировал новый UUID
+      const { id, ...invoiceWithoutId } = invoice;
+      
       const { data, error: createError } = await supabase
         .from('invoices')
-        .insert({ ...invoice, company_id: companyId })
+        .insert({ ...invoiceWithoutId, company_id: companyId })
         .select()
         .single();
       

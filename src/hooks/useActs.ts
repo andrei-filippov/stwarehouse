@@ -57,10 +57,13 @@ export function useActs(contractId?: string, companyId?: string) {
     try {
       if (!companyId) throw new Error('No company selected');
       
+      // Удаляем id, чтобы PostgreSQL сгенерировал новый UUID
+      const { id, ...actWithoutId } = act;
+      
       // Создаем акт
       const { data: actData, error: actError } = await supabase
         .from('acts')
-        .insert({ ...act, company_id: companyId })
+        .insert({ ...actWithoutId, company_id: companyId })
         .select()
         .single();
       
