@@ -602,7 +602,13 @@ function StaffForm({ initialData, onSubmit, onCancel, submitting }: StaffFormPro
 
   const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    // Преобразуем пустые строки в null для date полей
+    const cleanedData = {
+      ...formData,
+      birth_date: formData.birth_date || null,
+      passport_issue_date: formData.passport_issue_date || null,
+    };
+    onSubmit(cleanedData);
   }, [onSubmit, formData]);
 
   return (
