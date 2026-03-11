@@ -14,6 +14,9 @@ export function useCompany() {
 
   // Загрузка компании пользователя
   const loadCompany = useCallback(async () => {
+    // Защита от повторных вызовов
+    if (loading) return;
+    
     try {
       setLoading(true);
       setError(null);
@@ -25,14 +28,16 @@ export function useCompany() {
         return;
       }
 
-      // Проверяем и принимаем приглашения
+      // Проверяем и принимаем приглашения (только если есть компания)
       try {
-        const { data: inviteData } = await supabase.rpc('accept_company_invitation');
-        if (inviteData?.found) {
+        const { data: inviteData, error: inviteError } = await supabase.rpc('accept_company_invitation');
+        if (inviteError) {
+          console.log('No pending invitations or error:', inviteError.message);
+        } else if (inviteData?.found) {
           console.log('Invitation accepted for company:', inviteData.company_id);
         }
       } catch (e) {
-        console.log('No pending invitations');
+        console.log('Invitation check error:', e);
       }
 
       // Проверяем поддомен или сохранённый выбор
