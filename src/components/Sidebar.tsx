@@ -60,15 +60,14 @@ export function Sidebar(props: SidebarProps) {
     userRole,
     collapsed,
     onToggleCollapse,
-    companies: companiesProp,
     currentCompany,
     onSelectCompany,
     onCreateCompany,
     onManageMembers
   } = props;
 
-  // Ensure companies is always an array
-  const companies = companiesProp || [];
+  // Use different variable name to avoid any scope issues
+  const userCompanies = props.companies || [];
 
   const mainTabs = availableTabs.filter(tab => 
     ['equipment', 'estimates', 'calendar', 'customers', 'contracts'].includes(tab.id)
@@ -101,6 +100,60 @@ export function Sidebar(props: SidebarProps) {
         {!collapsed && <span className="text-sm font-medium">{tab.label}</span>}
         {!collapsed && isActive && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white" />}
       </button>
+    );
+  };
+
+  // Company selector section - only render if we have companies
+  const renderCompanySelector = () => {
+    if (userCompanies.length === 0 || !onSelectCompany) {
+      return null;
+    }
+
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button 
+            variant="ghost" 
+            className={`w-full justify-start text-gray-700 hover:text-blue-600 hover:bg-blue-50 ${collapsed ? 'justify-center px-2' : ''}`}
+            title={collapsed ? currentCompany?.name : undefined}
+          >
+            <Building2 className="w-5 h-5 shrink-0" />
+            {!collapsed && (
+              <span className="ml-2 truncate flex-1 text-left">{currentCompany?.name || 'Выберите компанию'}</span>
+            )}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-56">
+          <div className="px-2 py-1.5 text-sm font-semibold text-gray-500">
+            Ваши компании
+          </div>
+          <DropdownMenuSeparator />
+          {userCompanies.map((companyItem: Company) => (
+            <DropdownMenuItem 
+              key={companyItem.id}
+              onClick={() => onSelectCompany && onSelectCompany(companyItem.id)}
+              className={companyItem.id === currentCompany?.id ? 'bg-blue-50 text-blue-700' : ''}
+            >
+              <Building2 className="w-4 h-4 mr-2" />
+              {companyItem.name}
+              {companyItem.id === currentCompany?.id && <span className="ml-auto text-xs">✓</span>}
+            </DropdownMenuItem>
+          ))}
+          <DropdownMenuSeparator />
+          {onCreateCompany && (
+            <DropdownMenuItem onClick={onCreateCompany}>
+              <Plus className="w-4 h-4 mr-2" />
+              Создать компанию
+            </DropdownMenuItem>
+          )}
+          {onManageMembers && (
+            <DropdownMenuItem onClick={onManageMembers}>
+              <UserPlus className="w-4 h-4 mr-2" />
+              Пригласить в компанию
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
     );
   };
 
@@ -155,52 +208,7 @@ export function Sidebar(props: SidebarProps) {
       {/* User & Company */}
       <div className="p-3 border-t space-y-2">
         {/* Company Selector */}
-        {companies.length > 0 && onSelectCompany && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button 
-                variant="ghost" 
-                className={`w-full justify-start text-gray-700 hover:text-blue-600 hover:bg-blue-50 ${collapsed ? 'justify-center px-2' : ''}`}
-                title={collapsed ? currentCompany?.name : undefined}
-              >
-                <Building2 className="w-5 h-5 shrink-0" />
-                {!collapsed && (
-                  <span className="ml-2 truncate flex-1 text-left">{currentCompany?.name || 'Выберите компанию'}</span>
-                )}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-56">
-              <div className="px-2 py-1.5 text-sm font-semibold text-gray-500">
-                Ваши компании
-              </div>
-              <DropdownMenuSeparator />
-              {companies.map(company => (
-                <DropdownMenuItem 
-                  key={company.id}
-                  onClick={() => onSelectCompany(company.id)}
-                  className={company.id === currentCompany?.id ? 'bg-blue-50 text-blue-700' : ''}
-                >
-                  <Building2 className="w-4 h-4 mr-2" />
-                  {company.name}
-                  {company.id === currentCompany?.id && <span className="ml-auto text-xs">✓</span>}
-                </DropdownMenuItem>
-              ))}
-              <DropdownMenuSeparator />
-              {onCreateCompany && (
-                <DropdownMenuItem onClick={onCreateCompany}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Создать компанию
-                </DropdownMenuItem>
-              )}
-              {onManageMembers && (
-                <DropdownMenuItem onClick={onManageMembers}>
-                  <UserPlus className="w-4 h-4 mr-2" />
-                  Пригласить в компанию
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
+        {renderCompanySelector()}
         
         {!collapsed && userName && (
           <div className="px-3 py-2">
