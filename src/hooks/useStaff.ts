@@ -46,45 +46,11 @@ export function useStaff(companyId: string | undefined) {
   }, [companyId, fetchStaff]);
 
   const updateStaff = useCallback(async (id: string, updates: Partial<Staff>) => {
-    if (!companyId) {
-      console.error('No company selected');
-      return { error: new Error('No company selected') };
-    }
+    if (!companyId) return { error: new Error('No company selected') };
     
     try {
       // Удаляем id из updates на случай если он там есть
       const { id: _, ...cleanUpdates } = updates as any;
-      
-      console.log('Updating staff:', { id, companyId, cleanUpdates });
-      
-      // Сначала проверим существует ли сотрудник
-      const { data: checkData, error: checkError } = await supabase
-        .from('staff')
-        .select('*')
-        .eq('id', id)
-        .single();
-      
-      console.log('Check staff exists:', { checkData, checkError });
-      console.log('Company comparison:', { 
-        staffCompanyId: checkData?.company_id, 
-        currentCompanyId: companyId,
-        match: checkData?.company_id === companyId 
-      });
-      
-      if (checkError) {
-        console.error('Staff not found:', checkError);
-        toast.error('Сотрудник не найден');
-        return { error: checkError };
-      }
-      
-      if (checkData.company_id !== companyId) {
-        console.error('Company mismatch:', { 
-          staffCompanyId: checkData.company_id, 
-          currentCompanyId: companyId 
-        });
-        toast.error('Сотрудник принадлежит другой компании');
-        return { error: new Error('Company mismatch') };
-      }
       
       const { data, error } = await supabase
         .from('staff')
@@ -93,12 +59,9 @@ export function useStaff(companyId: string | undefined) {
         .eq('company_id', companyId)
         .select();
 
-      console.log('Update result:', { data, error });
-
       if (error) throw error;
       
       if (!data || data.length === 0) {
-        console.warn('No rows updated');
         toast.error('Сотрудник не найден или нет прав на редактирование');
         return { error: new Error('No rows updated') };
       }
@@ -107,7 +70,6 @@ export function useStaff(companyId: string | undefined) {
       toast.success('Данные обновлены');
       return { error: null };
     } catch (err: any) {
-      console.error('Update error:', err);
       toast.error('Ошибка при обновлении', { description: err.message });
       return { error: err };
     }
