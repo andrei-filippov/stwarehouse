@@ -228,7 +228,11 @@ export function useCompany() {
 
       // Отправляем email через Edge Function
       try {
+        const { data: { session } } = await supabase.auth.getSession();
         await supabase.functions.invoke('send-invitation-email', {
+          headers: {
+            Authorization: `Bearer ${session?.access_token}`,
+          },
           body: {
             email,
             companyName: company.name,
