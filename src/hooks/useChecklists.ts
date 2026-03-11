@@ -87,25 +87,17 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
     }
   }, [companyId, fetchRules]);
 
-  const createChecklist = useCallback(async (estimateId: string) => {
-    console.log('Creating checklist:', { estimateId, companyId, estimatesCount: estimates.length });
-    
-    if (!companyId) {
-      console.error('No company selected');
-      return { error: new Error('No company selected') };
-    }
-    
-    const estimate = estimates.find(e => e.id === estimateId);
-    console.log('Found estimate:', estimate);
-    
-    if (!estimate) {
-      console.error('Estimate not found');
-      return { error: new Error('Смета не найдена') };
-    }
+  const createChecklist = useCallback(async (
+    estimate: Estimate, 
+    customItems: ChecklistItem[] = [], 
+    notes?: string
+  ) => {
+    if (!companyId) return { error: new Error('No company selected') };
+    if (!estimate) return { error: new Error('Смета не найдена') };
 
     try {
       // Генерируем чек-лист на основе правил
-      const items: any[] = [];
+      const items: any[] = [...customItems];
       
       estimate.items?.forEach(item => {
         const matchingRules = rules.filter(rule => 
@@ -127,26 +119,16 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
         });
       });
 
-      console.log('Inserting checklist:', {
-        estimate_id: estimateId,
-        company_id: companyId,
-        event_name: estimate.event_name,
-        event_date: estimate.event_date,
-        itemsCount: items.length
-      });
-
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('checklists')
         .insert({
-          estimate_id: estimateId,
+          estimate_id: estimate.id,
           company_id: companyId,
           event_name: estimate.event_name,
           event_date: estimate.event_date,
-          items: items
-        })
-        .select();
-
-      console.log('Insert result:', { data, error });
+          items: items,
+          notes: notes || null
+        });
 
       if (error) throw error;
 
@@ -154,7 +136,6 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
       toast.success('Чек-лист создан');
       return { error: null };
     } catch (err: any) {
-      console.error('Create checklist error:', err);
       toast.error('Ошибка при создании чек-листа', { description: err.message });
       return { error: err };
     }
