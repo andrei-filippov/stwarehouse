@@ -490,5 +490,3 @@ function MainApp({ user, profile, permissions, company, signOut, onSwitchCompany
 }
 
 export default App;
-/ /   T r i g g e r   r e b u i l d   0 3 / 1 1 / 2 0 2 6   1 7 : 4 9 : 3 8  
- 
