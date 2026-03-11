@@ -29,11 +29,43 @@ export function useEquipment(companyId: string | undefined) {
   const fetchCategories = useCallback(async () => {
     if (!companyId) return;
     
-    const { data, error } = await supabase
+    // Сначала пробуем загрузить категории текущей компании
+    let { data, error } = await supabase
       .from('categories')
       .select('*')
       .eq('company_id', companyId)
       .order('name');
+    
+    // Если категорий нет, загружаем общие категории (без company_id)
+    if (!error && (!data || data.length === 0)) {
+      const { data: commonData, error: commonError } = await supabase
+        .from('categories')
+        .select('*')
+        .is('company_id', null)
+        .order('name');
+      
+      if (!commonError && commonData && commonData.length > 0) {
+        data = commonData;
+      }
+    }
+    
+    // Если всё ещё нет категорий, получаем уникальные из оборудования
+    if (!error && (!data || data.length === 0)) {
+      const { data: equipmentCategories, error: eqError } = await supabase
+        .from('equipment')
+        .select('category')
+        .eq('company_id', companyId)
+        .not('category', 'is', null);
+      
+      if (!eqError && equipmentCategories) {
+        // Получаем уникальные категории
+        const uniqueCategories = [...new Set(equipmentCategories.map(e => e.category))]
+          .filter(Boolean)
+          .sort()
+          .map(name => ({ id: name, name }));
+        data = uniqueCategories;
+      }
+    }
     
     if (error) {
       toast.error('Ошибка при загрузке категорий', { description: error.message });

@@ -313,7 +313,12 @@ function MainApp({ user, profile, permissions, company, signOut, onSwitchCompany
               templates={templates}
               customers={customers}
               pdfSettings={pdfSettings}
-              equipmentCategories={(categories || []).map((c: any) => c.name)}
+              equipmentCategories={
+                (categories?.length > 0 
+                  ? categories.map((c: any) => c.name)
+                  : [...new Set(equipment?.map((e: any) => e.category).filter(Boolean) || [])].sort()
+                )
+              }
               onCreate={(estimate, items, categoryOrder) => createEstimate(estimate, items, user!.id, profile?.name, categoryOrder)}
               onUpdate={(id, estimate, items, categoryOrder) => updateEstimate(id, estimate, items, user!.id, categoryOrder)}
               onDelete={deleteEstimate}
