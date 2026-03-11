@@ -96,10 +96,20 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
     if (!estimate) return { error: new Error('Смета не найдена') };
 
     try {
-      // Генерируем чек-лист на основе правил
+      // Генерируем чек-лист: оборудование из сметы + дополнительные элементы из правил
       const items: any[] = [...customItems];
       
+      // 1. Добавляем всё оборудование из сметы
       estimate.items?.forEach(item => {
+        items.push({
+          name: item.name,
+          quantity: item.quantity,
+          category: item.category || 'equipment',
+          is_required: true,
+          is_checked: false
+        });
+        
+        // 2. Для каждого оборудования проверяем правила и добавляем дополнительные элементы
         const matchingRules = rules.filter(rule => 
           rule.condition_type === 'category' 
             ? item.category === rule.condition_value
