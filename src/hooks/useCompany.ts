@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { getSubdomain, generateSlug } from '../lib/subdomain';
 import { getSelectedCompany, saveSelectedCompany } from '../lib/companyUrl';
@@ -11,11 +11,13 @@ export function useCompany() {
   const [myMember, setMyMember] = useState<CompanyMember | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const isLoadingRef = useRef(false);
 
   // Загрузка компании пользователя
   const loadCompany = useCallback(async () => {
-    // Защита от повторных вызовов
-    if (loading) return;
+    // Защита от повторных вызовов через ref
+    if (isLoadingRef.current) return;
+    isLoadingRef.current = true;
     
     try {
       setLoading(true);
@@ -103,6 +105,7 @@ export function useCompany() {
       setError(err instanceof Error ? err.message : 'Ошибка загрузки компании');
     } finally {
       setLoading(false);
+      isLoadingRef.current = false;
     }
   }, []);
 
@@ -307,10 +310,15 @@ export function useCompany() {
   const isAdmin = myRole === 'admin' || myRole === 'owner';
   const canManage = isAdmin || isOwner;
 
+  // Загрузка при монтировании (только один раз)
+  const hasInitialized = useRef(false);
   useEffect(() => {
+    if (hasInitialized.current) return;
+    hasInitialized.current = true;
+    
     loadCompany();
     loadUserCompanies();
-  }, [loadCompany, loadUserCompanies]);
+  }, []);
 
   // Подписка на изменения
   useEffect(() => {
