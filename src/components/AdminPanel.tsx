@@ -4,11 +4,11 @@ import { AuditLogs } from './AuditLogs';
 
 interface AdminPanelProps {
   currentUserId?: string;
-  company?: { id: string; name: string } | null;
-  myMember?: { role: string } | null;
+  companyName?: string;
+  myRoleName?: string;
 }
 
-export function AdminPanel({ currentUserId, company, myMember }: AdminPanelProps) {
+export function AdminPanel({ currentUserId, companyName, myRoleName }: AdminPanelProps) {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -23,13 +23,13 @@ export function AdminPanel({ currentUserId, company, myMember }: AdminPanelProps
         </div>
       </div>
 
-      {company && (
+      {companyName && (
         <Card className="p-4">
           <div className="flex items-center gap-2">
             <Building2 className="w-5 h-5 text-blue-500" />
-            <span className="font-medium">{company.name}</span>
-            {myMember?.role && (
-              <span className="ml-2 text-sm text-gray-500">({myMember.role})</span>
+            <span className="font-medium">{companyName}</span>
+            {myRoleName && (
+              <span className="ml-2 text-sm text-gray-500">({myRoleName})</span>
             )}
           </div>
         </Card>
