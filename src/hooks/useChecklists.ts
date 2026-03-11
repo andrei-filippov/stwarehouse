@@ -14,10 +14,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
     
     const { data, error } = await supabase
       .from('checklists')
-      .select(`
-        *,
-        items:checklist_items(*)
-      `)
+      .select('*')
       .eq('company_id', companyId)
       .order('created_at', { ascending: false });
     
