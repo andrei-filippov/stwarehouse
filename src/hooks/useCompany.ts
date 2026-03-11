@@ -210,11 +210,12 @@ export function useCompany() {
     }
   }, [company, loadCompany]);
 
-  // Приглашение сотрудника через RPC
+  // Приглашение сотрудника через RPC + email
   const inviteMember = useCallback(async (email: string, role: CompanyRole, position?: string) => {
     try {
       if (!company) throw new Error('Компания не выбрана');
 
+      // Создаём приглашение в БД
       const { data, error } = await supabase.rpc('invite_company_member', {
         p_company_id: company.id,
         p_role: role,
@@ -225,12 +226,26 @@ export function useCompany() {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
+      // Отправляем email через Edge Function
+      try {
+        await supabase.functions.invoke('send-invitation-email', {
+          body: {
+            email,
+            companyName: company.name,
+            invitedBy: myMember?.user?.name || 'Администратор',
+            role
+          }
+        });
+      } catch (e) {
+        console.log('Email sending failed (non-critical):', e);
+      }
+
       await loadMembers(company.id);
       return { error: null };
     } catch (err) {
       return { error: err instanceof Error ? err.message : 'Ошибка приглашения' };
     }
-  }, [company, loadMembers]);
+  }, [company, loadMembers, myMember]);
 
   // Удаление сотрудника
   const removeMember = useCallback(async (memberId: string) => {
