@@ -5,6 +5,7 @@ import { CompanyProvider, useCompanyContext } from './contexts/CompanyContext';
 import { getSlugFromPath, saveSelectedCompany } from './lib/companyUrl';
 import { RegisterCompanyForm } from './components/auth/RegisterCompanyForm';
 import { CompanySelector } from './components/auth/CompanySelector';
+import { InvitationsList } from './components/InvitationsList';
 import { Auth } from './components/Auth';
 import { EquipmentManager } from './components/EquipmentManagement';
 import { EstimateManager } from './components/EstimateManager';
@@ -98,6 +99,8 @@ function AppContent({ user, profile, permissions, signOut }: any) {
   const [showRegister, setShowRegister] = useState(false);
   const [showCompanySelector, setShowCompanySelector] = useState(false);
 
+  const [hasCompany, setHasCompany] = useState(false);
+
   // Обработка пути /c/company-slug и query параметров
   useEffect(() => {
     const slugFromPath = getSlugFromPath();
@@ -113,6 +116,10 @@ function AppContent({ user, profile, permissions, signOut }: any) {
     }
   }, []);
 
+  useEffect(() => {
+    setHasCompany(!!company);
+  }, [company]);
+
   if (companyLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -121,29 +128,34 @@ function AppContent({ user, profile, permissions, signOut }: any) {
     );
   }
 
-  // Если нет компании или запрошен выбор - показываем форму регистрации или выбор
+  // Если нет компании или запрошен выбор - показываем форму регистрации, выбор или приглашения
   if (!company || showCompanySelector) {
-    if (showRegister) {
-      return (
-        <div className="min-h-screen flex items-center justify-center p-4">
-          <RegisterCompanyForm 
-            onSuccess={() => window.location.reload()}
-            onLogin={() => setShowRegister(false)}
-          />
-        </div>
-      );
-    }
-
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <CompanySelector 
-          onSelect={() => {
-            setShowCompanySelector(false);
-            loadCompany();
-          }}
-          onCreateNew={() => setShowRegister(true)}
-        />
-      </div>
+      <>
+        {/* Показываем приглашения если есть */}
+        <InvitationsList onAccept={() => {
+          loadCompany();
+        }} />
+        
+        {showRegister ? (
+          <div className="min-h-screen flex items-center justify-center p-4">
+            <RegisterCompanyForm 
+              onSuccess={() => window.location.reload()}
+              onLogin={() => setShowRegister(false)}
+            />
+          </div>
+        ) : (
+          <div className="min-h-screen flex items-center justify-center p-4">
+            <CompanySelector 
+              onSelect={() => {
+                setShowCompanySelector(false);
+                loadCompany();
+              }}
+              onCreateNew={() => setShowRegister(true)}
+            />
+          </div>
+        )}
+      </>
     );
   }
 
