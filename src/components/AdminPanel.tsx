@@ -1,15 +1,12 @@
-import { Shield, History } from 'lucide-react';
-import { Card } from './ui/card';
+import { useState } from 'react';
+import { Shield, History, Building2, Users } from 'lucide-react';
 import { AuditLogs } from './AuditLogs';
-import { useCompanyContext } from '../contexts/CompanyContext';
+import { CompanySettings } from './CompanySettings';
+import { CompanyMembersManager } from './CompanyMembersManager';
 
-interface AdminPanelProps {
-  currentUserId?: string;
-}
+export function AdminPanel() {
+  const [activeTab, setActiveTab] = useState<'team' | 'company' | 'logs'>('team');
 
-export function AdminPanel({ currentUserId }: AdminPanelProps) {
-  const ctx = useCompanyContext();
-  
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -19,34 +16,62 @@ export function AdminPanel({ currentUserId }: AdminPanelProps) {
           </div>
           <div>
             <h2 className="text-xl font-bold text-gray-900">Администрирование</h2>
-            <p className="text-sm text-gray-500">Управление доступом и журнал аудита</p>
+            <p className="text-sm text-gray-500">Управление компанией и доступом</p>
           </div>
         </div>
       </div>
 
-      {ctx.company && (
-        <Card className="p-4">
-          <div className="flex items-center gap-2">
-            <span className="font-medium">{ctx.company.name}</span>
-            {ctx.myMember?.role && (
-              <span className="ml-2 text-sm text-gray-500">({ctx.myMember.role})</span>
-            )}
-          </div>
-        </Card>
-      )}
-
       <div className="border-b">
         <div className="flex gap-4">
-          <div className="pb-3 text-sm font-medium border-b-2 border-blue-600 text-blue-600">
+          <button
+            onClick={() => setActiveTab('team')}
+            className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'team'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4" />
+              Команда
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveTab('company')}
+            className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'company'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Building2 className="w-4 h-4" />
+              Реквизиты
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveTab('logs')}
+            className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'logs'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
             <div className="flex items-center gap-2">
               <History className="w-4 h-4" />
               Журнал аудита
             </div>
-          </div>
+          </button>
         </div>
       </div>
 
-      <AuditLogs />
+      {activeTab === 'logs' ? (
+        <AuditLogs />
+      ) : activeTab === 'company' ? (
+        <CompanySettings />
+      ) : (
+        <CompanyMembersManager />
+      )}
     </div>
   );
 }
