@@ -26,9 +26,13 @@ export function useCompany() {
       // Получаем текущего пользователя
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
+        console.log('No user found');
         setLoading(false);
+        isLoadingRef.current = false;
         return;
       }
+      
+      console.log('Loading company for user:', user.id);
 
       // Проверяем и принимаем приглашения (только если есть компания)
       try {
@@ -86,26 +90,38 @@ export function useCompany() {
         .maybeSingle();
 
       if (memberError) {
+        console.log('Member error:', memberError);
         if (memberError.code === 'PGRST116') {
           // Нет активной компании
+          console.log('No active company found for user');
           setCompany(null);
           setMyMember(null);
           setLoading(false);
+          isLoadingRef.current = false;
           return;
         }
         throw memberError;
       }
 
-      setCompany(memberData.company);
-      setMyMember(memberData);
+      if (memberData) {
+        console.log('Found company:', memberData.company?.name);
+        setCompany(memberData.company);
+        setMyMember(memberData);
+      } else {
+        console.log('No company membership found');
+        setCompany(null);
+        setMyMember(null);
+      }
 
       // Загружаем всех членов компании
       await loadMembers(memberData.company_id);
     } catch (err) {
+      console.error('Error in loadCompany:', err);
       setError(err instanceof Error ? err.message : 'Ошибка загрузки компании');
     } finally {
       setLoading(false);
       isLoadingRef.current = false;
+      console.log('loadCompany finished');
     }
   }, []);
 

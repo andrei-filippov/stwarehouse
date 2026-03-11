@@ -120,6 +120,13 @@ function AppContent({ user, profile, permissions, signOut }: any) {
     setHasCompany(!!company);
   }, [company]);
 
+  // Перезагружаем компанию когда появляется пользователь
+  useEffect(() => {
+    if (user && !company && !companyLoading) {
+      loadCompany();
+    }
+  }, [user, company, companyLoading, loadCompany]);
+
   if (companyLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
