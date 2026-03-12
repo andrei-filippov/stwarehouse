@@ -228,19 +228,23 @@ export async function addToSyncQueue(
   operation: 'create' | 'update' | 'delete', 
   data: any
 ) {
+  console.log('[addToSyncQueue] Adding:', table, operation, 'data.id:', data.id, 'company:', data.company_id);
   const database = await initOfflineDB();
-  await database.add('syncQueue', {
+  const result = await database.add('syncQueue', {
     table,
     operation,
     data,
     retryCount: 0,
     createdAt: Date.now()
   });
+  console.log('[addToSyncQueue] Added with id:', result);
 }
 
 export async function getSyncQueue() {
   const database = await initOfflineDB();
-  return database.getAll('syncQueue');
+  const items = await database.getAll('syncQueue');
+  console.log('[getSyncQueue] Items:', items.map(i => `${i.table} (id:${i.data?.id?.slice(0,20)})`));
+  return items;
 }
 
 export async function removeFromSyncQueue(id: number) {
