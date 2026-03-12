@@ -1,12 +1,18 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Wifi, WifiOff, RefreshCw, Trash2 } from 'lucide-react';
+import { Wifi, WifiOff, RefreshCw, Trash2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
+import { useOfflineSync } from '../hooks/useOfflineSync';
 
-export function OfflineIndicator() {
+interface OfflineIndicatorProps {
+  companyId?: string;
+}
+
+export function OfflineIndicator({ companyId }: OfflineIndicatorProps = {}) {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [needRefresh, setNeedRefresh] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const { syncData, syncing, pendingChanges } = useOfflineSync(companyId);
 
   useEffect(() => {
     const handleOnline = () => {
@@ -121,6 +127,23 @@ export function OfflineIndicator() {
           </div>
 
           <div className="mt-4 pt-3 border-t border-gray-100 space-y-2">
+            {isOnline && pendingChanges > 0 && (
+              <button
+                onClick={() => {
+                  syncData(() => {
+                    toast.success('Синхронизация завершена');
+                    window.location.reload();
+                  });
+                  setShowDetails(false);
+                }}
+                disabled={syncing}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm disabled:opacity-50"
+              >
+                <Upload className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+                {syncing ? 'Синхронизация...' : `Синхронизировать (${pendingChanges})`}
+              </button>
+            )}
+            
             {needRefresh && (
               <button
                 onClick={updateApp}

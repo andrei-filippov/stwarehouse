@@ -11,6 +11,7 @@ import {
   getSyncQueue
 } from '../lib/offlineDB';
 
+
 // Генерируем уникальный ID сессии для этой вкладки
 const SESSION_ID = Math.random().toString(36).substring(2, 15);
 
@@ -335,8 +336,9 @@ export function useEstimates(companyId: string | undefined) {
     const handleOnline = () => {
       setIsOffline(false);
       toast.success('Подключение восстановлено', {
-        description: 'Синхронизация данных...'
+        description: 'Работаем в онлайн-режиме'
       });
+      // Просто перезагружаем данные, syncData вызовется из компонента выше
       fetchEstimates();
     };
     

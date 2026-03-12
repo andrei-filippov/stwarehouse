@@ -31,6 +31,7 @@ import { Spinner } from './components/ui/spinner';
 import { useEquipment } from './hooks/useEquipment';
 import { useEstimates } from './hooks/useEstimates';
 import { useServiceWorker } from './hooks/useServiceWorker';
+import { useOfflineSync } from './hooks/useOfflineSync';
 import { useTemplates } from './hooks/useTemplates';
 import { useChecklists } from './hooks/useChecklists';
 import { useStaff } from './hooks/useStaff';
@@ -209,9 +210,21 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
 
   // Хуки с companyId
   const { equipment, categories, loading: equipmentLoading, addEquipment, updateEquipment, deleteEquipment, bulkInsert, addCategory, deleteCategory } = useEquipment(companyId);
-  const { estimates, loading: estimatesLoading, createEstimate, updateEstimate, deleteEstimate, startEditing, stopEditing } = useEstimates(companyId);
+  const { estimates, loading: estimatesLoading, createEstimate, updateEstimate, deleteEstimate, startEditing, stopEditing, refresh: refreshEstimates } = useEstimates(companyId);
   const { templates, loading: templatesLoading, createTemplate, updateTemplate, deleteTemplate } = useTemplates(companyId);
-  const { checklists, rules, loading: checklistsLoading, createRule, deleteRule, createChecklist, updateChecklistItem, deleteChecklist } = useChecklists(companyId, estimates);
+  const { checklists, rules, loading: checklistsLoading, createRule, deleteRule, createChecklist, updateChecklistItem, deleteChecklist, refresh: refreshChecklists } = useChecklists(companyId, estimates);
+  
+  // Offline sync - автоматическая синхронизация при возврате онлайн
+  const { syncing: isSyncing } = useOfflineSync(company?.id);
+  
+  // Обновляем данные после синхронизации
+  useEffect(() => {
+    if (!isSyncing && companyId) {
+      // Синхронизация завершена - обновляем данные
+      refreshEstimates();
+      refreshChecklists();
+    }
+  }, [isSyncing, companyId, refreshEstimates, refreshChecklists]);
   const { staff, loading: staffLoading, addStaff, updateStaff, deleteStaff } = useStaff(companyId);
   const { tasks, loading: goalsLoading, addTask, updateTask, deleteTask } = useGoals(companyId);
   const { customers, loading: customersLoading, error: customersError, addCustomer, updateCustomer, deleteCustomer } = useCustomers(companyId);

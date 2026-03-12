@@ -27,6 +27,7 @@ export function useOfflineSync(companyId: string | undefined) {
   const [syncing, setSyncing] = useState(false);
   const [pendingChanges, setPendingChanges] = useState(0);
   const syncInProgress = useRef(false);
+  const onSyncCompleteRef = useRef<(() => void) | null>(null);
 
   // Инициализация
   useEffect(() => {
@@ -78,11 +79,12 @@ export function useOfflineSync(companyId: string | undefined) {
   }, [companyId]);
 
   // Синхронизация данных
-  const syncData = useCallback(async () => {
+  const syncData = useCallback(async (onComplete?: () => void) => {
     if (syncInProgress.current || !isOnline() || !companyId) return;
     
     syncInProgress.current = true;
     setSyncing(true);
+    if (onComplete) onSyncCompleteRef.current = onComplete;
     
     try {
       const queue = await getSyncQueue();
@@ -91,41 +93,49 @@ export function useOfflineSync(companyId: string | undefined) {
       if (queue.length === 0) {
         setSyncing(false);
         syncInProgress.current = false;
+        onSyncCompleteRef.current?.();
+        onSyncCompleteRef.current = null;
         return;
       }
 
       let successCount = 0;
       let errorCount = 0;
+      
+      console.log('[Sync] Starting sync, items:', queue.length);
+      
+      // Карта для отслеживания соответствия local_id -> server_id
+      const idMapping: Record<string, string> = {};
 
+      // Первый проход: создаём основные записи (estimates, checklists, equipment)
       for (const item of queue) {
         if (item.retryCount > 3) {
+          console.log('[Sync] Skipping item, max retries:', item.table, item.operation);
           await removeFromSyncQueue(item.id!);
           errorCount++;
           continue;
         }
 
+        // Пропускаем дочерние записи на первом проходе
+        if (item.table === 'estimate_items') continue;
+
         try {
-          let result;
+          console.log('[Sync] Processing:', item.table, item.operation, item.data.id);
+          let result: any;
+          const localId = item.data.id;
           
           switch (item.table) {
             case 'estimates':
               if (item.operation === 'create') {
-                const { id, ...data } = item.data;
-                result = await supabase.from('estimates').insert(data).select().single();
+                const { id, items, ...data } = item.data;
+                result = await supabase.from('estimates').insert({
+                  ...data,
+                  company_id: companyId
+                }).select().single();
               } else if (item.operation === 'update') {
-                const { id, ...data } = item.data;
+                const { id, items, ...data } = item.data;
                 result = await supabase.from('estimates').update(data).eq('id', id);
               } else if (item.operation === 'delete') {
                 result = await supabase.from('estimates').delete().eq('id', item.data.id);
-              }
-              break;
-              
-            case 'estimate_items':
-              if (item.operation === 'create') {
-                const { items } = item.data;
-                if (items && items.length > 0) {
-                  result = await supabase.from('estimate_items').insert(items);
-                }
               }
               break;
               
@@ -135,7 +145,7 @@ export function useOfflineSync(companyId: string | undefined) {
                 result = await supabase.from('equipment').insert({
                   ...data,
                   company_id: companyId
-                });
+                }).select().single();
               } else if (item.operation === 'update') {
                 const { id, ...data } = item.data;
                 result = await supabase.from('equipment').update(data).eq('id', id);
@@ -150,7 +160,7 @@ export function useOfflineSync(companyId: string | undefined) {
                 result = await supabase.from('checklists').insert({
                   ...data,
                   company_id: companyId
-                });
+                }).select().single();
               } else if (item.operation === 'update') {
                 const { id, ...data } = item.data;
                 result = await supabase.from('checklists').update(data).eq('id', id);
@@ -160,17 +170,93 @@ export function useOfflineSync(companyId: string | undefined) {
               break;
           }
 
-          if (result && result.error) {
+          if (result?.error) {
+            console.error('[Sync] Error:', result.error);
             throw result.error;
+          }
+
+          console.log('[Sync] Success:', item.table, result?.data?.id || 'ok');
+
+          // Сохраняем соответствие local_id -> server_id
+          if (result?.data?.id && localId?.startsWith('local_')) {
+            idMapping[localId] = result.data.id;
+            console.log('[Sync] ID mapping:', localId, '->', result.data.id);
+            
+            // Обновляем локальную запись с новым ID
+            if (item.table === 'estimates') {
+              await deleteEstimateLocal(localId);
+              await saveEstimateLocal({ ...item.data, id: result.data.id, synced: true }, companyId);
+            } else if (item.table === 'checklists') {
+              await deleteChecklistLocal(localId);
+              await saveChecklistLocal({ ...item.data, id: result.data.id, synced: true }, companyId);
+            }
           }
 
           await removeFromSyncQueue(item.id!);
           successCount++;
           
         } catch (err) {
-          console.error('Ошибка синхронизации:', err);
+          console.error(`Ошибка синхронизации ${item.table}:`, err);
           await updateSyncQueueRetry(item.id!, item.retryCount + 1);
           errorCount++;
+        }
+      }
+
+      // Второй проход: создаём дочерние записи (estimate_items)
+      console.log('[Sync] Processing estimate_items, mappings:', idMapping);
+      
+      for (const item of queue) {
+        if (item.table !== 'estimate_items') continue;
+        if (item.retryCount > 3) {
+          await removeFromSyncQueue(item.id!);
+          continue;
+        }
+
+        try {
+          console.log('[Sync] Processing estimate_items for:', item.data.estimateId);
+          let result: any;
+          
+          if (item.operation === 'create') {
+            const { estimateId, items } = item.data;
+            
+            // Заменяем local_id на server_id
+            const serverEstimateId = idMapping[estimateId] || estimateId;
+            
+            console.log('[Sync] Using estimate_id:', serverEstimateId, 'items count:', items?.length);
+            
+            if (items && items.length > 0) {
+              // Фильтруем и преобразуем items
+              const validItems = items
+                .filter((item: any) => item.name || item.equipment_id)
+                .map((item: any, idx: number) => {
+                  const { id, estimate_id, ...itemData } = item;
+                  return {
+                    ...itemData,
+                    estimate_id: serverEstimateId,
+                    company_id: companyId,
+                    order_index: idx
+                  };
+                });
+              
+              console.log('[Sync] Inserting items:', validItems.length);
+              
+              if (validItems.length > 0) {
+                result = await supabase.from('estimate_items').insert(validItems);
+              }
+            }
+          }
+
+          if (result?.error) {
+            console.error('[Sync] estimate_items error:', result.error);
+            throw result.error;
+          }
+
+          console.log('[Sync] estimate_items success');
+          await removeFromSyncQueue(item.id!);
+          
+        } catch (err) {
+          console.error('Ошибка синхронизации estimate_items:', err);
+          await updateSyncQueueRetry(item.id!, item.retryCount + 1);
         }
       }
 
@@ -185,8 +271,12 @@ export function useOfflineSync(companyId: string | undefined) {
         toast.error(`Ошибок синхронизации: ${errorCount}`);
       }
 
-      // Обновляем кэш оборудования
+      // Обновляем кэш
       await cacheEquipment();
+      
+      // Вызываем callback для обновления UI
+      onSyncCompleteRef.current?.();
+      onSyncCompleteRef.current = null;
       
     } catch (err) {
       console.error('Ошибка синхронизации:', err);
@@ -196,71 +286,11 @@ export function useOfflineSync(companyId: string | undefined) {
     }
   }, [companyId]);
 
-  // Сохранение сметы (офлайн или онлайн)
-  const saveEstimateOffline = useCallback(async (estimate: any, items: any[]) => {
-    if (!companyId) return { error: new Error('No company') };
-
-    // Сохраняем локально
-    await saveEstimateLocal({ ...estimate, items }, companyId);
-
-    if (isOnline()) {
-      // Если онлайн - синхронизируем сразу
-      try {
-        // ... стандартная логика сохранения
-        await markEstimateSynced(estimate.id);
-        return { error: null };
-      } catch (err) {
-        // Если ошибка - добавляем в очередь
-        await addToSyncQueue('estimates', estimate.id ? 'update' : 'create', estimate);
-        await addToSyncQueue('estimate_items', 'create', { items });
-        return { error: null, queued: true };
-      }
-    } else {
-      // Оффлайн - добавляем в очередь
-      await addToSyncQueue('estimates', estimate.id ? 'update' : 'create', estimate);
-      await addToSyncQueue('estimate_items', 'create', { items });
-      
-      const queue = await getSyncQueue();
-      setPendingChanges(queue.length);
-      
-      toast.info('Сохранено офлайн', {
-        description: 'Будет синхронизировано при подключении'
-      });
-      
-      return { error: null, queued: true };
-    }
-  }, [companyId]);
-
-  // Получение локальных смет
-  const getOfflineEstimates = useCallback(async () => {
-    if (!companyId) return [];
-    const estimates = await getEstimatesLocal(companyId);
-    return estimates.map(e => e.data);
-  }, [companyId]);
-
-  // Получение локального оборудования
-  const getOfflineEquipment = useCallback(async () => {
-    if (!companyId) return [];
-    return getEquipmentLocal(companyId);
-  }, [companyId]);
-
-  // Принудительная синхронизация
-  const forceSync = useCallback(async () => {
-    if (!isOnline()) {
-      toast.error('Нет подключения к сети');
-      return;
-    }
-    await syncData();
-  }, [syncData]);
-
   return {
     isOffline,
     syncing,
     pendingChanges,
-    saveEstimateOffline,
-    getOfflineEstimates,
-    getOfflineEquipment,
-    forceSync,
+    syncData,
     cacheEquipment
   };
 }

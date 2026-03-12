@@ -176,7 +176,7 @@ export function Sidebar(props: SidebarProps) {
         
         {/* Offline Status */}
         <div className={`${collapsed ? 'flex justify-center' : 'px-3'}`}>
-          <OfflineIndicator />
+          <OfflineIndicator companyId={ctx.company?.id} />
         </div>
         
         {!collapsed && userName && (

@@ -10,6 +10,7 @@ import {
   addToSyncQueue
 } from '../lib/offlineDB';
 
+
 export function useChecklists(companyId: string | undefined, estimates: Estimate[]) {
   const [checklists, setChecklists] = useState<Checklist[]>([]);
   const [rules, setRules] = useState<ChecklistRule[]>([]);
