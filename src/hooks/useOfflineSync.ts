@@ -182,13 +182,11 @@ export function useOfflineSync(companyId: string | undefined) {
             idMapping[localId] = result.data.id;
             console.log('[Sync] ID mapping:', localId, '->', result.data.id);
             
-            // Обновляем локальную запись с новым ID
+            // Удаляем локальную запись - данные теперь на сервере
             if (item.table === 'estimates') {
               await deleteEstimateLocal(localId);
-              await saveEstimateLocal({ ...item.data, id: result.data.id, synced: true }, companyId);
             } else if (item.table === 'checklists') {
               await deleteChecklistLocal(localId);
-              await saveChecklistLocal({ ...item.data, id: result.data.id, synced: true }, companyId);
             }
           }
 

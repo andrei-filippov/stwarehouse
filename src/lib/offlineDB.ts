@@ -128,6 +128,14 @@ export async function deleteEstimateLocal(id: string) {
   await database.delete('estimates', id);
 }
 
+export async function clearEstimatesLocal(companyId: string) {
+  const database = await initOfflineDB();
+  const items = await database.getAllFromIndex('estimates', 'by-company', companyId);
+  for (const item of items) {
+    await database.delete('estimates', item.id);
+  }
+}
+
 export async function markEstimateSynced(id: string) {
   const database = await initOfflineDB();
   const estimate = await database.get('estimates', id);
@@ -190,6 +198,14 @@ export async function getChecklistLocal(id: string) {
 export async function deleteChecklistLocal(id: string) {
   const database = await initOfflineDB();
   await database.delete('checklists', id);
+}
+
+export async function clearChecklistsLocal(companyId: string) {
+  const database = await initOfflineDB();
+  const items = await database.getAllFromIndex('checklists', 'by-company', companyId);
+  for (const item of items) {
+    await database.delete('checklists', item.id);
+  }
 }
 
 export async function markChecklistSynced(id: string) {

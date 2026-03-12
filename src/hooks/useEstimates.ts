@@ -8,7 +8,8 @@ import {
   getEstimatesLocal,
   deleteEstimateLocal,
   addToSyncQueue,
-  getSyncQueue
+  getSyncQueue,
+  clearEstimatesLocal
 } from '../lib/offlineDB';
 
 
@@ -39,11 +40,14 @@ export function useEstimates(companyId: string | undefined) {
       
       if (error) {
         toast.error('Ошибка при загрузке смет', { description: error.message });
-        // Пробуем загрузить из кэша
+        // Пробуем загрузить из кэша только локальные записи
         const localEstimates = await getEstimatesLocal(companyId);
-        setEstimates(localEstimates.map(e => e.data));
+        // Фильтруем только несинхронизированные (local_)
+        const unsynced = localEstimates.filter(e => e.data.id?.startsWith('local_'));
+        setEstimates(unsynced.map(e => e.data));
       } else if (data) {
-        // Сохраняем в локальный кэш
+        // Полностью очищаем кэш и сохраняем свежие данные с сервера
+        await clearEstimatesLocal(companyId);
         for (const estimate of data) {
           await saveEstimateLocal(estimate, companyId);
         }

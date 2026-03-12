@@ -7,7 +7,8 @@ import {
   saveChecklistLocal,
   getChecklistsLocal,
   deleteChecklistLocal,
-  addToSyncQueue
+  addToSyncQueue,
+  clearChecklistsLocal
 } from '../lib/offlineDB';
 
 
@@ -32,18 +33,22 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
       if (error) {
         toast.error('Ошибка при загрузке чек-листов', { description: error.message });
         const localChecklists = await getChecklistsLocal(companyId);
-        setChecklists(localChecklists);
+        // Показываем только несинхронизированные
+        const unsynced = localChecklists.filter(c => c.id?.startsWith('local_'));
+        setChecklists(unsynced);
       } else {
-        // Сохраняем в кэш
+        // Полностью очищаем кэш и сохраняем свежие данные
+        await clearChecklistsLocal(companyId);
         for (const checklist of (data || [])) {
           await saveChecklistLocal(checklist, companyId);
         }
         setChecklists(data || []);
       }
     } else {
-      // Оффлайн режим
+      // Оффлайн режим - показываем только несинхронизированные
       const localChecklists = await getChecklistsLocal(companyId);
-      setChecklists(localChecklists);
+      const unsynced = localChecklists.filter(c => c.id?.startsWith('local_'));
+      setChecklists(unsynced);
     }
     
     setLoading(false);

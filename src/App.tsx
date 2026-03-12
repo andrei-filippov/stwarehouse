@@ -216,11 +216,15 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
   
   // Offline sync - автоматическая синхронизация при возврате онлайн
   const { syncing: isSyncing } = useOfflineSync(company?.id);
+  const wasSyncing = useRef(false);
   
   // Обновляем данные после синхронизации
   useEffect(() => {
-    if (!isSyncing && companyId) {
+    if (isSyncing) {
+      wasSyncing.current = true;
+    } else if (wasSyncing.current && companyId) {
       // Синхронизация завершена - обновляем данные
+      wasSyncing.current = false;
       refreshEstimates();
       refreshChecklists();
     }
