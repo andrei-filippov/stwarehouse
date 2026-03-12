@@ -70,8 +70,9 @@ export function useEstimates(companyId: string | undefined) {
     
     currentEditingIdRef.current = estimateId;
     
-    // В оффлайн режиме пропускаем обновление статуса на сервере
-    if (!isOnline()) return { error: null };
+    // Пропускаем для локальных смет или в оффлайн режиме
+    const isLocalId = estimateId.startsWith('local_');
+    if (isLocalId || !isOnline()) return { error: null };
     
     const { error } = await supabase
       .from('estimates')
@@ -94,8 +95,9 @@ export function useEstimates(companyId: string | undefined) {
       currentEditingIdRef.current = null;
     }
     
-    // В оффлайн режиме пропускаем обновление статуса на сервере
-    if (!isOnline()) return { error: null };
+    // Пропускаем для локальных смет или в оффлайн режиме
+    const isLocalId = estimateId.startsWith('local_');
+    if (isLocalId || !isOnline()) return { error: null };
     
     const { error } = await supabase
       .from('estimates')

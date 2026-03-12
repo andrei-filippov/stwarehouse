@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Wifi, WifiOff, RefreshCw, Trash2, Upload } from 'lucide-react';
+import { Wifi, WifiOff, RefreshCw, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useOfflineSync } from '../hooks/useOfflineSync';
 
 interface OfflineIndicatorProps {
   companyId?: string;
@@ -11,8 +10,28 @@ export function OfflineIndicator({ companyId }: OfflineIndicatorProps = {}) {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [needRefresh, setNeedRefresh] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
-  const { syncData, syncing, pendingChanges } = useOfflineSync(companyId);
+
+  // Загружаем количество несинхронизированных данных
+  useEffect(() => {
+    const checkPending = async () => {
+      if ('indexedDB' in window) {
+        try {
+          const db = await openDB('stwarehouse-offline', 2);
+          const tx = db.transaction('syncQueue', 'readonly');
+          const store = tx.objectStore('syncQueue');
+          const count = await store.count();
+          setPendingCount(count);
+        } catch (e) {
+          // ignore
+        }
+      }
+    };
+    checkPending();
+    const interval = setInterval(checkPending, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const handleOnline = () => {
@@ -28,7 +47,6 @@ export function OfflineIndicator({ companyId }: OfflineIndicatorProps = {}) {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    // Проверяем обновления SW
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.addEventListener('controllerchange', () => {
         setNeedRefresh(true);
@@ -41,7 +59,6 @@ export function OfflineIndicator({ companyId }: OfflineIndicatorProps = {}) {
     };
   }, []);
 
-  // Закрытие при клике вне
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
@@ -101,8 +118,8 @@ export function OfflineIndicator({ companyId }: OfflineIndicatorProps = {}) {
             <span className="hidden sm:inline">Офлайн</span>
           </>
         )}
-        {needRefresh && (
-          <span className="ml-1 w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+        {pendingCount > 0 && (
+          <span className="ml-1 w-2 h-2 bg-orange-500 rounded-full" />
         )}
       </button>
 
@@ -124,26 +141,16 @@ export function OfflineIndicator({ companyId }: OfflineIndicatorProps = {}) {
                 {'serviceWorker' in navigator ? 'Активен' : 'Не поддерживается'}
               </span>
             </div>
+            
+            {pendingCount > 0 && (
+              <div className="flex items-center justify-between">
+                <span className="text-gray-600">На синхронизацию:</span>
+                <span className="text-orange-600 font-medium">{pendingCount}</span>
+              </div>
+            )}
           </div>
 
           <div className="mt-4 pt-3 border-t border-gray-100 space-y-2">
-            {isOnline && pendingChanges > 0 && (
-              <button
-                onClick={() => {
-                  syncData(() => {
-                    toast.success('Синхронизация завершена');
-                    window.location.reload();
-                  });
-                  setShowDetails(false);
-                }}
-                disabled={syncing}
-                className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm disabled:opacity-50"
-              >
-                <Upload className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
-                {syncing ? 'Синхронизация...' : `Синхронизировать (${pendingChanges})`}
-              </button>
-            )}
-            
             {needRefresh && (
               <button
                 onClick={updateApp}
@@ -166,4 +173,13 @@ export function OfflineIndicator({ companyId }: OfflineIndicatorProps = {}) {
       )}
     </div>
   );
+}
+
+// Helper для IndexedDB
+function openDB(name: string, version: number): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(name, version);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
 }

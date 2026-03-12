@@ -32,16 +32,24 @@ export function useOfflineSync(companyId: string | undefined) {
   // Инициализация
   useEffect(() => {
     initOfflineDB();
+    console.log('[OfflineSync] Initialized, companyId:', companyId);
     
     const cleanup = setupNetworkListeners(
       () => {
+        console.log('[OfflineSync] Online event, companyId:', companyId);
         setIsOffline(false);
         toast.success('Подключение восстановлено', {
           description: 'Синхронизация данных...'
         });
-        syncData();
+        if (companyId) {
+          console.log('[OfflineSync] Starting sync...');
+          syncData();
+        } else {
+          console.log('[OfflineSync] No companyId, skipping sync');
+        }
       },
       () => {
+        console.log('[OfflineSync] Offline event');
         setIsOffline(true);
         toast.warning('Нет подключения', {
           description: 'Работаем в офлайн-режиме'
@@ -51,6 +59,7 @@ export function useOfflineSync(companyId: string | undefined) {
 
     // Первоначальная загрузка
     if (companyId && isOnline()) {
+      console.log('[OfflineSync] Initial online load, caching equipment');
       cacheEquipment();
     }
 
@@ -80,7 +89,12 @@ export function useOfflineSync(companyId: string | undefined) {
 
   // Синхронизация данных
   const syncData = useCallback(async (onComplete?: () => void) => {
-    if (syncInProgress.current || !isOnline() || !companyId) return;
+    console.log('[Sync] Starting syncData, online:', isOnline(), 'companyId:', companyId, 'inProgress:', syncInProgress.current);
+    
+    if (syncInProgress.current || !isOnline() || !companyId) {
+      console.log('[Sync] Skipping - already in progress or no connection/company');
+      return;
+    }
     
     syncInProgress.current = true;
     setSyncing(true);
@@ -88,6 +102,7 @@ export function useOfflineSync(companyId: string | undefined) {
     
     try {
       const queue = await getSyncQueue();
+      console.log('[Sync] Queue length:', queue.length);
       setPendingChanges(queue.length);
       
       if (queue.length === 0) {

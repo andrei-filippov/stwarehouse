@@ -215,7 +215,7 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
   const { checklists, rules, loading: checklistsLoading, createRule, deleteRule, createChecklist, updateChecklistItem, deleteChecklist, refresh: refreshChecklists } = useChecklists(companyId, estimates);
   
   // Offline sync - автоматическая синхронизация при возврате онлайн
-  const { syncing: isSyncing } = useOfflineSync(company?.id);
+  const { syncing: isSyncing } = useOfflineSync(companyId);
   const wasSyncing = useRef(false);
   
   // Обновляем данные после синхронизации
