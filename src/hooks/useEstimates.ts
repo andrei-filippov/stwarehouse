@@ -193,9 +193,16 @@ export function useEstimates(companyId: string | undefined) {
       }
       
       // ОФФЛАЙН режим (или fallback при ошибке сети)
-        // ОФФЛАЙН - сохраняем только локально и в очередь
-        await saveEstimateLocal(estimateData, companyId);
-        await addToSyncQueue('estimates', 'create', estimateData);
+        console.log('Creating estimate offline, localId:', localId);
+        try {
+          // ОФФЛАЙН - сохраняем только локально и в очередь
+          await saveEstimateLocal(estimateData, companyId);
+          console.log('Saved to local DB, adding to sync queue...');
+          await addToSyncQueue('estimates', 'create', estimateData);
+          console.log('Added estimates to queue');
+        } catch (e) {
+          console.error('Error saving offline:', e);
+        }
         if (items.length > 0) {
           await addToSyncQueue('estimate_items', 'create', { 
             estimateId: localId,
