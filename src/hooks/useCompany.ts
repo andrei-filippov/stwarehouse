@@ -254,11 +254,7 @@ export function useCompany() {
 
       // Отправляем email через Edge Function
       try {
-        const { data: { session } } = await supabase.auth.getSession();
         await supabase.functions.invoke('send-invitation-email', {
-          headers: {
-            Authorization: `Bearer ${session?.access_token}`,
-          },
           body: {
             email,
             companyName: company.name,
@@ -266,6 +262,7 @@ export function useCompany() {
             role
           }
         });
+        console.log('Invitation email sent successfully');
       } catch (e) {
         console.log('Email sending failed (non-critical):', e);
       }
