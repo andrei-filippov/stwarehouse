@@ -199,7 +199,8 @@ export function useEstimates(companyId: string | undefined) {
         if (items.length > 0) {
           await addToSyncQueue('estimate_items', 'create', { 
             estimateId: localId,
-            items: estimateData.items 
+            items: estimateData.items,
+            company_id: companyId
           });
         }
         
@@ -298,7 +299,8 @@ export function useEstimates(companyId: string | undefined) {
         await addToSyncQueue('estimates', isLocalId ? 'create' : 'update', estimateData);
         await addToSyncQueue('estimate_items', 'create', {
           estimateId: id,
-          items: estimateData.items
+          items: estimateData.items,
+          company_id: companyId
         });
         
         // Обновляем UI

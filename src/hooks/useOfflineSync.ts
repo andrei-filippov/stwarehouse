@@ -129,9 +129,19 @@ export function useOfflineSync(companyId: string | undefined) {
       console.log('[Sync] Starting sync, items:', queue.length);
       console.log('[Sync] Queue tables:', queue.map(i => `${i.table} (company: ${i.data?.company_id})`));
       
-      // Фильтруем очередь по текущей компании
-      const companyQueue = queue.filter(item => item.data?.company_id === companyId);
+      // Фильтруем очередь по текущей компании (или берём все если company_id не указан - для совместимости)
+      const companyQueue = queue.filter(item => 
+        item.data?.company_id === companyId || 
+        item.data?.company_id === undefined
+      );
       console.log('[Sync] Filtered for company:', companyId, 'items:', companyQueue.length);
+      
+      // Добавляем company_id к записям где его нет
+      for (const item of companyQueue) {
+        if (item.data && item.data.company_id === undefined) {
+          item.data.company_id = companyId;
+        }
+      }
       
       // Сортируем очередь: сначала estimates/equipment/checklists, потом estimate_items
       const sortedQueue = [...companyQueue].sort((a, b) => {
