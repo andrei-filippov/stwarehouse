@@ -129,34 +129,36 @@ export async function fetchUserEffectivePermissions(userId: string): Promise<Eff
 }
 
 /**
- * Установить кастомное разрешение для пользователя
+ * Установить кастомное разрешение для пользователя (via RPC)
  */
 export async function setUserPermission(
   userId: string, 
   tabId: TabId, 
   allowed: boolean
 ): Promise<{ error: Error | null }> {
-  const { error } = await supabase
-    .from('user_permissions')
-    .upsert(
-      { user_id: userId, tab_id: tabId, allowed },
-      { onConflict: 'user_id,tab_id' }
-    );
+  const { data, error } = await supabase.rpc('set_user_permission', {
+    p_user_id: userId,
+    p_tab_id: tabId,
+    p_allowed: allowed
+  });
   
-  return { error };
+  if (error) return { error };
+  if (data?.error) return { error: new Error(data.error) };
+  return { error: null };
 }
 
 /**
- * Удалить кастомное разрешение (вернуть к ролевому значению)
+ * Удалить кастомное разрешение (via RPC)
  */
 export async function removeUserPermission(userId: string, tabId: TabId): Promise<{ error: Error | null }> {
-  const { error } = await supabase
-    .from('user_permissions')
-    .delete()
-    .eq('user_id', userId)
-    .eq('tab_id', tabId);
+  const { data, error } = await supabase.rpc('remove_user_permission', {
+    p_user_id: userId,
+    p_tab_id: tabId
+  });
   
-  return { error };
+  if (error) return { error };
+  if (data?.error) return { error: new Error(data.error) };
+  return { error: null };
 }
 
 /**
