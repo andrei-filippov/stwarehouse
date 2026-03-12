@@ -13,8 +13,11 @@ export function useEquipment(companyId: string | undefined) {
     if (!companyId) return;
     setLoading(true);
 
+    // Всегда загружаем локальное оборудование
+    const localEquipment = await getEquipmentLocal(companyId);
+
     if (isOnline()) {
-      // ОНЛАЙН: загружаем только с сервера
+      // ОНЛАЙН: загружаем с сервера и мержим с локальными
       const { data, error } = await supabase
         .from('equipment')
         .select('*')
@@ -23,14 +26,17 @@ export function useEquipment(companyId: string | undefined) {
 
       if (error) {
         toast.error('Ошибка при загрузке оборудования', { description: error.message });
-        setEquipment([]);
+        setEquipment(localEquipment);
       } else {
-        setEquipment(data || []);
+        // Мержим: серверные + локальные которых нет на сервере
+        const serverIds = new Set((data || []).map(e => e.id));
+        const unsyncedLocal = localEquipment.filter(e => !serverIds.has(e.id));
+        
+        setEquipment([...unsyncedLocal, ...(data || [])]);
       }
     } else {
       // ОФФЛАЙН: показываем только локальное оборудование
-      const cached = await getEquipmentLocal(companyId);
-      setEquipment(cached);
+      setEquipment(localEquipment);
     }
 
     setLoading(false);

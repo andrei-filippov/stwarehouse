@@ -20,13 +20,17 @@ export function useEstimates(companyId: string | undefined) {
   const [isOffline, setIsOffline] = useState(!isOnline());
   const currentEditingIdRef = useRef<string | null>(null);
 
-  // Загрузка смет - в онлайн с сервера, в оффлайн из кэша
+  // Загрузка смет - в онлайн с сервера + локальные несинхронизированные, в оффлайн из кэша
   const fetchEstimates = useCallback(async () => {
     if (!companyId) return;
     setLoading(true);
     
+    // Всегда загружаем локальные сметы (на случай если есть несинхронизированные)
+    const localEstimates = await getEstimatesLocal(companyId);
+    const localOnly = localEstimates.map(e => e.data);
+    
     if (isOnline()) {
-      // ОНЛАЙН: загружаем только с сервера
+      // ОНЛАЙН: загружаем с сервера и мержим с локальными
       const { data, error } = await supabase
         .from('estimates')
         .select(`
@@ -38,14 +42,19 @@ export function useEstimates(companyId: string | undefined) {
       
       if (error) {
         toast.error('Ошибка при загрузке смет', { description: error.message });
-        setEstimates([]);
+        // При ошибке показываем только локальные
+        setEstimates(localOnly);
       } else {
-        setEstimates(data as Estimate[] || []);
+        // Мержим: серверные + локальные которых нет на сервере
+        const serverIds = new Set((data || []).map(e => e.id));
+        const unsyncedLocal = localOnly.filter(e => !serverIds.has(e.id));
+        
+        // Сначала локальные (новые), потом серверные
+        setEstimates([...unsyncedLocal, ...(data as Estimate[] || [])]);
       }
     } else {
       // ОФФЛАЙН: показываем только локальные сметы
-      const localEstimates = await getEstimatesLocal(companyId);
-      setEstimates(localEstimates.map(e => e.data));
+      setEstimates(localOnly);
     }
     
     setLoading(false);

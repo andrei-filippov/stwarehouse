@@ -20,8 +20,11 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
     if (!companyId) return;
     setLoading(true);
     
+    // Всегда загружаем локальные чек-листы
+    const localChecklists = await getChecklistsLocal(companyId);
+    
     if (isOnline()) {
-      // ОНЛАЙН: загружаем только с сервера
+      // ОНЛАЙН: загружаем с сервера и мержим с локальными
       const { data, error } = await supabase
         .from('checklists')
         .select('*')
@@ -30,13 +33,16 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
       
       if (error) {
         toast.error('Ошибка при загрузке чек-листов', { description: error.message });
-        setChecklists([]);
+        setChecklists(localChecklists);
       } else {
-        setChecklists(data || []);
+        // Мержим: серверные + локальные которых нет на сервере
+        const serverIds = new Set((data || []).map(c => c.id));
+        const unsyncedLocal = localChecklists.filter(c => !serverIds.has(c.id));
+        
+        setChecklists([...unsyncedLocal, ...(data || [])]);
       }
     } else {
       // ОФФЛАЙН: показываем только локальные чек-листы
-      const localChecklists = await getChecklistsLocal(companyId);
       setChecklists(localChecklists);
     }
     
