@@ -304,7 +304,7 @@ export function EstimateBuilder({
     onClose();
   };
 
-  // Drag and drop для категорий
+  // Drag and drop для категорий (десктоп)
   const handleDragStart = (category: string) => {
     setIsDragging(true);
     setDraggedCategory(category);
@@ -338,6 +338,91 @@ export function EstimateBuilder({
     setIsDragging(false);
     setDraggedCategory(null);
     setDropTarget(null);
+  };
+
+  // Touch drag & drop для мобильных (с авто-прокруткой)
+  const touchStartY = useRef<number>(0);
+  const touchCurrentY = useRef<number>(0);
+  const scrollInterval = useRef<NodeJS.Timeout | null>(null);
+  const touchItemRef = useRef<string | null>(null);
+
+  const clearScrollInterval = () => {
+    if (scrollInterval.current) {
+      clearInterval(scrollInterval.current);
+      scrollInterval.current = null;
+    }
+  };
+
+  const handleTouchStart = (e: React.TouchEvent, category: string) => {
+    const touch = e.touches[0];
+    touchStartY.current = touch.clientY;
+    touchCurrentY.current = touch.clientY;
+    touchItemRef.current = category;
+    setDraggedCategory(category);
+    setIsDragging(true);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent, category: string) => {
+    if (!isDragging || !draggedCategory) return;
+    
+    e.preventDefault(); // Предотвращаем скролл страницы при перетаскивании
+    
+    const touch = e.touches[0];
+    touchCurrentY.current = touch.clientY;
+    
+    // Определяем направление для авто-прокрутки
+    const scrollContainer = e.currentTarget.closest('.overflow-y-auto') as HTMLElement;
+    if (scrollContainer) {
+      const containerRect = scrollContainer.getBoundingClientRect();
+      const touchY = touch.clientY;
+      const scrollThreshold = 80; // пикселей от края
+      const scrollSpeed = 15; // скорость прокрутки
+      
+      clearScrollInterval();
+      
+      if (touchY < containerRect.top + scrollThreshold) {
+        // Прокрутка вверх
+        scrollInterval.current = setInterval(() => {
+          scrollContainer.scrollTop -= scrollSpeed;
+        }, 16);
+      } else if (touchY > containerRect.bottom - scrollThreshold) {
+        // Прокрутка вниз
+        scrollInterval.current = setInterval(() => {
+          scrollContainer.scrollTop += scrollSpeed;
+        }, 16);
+      }
+    }
+    
+    // Находим элемент под пальцем для swap
+    const targetElement = document.elementFromPoint(touch.clientX, touch.clientY);
+    const categoryHeader = targetElement?.closest('[data-category]');
+    if (categoryHeader) {
+      const targetCategory = categoryHeader.getAttribute('data-category');
+      if (targetCategory && targetCategory !== draggedCategory) {
+        setDropTarget(targetCategory);
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    clearScrollInterval();
+    
+    if (draggedCategory && dropTarget && draggedCategory !== dropTarget) {
+      const newOrder = [...categoryOrder];
+      const draggedIndex = newOrder.indexOf(draggedCategory);
+      const targetIndex = newOrder.indexOf(dropTarget);
+      
+      if (draggedIndex !== -1 && targetIndex !== -1) {
+        newOrder.splice(draggedIndex, 1);
+        newOrder.splice(targetIndex, 0, draggedCategory);
+        setCategoryOrder(newOrder);
+      }
+    }
+    
+    setIsDragging(false);
+    setDraggedCategory(null);
+    setDropTarget(null);
+    touchItemRef.current = null;
   };
 
   const toggleCategory = (category: string) => {
@@ -962,14 +1047,25 @@ export function EstimateBuilder({
                     </div>
                   ) : (
                     groupedItems.map(([category, categoryItems]) => (
-                      <Card key={category} className="overflow-hidden">
+                      <Card key={category} className={cn(
+                        "overflow-hidden transition-all",
+                        isDragging && draggedCategory === category && "shadow-lg scale-[1.02] ring-2 ring-blue-400 z-10"
+                      )}>
                         <CardHeader 
-                          className="p-2 cursor-move bg-gray-50"
+                          className={cn(
+                            "p-2 cursor-move touch-manipulation transition-all",
+                            isDragging && draggedCategory === category ? "bg-blue-100" : "bg-gray-50",
+                            isDragging && dropTarget === category && "bg-blue-50 ring-2 ring-blue-300"
+                          )}
+                          data-category={category}
                           draggable
                           onDragStart={() => handleDragStart(category)}
                           onDragOver={(e) => handleDragOver(e, category)}
                           onDrop={(e) => handleDrop(e, category)}
                           onDragEnd={handleDragEnd}
+                          onTouchStart={(e) => handleTouchStart(e, category)}
+                          onTouchMove={(e) => handleTouchMove(e, category)}
+                          onTouchEnd={handleTouchEnd}
                         >
                           <div className="flex items-center justify-between">
                             <CardTitle className="text-sm flex items-center gap-2">
@@ -1004,56 +1100,53 @@ export function EstimateBuilder({
                                     <div className="flex items-center gap-2 pl-7">
                                       <div className="flex items-center gap-1">
                                         <Input
-                                          type="number"
-                                          inputMode="decimal"
+                                          type="text"
+                                          inputMode="numeric"
                                           pattern="[0-9]*"
                                           value={item.quantity}
                                           onChange={(e) => {
-                                            const val = e.target.value === '' ? '' : parseInt(e.target.value);
-                                            if (val === '' || !isNaN(val)) {
-                                              handleUpdateItem(item.id, { quantity: val === '' ? 1 : Math.max(1, val) });
+                                            const val = e.target.value.replace(/[^0-9]/g, '');
+                                            const num = val === '' ? '' : parseInt(val);
+                                            if (val === '' || (!isNaN(num) && num >= 1)) {
+                                              handleUpdateItem(item.id, { quantity: val === '' ? 1 : num });
                                             }
                                           }}
                                           onFocus={(e) => e.target.select()}
                                           className="w-14 h-8 text-sm text-center"
-                                          min={1}
-                                          step={1}
                                         />
                                         <span className="text-xs text-gray-400">×</span>
                                         <Input
-                                          type="number"
+                                          type="text"
                                           inputMode="decimal"
                                           pattern="[0-9.]*"
                                           value={item.coefficient || 1}
                                           onChange={(e) => {
-                                            const val = e.target.value === '' ? '' : parseFloat(e.target.value);
-                                            if (val === '' || !isNaN(val)) {
-                                              handleUpdateItem(item.id, { coefficient: val === '' ? 1 : Math.max(0.1, val) });
+                                            const val = e.target.value.replace(/[^0-9.]/g, '');
+                                            const num = val === '' ? '' : parseFloat(val);
+                                            if (val === '' || (!isNaN(num) && num >= 0.1)) {
+                                              handleUpdateItem(item.id, { coefficient: val === '' ? 1 : num });
                                             }
                                           }}
                                           onFocus={(e) => e.target.select()}
                                           className="w-14 h-8 text-sm text-center"
-                                          step={0.5}
-                                          min={0.1}
                                         />
                                       </div>
                                       
                                       <div className="flex-1 text-right">
                                         <Input
-                                          type="number"
-                                          inputMode="decimal"
+                                          type="text"
+                                          inputMode="numeric"
                                           pattern="[0-9]*"
                                           value={Math.round(itemTotal)}
                                           onChange={(e) => {
-                                            const val = parseFloat(e.target.value);
-                                            if (!isNaN(val) && val >= 0) {
-                                              handleUpdateTotal(item.id, val);
+                                            const val = e.target.value.replace(/[^0-9]/g, '');
+                                            const num = val === '' ? 0 : parseInt(val);
+                                            if (!isNaN(num) && num >= 0) {
+                                              handleUpdateTotal(item.id, num);
                                             }
                                           }}
                                           onFocus={(e) => e.target.select()}
                                           className="w-20 h-8 text-sm text-right font-medium inline-block"
-                                          min={0}
-                                          step={100}
                                         />
                                         <span className="text-xs text-gray-500 ml-1">₽</span>
                                       </div>
@@ -1306,16 +1399,24 @@ export function EstimateBuilder({
                     groupedItems.map(([category, categoryItems]) => (
                       <Card key={category} className={cn(
                         "transition-all",
-                        isDragging && draggedCategory === category && "opacity-50",
-                        isDragging && dropTarget === category && "ring-2 ring-blue-400"
+                        isDragging && draggedCategory === category && "shadow-lg scale-[1.01] ring-2 ring-blue-400 z-10",
+                        isDragging && dropTarget === category && "ring-2 ring-blue-300"
                       )}>
                         <CardHeader 
-                          className="p-2.5 cursor-move bg-gray-50"
+                          className={cn(
+                            "p-2.5 cursor-move touch-manipulation transition-all",
+                            isDragging && draggedCategory === category ? "bg-blue-100" : "bg-gray-50",
+                            isDragging && dropTarget === category && "bg-blue-50"
+                          )}
+                          data-category={category}
                           draggable
                           onDragStart={() => handleDragStart(category)}
                           onDragOver={(e) => handleDragOver(e, category)}
                           onDrop={(e) => handleDrop(e, category)}
                           onDragEnd={handleDragEnd}
+                          onTouchStart={(e) => handleTouchStart(e, category)}
+                          onTouchMove={(e) => handleTouchMove(e, category)}
+                          onTouchEnd={handleTouchEnd}
                         >
                           <div className="flex items-center justify-between">
                             <CardTitle className="text-sm flex items-center gap-2">
@@ -1347,54 +1448,51 @@ export function EstimateBuilder({
                                     
                                     <div className="flex items-center gap-1 shrink-0">
                                       <Input
-                                        type="number"
-                                        inputMode="decimal"
+                                        type="text"
+                                        inputMode="numeric"
                                         pattern="[0-9]*"
                                         value={item.quantity}
                                         onChange={(e) => {
-                                          const val = e.target.value === '' ? '' : parseInt(e.target.value);
-                                          if (val === '' || !isNaN(val)) {
-                                            handleUpdateItem(item.id, { quantity: val === '' ? 1 : Math.max(1, val) });
+                                          const val = e.target.value.replace(/[^0-9]/g, '');
+                                          const num = val === '' ? '' : parseInt(val);
+                                          if (val === '' || (!isNaN(num) && num >= 1)) {
+                                            handleUpdateItem(item.id, { quantity: val === '' ? 1 : num });
                                           }
                                         }}
                                         onFocus={(e) => e.target.select()}
                                         className="w-14 h-8 text-sm text-center"
-                                        min={1}
-                                        step={1}
                                       />
                                       
                                       <Input
-                                        type="number"
+                                        type="text"
                                         inputMode="decimal"
                                         pattern="[0-9.]*"
                                         value={item.coefficient || 1}
                                         onChange={(e) => {
-                                          const val = e.target.value === '' ? '' : parseFloat(e.target.value);
-                                          if (val === '' || !isNaN(val)) {
-                                            handleUpdateItem(item.id, { coefficient: val === '' ? 1 : Math.max(0.1, val) });
+                                          const val = e.target.value.replace(/[^0-9.]/g, '');
+                                          const num = val === '' ? '' : parseFloat(val);
+                                          if (val === '' || (!isNaN(num) && num >= 0.1)) {
+                                            handleUpdateItem(item.id, { coefficient: val === '' ? 1 : num });
                                           }
                                         }}
                                         onFocus={(e) => e.target.select()}
                                         className="w-14 h-8 text-sm text-center"
-                                        step={0.5}
-                                        min={0.1}
                                       />
                                       
                                       <Input
-                                        type="number"
-                                        inputMode="decimal"
+                                        type="text"
+                                        inputMode="numeric"
                                         pattern="[0-9]*"
                                         value={Math.round(itemTotal)}
                                         onChange={(e) => {
-                                          const val = parseFloat(e.target.value);
-                                          if (!isNaN(val) && val >= 0) {
-                                            handleUpdateTotal(item.id, val);
+                                          const val = e.target.value.replace(/[^0-9]/g, '');
+                                          const num = val === '' ? 0 : parseInt(val);
+                                          if (!isNaN(num) && num >= 0) {
+                                            handleUpdateTotal(item.id, num);
                                           }
                                         }}
                                         onFocus={(e) => e.target.select()}
                                         className="w-20 h-8 text-sm text-right font-medium"
-                                        min={0}
-                                        step={100}
                                       />
                                       
                                       <Button
