@@ -1,22 +1,23 @@
 {
   "name": "СкладОборуд",
-  "short_name": "СкладОборуд",
-  "description": "Управление оборудованием и сметами",
+  "short_name": "Склад",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#2563eb",
-  "orientation": "portrait-primary",
-  "icons": [
-    {
-      "src": "/icon-192x192.svg",
-      "sizes": "192x192",
-      "type": "image/svg+xml"
-    },
-    {
-      "src": "/icon-512x512.svg",
-      "sizes": "512x512",
-      "type": "image/svg+xml"
-    }
-  ]
+  "theme_color": "#3b82f6",
+  "orientation": "portrait",
+  "scope": "/",
+  "lang": "ru"
 }

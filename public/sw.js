@@ -1,11 +1,11 @@
 // Service Worker для оффлайн-режима
-const CACHE_NAME = 'stwarehouse-v2';
+const CACHE_NAME = 'stwarehouse-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/icon-192x192.svg',
-  '/icon-512x512.svg',
+  '/icon-192x192.png',
+  '/icon-512x512.png',
   '/favicon.ico'
 ];
 
@@ -71,6 +71,7 @@ self.addEventListener('fetch', (event) => {
     request.url.endsWith('.css') ||
     request.url.endsWith('.html') ||
     request.url.endsWith('.svg') ||
+    request.url.endsWith('.png') ||
     request.url.endsWith('.json')
   ) {
     event.respondWith(
