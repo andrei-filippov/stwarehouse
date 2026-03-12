@@ -1098,57 +1098,78 @@ export function EstimateBuilder({
                                     </div>
                                     
                                     <div className="flex items-center gap-2 pl-7">
-                                      <div className="flex items-center gap-1">
-                                        <Input
-                                          type="text"
-                                          inputMode="numeric"
-                                          pattern="[0-9]*"
+                                      {/* Количество с кнопками +/- */}
+                                      <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
+                                        <button
+                                          onClick={() => handleUpdateItem(item.id, { quantity: Math.max(0, item.quantity - 1) })}
+                                          className="w-8 h-8 flex items-center justify-center bg-white rounded-md shadow-sm text-gray-600 active:bg-gray-50"
+                                        >
+                                          −
+                                        </button>
+                                        <input
+                                          type="tel"
                                           value={item.quantity}
                                           onChange={(e) => {
-                                            const val = e.target.value.replace(/[^0-9]/g, '');
-                                            const num = val === '' ? '' : parseInt(val);
-                                            if (val === '' || (!isNaN(num) && num >= 1)) {
-                                              handleUpdateItem(item.id, { quantity: val === '' ? 1 : num });
-                                            }
+                                            const val = e.target.value.replace(/\D/g, '');
+                                            const num = val === '' ? 0 : parseInt(val);
+                                            handleUpdateItem(item.id, { quantity: num });
                                           }}
-                                          onFocus={(e) => e.target.select()}
-                                          className="w-14 h-8 text-sm text-center"
+                                          className="w-10 h-8 text-center bg-transparent text-sm font-medium outline-none"
                                         />
-                                        <span className="text-xs text-gray-400">×</span>
-                                        <Input
-                                          type="text"
-                                          inputMode="decimal"
-                                          pattern="[0-9.]*"
-                                          value={item.coefficient || 1}
+                                        <button
+                                          onClick={() => handleUpdateItem(item.id, { quantity: item.quantity + 1 })}
+                                          className="w-8 h-8 flex items-center justify-center bg-white rounded-md shadow-sm text-gray-600 active:bg-gray-50"
+                                        >
+                                          +
+                                        </button>
+                                      </div>
+                                      
+                                      <span className="text-xs text-gray-400">×</span>
+                                      
+                                      {/* Коэффициент - кнопки быстрого выбора */}
+                                      <div className="flex items-center gap-0.5">
+                                        {[0.5, 1, 1.5, 2, 3].map((coef) => (
+                                          <button
+                                            key={coef}
+                                            onClick={() => handleUpdateItem(item.id, { coefficient: coef })}
+                                            className={cn(
+                                              "px-2 h-7 text-xs font-medium rounded transition-colors",
+                                              (item.coefficient || 1) === coef
+                                                ? "bg-blue-600 text-white"
+                                                : "bg-gray-100 text-gray-600 active:bg-gray-200"
+                                            )}
+                                          >
+                                            {coef}
+                                          </button>
+                                        ))}
+                                        {/* Поле для произвольного коэффициента */}
+                                        <input
+                                          type="tel"
+                                          value={(item.coefficient || 1) <= 0 || ![0.5, 1, 1.5, 2, 3].includes(item.coefficient || 1) ? (item.coefficient || 1) : ''}
+                                          placeholder="..."
                                           onChange={(e) => {
                                             const val = e.target.value.replace(/[^0-9.]/g, '');
-                                            const num = val === '' ? '' : parseFloat(val);
-                                            if (val === '' || (!isNaN(num) && num >= 0.1)) {
-                                              handleUpdateItem(item.id, { coefficient: val === '' ? 1 : num });
+                                            const num = val === '' ? 1 : parseFloat(val);
+                                            if (!isNaN(num)) {
+                                              handleUpdateItem(item.id, { coefficient: num });
                                             }
                                           }}
-                                          onFocus={(e) => e.target.select()}
-                                          className="w-14 h-8 text-sm text-center"
+                                          className="w-10 h-7 text-center text-xs bg-gray-100 rounded ml-0.5 outline-none focus:ring-1 focus:ring-blue-500"
                                         />
                                       </div>
                                       
-                                      <div className="flex-1 text-right">
-                                        <Input
-                                          type="text"
-                                          inputMode="numeric"
-                                          pattern="[0-9]*"
+                                      <div className="flex-1 text-right flex items-center justify-end gap-1">
+                                        <input
+                                          type="tel"
                                           value={Math.round(itemTotal)}
                                           onChange={(e) => {
-                                            const val = e.target.value.replace(/[^0-9]/g, '');
+                                            const val = e.target.value.replace(/\D/g, '');
                                             const num = val === '' ? 0 : parseInt(val);
-                                            if (!isNaN(num) && num >= 0) {
-                                              handleUpdateTotal(item.id, num);
-                                            }
+                                            handleUpdateTotal(item.id, num);
                                           }}
-                                          onFocus={(e) => e.target.select()}
-                                          className="w-20 h-8 text-sm text-right font-medium inline-block"
+                                          className="w-16 h-8 text-right text-sm font-medium bg-gray-50 rounded px-2 outline-none focus:ring-1 focus:ring-blue-500"
                                         />
-                                        <span className="text-xs text-gray-500 ml-1">₽</span>
+                                        <span className="text-xs text-gray-500">₽</span>
                                       </div>
                                       
                                       <Button
