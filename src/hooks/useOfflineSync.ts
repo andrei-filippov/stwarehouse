@@ -144,9 +144,10 @@ export function useOfflineSync(companyId: string | undefined) {
         if (item.table === 'estimate_items') continue;
 
         try {
-          console.log('[Sync] Processing:', item.table, item.operation, item.data.id);
+          console.log('[Sync] Processing:', item.table, item.operation, 'data.id:', item.data.id);
           let result: any;
           const localId = item.data.id;
+          console.log('[Sync] localId:', localId, 'isLocal:', localId?.startsWith('local_'));
           
           switch (item.table) {
             case 'estimates':
@@ -200,10 +201,11 @@ export function useOfflineSync(companyId: string | undefined) {
             throw result.error;
           }
 
-          console.log('[Sync] Success:', item.table, result?.data?.id || 'ok');
+          console.log('[Sync] Success:', item.table, 'result id:', result?.data?.id);
 
           // Сохраняем соответствие local_id -> server_id
           if (result?.data?.id && localId?.startsWith('local_')) {
+            console.log('[Sync] Saving mapping:', localId, '->', result.data.id);
             idMapping[localId] = result.data.id;
             console.log('[Sync] ID mapping:', localId, '->', result.data.id);
             
@@ -227,6 +229,7 @@ export function useOfflineSync(companyId: string | undefined) {
 
       // Второй проход: создаём дочерние записи (estimate_items)
       console.log('[Sync] Processing estimate_items, mappings:', idMapping);
+      console.log('[Sync] Available mappings:', Object.keys(idMapping));
       
       for (const item of queue) {
         if (item.table !== 'estimate_items') continue;
@@ -243,7 +246,16 @@ export function useOfflineSync(companyId: string | undefined) {
             const { estimateId, items } = item.data;
             
             // Заменяем local_id на server_id
-            const serverEstimateId = idMapping[estimateId] || estimateId;
+            let serverEstimateId = idMapping[estimateId];
+            
+            // Если маппинг не найден - пропускаем
+            if (!serverEstimateId) {
+              console.error('[Sync] No mapping found for estimate:', estimateId);
+              console.error('[Sync] Available mappings:', Object.keys(idMapping));
+              await updateSyncQueueRetry(item.id!, item.retryCount + 1);
+              errorCount++;
+              continue;
+            }
             
             console.log('[Sync] Using estimate_id:', serverEstimateId, 'items count:', items?.length);
             
