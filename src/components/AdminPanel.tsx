@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Shield, History, Building2, Users } from 'lucide-react';
+import { Shield, History, Building2, Users, Lock } from 'lucide-react';
 import { AuditLogs } from './AuditLogs';
 import { CompanySettings } from './CompanySettings';
 import { CompanyMembersManager } from './CompanyMembersManager';
+import { PermissionsManager } from './PermissionsManager';
 
-export function AdminPanel() {
-  const [activeTab, setActiveTab] = useState<'team' | 'company' | 'logs'>('team');
+export function AdminPanel({ currentUserId }: { currentUserId?: string }) {
+  const [activeTab, setActiveTab] = useState<'team' | 'company' | 'access' | 'logs'>('team');
 
   return (
     <div className="space-y-6">
@@ -50,6 +51,19 @@ export function AdminPanel() {
             </div>
           </button>
           <button
+            onClick={() => setActiveTab('access')}
+            className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'access'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Lock className="w-4 h-4" />
+              Доступ
+            </div>
+          </button>
+          <button
             onClick={() => setActiveTab('logs')}
             className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
               activeTab === 'logs'
@@ -69,6 +83,8 @@ export function AdminPanel() {
         <AuditLogs />
       ) : activeTab === 'company' ? (
         <CompanySettings />
+      ) : activeTab === 'access' ? (
+        <PermissionsManager currentUserId={currentUserId} />
       ) : (
         <CompanyMembersManager />
       )}
