@@ -23,12 +23,15 @@ export function Auth({ onSignIn, onSignUp }: AuthProps) {
     setError('');
     setLoading(true);
 
+    console.log('Form submitted:', { isLogin, email: email.trim(), passwordLength: password?.length });
+
     if (isLogin) {
-      const { error } = await onSignIn(email, password);
-      if (error) setError(error.message);
+      const { error } = await onSignIn(email.trim(), password);
+      console.log('SignIn result:', { error: error?.message || 'none' });
+      if (error) setError(error.message || 'Ошибка входа');
     } else {
-      const { error } = await onSignUp(email, password, name);
-      if (error) setError(error.message);
+      const { error } = await onSignUp(email.trim(), password, name.trim());
+      if (error) setError(error.message || 'Ошибка регистрации');
     }
 
     setLoading(false);

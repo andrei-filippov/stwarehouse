@@ -103,10 +103,28 @@ export function useAuth() {
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      return { error };
+      console.log('Signing in with:', { email: email.trim(), passwordLength: password?.length });
+      const { data, error } = await supabase.auth.signInWithPassword({ 
+        email: email.trim(), 
+        password 
+      });
+      
+      if (error) {
+        console.error('Sign in error details:', error);
+        // Provide user-friendly error messages
+        let message = error.message;
+        if (error.message.includes('Invalid login')) {
+          message = 'Неверный email или пароль';
+        } else if (error.message.includes('Email not confirmed')) {
+          message = 'Email не подтверждён. Проверьте почту';
+        }
+        return { error: { ...error, message } };
+      }
+      
+      console.log('Sign in successful:', data.user?.id);
+      return { error: null };
     } catch (err) {
-      console.error('Sign in error:', err);
+      console.error('Sign in unexpected error:', err);
       return { error: err as Error };
     }
   };
