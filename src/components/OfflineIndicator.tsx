@@ -72,12 +72,14 @@ export function OfflineIndicator({ companyId }: OfflineIndicatorProps = {}) {
       await initOfflineDB();
       
       const queue = await getSyncQueue();
-      console.log('[OfflineIndicator] Queue:', queue);
+      // Фильтруем по текущей компании
+      const companyQueue = queue.filter((item: any) => item.data?.company_id === companyId);
+      console.log('[OfflineIndicator] Queue:', companyQueue);
       
       let success = 0;
       let failed = 0;
       
-      for (const item of queue) {
+      for (const item of companyQueue) {
         try {
           if (item.table === 'estimates' && item.operation === 'create') {
             const { id, items, ...data } = item.data;
