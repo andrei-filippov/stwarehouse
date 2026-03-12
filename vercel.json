@@ -4,6 +4,14 @@
   "framework": null,
   "rewrites": [
     {
+      "source": "/assets/:path*",
+      "destination": "/assets/:path*"
+    },
+    {
+      "source": "/c/:slug*/assets/:path*",
+      "destination": "/assets/:path*"
+    },
+    {
       "source": "/c/:slug*",
       "destination": "/index.html"
     },
