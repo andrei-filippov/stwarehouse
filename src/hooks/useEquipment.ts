@@ -103,18 +103,24 @@ export function useEquipment(companyId: string | undefined) {
 
     try {
       if (isOnline() && !isLocalId) {
-        const { error } = await supabase
-          .from('equipment')
-          .update(updates)
-          .eq('id', id)
-          .eq('company_id', companyId);
+        try {
+          const { error } = await supabase
+            .from('equipment')
+            .update(updates)
+            .eq('id', id)
+            .eq('company_id', companyId);
 
-        if (error) throw error;
+          if (error) throw error;
 
-        await fetchEquipment();
-        toast.success('Оборудование обновлено');
-        return { error: null };
-      } else {
+          await fetchEquipment();
+          toast.success('Оборудование обновлено');
+          return { error: null };
+        } catch (err) {
+          console.log('Network error, switching to offline mode:', err);
+        }
+      }
+      
+      // Оффлайн или fallback
         // Оффлайн или локальное
         const updatedItem = { 
           ...equipment.find(e => e.id === id),
@@ -131,7 +137,6 @@ export function useEquipment(companyId: string | undefined) {
         
         toast.info('Обновлено офлайн');
         return { error: null, queued: true };
-      }
     } catch (err: any) {
       toast.error('Ошибка при обновлении', { description: err.message });
       return { error: err };
@@ -145,20 +150,29 @@ export function useEquipment(companyId: string | undefined) {
 
     try {
       if (isOnline() && !isLocalId) {
-        const { error } = await supabase
-          .from('equipment')
-          .delete()
-          .eq('id', id)
-          .eq('company_id', companyId);
+        try {
+          const { error } = await supabase
+            .from('equipment')
+            .delete()
+            .eq('id', id)
+            .eq('company_id', companyId);
 
-        if (error) throw error;
-      } else {
-        // Удаляем локально
-        await deleteEquipmentLocal(id);
-        
-        if (!isLocalId) {
-          await addToSyncQueue('equipment', 'delete', { id });
+          if (error) throw error;
+          
+          // Успешно удалено на сервере
+          setEquipment(prev => prev.filter(e => e.id !== id));
+          toast.success('Оборудование удалено');
+          return { error: null };
+        } catch (err) {
+          console.log('Network error, switching to offline mode:', err);
         }
+      }
+      
+      // Оффлайн или fallback - удаляем локально
+      await deleteEquipmentLocal(id);
+      
+      if (!isLocalId) {
+        await addToSyncQueue('equipment', 'delete', { id });
       }
       
       // Обновляем UI

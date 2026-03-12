@@ -130,46 +130,54 @@ export function useEstimates(companyId: string | undefined) {
       };
       
       if (isOnline()) {
-        // Онлайн - сохраняем на сервер
-        const { id, items: _, ...estimateClean } = estimateData;
-        
-        const { data: newEstimate, error: estimateError } = await supabase
-          .from('estimates')
-          .insert({
-            ...estimateClean,
-            company_id: companyId,
-            user_id: userId,
-            creator_name: creatorName,
-            category_order: categoryOrder || []
-          })
-          .select()
-          .single();
-
-        if (estimateError) throw estimateError;
-
-        // Создаём позиции
-        if (items.length > 0) {
-          const itemsWithIds = items.map((item, index) => {
-            const { id, ...itemWithoutId } = item;
-            return {
-              ...itemWithoutId,
-              estimate_id: newEstimate.id,
+        try {
+          // Пробуем сохранить на сервер
+          const { id, items: _, ...estimateClean } = estimateData;
+          
+          const { data: newEstimate, error: estimateError } = await supabase
+            .from('estimates')
+            .insert({
+              ...estimateClean,
               company_id: companyId,
-              order_index: index
-            };
-          });
+              user_id: userId,
+              creator_name: creatorName,
+              category_order: categoryOrder || []
+            })
+            .select()
+            .single();
 
-          const { error: itemsError } = await supabase
-            .from('estimate_items')
-            .insert(itemsWithIds);
+          if (estimateError) throw estimateError;
 
-          if (itemsError) throw itemsError;
+          // Создаём позиции
+          if (items.length > 0) {
+            const itemsWithIds = items.map((item, index) => {
+              const { id, ...itemWithoutId } = item;
+              return {
+                ...itemWithoutId,
+                estimate_id: newEstimate.id,
+                company_id: companyId,
+                order_index: index
+              };
+            });
+
+            const { error: itemsError } = await supabase
+              .from('estimate_items')
+              .insert(itemsWithIds);
+
+            if (itemsError) throw itemsError;
+          }
+
+          await fetchEstimates();
+          toast.success('Смета создана');
+          return { error: null, data: newEstimate };
+        } catch (err: any) {
+          // Если ошибка сети - переключаемся на оффлайн режим
+          console.log('Network error, switching to offline mode:', err);
+          // Продолжаем в оффлайн-блок ниже
         }
-
-        await fetchEstimates();
-        toast.success('Смета создана');
-        return { error: null, data: newEstimate };
-      } else {
+      }
+      
+      // ОФФЛАЙН режим (или fallback при ошибке сети)
         // ОФФЛАЙН - сохраняем только локально и в очередь
         await saveEstimateLocal(estimateData, companyId);
         await addToSyncQueue('estimates', 'create', estimateData);
@@ -187,7 +195,6 @@ export function useEstimates(companyId: string | undefined) {
           description: 'Будет синхронизирована при подключении'
         });
         return { error: null, data: estimateData, queued: true };
-      }
     } catch (err: any) {
       toast.error('Ошибка при создании сметы', { description: err.message });
       return { error: err };
@@ -223,47 +230,54 @@ export function useEstimates(companyId: string | undefined) {
       const isLocalId = id.startsWith('local_');
       
       if (isOnline() && !isLocalId) {
-        // Онлайн - обновляем на сервере
-        const { error: estimateError } = await supabase
-          .from('estimates')
-          .update({
-            ...estimate,
-            category_order: categoryOrder || []
-          })
-          .eq('id', id)
-          .eq('company_id', companyId);
+        try {
+          // Пробуем обновить на сервере
+          const { error: estimateError } = await supabase
+            .from('estimates')
+            .update({
+              ...estimate,
+              category_order: categoryOrder || []
+            })
+            .eq('id', id)
+            .eq('company_id', companyId);
 
-        if (estimateError) throw estimateError;
+          if (estimateError) throw estimateError;
 
-        // Удаляем старые позиции
-        await supabase
-          .from('estimate_items')
-          .delete()
-          .eq('estimate_id', id);
-
-        // Создаём новые позиции
-        if (items.length > 0) {
-          const itemsWithIds = items.map((item, index) => {
-            const { id: _, ...itemWithoutId } = item;
-            return {
-              ...itemWithoutId,
-              estimate_id: id,
-              company_id: companyId,
-              order_index: index
-            };
-          });
-
-          const { error: itemsError } = await supabase
+          // Удаляем старые позиции
+          await supabase
             .from('estimate_items')
-            .insert(itemsWithIds);
+            .delete()
+            .eq('estimate_id', id);
 
-          if (itemsError) throw itemsError;
+          // Создаём новые позиции
+          if (items.length > 0) {
+            const itemsWithIds = items.map((item, index) => {
+              const { id: _, ...itemWithoutId } = item;
+              return {
+                ...itemWithoutId,
+                estimate_id: id,
+                company_id: companyId,
+                order_index: index
+              };
+            });
+
+            const { error: itemsError } = await supabase
+              .from('estimate_items')
+              .insert(itemsWithIds);
+
+            if (itemsError) throw itemsError;
+          }
+
+          await fetchEstimates();
+          toast.success('Смета обновлена');
+          return { error: null };
+        } catch (err) {
+          // При ошибке сети продолжаем в оффлайн-режиме
+          console.log('Network error, switching to offline mode:', err);
         }
-
-        await fetchEstimates();
-        toast.success('Смета обновлена');
-        return { error: null };
-      } else {
+      }
+      
+      // ОФФЛАЙН режим (или fallback)
         // ОФФЛАЙН или локальная смета - обновляем локально
         await saveEstimateLocal(estimateData, companyId);
         await addToSyncQueue('estimates', isLocalId ? 'create' : 'update', estimateData);
@@ -279,7 +293,6 @@ export function useEstimates(companyId: string | undefined) {
           description: 'Будет синхронизирована при подключении'
         });
         return { error: null, queued: true };
-      }
     } catch (err: any) {
       toast.error('Ошибка при обновлении сметы', { description: err.message });
       return { error: err };
@@ -294,21 +307,30 @@ export function useEstimates(companyId: string | undefined) {
       const isLocalId = id.startsWith('local_');
       
       if (isOnline() && !isLocalId) {
-        // Онлайн - удаляем с сервера
-        const { error } = await supabase
-          .from('estimates')
-          .delete()
-          .eq('id', id)
-          .eq('company_id', companyId);
+        try {
+          // Онлайн - удаляем с сервера
+          const { error } = await supabase
+            .from('estimates')
+            .delete()
+            .eq('id', id)
+            .eq('company_id', companyId);
 
-        if (error) throw error;
-      } else {
-        // Оффлайн или локальная смета
-        await deleteEstimateLocal(id);
-        
-        if (!isLocalId) {
-          await addToSyncQueue('estimates', 'delete', { id });
+          if (error) throw error;
+          
+          // Успешно удалено на сервере
+          setEstimates(prev => prev.filter(e => e.id !== id));
+          toast.success('Смета удалена');
+          return { error: null };
+        } catch (err) {
+          console.log('Network error, switching to offline mode:', err);
         }
+      }
+      
+      // Оффлайн или fallback
+      await deleteEstimateLocal(id);
+      
+      if (!isLocalId) {
+        await addToSyncQueue('estimates', 'delete', { id });
       }
       
       // Обновляем UI

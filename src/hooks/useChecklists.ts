@@ -178,26 +178,32 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
       };
       
       if (isOnline()) {
-        // Онлайн - сохраняем на сервер
-        const { data, error } = await supabase
-          .from('checklists')
-          .insert({
-            estimate_id: estimate.id,
-            company_id: companyId,
-            event_name: estimate.event_name,
-            event_date: estimate.event_date || null,
-            items: items,
-            notes: notes || null,
-            category_order: estimate.category_order || null
-          })
-          .select();
+        try {
+          // Пробуем сохранить на сервер
+          const { data, error } = await supabase
+            .from('checklists')
+            .insert({
+              estimate_id: estimate.id,
+              company_id: companyId,
+              event_name: estimate.event_name,
+              event_date: estimate.event_date || null,
+              items: items,
+              notes: notes || null,
+              category_order: estimate.category_order || null
+            })
+            .select();
 
-        if (error) throw error;
+          if (error) throw error;
 
-        await fetchChecklists();
-        toast.success('Чек-лист создан');
-        return { error: null, data: data?.[0] };
-      } else {
+          await fetchChecklists();
+          toast.success('Чек-лист создан');
+          return { error: null, data: data?.[0] };
+        } catch (err) {
+          console.log('Network error, switching to offline mode:', err);
+        }
+      }
+      
+      // ОФФЛАЙН режим (или fallback)
         // ОФФЛАЙН - сохраняем только локально
         await saveChecklistLocal(checklistData, companyId);
         await addToSyncQueue('checklists', 'create', checklistData);
@@ -209,7 +215,6 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
           description: 'Будет синхронизирован при подключении'
         });
         return { error: null, data: checklistData, queued: true };
-      }
     } catch (err: any) {
       toast.error('Ошибка при создании чек-листа', { description: err.message });
       return { error: err };
@@ -270,20 +275,29 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
       const isLocalId = id.startsWith('local_');
       
       if (isOnline() && !isLocalId) {
-        const { error } = await supabase
-          .from('checklists')
-          .delete()
-          .eq('id', id)
-          .eq('company_id', companyId);
+        try {
+          const { error } = await supabase
+            .from('checklists')
+            .delete()
+            .eq('id', id)
+            .eq('company_id', companyId);
 
-        if (error) throw error;
-      } else {
-        // Оффлайн или локальный чек-лист
-        await deleteChecklistLocal(id);
-        
-        if (!isLocalId) {
-          await addToSyncQueue('checklists', 'delete', { id });
+          if (error) throw error;
+          
+          // Успешно удалено на сервере
+          setChecklists(prev => prev.filter(c => c.id !== id));
+          toast.success('Чек-лист удалён');
+          return { error: null };
+        } catch (err) {
+          console.log('Network error, switching to offline mode:', err);
         }
+      }
+      
+      // Оффлайн или fallback
+      await deleteChecklistLocal(id);
+      
+      if (!isLocalId) {
+        await addToSyncQueue('checklists', 'delete', { id });
       }
       
       // Обновляем UI
