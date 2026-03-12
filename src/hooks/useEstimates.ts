@@ -162,7 +162,7 @@ export function useEstimates(companyId: string | undefined) {
 
       await fetchEstimates();
       toast.success('Смета создана');
-      return { error: null };
+      return { error: null, data: newEstimate };
     } catch (err: any) {
       toast.error('Ошибка при создании сметы', { description: err.message });
       return { error: err };
@@ -265,6 +265,27 @@ export function useEstimates(companyId: string | undefined) {
           event: '*', 
           schema: 'public', 
           table: 'estimates',
+          filter: `company_id=eq.${companyId}`
+        },
+        (payload) => {
+          // Показываем уведомление при создании новой сметы другим пользователем
+          if (payload.eventType === 'INSERT') {
+            const newEstimate = payload.new as Estimate;
+            // Не показываем уведомление для своих смет
+            if (newEstimate.creator_name) {
+              toast.info('Новая смета создана', { 
+                description: `${newEstimate.event_name} — ${newEstimate.creator_name}` 
+              });
+            }
+          }
+          fetchEstimates();
+        }
+      )
+      .on('postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'estimate_items',
           filter: `company_id=eq.${companyId}`
         },
         () => fetchEstimates()

@@ -1005,6 +1005,8 @@ export function EstimateBuilder({
                                       <div className="flex items-center gap-1">
                                         <Input
                                           type="number"
+                                          inputMode="decimal"
+                                          pattern="[0-9]*"
                                           value={item.quantity}
                                           onChange={(e) => {
                                             const val = e.target.value === '' ? '' : parseInt(e.target.value);
@@ -1012,12 +1014,16 @@ export function EstimateBuilder({
                                               handleUpdateItem(item.id, { quantity: val === '' ? 1 : Math.max(1, val) });
                                             }
                                           }}
+                                          onFocus={(e) => e.target.select()}
                                           className="w-14 h-8 text-sm text-center"
                                           min={1}
+                                          step={1}
                                         />
                                         <span className="text-xs text-gray-400">×</span>
                                         <Input
                                           type="number"
+                                          inputMode="decimal"
+                                          pattern="[0-9.]*"
                                           value={item.coefficient || 1}
                                           onChange={(e) => {
                                             const val = e.target.value === '' ? '' : parseFloat(e.target.value);
@@ -1025,8 +1031,9 @@ export function EstimateBuilder({
                                               handleUpdateItem(item.id, { coefficient: val === '' ? 1 : Math.max(0.1, val) });
                                             }
                                           }}
+                                          onFocus={(e) => e.target.select()}
                                           className="w-14 h-8 text-sm text-center"
-                                          step={0.1}
+                                          step={0.5}
                                           min={0.1}
                                         />
                                       </div>
@@ -1034,6 +1041,8 @@ export function EstimateBuilder({
                                       <div className="flex-1 text-right">
                                         <Input
                                           type="number"
+                                          inputMode="decimal"
+                                          pattern="[0-9]*"
                                           value={Math.round(itemTotal)}
                                           onChange={(e) => {
                                             const val = parseFloat(e.target.value);
@@ -1041,8 +1050,10 @@ export function EstimateBuilder({
                                               handleUpdateTotal(item.id, val);
                                             }
                                           }}
+                                          onFocus={(e) => e.target.select()}
                                           className="w-20 h-8 text-sm text-right font-medium inline-block"
                                           min={0}
+                                          step={100}
                                         />
                                         <span className="text-xs text-gray-500 ml-1">₽</span>
                                       </div>
@@ -1337,6 +1348,8 @@ export function EstimateBuilder({
                                     <div className="flex items-center gap-1 shrink-0">
                                       <Input
                                         type="number"
+                                        inputMode="decimal"
+                                        pattern="[0-9]*"
                                         value={item.quantity}
                                         onChange={(e) => {
                                           const val = e.target.value === '' ? '' : parseInt(e.target.value);
@@ -1344,12 +1357,16 @@ export function EstimateBuilder({
                                             handleUpdateItem(item.id, { quantity: val === '' ? 1 : Math.max(1, val) });
                                           }
                                         }}
+                                        onFocus={(e) => e.target.select()}
                                         className="w-14 h-8 text-sm text-center"
                                         min={1}
+                                        step={1}
                                       />
                                       
                                       <Input
                                         type="number"
+                                        inputMode="decimal"
+                                        pattern="[0-9.]*"
                                         value={item.coefficient || 1}
                                         onChange={(e) => {
                                           const val = e.target.value === '' ? '' : parseFloat(e.target.value);
@@ -1357,13 +1374,16 @@ export function EstimateBuilder({
                                             handleUpdateItem(item.id, { coefficient: val === '' ? 1 : Math.max(0.1, val) });
                                           }
                                         }}
+                                        onFocus={(e) => e.target.select()}
                                         className="w-14 h-8 text-sm text-center"
-                                        step={0.1}
+                                        step={0.5}
                                         min={0.1}
                                       />
                                       
                                       <Input
                                         type="number"
+                                        inputMode="decimal"
+                                        pattern="[0-9]*"
                                         value={Math.round(itemTotal)}
                                         onChange={(e) => {
                                           const val = parseFloat(e.target.value);
@@ -1371,8 +1391,10 @@ export function EstimateBuilder({
                                             handleUpdateTotal(item.id, val);
                                           }
                                         }}
+                                        onFocus={(e) => e.target.select()}
                                         className="w-20 h-8 text-sm text-right font-medium"
                                         min={0}
+                                        step={100}
                                       />
                                       
                                       <Button
