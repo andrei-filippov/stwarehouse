@@ -300,17 +300,18 @@ export function useCompany() {
     }
   }, [company, loadMembers]);
 
-  // Обновление роли сотрудника
+  // Обновление роли сотрудника через RPC
   const updateMemberRole = useCallback(async (memberId: string, role: CompanyRole) => {
     try {
       if (!company) throw new Error('Компания не выбрана');
 
-      const { error } = await supabase
-        .from('company_members')
-        .update({ role })
-        .eq('id', memberId);
+      const { data, error } = await supabase.rpc('update_company_member_role', {
+        p_member_id: memberId,
+        p_role: role
+      });
 
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       await loadMembers(company.id);
       return { error: null };
