@@ -1,6 +1,10 @@
 // Service Worker для оффлайн-режима
-const CACHE_NAME = 'stwarehouse-v4';
-const STATIC_ASSETS = [
+const CACHE_NAME = 'stwarehouse-v5';
+const STATIC_CACHE = 'stwarehouse-static-v5';
+const ASSETS_CACHE = 'stwarehouse-assets-v5';
+
+// Критические ресурсы для кэширования при установке
+const PRECACHE_URLS = [
   '/',
   '/index.html',
   '/manifest.json',
@@ -9,11 +13,11 @@ const STATIC_ASSETS = [
   '/favicon.ico'
 ];
 
-// При установке кэшируем статические ресурсы
+// При установке кэшируем критические ресурсы
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS);
+    caches.open(STATIC_CACHE).then((cache) => {
+      return cache.addAll(PRECACHE_URLS);
     }).then(() => {
       return self.skipWaiting();
     })
@@ -26,7 +30,7 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames
-          .filter((name) => name !== CACHE_NAME)
+          .filter((name) => !name.includes(CACHE_NAME) && !name.includes(STATIC_CACHE) && !name.includes(ASSETS_CACHE))
           .map((name) => caches.delete(name))
       );
     }).then(() => {
@@ -35,11 +39,17 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Проверяем, является ли запрос навигационным (для SPA)
+// Проверяем, является ли запрос навигационным
 function isNavigationRequest(request) {
   return request.mode === 'navigate' || 
          (request.method === 'GET' && 
           request.headers.get('accept')?.includes('text/html'));
+}
+
+// Проверяем, является ли запрос asset'ом Vite
+function isViteAsset(url) {
+  return url.pathname.startsWith('/assets/') ||
+         url.pathname.match(/\.(js|css|woff2?|png|jpg|jpeg|gif|svg|ico)$/);
 }
 
 // Перехват запросов
@@ -47,7 +57,7 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
   
-  // 1. API запросы к Supabase — пропускаем (не кэшируем)
+  // 1. API запросы к Supabase — пропускаем
   if (url.hostname.includes('supabase.co')) {
     event.respondWith(
       fetch(request).catch(() => {
@@ -64,73 +74,75 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   
-  // 2. Навигационные запросы (HTML страницы) — всегда отдаём index.html для SPA
+  // 2. Навигационные запросы (HTML) — Stale While Revalidate
   if (isNavigationRequest(request)) {
     event.respondWith(
       caches.match('/index.html').then((cached) => {
-        // Если есть в кэше — отдаём, иначе запрашиваем с сети
+        const fetchPromise = fetch(request).then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseClone = networkResponse.clone();
+            caches.open(STATIC_CACHE).then((cache) => {
+              cache.put('/index.html', responseClone);
+            });
+          }
+          return networkResponse;
+        }).catch(() => {
+          // Нет сети — возвращаем кэш или ошибку
+          return cached || new Response('Offline - no cached page', { status: 503 });
+        });
+        
+        // Возвращаем кэш сразу, параллельно обновляем
+        return cached || fetchPromise;
+      })
+    );
+    return;
+  }
+  
+  // 3. Assets Vite (JS, CSS, шрифты, иконки) — Cache First
+  if (isViteAsset(url)) {
+    event.respondWith(
+      caches.match(request).then((cached) => {
         if (cached) {
-          // Параллельно обновляем кэш
-          fetch(request).then((response) => {
-            if (response && response.status === 200) {
-              caches.open(CACHE_NAME).then((cache) => {
-                cache.put('/index.html', response);
+          // Есть в кэше — возвращаем, но параллельно обновляем
+          fetch(request).then((networkResponse) => {
+            if (networkResponse && networkResponse.status === 200) {
+              const responseClone = networkResponse.clone();
+              caches.open(ASSETS_CACHE).then((cache) => {
+                cache.put(request, responseClone);
               });
             }
           }).catch(() => {});
           return cached;
         }
         
-        // Нет в кэше — пробуем сеть
-        return fetch(request).then((response) => {
-          if (response && response.status === 200) {
-            const responseClone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put('/index.html', responseClone);
-            });
-          }
-          return response;
-        }).catch(() => {
-          return new Response('Network error - app not cached', { status: 408 });
-        });
-      })
-    );
-    return;
-  }
-  
-  // 3. Статические ресурсы Vite (JS/CSS с hash) — Cache First с ограниченным временем жизни
-  if (
-    request.destination === 'script' ||
-    request.destination === 'style' ||
-    request.destination === 'image' ||
-    request.destination === 'font' ||
-    url.pathname.match(/\.(js|css|png|jpg|jpeg|gif|svg|woff|woff2|ttf|otf)$/)
-  ) {
-    event.respondWith(
-      caches.match(request).then((response) => {
-        if (response) {
-          return response;
-        }
-        
-        return fetch(request).then((fetchResponse) => {
-          if (fetchResponse && fetchResponse.status === 200) {
-            const responseClone = fetchResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
+        // Нет в кэше — загружаем и кэшируем
+        return fetch(request).then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseClone = networkResponse.clone();
+            caches.open(ASSETS_CACHE).then((cache) => {
               cache.put(request, responseClone);
             });
           }
-          return fetchResponse;
+          return networkResponse;
         }).catch(() => {
-          return new Response('Resource not available offline', { status: 408 });
+          return new Response('Asset not available offline', { status: 408 });
         });
       })
     );
     return;
   }
   
-  // 4. Остальные запросы — Network First
+  // 4. Остальные запросы — Network First с fallback к кэшу
   event.respondWith(
-    fetch(request).catch(() => {
+    fetch(request).then((response) => {
+      if (response && response.status === 200) {
+        const responseClone = response.clone();
+        caches.open(ASSETS_CACHE).then((cache) => {
+          cache.put(request, responseClone);
+        });
+      }
+      return response;
+    }).catch(() => {
       return caches.match(request);
     })
   );
@@ -143,6 +155,18 @@ self.addEventListener('message', (event) => {
   }
   
   if (event.data === 'CHECK_VERSION') {
-    event.ports[0]?.postMessage({ version: CACHE_NAME });
+    event.ports[0]?.postMessage({ 
+      version: CACHE_NAME,
+      static: STATIC_CACHE,
+      assets: ASSETS_CACHE
+    });
+  }
+  
+  if (event.data === 'CLEAR_CACHES') {
+    caches.keys().then((names) => {
+      return Promise.all(names.map((name) => caches.delete(name)));
+    }).then(() => {
+      event.ports[0]?.postMessage({ cleared: true });
+    });
   }
 });

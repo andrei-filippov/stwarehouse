@@ -30,6 +30,7 @@ import { Spinner } from './components/ui/spinner';
 
 import { useEquipment } from './hooks/useEquipment';
 import { useEstimates } from './hooks/useEstimates';
+import { useServiceWorker } from './hooks/useServiceWorker';
 import { useTemplates } from './hooks/useTemplates';
 import { useChecklists } from './hooks/useChecklists';
 import { useStaff } from './hooks/useStaff';
@@ -60,6 +61,9 @@ type Tab = TabId;
 
 // Основной компонент приложения
 function App() {
+  // Инициализируем Service Worker
+  useServiceWorker();
+  
   const { user, profile, permissions, loading: authLoading, signIn, signUp, signOut } = useAuth();
 
   if (authLoading) {

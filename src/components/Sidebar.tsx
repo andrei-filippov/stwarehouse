@@ -29,6 +29,7 @@ import {
 import { Button } from './ui/button';
 import type { TabId } from '../lib/permissions';
 import { useCompanyContext } from '../contexts/CompanyContext';
+import { OfflineIndicator } from './OfflineIndicator';
 
 interface SidebarProps {
   activeTab: TabId;
@@ -172,6 +173,11 @@ export function Sidebar(props: SidebarProps) {
             </DropdownMenuContent>
           </DropdownMenu>
         )}
+        
+        {/* Offline Status */}
+        <div className={`${collapsed ? 'flex justify-center' : 'px-3'}`}>
+          <OfflineIndicator />
+        </div>
         
         {!collapsed && userName && (
           <div className="px-3 py-2">
