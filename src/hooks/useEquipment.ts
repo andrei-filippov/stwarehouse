@@ -59,17 +59,24 @@ export function useEquipment(companyId: string | undefined) {
 
     try {
       if (isOnline()) {
-        // Онлайн — сохраняем на сервер
-        const { error } = await supabase
-          .from('equipment')
-          .insert({ ...item, company_id: companyId });
+        try {
+          // Онлайн — сохраняем на сервер
+          const { error } = await supabase
+            .from('equipment')
+            .insert({ ...item, company_id: companyId });
 
-        if (error) throw error;
+          if (error) throw error;
 
-        await fetchEquipment();
-        toast.success('Оборудование добавлено');
-        return { error: null };
-      } else {
+          await fetchEquipment();
+          toast.success('Оборудование добавлено');
+          return { error: null };
+        } catch (err) {
+          // При ошибке сети (503) переходим в оффлайн-режим
+          console.log('Network error, switching to offline mode:', err);
+        }
+      }
+      
+      // ОФФЛАЙН режим (или fallback при ошибке)
         // ОФФЛАЙН — сохраняем только локально
         const localId = `local_equip_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
         const newItem = { 
@@ -89,7 +96,6 @@ export function useEquipment(companyId: string | undefined) {
           description: 'Будет синхронизировано при подключении' 
         });
         return { error: null, queued: true };
-      }
     } catch (err: any) {
       toast.error('Ошибка при добавлении оборудования', { description: err.message });
       return { error: err };
