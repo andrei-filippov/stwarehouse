@@ -1126,36 +1126,40 @@ export function EstimateBuilder({
                                       
                                       <span className="text-xs text-gray-400">×</span>
                                       
-                                      {/* Коэффициент - кнопки быстрого выбора */}
-                                      <div className="flex items-center gap-0.5">
-                                        {[0.5, 1, 1.5, 2, 3].map((coef) => (
-                                          <button
-                                            key={coef}
-                                            onClick={() => handleUpdateItem(item.id, { coefficient: coef })}
-                                            className={cn(
-                                              "px-2 h-7 text-xs font-medium rounded transition-colors",
-                                              (item.coefficient || 1) === coef
-                                                ? "bg-blue-600 text-white"
-                                                : "bg-gray-100 text-gray-600 active:bg-gray-200"
-                                            )}
-                                          >
-                                            {coef}
-                                          </button>
-                                        ))}
-                                        {/* Поле для произвольного коэффициента */}
+                                      {/* Коэффициент с кнопками +/- шаг 0.1 */}
+                                      <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
+                                        <button
+                                          onClick={() => {
+                                            const current = item.coefficient || 1;
+                                            const newVal = Math.max(0, Math.round((current - 0.1) * 10) / 10);
+                                            handleUpdateItem(item.id, { coefficient: newVal });
+                                          }}
+                                          className="w-8 h-8 flex items-center justify-center bg-white rounded-md shadow-sm text-gray-600 active:bg-gray-50"
+                                        >
+                                          −
+                                        </button>
                                         <input
                                           type="tel"
-                                          value={(item.coefficient || 1) <= 0 || ![0.5, 1, 1.5, 2, 3].includes(item.coefficient || 1) ? (item.coefficient || 1) : ''}
-                                          placeholder="..."
+                                          value={item.coefficient || 1}
                                           onChange={(e) => {
                                             const val = e.target.value.replace(/[^0-9.]/g, '');
-                                            const num = val === '' ? 1 : parseFloat(val);
-                                            if (!isNaN(num)) {
+                                            const num = val === '' ? 0 : parseFloat(val);
+                                            if (!isNaN(num) && num >= 0) {
                                               handleUpdateItem(item.id, { coefficient: num });
                                             }
                                           }}
-                                          className="w-10 h-7 text-center text-xs bg-gray-100 rounded ml-0.5 outline-none focus:ring-1 focus:ring-blue-500"
+                                          className="w-12 h-8 text-center bg-transparent text-sm font-medium outline-none"
                                         />
+                                        <button
+                                          onClick={() => {
+                                            const current = item.coefficient || 1;
+                                            const newVal = Math.round((current + 0.1) * 10) / 10;
+                                            handleUpdateItem(item.id, { coefficient: newVal });
+                                          }}
+                                          className="w-8 h-8 flex items-center justify-center bg-white rounded-md shadow-sm text-gray-600 active:bg-gray-50"
+                                        >
+                                          +
+                                        </button>
                                       </div>
                                       
                                       <div className="flex-1 text-right flex items-center justify-end gap-1">
