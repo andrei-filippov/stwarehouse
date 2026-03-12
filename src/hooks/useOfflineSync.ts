@@ -123,6 +123,22 @@ export function useOfflineSync(companyId: string | undefined) {
                 }
               }
               break;
+              
+            case 'equipment':
+              if (item.operation === 'create') {
+                const { id, company_id, created_at, ...data } = item.data;
+                // Генерируем новый UUID для сервера
+                result = await supabase.from('equipment').insert({
+                  ...data,
+                  company_id: companyId
+                });
+              } else if (item.operation === 'update') {
+                const { id, ...data } = item.data;
+                result = await supabase.from('equipment').update(data).eq('id', id);
+              } else if (item.operation === 'delete') {
+                result = await supabase.from('equipment').delete().eq('id', item.data.id);
+              }
+              break;
           }
 
           if (result && result.error) {

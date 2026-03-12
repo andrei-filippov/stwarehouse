@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
 import type { Equipment, Category } from '../types';
+import { isOnline, addToSyncQueue, saveEquipmentLocal, getEquipmentLocal, clearEquipmentLocal } from '../lib/offlineDB';
 
 export function useEquipment(companyId: string | undefined) {
   const [equipment, setEquipment] = useState<Equipment[]>([]);
@@ -12,17 +13,36 @@ export function useEquipment(companyId: string | undefined) {
     if (!companyId) return;
     setLoading(true);
     
-    const { data, error } = await supabase
-      .from('equipment')
-      .select('*')
-      .eq('company_id', companyId)
-      .order('name');
-    
-    if (error) {
-      toast.error('Ошибка при загрузке оборудования', { description: error.message });
+    // Если онлайн — загружаем с сервера и кэшируем
+    if (isOnline()) {
+      const { data, error } = await supabase
+        .from('equipment')
+        .select('*')
+        .eq('company_id', companyId)
+        .order('name');
+      
+      if (error) {
+        toast.error('Ошибка при загрузке оборудования', { description: error.message });
+        // Пробуем загрузить из кэша при ошибке
+        const cached = await getEquipmentLocal(companyId);
+        if (cached.length > 0) {
+          setEquipment(cached);
+          toast.info('Загружены данные из кэша');
+        }
+      } else {
+        setEquipment(data || []);
+        // Обновляем кэш
+        await clearEquipmentLocal(companyId);
+        for (const item of (data || [])) {
+          await saveEquipmentLocal(item, companyId);
+        }
+      }
     } else {
-      setEquipment(data || []);
+      // Оффлайн — загружаем из кэша
+      const cached = await getEquipmentLocal(companyId);
+      setEquipment(cached);
     }
+    
     setLoading(false);
   }, [companyId]);
 
@@ -77,19 +97,41 @@ export function useEquipment(companyId: string | undefined) {
   const addEquipment = useCallback(async (item: Partial<Equipment>) => {
     if (!companyId) return { error: new Error('No company selected') };
     
-    try {
-      const { error } = await supabase
-        .from('equipment')
-        .insert({ ...item, company_id: companyId });
+    const newItem: Equipment = {
+      id: `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      ...item as Equipment,
+      company_id: companyId,
+      created_at: new Date().toISOString(),
+    };
+    
+    // Если онлайн — сохраняем на сервер
+    if (isOnline()) {
+      try {
+        const { error } = await supabase
+          .from('equipment')
+          .insert({ ...item, company_id: companyId });
 
-      if (error) throw error;
+        if (error) throw error;
 
-      await fetchEquipment();
-      toast.success('Оборудование добавлено');
-      return { error: null };
-    } catch (err: any) {
-      toast.error('Ошибка при добавлении', { description: err.message });
-      return { error: err };
+        await fetchEquipment();
+        toast.success('Оборудование добавлено');
+        return { error: null, data: newItem };
+      } catch (err: any) {
+        toast.error('Ошибка при добавлении', { description: err.message });
+        return { error: err };
+      }
+    } else {
+      // Оффлайн — сохраняем локально и в очередь
+      await saveEquipmentLocal(newItem, companyId);
+      await addToSyncQueue('equipment', 'create', { ...newItem, company_id: companyId });
+      
+      // Обновляем UI
+      setEquipment(prev => [...prev, newItem]);
+      
+      toast.success('Оборудование сохранено (офлайн)', {
+        description: 'Будет синхронизировано при подключении'
+      });
+      return { error: null, data: newItem, queued: true };
     }
   }, [companyId, fetchEquipment]);
 
