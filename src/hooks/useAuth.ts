@@ -113,22 +113,13 @@ export function useAuth() {
 
   const signUp = async (email: string, password: string, name: string) => {
     try {
-      const { data, error } = await supabase.auth.signUp({ 
+      const { error } = await supabase.auth.signUp({ 
         email, 
         password,
         options: {
-          data: { name }
+          data: { name } // Profile will be created by database trigger
         }
       });
-      
-      if (!error && data.user) {
-        // Создаем профиль
-        await supabase.from('profiles').insert({
-          id: data.user.id,
-          name,
-          role: 'manager'
-        });
-      }
       
       return { error };
     } catch (err) {
