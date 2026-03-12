@@ -44,7 +44,7 @@ export function useEquipment(companyId: string | undefined) {
         .from('categories')
         .select('*')
         .eq('company_id', companyId)
-        .order('order_index');
+        .order('created_at');
 
       if (error) {
         toast.error('Ошибка при загрузке категорий', { description: error.message });
@@ -181,11 +181,9 @@ export function useEquipment(companyId: string | undefined) {
     }
 
     try {
-      const maxOrder = categories.reduce((max, c) => Math.max(max, c.order_index || 0), 0);
-      
       const { error } = await supabase
         .from('categories')
-        .insert({ name, company_id: companyId, order_index: maxOrder + 1 });
+        .insert({ name, company_id: companyId });
 
       if (error) throw error;
 
@@ -196,7 +194,7 @@ export function useEquipment(companyId: string | undefined) {
       toast.error('Ошибка при добавлении категории', { description: err.message });
       return { error: err };
     }
-  }, [companyId, categories, fetchCategories]);
+  }, [companyId, fetchCategories]);
 
   const updateCategory = useCallback(async (id: string, name: string) => {
     if (!companyId) return { error: new Error('No company') };
@@ -250,32 +248,13 @@ export function useEquipment(companyId: string | undefined) {
     }
   }, [companyId, fetchCategories]);
 
-  const reorderCategories = useCallback(async (newOrder: string[]) => {
+  const reorderCategories = useCallback(async (_newOrder: string[]) => {
     if (!companyId) return { error: new Error('No company') };
     
-    if (!isOnline()) {
-      toast.error('Изменение порядка недоступно офлайн');
-      return { error: new Error('Offline') };
-    }
-
-    try {
-      const updates = newOrder.map((id, index) =>
-        supabase
-          .from('categories')
-          .update({ order_index: index })
-          .eq('id', id)
-          .eq('company_id', companyId)
-      );
-
-      await Promise.all(updates);
-
-      await fetchCategories();
-      return { error: null };
-    } catch (err: any) {
-      toast.error('Ошибка при изменении порядка', { description: err.message });
-      return { error: err };
-    }
-  }, [companyId, fetchCategories]);
+    // Функция отключена - нет поля order_index в БД
+    toast.info('Изменение порядка категорий временно недоступно');
+    return { error: null };
+  }, [companyId]);
 
   // Отслеживание сети
   useEffect(() => {
