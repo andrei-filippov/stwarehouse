@@ -8,22 +8,34 @@ interface OfflineIndicatorProps {
 }
 
 export function OfflineIndicator({ companyId }: OfflineIndicatorProps = {}) {
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isOnline, setIsOnline] = useState(false); // Начинаем с false, потом проверим
   const [needRefresh, setNeedRefresh] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Проверяем реальное соединение
+  // Проверяем реальное соединение с Supabase
   const checkConnection = useCallback(async () => {
     try {
       const { supabase } = await import('../lib/supabase');
-      const { error } = await supabase.from('estimates').select('id').limit(1);
-      const isConnected = !error || error.code !== 'NETWORK_ERROR';
+      // Короткий таймаут для проверки
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      
+      const { error } = await supabase
+        .from('estimates')
+        .select('id', { count: 'exact', head: true })
+        .abortSignal(controller.signal);
+        
+      clearTimeout(timeoutId);
+      
+      const isConnected = !error;
+      console.log('[OfflineIndicator] Connection check:', isConnected, error?.message || '');
       setIsOnline(isConnected);
       return isConnected;
-    } catch (e) {
+    } catch (e: any) {
+      console.log('[OfflineIndicator] Connection check failed:', e?.message || e);
       setIsOnline(false);
       return false;
     }
@@ -31,15 +43,13 @@ export function OfflineIndicator({ companyId }: OfflineIndicatorProps = {}) {
 
   // Загружаем количество несинхронизированных данных
   const checkPending = useCallback(async () => {
-    if ('indexedDB' in window && companyId) {
-      try {
-        const db = await openDB('stwarehouse-offline', 2);
-        const count = await db.count('syncQueue');
-        setPendingCount(count);
-        console.log('[OfflineIndicator] Pending items:', count);
-      } catch (e) {
-        console.log('[OfflineIndicator] Error checking pending:', e);
-      }
+    if (!companyId) return;
+    try {
+      const db = await openDB('stwarehouse-offline', 2);
+      const count = await db.count('syncQueue');
+      setPendingCount(count);
+    } catch (e) {
+      // ignore
     }
   }, [companyId]);
 
@@ -47,7 +57,12 @@ export function OfflineIndicator({ companyId }: OfflineIndicatorProps = {}) {
   const handleSync = useCallback(async () => {
     if (!companyId || isSyncing) return;
     
-    console.log('[OfflineIndicator] Manual sync started');
+    const isConnected = await checkConnection();
+    if (!isConnected) {
+      toast.error('Нет подключения к серверу');
+      return;
+    }
+    
     setIsSyncing(true);
     
     try {
@@ -121,32 +136,38 @@ export function OfflineIndicator({ companyId }: OfflineIndicatorProps = {}) {
     } finally {
       setIsSyncing(false);
     }
-  }, [companyId, isSyncing, checkPending]);
+  }, [companyId, isSyncing, checkConnection, checkPending]);
 
-  // Слушаем события сети
+  // Проверка при монтировании и периодически
   useEffect(() => {
-    const handleOnline = async () => {
-      console.log('[OfflineIndicator] Online event');
-      const isConnected = await checkConnection();
-      if (isConnected) {
-        toast.success('Подключение восстановлено');
-        if (companyId) {
-          handleSync();
-        }
-      }
+    // Начальная проверка
+    checkConnection();
+    checkPending();
+    
+    // Периодическая проверка каждые 5 секунд
+    const interval = setInterval(() => {
+      checkConnection();
+      checkPending();
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [checkConnection, checkPending]);
+
+  // Слушаем события браузера online/offline
+  useEffect(() => {
+    const handleBrowserOnline = () => {
+      console.log('[OfflineIndicator] Browser online event');
+      // Перепроверяем реальное соединение
+      setTimeout(checkConnection, 500);
     };
     
-    const handleOffline = () => {
-      console.log('[OfflineIndicator] Offline event');
+    const handleBrowserOffline = () => {
+      console.log('[OfflineIndicator] Browser offline event');
       setIsOnline(false);
-      toast.warning('Нет подключения к интернету');
     };
 
-    const interval = setInterval(checkConnection, 10000);
-    const pendingInterval = setInterval(checkPending, 3000);
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
+    window.addEventListener('online', handleBrowserOnline);
+    window.addEventListener('offline', handleBrowserOffline);
 
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -154,17 +175,13 @@ export function OfflineIndicator({ companyId }: OfflineIndicatorProps = {}) {
       });
     }
 
-    checkConnection();
-    checkPending();
-
     return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-      clearInterval(interval);
-      clearInterval(pendingInterval);
+      window.removeEventListener('online', handleBrowserOnline);
+      window.removeEventListener('offline', handleBrowserOffline);
     };
-  }, [companyId, checkConnection, checkPending, handleSync]);
+  }, [checkConnection]);
 
+  // Закрытие при клике вне
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
@@ -235,16 +252,16 @@ export function OfflineIndicator({ companyId }: OfflineIndicatorProps = {}) {
           
           <div className="space-y-2 text-sm">
             <div className="flex items-center justify-between">
-              <span className="text-gray-600">Сеть:</span>
+              <span className="text-gray-600">Сервер:</span>
               <span className={isOnline ? 'text-green-600' : 'text-red-600'}>
-                {isOnline ? 'Подключена' : 'Отключена'}
+                {isOnline ? 'Доступен' : 'Недоступен'}
               </span>
             </div>
             
             <div className="flex items-center justify-between">
-              <span className="text-gray-600">Service Worker:</span>
-              <span className={'text-blue-600'}>
-                {'serviceWorker' in navigator ? 'Активен' : 'Не поддерживается'}
+              <span className="text-gray-600">Браузер online:</span>
+              <span className={navigator.onLine ? 'text-green-600' : 'text-red-600'}>
+                {navigator.onLine ? 'Да' : 'Нет'}
               </span>
             </div>
             
@@ -266,6 +283,12 @@ export function OfflineIndicator({ companyId }: OfflineIndicatorProps = {}) {
                 <Upload className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
                 {isSyncing ? 'Синхронизация...' : `Синхронизировать (${pendingCount})`}
               </button>
+            )}
+            
+            {!isOnline && pendingCount > 0 && (
+              <div className="text-xs text-gray-500 text-center">
+                Подключите интернет для синхронизации
+              </div>
             )}
             
             {needRefresh && (
