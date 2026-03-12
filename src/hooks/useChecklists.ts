@@ -25,21 +25,25 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
     
     if (isOnline()) {
       // ОНЛАЙН: загружаем с сервера и мержим с локальными
-      const { data, error } = await supabase
-        .from('checklists')
-        .select('*')
-        .eq('company_id', companyId)
-        .order('created_at', { ascending: false });
-      
-      if (error) {
-        toast.error('Ошибка при загрузке чек-листов', { description: error.message });
-        setChecklists(localChecklists);
-      } else {
+      try {
+        const { data, error } = await supabase
+          .from('checklists')
+          .select('*')
+          .eq('company_id', companyId)
+          .order('created_at', { ascending: false });
+        
+        if (error) {
+          throw error;
+        }
         // Мержим: серверные + локальные которых нет на сервере
         const serverIds = new Set((data || []).map(c => c.id));
         const unsyncedLocal = localChecklists.filter(c => !serverIds.has(c.id));
         
         setChecklists([...unsyncedLocal, ...(data || [])]);
+      } catch (err) {
+        // Ошибка сети - показываем только локальные
+        console.log('Network error, showing local data:', err);
+        setChecklists(localChecklists);
       }
     } else {
       // ОФФЛАЙН: показываем только локальные чек-листы

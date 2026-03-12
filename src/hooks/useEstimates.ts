@@ -31,26 +31,30 @@ export function useEstimates(companyId: string | undefined) {
     
     if (isOnline()) {
       // ОНЛАЙН: загружаем с сервера и мержим с локальными
-      const { data, error } = await supabase
-        .from('estimates')
-        .select(`
-          *,
-          items:estimate_items(*)
-        `)
-        .eq('company_id', companyId)
-        .order('created_at', { ascending: false });
-      
-      if (error) {
-        toast.error('Ошибка при загрузке смет', { description: error.message });
-        // При ошибке показываем только локальные
-        setEstimates(localOnly);
-      } else {
+      try {
+        const { data, error } = await supabase
+          .from('estimates')
+          .select(`
+            *,
+            items:estimate_items(*)
+          `)
+          .eq('company_id', companyId)
+          .order('created_at', { ascending: false });
+        
+        if (error) {
+          throw error;
+        }
+        
         // Мержим: серверные + локальные которых нет на сервере
         const serverIds = new Set((data || []).map(e => e.id));
         const unsyncedLocal = localOnly.filter(e => !serverIds.has(e.id));
         
         // Сначала локальные (новые), потом серверные
         setEstimates([...unsyncedLocal, ...(data as Estimate[] || [])]);
+      } catch (err) {
+        // Ошибка сети (503 и т.д.) - показываем только локальные
+        console.log('Network error, showing local data:', err);
+        setEstimates(localOnly);
       }
     } else {
       // ОФФЛАЙН: показываем только локальные сметы

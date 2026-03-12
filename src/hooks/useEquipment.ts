@@ -18,21 +18,25 @@ export function useEquipment(companyId: string | undefined) {
 
     if (isOnline()) {
       // ОНЛАЙН: загружаем с сервера и мержим с локальными
-      const { data, error } = await supabase
-        .from('equipment')
-        .select('*')
-        .eq('company_id', companyId)
-        .order('name');
+      try {
+        const { data, error } = await supabase
+          .from('equipment')
+          .select('*')
+          .eq('company_id', companyId)
+          .order('name');
 
-      if (error) {
-        toast.error('Ошибка при загрузке оборудования', { description: error.message });
-        setEquipment(localEquipment);
-      } else {
+        if (error) {
+          throw error;
+        }
         // Мержим: серверные + локальные которых нет на сервере
         const serverIds = new Set((data || []).map(e => e.id));
         const unsyncedLocal = localEquipment.filter(e => !serverIds.has(e.id));
         
         setEquipment([...unsyncedLocal, ...(data || [])]);
+      } catch (err) {
+        // Ошибка сети - показываем только локальные
+        console.log('Network error, showing local data:', err);
+        setEquipment(localEquipment);
       }
     } else {
       // ОФФЛАЙН: показываем только локальное оборудование
@@ -46,16 +50,18 @@ export function useEquipment(companyId: string | undefined) {
     if (!companyId) return;
 
     if (isOnline()) {
-      const { data, error } = await supabase
-        .from('categories')
-        .select('*')
-        .eq('company_id', companyId)
-        .order('created_at');
+      try {
+        const { data, error } = await supabase
+          .from('categories')
+          .select('*')
+          .eq('company_id', companyId)
+          .order('created_at');
 
-      if (error) {
-        toast.error('Ошибка при загрузке категорий', { description: error.message });
-      } else {
+        if (error) throw error;
         setCategories(data || []);
+      } catch (err) {
+        // Ошибка сети - игнорируем, показываем что есть
+        console.log('Network error loading categories:', err);
       }
     }
   }, [companyId]);
