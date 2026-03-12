@@ -171,6 +171,11 @@ export async function clearEquipmentLocal(companyId: string) {
   }
 }
 
+export async function deleteEquipmentLocal(id: string) {
+  const database = await initOfflineDB();
+  await database.delete('equipment', id);
+}
+
 // === Чек-листы ===
 export async function saveChecklistLocal(checklist: any, companyId: string) {
   const database = await initOfflineDB();

@@ -8,10 +8,8 @@ import {
   getEstimatesLocal,
   deleteEstimateLocal,
   addToSyncQueue,
-  getSyncQueue,
-  clearEstimatesLocal
+  getSyncQueue
 } from '../lib/offlineDB';
-
 
 // Генерируем уникальный ID сессии для этой вкладки
 const SESSION_ID = Math.random().toString(36).substring(2, 15);
@@ -22,13 +20,13 @@ export function useEstimates(companyId: string | undefined) {
   const [isOffline, setIsOffline] = useState(!isOnline());
   const currentEditingIdRef = useRef<string | null>(null);
 
-  // Загрузка смет (онлайн + оффлайн)
+  // Загрузка смет - в онлайн с сервера, в оффлайн из кэша
   const fetchEstimates = useCallback(async () => {
     if (!companyId) return;
     setLoading(true);
     
     if (isOnline()) {
-      // Онлайн режим - загружаем с сервера
+      // ОНЛАЙН: загружаем только с сервера
       const { data, error } = await supabase
         .from('estimates')
         .select(`
@@ -40,21 +38,12 @@ export function useEstimates(companyId: string | undefined) {
       
       if (error) {
         toast.error('Ошибка при загрузке смет', { description: error.message });
-        // Пробуем загрузить из кэша только локальные записи
-        const localEstimates = await getEstimatesLocal(companyId);
-        // Фильтруем только несинхронизированные (local_)
-        const unsynced = localEstimates.filter(e => e.data.id?.startsWith('local_'));
-        setEstimates(unsynced.map(e => e.data));
-      } else if (data) {
-        // Полностью очищаем кэш и сохраняем свежие данные с сервера
-        await clearEstimatesLocal(companyId);
-        for (const estimate of data) {
-          await saveEstimateLocal(estimate, companyId);
-        }
-        setEstimates(data as Estimate[]);
+        setEstimates([]);
+      } else {
+        setEstimates(data as Estimate[] || []);
       }
     } else {
-      // Оффлайн режим - загружаем из локального кэша
+      // ОФФЛАЙН: показываем только локальные сметы
       const localEstimates = await getEstimatesLocal(companyId);
       setEstimates(localEstimates.map(e => e.data));
     }
@@ -181,7 +170,7 @@ export function useEstimates(companyId: string | undefined) {
         toast.success('Смета создана');
         return { error: null, data: newEstimate };
       } else {
-        // Оффлайн - сохраняем локально и в очередь синхронизации
+        // ОФФЛАЙН - сохраняем только локально и в очередь
         await saveEstimateLocal(estimateData, companyId);
         await addToSyncQueue('estimates', 'create', estimateData);
         if (items.length > 0) {
@@ -191,7 +180,7 @@ export function useEstimates(companyId: string | undefined) {
           });
         }
         
-        // Обновляем UI
+        // Обновляем UI только локальными данными
         setEstimates(prev => [estimateData as Estimate, ...prev]);
         
         toast.info('Смета сохранена офлайн', {
@@ -275,7 +264,7 @@ export function useEstimates(companyId: string | undefined) {
         toast.success('Смета обновлена');
         return { error: null };
       } else {
-        // Оффлайн или локальная смета - сохраняем локально
+        // ОФФЛАЙН или локальная смета - обновляем локально
         await saveEstimateLocal(estimateData, companyId);
         await addToSyncQueue('estimates', isLocalId ? 'create' : 'update', estimateData);
         await addToSyncQueue('estimate_items', 'create', {
@@ -315,11 +304,9 @@ export function useEstimates(companyId: string | undefined) {
         if (error) throw error;
       } else {
         // Оффлайн или локальная смета
-        if (isLocalId) {
-          // Удаляем из локальной БД
-          await deleteEstimateLocal(id);
-        } else {
-          // Добавляем в очередь на удаление
+        await deleteEstimateLocal(id);
+        
+        if (!isLocalId) {
           await addToSyncQueue('estimates', 'delete', { id });
         }
       }
@@ -339,18 +326,16 @@ export function useEstimates(companyId: string | undefined) {
   useEffect(() => {
     const handleOnline = () => {
       setIsOffline(false);
-      toast.success('Подключение восстановлено', {
-        description: 'Работаем в онлайн-режиме'
-      });
-      // Просто перезагружаем данные, syncData вызовется из компонента выше
+      toast.success('Подключение восстановлено');
+      // Переключаемся на серверные данные
       fetchEstimates();
     };
     
     const handleOffline = () => {
       setIsOffline(true);
-      toast.warning('Нет подключения', {
-        description: 'Работаем в офлайн-режиме'
-      });
+      toast.warning('Нет подключения');
+      // Переключаемся на локальные данные
+      fetchEstimates();
     };
     
     window.addEventListener('online', handleOnline);

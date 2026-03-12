@@ -7,10 +7,8 @@ import {
   saveChecklistLocal,
   getChecklistsLocal,
   deleteChecklistLocal,
-  addToSyncQueue,
-  clearChecklistsLocal
+  addToSyncQueue
 } from '../lib/offlineDB';
-
 
 export function useChecklists(companyId: string | undefined, estimates: Estimate[]) {
   const [checklists, setChecklists] = useState<Checklist[]>([]);
@@ -23,7 +21,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
     setLoading(true);
     
     if (isOnline()) {
-      // Онлайн режим
+      // ОНЛАЙН: загружаем только с сервера
       const { data, error } = await supabase
         .from('checklists')
         .select('*')
@@ -32,23 +30,14 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
       
       if (error) {
         toast.error('Ошибка при загрузке чек-листов', { description: error.message });
-        const localChecklists = await getChecklistsLocal(companyId);
-        // Показываем только несинхронизированные
-        const unsynced = localChecklists.filter(c => c.id?.startsWith('local_'));
-        setChecklists(unsynced);
+        setChecklists([]);
       } else {
-        // Полностью очищаем кэш и сохраняем свежие данные
-        await clearChecklistsLocal(companyId);
-        for (const checklist of (data || [])) {
-          await saveChecklistLocal(checklist, companyId);
-        }
         setChecklists(data || []);
       }
     } else {
-      // Оффлайн режим - показываем только несинхронизированные
+      // ОФФЛАЙН: показываем только локальные чек-листы
       const localChecklists = await getChecklistsLocal(companyId);
-      const unsynced = localChecklists.filter(c => c.id?.startsWith('local_'));
-      setChecklists(unsynced);
+      setChecklists(localChecklists);
     }
     
     setLoading(false);
@@ -72,7 +61,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
         setRules(data || []);
       }
     }
-    // Правила не кэшируем оффлайн - они менее критичны
+    // Правила не кэшируем оффлайн
   }, [companyId]);
 
   const createRule = useCallback(async (rule: Partial<ChecklistRule>) => {
@@ -209,11 +198,11 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
         toast.success('Чек-лист создан');
         return { error: null, data: data?.[0] };
       } else {
-        // Оффлайн - сохраняем локально
+        // ОФФЛАЙН - сохраняем только локально
         await saveChecklistLocal(checklistData, companyId);
         await addToSyncQueue('checklists', 'create', checklistData);
         
-        // Обновляем UI
+        // Обновляем UI только локальными данными
         setChecklists(prev => [checklistData as Checklist, ...prev]);
         
         toast.info('Чек-лист сохранён офлайн', {
@@ -312,12 +301,17 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
   useEffect(() => {
     const handleOnline = () => {
       setIsOffline(false);
+      toast.success('Подключение восстановлено');
+      // Переключаемся на серверные данные
       fetchChecklists();
       fetchRules();
     };
     
     const handleOffline = () => {
       setIsOffline(true);
+      toast.warning('Нет подключения');
+      // Переключаемся на локальные данные
+      fetchChecklists();
     };
     
     window.addEventListener('online', handleOnline);

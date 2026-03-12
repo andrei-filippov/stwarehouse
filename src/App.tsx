@@ -209,7 +209,7 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
   const userRole = (myRole || profile?.role || 'manager') as UserRole;
 
   // Хуки с companyId
-  const { equipment, categories, loading: equipmentLoading, addEquipment, updateEquipment, deleteEquipment, bulkInsert, addCategory, deleteCategory } = useEquipment(companyId);
+  const { equipment, categories, loading: equipmentLoading, addEquipment, updateEquipment, deleteEquipment, bulkInsert, addCategory, deleteCategory, refresh: refreshEquipment } = useEquipment(companyId);
   const { estimates, loading: estimatesLoading, createEstimate, updateEstimate, deleteEstimate, startEditing, stopEditing, refresh: refreshEstimates } = useEstimates(companyId);
   const { templates, loading: templatesLoading, createTemplate, updateTemplate, deleteTemplate } = useTemplates(companyId);
   const { checklists, rules, loading: checklistsLoading, createRule, deleteRule, createChecklist, updateChecklistItem, deleteChecklist, refresh: refreshChecklists } = useChecklists(companyId, estimates);
@@ -227,8 +227,9 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
       wasSyncing.current = false;
       refreshEstimates();
       refreshChecklists();
+      refreshEquipment();
     }
-  }, [isSyncing, companyId, refreshEstimates, refreshChecklists]);
+  }, [isSyncing, companyId, refreshEstimates, refreshChecklists, refreshEquipment]);
   const { staff, loading: staffLoading, addStaff, updateStaff, deleteStaff } = useStaff(companyId);
   const { tasks, loading: goalsLoading, addTask, updateTask, deleteTask } = useGoals(companyId);
   const { customers, loading: customersLoading, error: customersError, addCustomer, updateCustomer, deleteCustomer } = useCustomers(companyId);
