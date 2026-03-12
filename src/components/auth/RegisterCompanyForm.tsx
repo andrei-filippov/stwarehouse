@@ -7,6 +7,7 @@ import { Building2, Mail, Lock, User } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { generateSlug } from '../../lib/subdomain';
 import { getCompanyPath, saveSelectedCompany } from '../../lib/companyUrl';
+import { toast } from 'sonner';
 
 interface RegisterCompanyFormProps {
   onSuccess: () => void;
@@ -58,7 +59,18 @@ export function RegisterCompanyForm({ onSuccess, onLogin }: RegisterCompanyFormP
       if (authError) throw authError;
       if (!authData.user) throw new Error('Ошибка регистрации');
 
-      // 2. Генерируем уникальный slug
+      // 2. Входим в систему чтобы получить сессию (нужно для RPC)
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password,
+      });
+      
+      if (signInError) {
+        console.error('Auto sign-in failed:', signInError);
+        throw new Error('Ошибка входа после регистрации. Попробуйте войти вручную.');
+      }
+
+      // 3. Генерируем уникальный slug
       let slug = generateSlug(formData.companyName);
       let suffix = 1;
       
@@ -76,40 +88,31 @@ export function RegisterCompanyForm({ onSuccess, onLogin }: RegisterCompanyFormP
         slug = `${generateSlug(formData.companyName)}-${suffix}`;
       }
 
-      // 3. Создаём компанию
-      const { data: company, error: companyError } = await supabase
-        .from('companies')
-        .insert({
-          slug,
-          name: formData.companyName,
-          email: formData.email,
-          plan: 'free',
-        })
-        .select()
-        .single();
+      // 4. Создаём компанию через RPC (обходит RLS)
+      const { data: companyId, error: rpcError } = await supabase.rpc('create_company_with_owner', {
+        p_name: formData.companyName,
+        p_slug: slug,
+        p_email: formData.email,
+        p_plan: 'free',
+      });
 
-      if (companyError) throw companyError;
+      if (rpcError) {
+        console.error('RPC Error:', rpcError);
+        throw new Error('Ошибка создания компании: ' + rpcError.message);
+      }
 
-      // 3. Добавляем пользователя как владельца
-      const { error: memberError } = await supabase
-        .from('company_members')
-        .insert({
-          company_id: company.id,
-          user_id: authData.user.id,
-          role: 'owner',
-          status: 'active',
-        });
+      console.log('Company created with ID:', companyId);
 
-      if (memberError) throw memberError;
-
-      // 4. Сохраняем выбранную компанию и редиректим
+      // 5. Сохраняем выбранную компанию и редиректим
       saveSelectedCompany(slug);
+      toast.success('Компания успешно создана!');
       
       // Редирект на страницу компании
       const path = getCompanyPath(slug);
       window.location.href = path;
       return;
     } catch (err) {
+      console.error('Registration error:', err);
       setError(err instanceof Error ? err.message : 'Ошибка регистрации');
     } finally {
       setLoading(false);
