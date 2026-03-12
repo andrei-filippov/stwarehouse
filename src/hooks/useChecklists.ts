@@ -183,8 +183,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
         notes: notes || null,
         category_order: estimate.category_order || null,
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        is_complete: false
+        updated_at: new Date().toISOString()
       };
       
       if (isOnline()) {
