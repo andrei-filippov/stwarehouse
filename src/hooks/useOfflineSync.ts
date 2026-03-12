@@ -127,12 +127,22 @@ export function useOfflineSync(companyId: string | undefined) {
       let errorCount = 0;
       
       console.log('[Sync] Starting sync, items:', queue.length);
+      console.log('[Sync] Queue tables:', queue.map(i => i.table));
+      
+      // Сортируем очередь: сначала estimates/equipment/checklists, потом estimate_items
+      const sortedQueue = [...queue].sort((a, b) => {
+        if (a.table === 'estimate_items' && b.table !== 'estimate_items') return 1;
+        if (a.table !== 'estimate_items' && b.table === 'estimate_items') return -1;
+        return 0;
+      });
+      
+      console.log('[Sync] Sorted queue:', sortedQueue.map(i => i.table));
       
       // Карта для отслеживания соответствия local_id -> server_id
       const idMapping: Record<string, string> = {};
 
       // Первый проход: создаём основные записи (estimates, checklists, equipment)
-      for (const item of queue) {
+      for (const item of sortedQueue) {
         if (item.retryCount > 3) {
           console.log('[Sync] Skipping item, max retries:', item.table, item.operation);
           await removeFromSyncQueue(item.id!);
@@ -231,7 +241,7 @@ export function useOfflineSync(companyId: string | undefined) {
       console.log('[Sync] Processing estimate_items, mappings:', idMapping);
       console.log('[Sync] Available mappings:', Object.keys(idMapping));
       
-      for (const item of queue) {
+      for (const item of sortedQueue) {
         if (item.table !== 'estimate_items') continue;
         if (item.retryCount > 3) {
           await removeFromSyncQueue(item.id!);
@@ -248,33 +258,13 @@ export function useOfflineSync(companyId: string | undefined) {
             // Заменяем local_id на server_id
             let serverEstimateId = idMapping[estimateId];
             
-            // Если маппинг не найден - создаём estimate из первого item
+            // Если маппинг не найден - пропускаем
             if (!serverEstimateId) {
               console.error('[Sync] No mapping found for estimate:', estimateId);
-              console.error('[Sync] Trying to create estimate from items data...');
-              
-              try {
-                // Создаём estimate с данными из items
-                const estimateData = {
-                  event_name: items?.[0]?.name ? `Смета ${items[0].name}` : 'Смета (офлайн)',
-                  event_date: new Date().toISOString().split('T')[0],
-                  company_id: companyId,
-                  user_id: (await supabase.auth.getUser()).data.user?.id,
-                  category_order: []
-                };
-                
-                const estimateResult = await supabase.from('estimates').insert(estimateData).select().single();
-                
-                if (estimateResult.error) throw estimateResult.error;
-                
-                serverEstimateId = estimateResult.data.id;
-                console.log('[Sync] Created fallback estimate:', serverEstimateId);
-              } catch (createErr) {
-                console.error('[Sync] Failed to create fallback estimate:', createErr);
-                await updateSyncQueueRetry(item.id!, item.retryCount + 1);
-                errorCount++;
-                continue;
-              }
+              console.error('[Sync] Available mappings:', Object.keys(idMapping));
+              await updateSyncQueueRetry(item.id!, item.retryCount + 1);
+              errorCount++;
+              continue;
             }
             
             console.log('[Sync] Using estimate_id:', serverEstimateId, 'items count:', items?.length);
@@ -317,6 +307,7 @@ export function useOfflineSync(companyId: string | undefined) {
 
       // Обновляем счётчик
       const remaining = await getSyncQueue();
+      console.log('[Sync] Remaining in queue:', remaining.length);
       setPendingChanges(remaining.length);
 
       if (successCount > 0) {
