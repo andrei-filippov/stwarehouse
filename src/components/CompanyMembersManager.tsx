@@ -40,7 +40,10 @@ export function CompanyMembersManager() {
     if (error) {
       toast.error('Ошибка приглашения: ' + error);
     } else {
-      toast.success('Приглашение отправлено');
+      toast.success('Приглашение отправлено!', {
+        description: `Письмо отправлено на ${inviteEmail}. Пользователь должен зарегистрироваться с этим email и подтвердить его.`,
+        duration: 8000,
+      });
       setInviteEmail('');
       setShowInviteForm(false);
     }

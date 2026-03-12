@@ -103,9 +103,14 @@ export function RegisterCompanyForm({ onSuccess, onLogin }: RegisterCompanyFormP
 
       console.log('Company created with ID:', companyId);
 
-      // 5. Сохраняем выбранную компанию и редиректим
+      // 5. Показываем уведомление о подтверждении email
+      toast.success('Компания успешно создана!', {
+        description: 'На ваш email отправлено письмо для подтверждения. Пожалуйста, проверьте почту и подтвердите email.',
+        duration: 8000,
+      });
+
+      // Сохраняем выбранную компанию и редиректим
       saveSelectedCompany(slug);
-      toast.success('Компания успешно создана!');
       
       // Редирект на страницу компании
       const path = getCompanyPath(slug);

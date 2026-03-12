@@ -4,6 +4,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Package, AlertCircle, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface AuthProps {
   onSignIn: (email: string, password: string) => Promise<{ error: any }>;
@@ -31,7 +32,16 @@ export function Auth({ onSignIn, onSignUp }: AuthProps) {
       if (error) setError(error.message || 'Ошибка входа');
     } else {
       const { error } = await onSignUp(email.trim(), password, name.trim());
-      if (error) setError(error.message || 'Ошибка регистрации');
+      if (error) {
+        setError(error.message || 'Ошибка регистрации');
+      } else {
+        toast.success('Аккаунт создан!', {
+          description: 'На ваш email отправлено письмо для подтверждения. Пожалуйста, проверьте почту и перейдите по ссылке.',
+          duration: 10000,
+        });
+        // Переключаемся на форму входа
+        setIsLogin(true);
+      }
     }
 
     setLoading(false);
