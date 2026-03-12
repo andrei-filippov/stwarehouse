@@ -144,6 +144,7 @@ export function PermissionsManager({ currentUserId }: PermissionsManagerProps) {
       case 'manager': return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'warehouse': return 'bg-amber-100 text-amber-800 border-amber-200';
       case 'accountant': return 'bg-green-100 text-green-800 border-green-200';
+      case 'viewer': return 'bg-gray-100 text-gray-800 border-gray-200';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -248,6 +249,7 @@ export function PermissionsManager({ currentUserId }: PermissionsManagerProps) {
                     <option value="manager">Менеджер</option>
                     <option value="warehouse">Кладовщик</option>
                     <option value="accountant">Бухгалтер</option>
+                    <option value="viewer">Наблюдатель</option>
                   </select>
                 </div>
               </div>

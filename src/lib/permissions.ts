@@ -2,7 +2,7 @@ import { supabase } from './supabase';
 
 // Система прав доступа (RBAC) с поддержкой кастомных разрешений
 
-export type UserRole = 'owner' | 'admin' | 'manager' | 'warehouse' | 'accountant';
+export type UserRole = 'owner' | 'admin' | 'manager' | 'warehouse' | 'accountant' | 'viewer';
 export type TabId = 'dashboard' | 'equipment' | 'estimates' | 'templates' | 'calendar' | 'checklists' | 'staff' | 'goals' | 'cables' | 'analytics' | 'customers' | 'contracts' | 'settings' | 'admin';
 
 // Разрешения по умолчанию для каждой роли
@@ -12,6 +12,7 @@ export const ROLE_TABS: Record<UserRole, TabId[]> = {
   manager: ['dashboard', 'equipment', 'estimates', 'templates', 'calendar', 'checklists', 'goals', 'cables', 'analytics', 'customers'],
   warehouse: ['dashboard', 'equipment', 'checklists', 'calendar', 'cables'],
   accountant: ['dashboard', 'estimates', 'analytics', 'customers', 'calendar'],
+  viewer: [], // Наблюдатель - нет доступа по умолчанию, только кастомные разрешения
 };
 
 export const ALL_TABS: { id: TabId; label: string }[] = [
@@ -46,6 +47,7 @@ export function getRoleLabel(role: UserRole | string): string {
     manager: 'Менеджер',
     warehouse: 'Кладовщик',
     accountant: 'Бухгалтер',
+    viewer: 'Наблюдатель',
   };
   return labels[role] || role;
 }
