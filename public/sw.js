@@ -1,5 +1,5 @@
 // Service Worker для оффлайн-режима
-const CACHE_NAME = 'stwarehouse-v3';
+const CACHE_NAME = 'stwarehouse-v4';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -15,7 +15,6 @@ self.addEventListener('install', (event) => {
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(STATIC_ASSETS);
     }).then(() => {
-      // Принудительно активируем новый SW
       return self.skipWaiting();
     })
   );
@@ -31,11 +30,17 @@ self.addEventListener('activate', (event) => {
           .map((name) => caches.delete(name))
       );
     }).then(() => {
-      // Берём контроль над страницами сразу
       return self.clients.claim();
     })
   );
 });
+
+// Проверяем, является ли запрос навигационным (для SPA)
+function isNavigationRequest(request) {
+  return request.mode === 'navigate' || 
+         (request.method === 'GET' && 
+          request.headers.get('accept')?.includes('text/html'));
+}
 
 // Перехват запросов
 self.addEventListener('fetch', (event) => {
@@ -46,7 +51,6 @@ self.addEventListener('fetch', (event) => {
   if (url.hostname.includes('supabase.co')) {
     event.respondWith(
       fetch(request).catch(() => {
-        // Если нет сети, возвращаем ошибку с флагом queued
         return new Response(
           JSON.stringify({ error: 'offline', queued: true }),
           { 
@@ -60,28 +64,54 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   
-  // 2. Для статических ресурсов (JS, CSS, HTML, иконки) — Cache First
+  // 2. Навигационные запросы (HTML страницы) — всегда отдаём index.html для SPA
+  if (isNavigationRequest(request)) {
+    event.respondWith(
+      caches.match('/index.html').then((cached) => {
+        // Если есть в кэше — отдаём, иначе запрашиваем с сети
+        if (cached) {
+          // Параллельно обновляем кэш
+          fetch(request).then((response) => {
+            if (response && response.status === 200) {
+              caches.open(CACHE_NAME).then((cache) => {
+                cache.put('/index.html', response);
+              });
+            }
+          }).catch(() => {});
+          return cached;
+        }
+        
+        // Нет в кэше — пробуем сеть
+        return fetch(request).then((response) => {
+          if (response && response.status === 200) {
+            const responseClone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put('/index.html', responseClone);
+            });
+          }
+          return response;
+        }).catch(() => {
+          return new Response('Network error - app not cached', { status: 408 });
+        });
+      })
+    );
+    return;
+  }
+  
+  // 3. Статические ресурсы Vite (JS/CSS с hash) — Cache First с ограниченным временем жизни
   if (
     request.destination === 'script' ||
     request.destination === 'style' ||
-    request.destination === 'document' ||
     request.destination === 'image' ||
     request.destination === 'font' ||
-    request.url.endsWith('.js') ||
-    request.url.endsWith('.css') ||
-    request.url.endsWith('.html') ||
-    request.url.endsWith('.svg') ||
-    request.url.endsWith('.png') ||
-    request.url.endsWith('.json')
+    url.pathname.match(/\.(js|css|png|jpg|jpeg|gif|svg|woff|woff2|ttf|otf)$/)
   ) {
     event.respondWith(
       caches.match(request).then((response) => {
-        // Возвращаем из кэша, если есть
         if (response) {
           return response;
         }
         
-        // Иначе запрашиваем с сети и кэшируем
         return fetch(request).then((fetchResponse) => {
           if (fetchResponse && fetchResponse.status === 200) {
             const responseClone = fetchResponse.clone();
@@ -91,19 +121,14 @@ self.addEventListener('fetch', (event) => {
           }
           return fetchResponse;
         }).catch(() => {
-          // Если нет сети и нет в кэше — для HTML отдаём index.html (SPA fallback)
-          if (request.destination === 'document' || request.mode === 'navigate') {
-            return caches.match('/index.html');
-          }
-          // Для остального — просто ошибка
-          return new Response('Network error', { status: 408 });
+          return new Response('Resource not available offline', { status: 408 });
         });
       })
     );
     return;
   }
   
-  // 3. Для остальных запросов — Network First с fallback
+  // 4. Остальные запросы — Network First
   event.respondWith(
     fetch(request).catch(() => {
       return caches.match(request);
@@ -111,14 +136,13 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// Сообщения из приложения (для skipWaiting)
+// Сообщения из приложения
 self.addEventListener('message', (event) => {
   if (event.data === 'SKIP_WAITING') {
     self.skipWaiting();
   }
   
   if (event.data === 'CHECK_VERSION') {
-    // Можно добавить проверку версии
     event.ports[0]?.postMessage({ version: CACHE_NAME });
   }
 });

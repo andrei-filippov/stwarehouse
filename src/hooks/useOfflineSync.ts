@@ -13,7 +13,12 @@ import {
   updateSyncQueueRetry,
   saveEquipmentLocal,
   getEquipmentLocal,
-  clearEquipmentLocal
+  clearEquipmentLocal,
+  deleteEstimateLocal,
+  saveChecklistLocal,
+  getChecklistsLocal,
+  markChecklistSynced,
+  deleteChecklistLocal
 } from '../lib/offlineDB';
 import { supabase } from '../lib/supabase';
 
@@ -127,7 +132,6 @@ export function useOfflineSync(companyId: string | undefined) {
             case 'equipment':
               if (item.operation === 'create') {
                 const { id, company_id, created_at, ...data } = item.data;
-                // Генерируем новый UUID для сервера
                 result = await supabase.from('equipment').insert({
                   ...data,
                   company_id: companyId
@@ -137,6 +141,21 @@ export function useOfflineSync(companyId: string | undefined) {
                 result = await supabase.from('equipment').update(data).eq('id', id);
               } else if (item.operation === 'delete') {
                 result = await supabase.from('equipment').delete().eq('id', item.data.id);
+              }
+              break;
+              
+            case 'checklists':
+              if (item.operation === 'create') {
+                const { id, ...data } = item.data;
+                result = await supabase.from('checklists').insert({
+                  ...data,
+                  company_id: companyId
+                });
+              } else if (item.operation === 'update') {
+                const { id, ...data } = item.data;
+                result = await supabase.from('checklists').update(data).eq('id', id);
+              } else if (item.operation === 'delete') {
+                result = await supabase.from('checklists').delete().eq('id', item.data.id);
               }
               break;
           }

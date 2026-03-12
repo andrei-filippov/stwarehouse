@@ -1,51 +1,81 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
-import type { Checklist, ChecklistRule, Estimate } from '../types';
+import type { Checklist, ChecklistRule, Estimate, ChecklistItem } from '../types';
+import {
+  isOnline,
+  saveChecklistLocal,
+  getChecklistsLocal,
+  deleteChecklistLocal,
+  addToSyncQueue
+} from '../lib/offlineDB';
 
 export function useChecklists(companyId: string | undefined, estimates: Estimate[]) {
   const [checklists, setChecklists] = useState<Checklist[]>([]);
   const [rules, setRules] = useState<ChecklistRule[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isOffline, setIsOffline] = useState(!isOnline());
 
   const fetchChecklists = useCallback(async () => {
     if (!companyId) return;
     setLoading(true);
     
-    const { data, error } = await supabase
-      .from('checklists')
-      .select('*')
-      .eq('company_id', companyId)
-      .order('created_at', { ascending: false });
-    
-    if (error) {
-      toast.error('Ошибка при загрузке чек-листов', { description: error.message });
+    if (isOnline()) {
+      // Онлайн режим
+      const { data, error } = await supabase
+        .from('checklists')
+        .select('*')
+        .eq('company_id', companyId)
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        toast.error('Ошибка при загрузке чек-листов', { description: error.message });
+        const localChecklists = await getChecklistsLocal(companyId);
+        setChecklists(localChecklists);
+      } else {
+        // Сохраняем в кэш
+        for (const checklist of (data || [])) {
+          await saveChecklistLocal(checklist, companyId);
+        }
+        setChecklists(data || []);
+      }
     } else {
-      setChecklists(data || []);
+      // Оффлайн режим
+      const localChecklists = await getChecklistsLocal(companyId);
+      setChecklists(localChecklists);
     }
+    
     setLoading(false);
   }, [companyId]);
 
   const fetchRules = useCallback(async () => {
     if (!companyId) return;
     
-    const { data, error } = await supabase
-      .from('checklist_rules')
-      .select(`
-        *,
-        items:checklist_rule_items(*)
-      `)
-      .eq('company_id', companyId);
-    
-    if (error) {
-      toast.error('Ошибка при загрузке правил', { description: error.message });
-    } else {
-      setRules(data || []);
+    if (isOnline()) {
+      const { data, error } = await supabase
+        .from('checklist_rules')
+        .select(`
+          *,
+          items:checklist_rule_items(*)
+        `)
+        .eq('company_id', companyId);
+      
+      if (error) {
+        toast.error('Ошибка при загрузке правил', { description: error.message });
+      } else {
+        setRules(data || []);
+      }
     }
+    // Правила не кэшируем оффлайн - они менее критичны
   }, [companyId]);
 
   const createRule = useCallback(async (rule: Partial<ChecklistRule>) => {
     if (!companyId) return { error: new Error('No company selected') };
+    
+    if (!isOnline()) {
+      toast.error('Создание правил недоступно офлайн');
+      return { error: new Error('Offline') };
+    }
     
     try {
       const { error } = await supabase
@@ -65,6 +95,11 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
 
   const deleteRule = useCallback(async (id: string) => {
     if (!companyId) return { error: new Error('No company selected') };
+    
+    if (!isOnline()) {
+      toast.error('Удаление правил недоступно офлайн');
+      return { error: new Error('Offline') };
+    }
     
     try {
       const { error } = await supabase
@@ -93,12 +128,16 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
     if (!estimate) return { error: new Error('Смета не найдена') };
 
     try {
-      // Генерируем чек-лист: оборудование из сметы + дополнительные элементы из правил
+      // Генерируем локальный ID
+      const localId = `local_checklist_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      
+      // Генерируем чек-лист
       const items: any[] = [...customItems];
       
-      // 1. Добавляем всё оборудование из сметы
+      // Добавляем оборудование из сметы
       estimate.items?.forEach(item => {
         items.push({
+          id: `local_item_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
           name: item.name,
           quantity: item.quantity,
           category: item.category || 'equipment',
@@ -106,50 +145,76 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
           is_checked: false
         });
         
-        // 2. Для каждого оборудования проверяем правила и добавляем дополнительные элементы
-        const matchingRules = rules.filter(rule => 
-          rule.condition_type === 'category' 
-            ? item.category === rule.condition_value
-            : item.name.includes(rule.condition_value)
-        );
-        
-        matchingRules.forEach(rule => {
-          rule.items?.forEach(ruleItem => {
-            items.push({
-              name: ruleItem.name,
-              quantity: ruleItem.quantity * item.quantity,
-              category: ruleItem.category,
-              is_required: ruleItem.is_required,
-              is_checked: false
+        // Правила (только если они загружены)
+        if (rules.length > 0) {
+          const matchingRules = rules.filter(rule => 
+            rule.condition_type === 'category' 
+              ? item.category === rule.condition_value
+              : item.name.includes(rule.condition_value)
+          );
+          
+          matchingRules.forEach(rule => {
+            rule.items?.forEach(ruleItem => {
+              items.push({
+                id: `local_item_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
+                name: ruleItem.name,
+                quantity: ruleItem.quantity * item.quantity,
+                category: ruleItem.category,
+                is_required: ruleItem.is_required,
+                is_checked: false
+              });
             });
           });
-        });
+        }
       });
 
-      const insertData = {
+      const checklistData = {
+        id: localId,
         estimate_id: estimate.id,
         company_id: companyId,
         event_name: estimate.event_name,
         event_date: estimate.event_date || null,
         items: items,
         notes: notes || null,
-        category_order: estimate.category_order || null
+        category_order: estimate.category_order || null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        is_complete: false
       };
       
-      console.log('Inserting checklist:', insertData);
+      if (isOnline()) {
+        // Онлайн - сохраняем на сервер
+        const { data, error } = await supabase
+          .from('checklists')
+          .insert({
+            estimate_id: estimate.id,
+            company_id: companyId,
+            event_name: estimate.event_name,
+            event_date: estimate.event_date || null,
+            items: items,
+            notes: notes || null,
+            category_order: estimate.category_order || null
+          })
+          .select();
 
-      const { data, error } = await supabase
-        .from('checklists')
-        .insert(insertData)
-        .select();
+        if (error) throw error;
 
-      console.log('Insert result:', { data, error });
-
-      if (error) throw error;
-
-      await fetchChecklists();
-      toast.success('Чек-лист создан');
-      return { error: null };
+        await fetchChecklists();
+        toast.success('Чек-лист создан');
+        return { error: null, data: data?.[0] };
+      } else {
+        // Оффлайн - сохраняем локально
+        await saveChecklistLocal(checklistData, companyId);
+        await addToSyncQueue('checklists', 'create', checklistData);
+        
+        // Обновляем UI
+        setChecklists(prev => [checklistData as Checklist, ...prev]);
+        
+        toast.info('Чек-лист сохранён офлайн', {
+          description: 'Будет синхронизирован при подключении'
+        });
+        return { error: null, data: checklistData, queued: true };
+      }
     } catch (err: any) {
       toast.error('Ошибка при создании чек-листа', { description: err.message });
       return { error: err };
@@ -159,19 +224,47 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
   const updateChecklistItem = useCallback(async (checklistId: string, itemId: string, updates: any) => {
     if (!companyId) return { error: new Error('No company selected') };
     
-    try {
-      const { error } = await supabase
-        .from('checklist_items')
-        .update(updates)
-        .eq('id', itemId)
-        .eq('checklist_id', checklistId);
+    const isLocalId = checklistId.startsWith('local_');
+    
+    if (isOnline() && !isLocalId) {
+      try {
+        const { error } = await supabase
+          .from('checklist_items')
+          .update(updates)
+          .eq('id', itemId)
+          .eq('checklist_id', checklistId);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      await fetchChecklists();
-      return { error: null };
-    } catch (err: any) {
-      return { error: err };
+        await fetchChecklists();
+        return { error: null };
+      } catch (err: any) {
+        return { error: err };
+      }
+    } else {
+      // Оффлайн - обновляем локально
+      const localChecklists = await getChecklistsLocal(companyId);
+      const checklist = localChecklists.find(c => c.id === checklistId);
+      
+      if (checklist && checklist.items) {
+        const updatedItems = checklist.items.map((item: any) =>
+          item.id === itemId ? { ...item, ...updates } : item
+        );
+        
+        const updatedChecklist = {
+          ...checklist,
+          items: updatedItems,
+          updated_at: new Date().toISOString()
+        };
+        
+        await saveChecklistLocal(updatedChecklist, companyId);
+        await addToSyncQueue('checklists', isLocalId ? 'create' : 'update', updatedChecklist);
+        
+        // Обновляем UI
+        setChecklists(prev => prev.map(c => c.id === checklistId ? updatedChecklist as Checklist : c));
+      }
+      
+      return { error: null, queued: true };
     }
   }, [companyId, fetchChecklists]);
 
@@ -179,22 +272,56 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
     if (!companyId) return { error: new Error('No company selected') };
     
     try {
-      const { error } = await supabase
-        .from('checklists')
-        .delete()
-        .eq('id', id)
-        .eq('company_id', companyId);
+      const isLocalId = id.startsWith('local_');
+      
+      if (isOnline() && !isLocalId) {
+        const { error } = await supabase
+          .from('checklists')
+          .delete()
+          .eq('id', id)
+          .eq('company_id', companyId);
 
-      if (error) throw error;
-
-      await fetchChecklists();
+        if (error) throw error;
+      } else {
+        // Оффлайн или локальный чек-лист
+        await deleteChecklistLocal(id);
+        
+        if (!isLocalId) {
+          await addToSyncQueue('checklists', 'delete', { id });
+        }
+      }
+      
+      // Обновляем UI
+      setChecklists(prev => prev.filter(c => c.id !== id));
+      
       toast.success('Чек-лист удалён');
       return { error: null };
     } catch (err: any) {
       toast.error('Ошибка при удалении', { description: err.message });
       return { error: err };
     }
-  }, [companyId, fetchChecklists]);
+  }, [companyId]);
+
+  // Отслеживание статуса сети
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOffline(false);
+      fetchChecklists();
+      fetchRules();
+    };
+    
+    const handleOffline = () => {
+      setIsOffline(true);
+    };
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [fetchChecklists, fetchRules]);
 
   useEffect(() => {
     fetchChecklists();
@@ -205,6 +332,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
     checklists,
     rules,
     loading,
+    isOffline,
     createRule,
     deleteRule,
     createChecklist,

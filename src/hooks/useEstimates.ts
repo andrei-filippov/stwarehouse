@@ -2,6 +2,14 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
 import type { Estimate, EstimateItem } from '../types';
+import {
+  isOnline,
+  saveEstimateLocal,
+  getEstimatesLocal,
+  deleteEstimateLocal,
+  addToSyncQueue,
+  getSyncQueue
+} from '../lib/offlineDB';
 
 // Генерируем уникальный ID сессии для этой вкладки
 const SESSION_ID = Math.random().toString(36).substring(2, 15);
@@ -9,64 +17,43 @@ const SESSION_ID = Math.random().toString(36).substring(2, 15);
 export function useEstimates(companyId: string | undefined) {
   const [estimates, setEstimates] = useState<Estimate[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isOffline, setIsOffline] = useState(!isOnline());
   const currentEditingIdRef = useRef<string | null>(null);
 
+  // Загрузка смет (онлайн + оффлайн)
   const fetchEstimates = useCallback(async () => {
     if (!companyId) return;
     setLoading(true);
     
-    // Загружаем сметы с фильтром по company_id
-    const { data, error } = await supabase
-      .from('estimates')
-      .select(`
-        *,
-        items:estimate_items(*)
-      `)
-      .eq('company_id', companyId)
-      .order('created_at', { ascending: false });
-    
-    // Если есть сметы в режиме редактирования - загружаем имена редакторов отдельно
-    if (data && data.length > 0) {
-      const editingUserIds = data
-        .filter((e: any) => e.is_editing && e.editing_by)
-        .map((e: any) => e.editing_by)
-        .filter((v: string, i: number, a: string[]) => a.indexOf(v) === i); // unique
+    if (isOnline()) {
+      // Онлайн режим - загружаем с сервера
+      const { data, error } = await supabase
+        .from('estimates')
+        .select(`
+          *,
+          items:estimate_items(*)
+        `)
+        .eq('company_id', companyId)
+        .order('created_at', { ascending: false });
       
-      let editorNames: Record<string, string> = {};
-      if (editingUserIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, name')
-          .in('id', editingUserIds);
-        
-        if (profiles) {
-          profiles.forEach((p: any) => {
-            editorNames[p.id] = p.name;
-          });
+      if (error) {
+        toast.error('Ошибка при загрузке смет', { description: error.message });
+        // Пробуем загрузить из кэша
+        const localEstimates = await getEstimatesLocal(companyId);
+        setEstimates(localEstimates.map(e => e.data));
+      } else if (data) {
+        // Сохраняем в локальный кэш
+        for (const estimate of data) {
+          await saveEstimateLocal(estimate, companyId);
         }
+        setEstimates(data as Estimate[]);
       }
-      
-      // Преобразуем category_order из JSONB в массив и добавляем имя редактора
-      data.forEach((estimate: any) => {
-        if (estimate.category_order && typeof estimate.category_order === 'string') {
-          try {
-            estimate.category_order = JSON.parse(estimate.category_order);
-          } catch {
-            estimate.category_order = [];
-          }
-        }
-        // Добавляем имя редактора если есть
-        if (estimate.is_editing && estimate.editing_by && editorNames[estimate.editing_by]) {
-          estimate.editor_name = editorNames[estimate.editing_by];
-        }
-      });
+    } else {
+      // Оффлайн режим - загружаем из локального кэша
+      const localEstimates = await getEstimatesLocal(companyId);
+      setEstimates(localEstimates.map(e => e.data));
     }
     
-    if (error) {
-      toast.error('Ошибка при загрузке смет', { description: error.message });
-    } else if (data) {
-      setEstimates(data as Estimate[]);
-    }
     setLoading(false);
   }, [companyId]);
 
@@ -75,6 +62,9 @@ export function useEstimates(companyId: string | undefined) {
     if (!companyId) return { error: new Error('No company selected') };
     
     currentEditingIdRef.current = estimateId;
+    
+    // В оффлайн режиме пропускаем обновление статуса на сервере
+    if (!isOnline()) return { error: null };
     
     const { error } = await supabase
       .from('estimates')
@@ -97,6 +87,9 @@ export function useEstimates(companyId: string | undefined) {
       currentEditingIdRef.current = null;
     }
     
+    // В оффлайн режиме пропускаем обновление статуса на сервере
+    if (!isOnline()) return { error: null };
+    
     const { error } = await supabase
       .from('estimates')
       .update({
@@ -110,7 +103,7 @@ export function useEstimates(companyId: string | undefined) {
     return { error };
   }, [companyId]);
 
-  // Создание сметы с company_id
+  // Создание сметы с поддержкой оффлайн
   const createEstimate = useCallback(async (
     estimate: Partial<Estimate>, 
     items: Partial<EstimateItem>[],
@@ -121,55 +114,93 @@ export function useEstimates(companyId: string | undefined) {
     if (!companyId) return { error: new Error('No company selected') };
     
     try {
-      // Удаляем поля которые могут вызвать ошибки
-      const { id, items: _, ...estimateClean } = estimate;
+      // Генерируем локальный ID для оффлайн-создания
+      const localId = `local_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       
-      // Создаём смету с company_id
-      const { data: newEstimate, error: estimateError } = await supabase
-        .from('estimates')
-        .insert({
-          ...estimateClean,
+      const estimateData = {
+        ...estimate,
+        id: localId,
+        company_id: companyId,
+        user_id: userId,
+        creator_name: creatorName,
+        category_order: categoryOrder || [],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        items: items.map((item, index) => ({
+          ...item,
+          id: `local_item_${Date.now()}_${index}`,
+          estimate_id: localId,
           company_id: companyId,
-          user_id: userId,
-          creator_name: creatorName,
-          category_order: categoryOrder || []
-        })
-        .select()
-        .single();
-
-      if (estimateError) throw estimateError;
-
-      // Создаём позиции с company_id
-      if (items.length > 0) {
-        const itemsWithIds = items.map((item, index) => {
-          // Удаляем id, чтобы PostgreSQL сгенерировал новый UUID
-          // и оставляем только валидные поля
-          const { id, ...itemWithoutId } = item;
-          return {
-            ...itemWithoutId,
-            estimate_id: newEstimate.id,
+          order_index: index
+        }))
+      };
+      
+      if (isOnline()) {
+        // Онлайн - сохраняем на сервер
+        const { id, items: _, ...estimateClean } = estimateData;
+        
+        const { data: newEstimate, error: estimateError } = await supabase
+          .from('estimates')
+          .insert({
+            ...estimateClean,
             company_id: companyId,
-            order_index: index
-          };
+            user_id: userId,
+            creator_name: creatorName,
+            category_order: categoryOrder || []
+          })
+          .select()
+          .single();
+
+        if (estimateError) throw estimateError;
+
+        // Создаём позиции
+        if (items.length > 0) {
+          const itemsWithIds = items.map((item, index) => {
+            const { id, ...itemWithoutId } = item;
+            return {
+              ...itemWithoutId,
+              estimate_id: newEstimate.id,
+              company_id: companyId,
+              order_index: index
+            };
+          });
+
+          const { error: itemsError } = await supabase
+            .from('estimate_items')
+            .insert(itemsWithIds);
+
+          if (itemsError) throw itemsError;
+        }
+
+        await fetchEstimates();
+        toast.success('Смета создана');
+        return { error: null, data: newEstimate };
+      } else {
+        // Оффлайн - сохраняем локально и в очередь синхронизации
+        await saveEstimateLocal(estimateData, companyId);
+        await addToSyncQueue('estimates', 'create', estimateData);
+        if (items.length > 0) {
+          await addToSyncQueue('estimate_items', 'create', { 
+            estimateId: localId,
+            items: estimateData.items 
+          });
+        }
+        
+        // Обновляем UI
+        setEstimates(prev => [estimateData as Estimate, ...prev]);
+        
+        toast.info('Смета сохранена офлайн', {
+          description: 'Будет синхронизирована при подключении'
         });
-
-        const { error: itemsError } = await supabase
-          .from('estimate_items')
-          .insert(itemsWithIds);
-
-        if (itemsError) throw itemsError;
+        return { error: null, data: estimateData, queued: true };
       }
-
-      await fetchEstimates();
-      toast.success('Смета создана');
-      return { error: null, data: newEstimate };
     } catch (err: any) {
       toast.error('Ошибка при создании сметы', { description: err.message });
       return { error: err };
     }
   }, [companyId, fetchEstimates]);
 
-  // Обновление сметы
+  // Обновление сметы с поддержкой оффлайн
   const updateEstimate = useCallback(async (
     id: string, 
     estimate: Partial<Estimate>, 
@@ -180,83 +211,158 @@ export function useEstimates(companyId: string | undefined) {
     if (!companyId) return { error: new Error('No company selected') };
     
     try {
-      // Обновляем смету
-      const { error: estimateError } = await supabase
-        .from('estimates')
-        .update({
-          ...estimate,
-          category_order: categoryOrder || []
-        })
-        .eq('id', id)
-        .eq('company_id', companyId); // Дополнительная проверка
+      const estimateData = {
+        ...estimate,
+        id,
+        company_id: companyId,
+        category_order: categoryOrder || [],
+        updated_at: new Date().toISOString(),
+        items: items.map((item, index) => ({
+          ...item,
+          estimate_id: id,
+          company_id: companyId,
+          order_index: index
+        }))
+      };
+      
+      // Проверяем, локальная ли это смета
+      const isLocalId = id.startsWith('local_');
+      
+      if (isOnline() && !isLocalId) {
+        // Онлайн - обновляем на сервере
+        const { error: estimateError } = await supabase
+          .from('estimates')
+          .update({
+            ...estimate,
+            category_order: categoryOrder || []
+          })
+          .eq('id', id)
+          .eq('company_id', companyId);
 
-      if (estimateError) throw estimateError;
+        if (estimateError) throw estimateError;
 
-      // Удаляем старые позиции
-      await supabase
-        .from('estimate_items')
-        .delete()
-        .eq('estimate_id', id);
-
-      // Создаём новые позиции
-      if (items.length > 0) {
-        const itemsWithIds = items.map((item, index) => {
-          // Удаляем id, чтобы PostgreSQL сгенерировал новый UUID
-          // и оставляем только валидные поля
-          const { id: _, ...itemWithoutId } = item;
-          return {
-            ...itemWithoutId,
-            estimate_id: id,
-            company_id: companyId,
-            order_index: index
-          };
-        })
-
-        const { error: itemsError } = await supabase
+        // Удаляем старые позиции
+        await supabase
           .from('estimate_items')
-          .insert(itemsWithIds);
+          .delete()
+          .eq('estimate_id', id);
 
-        if (itemsError) throw itemsError;
+        // Создаём новые позиции
+        if (items.length > 0) {
+          const itemsWithIds = items.map((item, index) => {
+            const { id: _, ...itemWithoutId } = item;
+            return {
+              ...itemWithoutId,
+              estimate_id: id,
+              company_id: companyId,
+              order_index: index
+            };
+          });
+
+          const { error: itemsError } = await supabase
+            .from('estimate_items')
+            .insert(itemsWithIds);
+
+          if (itemsError) throw itemsError;
+        }
+
+        await fetchEstimates();
+        toast.success('Смета обновлена');
+        return { error: null };
+      } else {
+        // Оффлайн или локальная смета - сохраняем локально
+        await saveEstimateLocal(estimateData, companyId);
+        await addToSyncQueue('estimates', isLocalId ? 'create' : 'update', estimateData);
+        await addToSyncQueue('estimate_items', 'create', {
+          estimateId: id,
+          items: estimateData.items
+        });
+        
+        // Обновляем UI
+        setEstimates(prev => prev.map(e => e.id === id ? estimateData as Estimate : e));
+        
+        toast.info('Смета обновлена офлайн', {
+          description: 'Будет синхронизирована при подключении'
+        });
+        return { error: null, queued: true };
       }
-
-      await fetchEstimates();
-      toast.success('Смета обновлена');
-      return { error: null };
     } catch (err: any) {
       toast.error('Ошибка при обновлении сметы', { description: err.message });
       return { error: err };
     }
   }, [companyId, fetchEstimates]);
 
-  // Удаление сметы
+  // Удаление сметы с поддержкой оффлайн
   const deleteEstimate = useCallback(async (id: string) => {
     if (!companyId) return { error: new Error('No company selected') };
     
     try {
-      const { error } = await supabase
-        .from('estimates')
-        .delete()
-        .eq('id', id)
-        .eq('company_id', companyId); // Дополнительная проверка
+      const isLocalId = id.startsWith('local_');
+      
+      if (isOnline() && !isLocalId) {
+        // Онлайн - удаляем с сервера
+        const { error } = await supabase
+          .from('estimates')
+          .delete()
+          .eq('id', id)
+          .eq('company_id', companyId);
 
-      if (error) throw error;
-
-      await fetchEstimates();
+        if (error) throw error;
+      } else {
+        // Оффлайн или локальная смета
+        if (isLocalId) {
+          // Удаляем из локальной БД
+          await deleteEstimateLocal(id);
+        } else {
+          // Добавляем в очередь на удаление
+          await addToSyncQueue('estimates', 'delete', { id });
+        }
+      }
+      
+      // Обновляем UI
+      setEstimates(prev => prev.filter(e => e.id !== id));
+      
       toast.success('Смета удалена');
       return { error: null };
     } catch (err: any) {
       toast.error('Ошибка при удалении сметы', { description: err.message });
       return { error: err };
     }
-  }, [companyId, fetchEstimates]);
+  }, [companyId]);
+
+  // Отслеживание статуса сети
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOffline(false);
+      toast.success('Подключение восстановлено', {
+        description: 'Синхронизация данных...'
+      });
+      fetchEstimates();
+    };
+    
+    const handleOffline = () => {
+      setIsOffline(true);
+      toast.warning('Нет подключения', {
+        description: 'Работаем в офлайн-режиме'
+      });
+    };
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [fetchEstimates]);
 
   useEffect(() => {
     fetchEstimates();
   }, [fetchEstimates]);
 
-  // Подписка на изменения с фильтром по company_id
+  // Подписка на изменения (только в онлайн режиме)
   useEffect(() => {
-    if (!companyId) return;
+    if (!companyId || !isOnline()) return;
 
     const channel = supabase
       .channel('estimates-changes')
@@ -268,10 +374,8 @@ export function useEstimates(companyId: string | undefined) {
           filter: `company_id=eq.${companyId}`
         },
         (payload) => {
-          // Показываем уведомление при создании новой сметы другим пользователем
           if (payload.eventType === 'INSERT') {
             const newEstimate = payload.new as Estimate;
-            // Не показываем уведомление для своих смет
             if (newEstimate.creator_name) {
               toast.info('Новая смета создана', { 
                 description: `${newEstimate.event_name} — ${newEstimate.creator_name}` 
@@ -300,7 +404,7 @@ export function useEstimates(companyId: string | undefined) {
   // Очистка при размонтировании
   useEffect(() => {
     return () => {
-      if (currentEditingIdRef.current) {
+      if (currentEditingIdRef.current && isOnline()) {
         stopEditing(currentEditingIdRef.current);
       }
     };
@@ -309,6 +413,7 @@ export function useEstimates(companyId: string | undefined) {
   return {
     estimates,
     loading,
+    isOffline,
     createEstimate,
     updateEstimate,
     deleteEstimate,

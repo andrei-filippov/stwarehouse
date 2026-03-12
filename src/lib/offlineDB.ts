@@ -23,6 +23,17 @@ interface StwarehouseDB extends DBSchema {
     };
     indexes: { 'by-company': string; 'by-synced': number };
   };
+  checklists: {
+    key: string;
+    value: {
+      id: string;
+      data: any;
+      synced: boolean;
+      updatedAt: number;
+      companyId: string;
+    };
+    indexes: { 'by-company': string; 'by-synced': number };
+  };
   syncQueue: {
     key: number;
     value: {
@@ -41,7 +52,7 @@ interface StwarehouseDB extends DBSchema {
 }
 
 const DB_NAME = 'stwarehouse-offline';
-const DB_VERSION = 1;
+const DB_VERSION = 2; // Увеличиваем версию для добавления чек-листов
 
 let db: IDBPDatabase<StwarehouseDB> | null = null;
 
@@ -50,7 +61,7 @@ export async function initOfflineDB(): Promise<IDBPDatabase<StwarehouseDB>> {
   if (db) return db;
   
   db = await openDB<StwarehouseDB>(DB_NAME, DB_VERSION, {
-    upgrade(database) {
+    upgrade(database, oldVersion) {
       // Таблица смет
       if (!database.objectStoreNames.contains('estimates')) {
         const estimatesStore = database.createObjectStore('estimates', { keyPath: 'id' });
@@ -63,6 +74,13 @@ export async function initOfflineDB(): Promise<IDBPDatabase<StwarehouseDB>> {
         const equipmentStore = database.createObjectStore('equipment', { keyPath: 'id' });
         equipmentStore.createIndex('by-company', 'companyId');
         equipmentStore.createIndex('by-synced', 'synced');
+      }
+      
+      // Таблица чек-листов (новая в версии 2)
+      if (!database.objectStoreNames.contains('checklists')) {
+        const checklistsStore = database.createObjectStore('checklists', { keyPath: 'id' });
+        checklistsStore.createIndex('by-company', 'companyId');
+        checklistsStore.createIndex('by-synced', 'synced');
       }
       
       // Очередь синхронизации
@@ -125,7 +143,7 @@ export async function saveEquipmentLocal(equipment: any, companyId: string) {
   await database.put('equipment', {
     id: equipment.id,
     data: equipment,
-    synced: true, // Оборудование обычно только читаем
+    synced: true,
     updatedAt: Date.now(),
     companyId
   });
@@ -142,6 +160,44 @@ export async function clearEquipmentLocal(companyId: string) {
   const items = await database.getAllFromIndex('equipment', 'by-company', companyId);
   for (const item of items) {
     await database.delete('equipment', item.id);
+  }
+}
+
+// === Чек-листы ===
+export async function saveChecklistLocal(checklist: any, companyId: string) {
+  const database = await initOfflineDB();
+  await database.put('checklists', {
+    id: checklist.id,
+    data: checklist,
+    synced: false,
+    updatedAt: Date.now(),
+    companyId
+  });
+}
+
+export async function getChecklistsLocal(companyId: string) {
+  const database = await initOfflineDB();
+  const items = await database.getAllFromIndex('checklists', 'by-company', companyId);
+  return items.map(item => item.data);
+}
+
+export async function getChecklistLocal(id: string) {
+  const database = await initOfflineDB();
+  const item = await database.get('checklists', id);
+  return item?.data;
+}
+
+export async function deleteChecklistLocal(id: string) {
+  const database = await initOfflineDB();
+  await database.delete('checklists', id);
+}
+
+export async function markChecklistSynced(id: string) {
+  const database = await initOfflineDB();
+  const checklist = await database.get('checklists', id);
+  if (checklist) {
+    checklist.synced = true;
+    await database.put('checklists', checklist);
   }
 }
 
