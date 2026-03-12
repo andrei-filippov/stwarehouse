@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Wifi, WifiOff, RefreshCw, Trash2, Upload } from 'lucide-react';
+import { Wifi, WifiOff, RefreshCw, Trash2, Upload, ListX } from 'lucide-react';
 import { toast } from 'sonner';
 import { openDB } from 'idb';
 
@@ -166,6 +166,18 @@ export function OfflineIndicator({ companyId, onSync }: OfflineIndicatorProps = 
     }
   }, []);
 
+  // Очистка только очереди синхронизации (для битых записей)
+  const clearQueueOnly = useCallback(async () => {
+    try {
+      const { clearSyncQueue } = await import('../lib/offlineDB');
+      await clearSyncQueue();
+      await checkPending();
+      toast.success('Очередь синхронизации очищена');
+    } catch (e) {
+      toast.error('Ошибка очистки очереди');
+    }
+  }, [checkPending]);
+
   return (
     <div ref={containerRef} className="relative">
       <button
@@ -247,12 +259,23 @@ export function OfflineIndicator({ companyId, onSync }: OfflineIndicatorProps = 
               </button>
             )}
             
+            {pendingCount > 0 && (
+              <button
+                onClick={clearQueueOnly}
+                disabled={isSyncing}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors text-sm disabled:opacity-50"
+              >
+                <ListX className="w-4 h-4" />
+                Очистить очередь ({pendingCount})
+              </button>
+            )}
+
             <button
               onClick={clearCache}
               className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm"
             >
               <Trash2 className="w-4 h-4" />
-              Очистить кэш
+              Очистить весь кэш
             </button>
           </div>
         </div>
