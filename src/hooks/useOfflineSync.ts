@@ -57,10 +57,20 @@ export function useOfflineSync(companyId: string | undefined) {
       }
     );
 
-    // Первоначальная загрузка
+    // Первоначальная загрузка с небольшой задержкой (чтобы все функции были объявлены)
     if (companyId && isOnline()) {
-      console.log('[OfflineSync] Initial online load, caching equipment');
-      cacheEquipment();
+      console.log('[OfflineSync] Initial online load, checking queue...');
+      setTimeout(() => {
+        getSyncQueue().then(queue => {
+          console.log('[OfflineSync] Queue check:', queue.length, 'items');
+          if (queue.length > 0) {
+            console.log('[OfflineSync] Starting sync for', queue.length, 'items...');
+            syncData();
+          } else {
+            cacheEquipment();
+          }
+        });
+      }, 1000);
     }
 
     return cleanup;
