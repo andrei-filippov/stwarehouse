@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import type { Equipment, Estimate, EstimateItem, Customer, PDFSettings } from '../types';
 import { cn } from '../lib/utils';
+import { toast } from 'sonner';
 
 interface EstimateBuilderProps {
   equipment: Equipment[];
@@ -1117,7 +1118,32 @@ export function EstimateBuilder({
                                           className="w-10 h-8 text-center bg-transparent text-sm font-medium outline-none"
                                         />
                                         <button
-                                          onClick={() => handleUpdateItem(item.id, { quantity: item.quantity + 1 })}
+                                          onClick={() => {
+                                            // Проверяем лимит оборудования
+                                            if (item.equipment_id) {
+                                              const usedQty = getUsedQuantity(item.equipment_id);
+                                              const bookedQty = getBookedQuantity(item.equipment_id);
+                                              const equipmentItem = equipment.find(e => e.id === item.equipment_id);
+                                              const totalAvailable = equipmentItem ? equipmentItem.quantity : Infinity;
+                                              const currentQty = item.quantity;
+                                              
+                                              // Сколько уже занято (включая текущую позицию)
+                                              const otherUsed = usedQty - currentQty;
+                                              const totalBooked = otherUsed + bookedQty;
+                                              const available = totalAvailable - totalBooked;
+                                              
+                                              if (available > 0) {
+                                                handleUpdateItem(item.id, { quantity: currentQty + 1 });
+                                              } else {
+                                                toast.warning(`Достигнут лимит`, {
+                                                  description: `${equipmentItem?.name || 'Оборудование'}: в наличии ${totalAvailable} шт.`
+                                                });
+                                              }
+                                            } else {
+                                              // Для импортированного оборудования без equipment_id - без лимита
+                                              handleUpdateItem(item.id, { quantity: item.quantity + 1 });
+                                            }
+                                          }}
                                           className="w-8 h-8 flex items-center justify-center bg-white rounded-md shadow-sm text-gray-600 active:bg-gray-50"
                                         >
                                           +
@@ -1472,52 +1498,102 @@ export function EstimateBuilder({
                                     <p className="font-medium text-sm flex-1 truncate">{item.name}</p>
                                     
                                     <div className="flex items-center gap-1 shrink-0">
-                                      <Input
-                                        type="text"
-                                        inputMode="numeric"
-                                        pattern="[0-9]*"
-                                        value={item.quantity}
-                                        onChange={(e) => {
-                                          const val = e.target.value.replace(/[^0-9]/g, '');
-                                          const num = val === '' ? '' : parseInt(val);
-                                          if (val === '' || (!isNaN(num) && num >= 1)) {
-                                            handleUpdateItem(item.id, { quantity: val === '' ? 1 : num });
-                                          }
-                                        }}
-                                        onFocus={(e) => e.target.select()}
-                                        className="w-14 h-8 text-sm text-center"
-                                      />
+                                      {/* Количество с кнопками +/- */}
+                                      <div className="flex items-center bg-white rounded-lg border">
+                                        <button
+                                          onClick={() => handleUpdateItem(item.id, { quantity: Math.max(0, item.quantity - 1) })}
+                                          className="w-7 h-8 flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded-l-lg transition-colors"
+                                        >
+                                          −
+                                        </button>
+                                        <input
+                                          type="text"
+                                          value={item.quantity}
+                                          onChange={(e) => {
+                                            const val = e.target.value.replace(/\D/g, '');
+                                            const num = val === '' ? 0 : parseInt(val);
+                                            handleUpdateItem(item.id, { quantity: num });
+                                          }}
+                                          className="w-10 h-8 text-center text-sm font-medium outline-none"
+                                        />
+                                        <button
+                                          onClick={() => {
+                                            // Проверяем лимит оборудования
+                                            if (item.equipment_id) {
+                                              const usedQty = getUsedQuantity(item.equipment_id);
+                                              const bookedQty = getBookedQuantity(item.equipment_id);
+                                              const equipmentItem = equipment.find(e => e.id === item.equipment_id);
+                                              const totalAvailable = equipmentItem ? equipmentItem.quantity : Infinity;
+                                              const currentQty = item.quantity;
+                                              
+                                              // Сколько уже занято (включая текущую позицию)
+                                              const otherUsed = usedQty - currentQty;
+                                              const totalBooked = otherUsed + bookedQty;
+                                              const available = totalAvailable - totalBooked;
+                                              
+                                              if (available > 0) {
+                                                handleUpdateItem(item.id, { quantity: currentQty + 1 });
+                                              } else {
+                                                toast.warning(`Достигнут лимит: ${equipmentItem?.name || 'оборудование'}`, {
+                                                  description: `В наличии ${totalAvailable} шт., все занято`
+                                                });
+                                              }
+                                            } else {
+                                              // Для импортированного оборудования без equipment_id - без лимита
+                                              handleUpdateItem(item.id, { quantity: item.quantity + 1 });
+                                            }
+                                          }}
+                                          className="w-7 h-8 flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded-r-lg transition-colors"
+                                        >
+                                          +
+                                        </button>
+                                      </div>
                                       
-                                      <Input
-                                        type="text"
-                                        inputMode="decimal"
-                                        pattern="[0-9.]*"
-                                        value={item.coefficient || 1}
-                                        onChange={(e) => {
-                                          const val = e.target.value.replace(/[^0-9.]/g, '');
-                                          const num = val === '' ? '' : parseFloat(val);
-                                          if (val === '' || (!isNaN(num) && num >= 0.1)) {
-                                            handleUpdateItem(item.id, { coefficient: val === '' ? 1 : num });
-                                          }
-                                        }}
-                                        onFocus={(e) => e.target.select()}
-                                        className="w-14 h-8 text-sm text-center"
-                                      />
+                                      {/* Коэффициент с кнопками +/- шаг 0.1 */}
+                                      <div className="flex items-center bg-white rounded-lg border ml-1">
+                                        <button
+                                          onClick={() => {
+                                            const current = item.coefficient || 1;
+                                            const newVal = Math.max(0, Math.round((current - 0.1) * 10) / 10);
+                                            handleUpdateItem(item.id, { coefficient: newVal });
+                                          }}
+                                          className="w-7 h-8 flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded-l-lg transition-colors"
+                                        >
+                                          −
+                                        </button>
+                                        <input
+                                          type="text"
+                                          value={item.coefficient || 1}
+                                          onChange={(e) => {
+                                            const val = e.target.value.replace(/[^0-9.]/g, '');
+                                            const num = val === '' ? 0 : parseFloat(val);
+                                            if (!isNaN(num) && num >= 0) {
+                                              handleUpdateItem(item.id, { coefficient: num });
+                                            }
+                                          }}
+                                          className="w-10 h-8 text-center text-sm font-medium outline-none"
+                                        />
+                                        <button
+                                          onClick={() => {
+                                            const current = item.coefficient || 1;
+                                            const newVal = Math.round((current + 0.1) * 10) / 10;
+                                            handleUpdateItem(item.id, { coefficient: newVal });
+                                          }}
+                                          className="w-7 h-8 flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded-r-lg transition-colors"
+                                        >
+                                          +
+                                        </button>
+                                      </div>
                                       
-                                      <Input
+                                      <input
                                         type="text"
-                                        inputMode="numeric"
-                                        pattern="[0-9]*"
                                         value={Math.round(itemTotal)}
                                         onChange={(e) => {
-                                          const val = e.target.value.replace(/[^0-9]/g, '');
+                                          const val = e.target.value.replace(/\D/g, '');
                                           const num = val === '' ? 0 : parseInt(val);
-                                          if (!isNaN(num) && num >= 0) {
-                                            handleUpdateTotal(item.id, num);
-                                          }
+                                          handleUpdateTotal(item.id, num);
                                         }}
-                                        onFocus={(e) => e.target.select()}
-                                        className="w-20 h-8 text-sm text-right font-medium"
+                                        className="w-20 h-8 text-sm text-right font-medium bg-white rounded border px-2 outline-none focus:ring-1 focus:ring-blue-500"
                                       />
                                       
                                       <Button
