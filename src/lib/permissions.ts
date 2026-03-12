@@ -138,14 +138,22 @@ export async function setUserPermission(
   tabId: TabId, 
   allowed: boolean
 ): Promise<{ error: Error | null }> {
+  console.log('setUserPermission called:', { userId, tabId, allowed });
   const { data, error } = await supabase.rpc('set_user_permission', {
     p_user_id: userId,
     p_tab_id: tabId,
     p_allowed: allowed
   });
+  console.log('set_user_permission RPC result:', { data, error });
   
-  if (error) return { error };
-  if (data?.error) return { error: new Error(data.error) };
+  if (error) {
+    console.error('RPC error in setUserPermission:', error);
+    return { error };
+  }
+  if (data?.error) {
+    console.error('RPC returned error in setUserPermission:', data.error);
+    return { error: new Error(data.error) };
+  }
   return { error: null };
 }
 
@@ -153,13 +161,21 @@ export async function setUserPermission(
  * Удалить кастомное разрешение (via RPC)
  */
 export async function removeUserPermission(userId: string, tabId: TabId): Promise<{ error: Error | null }> {
+  console.log('removeUserPermission called:', { userId, tabId });
   const { data, error } = await supabase.rpc('remove_user_permission', {
     p_user_id: userId,
     p_tab_id: tabId
   });
+  console.log('remove_user_permission RPC result:', { data, error });
   
-  if (error) return { error };
-  if (data?.error) return { error: new Error(data.error) };
+  if (error) {
+    console.error('RPC error in removeUserPermission:', error);
+    return { error };
+  }
+  if (data?.error) {
+    console.error('RPC returned error in removeUserPermission:', data.error);
+    return { error: new Error(data.error) };
+  }
   return { error: null };
 }
 

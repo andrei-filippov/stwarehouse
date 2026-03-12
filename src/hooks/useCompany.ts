@@ -302,6 +302,7 @@ export function useCompany() {
 
   // Обновление роли сотрудника через RPC
   const updateMemberRole = useCallback(async (memberId: string, role: CompanyRole) => {
+    console.log('updateMemberRole called:', { memberId, role, companyId: company?.id });
     try {
       if (!company) throw new Error('Компания не выбрана');
 
@@ -309,13 +310,21 @@ export function useCompany() {
         p_member_id: memberId,
         p_role: role
       });
+      console.log('RPC result:', { data, error });
 
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (error) {
+        console.error('RPC error:', error);
+        throw error;
+      }
+      if (data?.error) {
+        console.error('RPC returned error:', data.error);
+        throw new Error(data.error);
+      }
 
       await loadMembers(company.id);
       return { error: null };
     } catch (err) {
+      console.error('updateMemberRole catch:', err);
       return { error: err instanceof Error ? err.message : 'Ошибка обновления роли' };
     }
   }, [company, loadMembers]);

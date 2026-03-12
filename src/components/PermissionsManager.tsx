@@ -62,10 +62,12 @@ export function PermissionsManager({ currentUserId }: PermissionsManagerProps) {
   };
 
   const handleRoleChange = async (memberId: string, newRole: UserRole) => {
+    console.log('handleRoleChange called:', { memberId, newRole });
     setSaving(prev => ({ ...prev, [`role-${memberId}`]: true }));
     
     // Находим member по user_id
     const member = members?.find(m => m.user_id === memberId);
+    console.log('Found member:', member);
     if (!member) {
       toast.error('Участник не найден');
       setSaving(prev => ({ ...prev, [`role-${memberId}`]: false }));
@@ -73,10 +75,12 @@ export function PermissionsManager({ currentUserId }: PermissionsManagerProps) {
     }
     
     // Обновляем роль через контекст компании
+    console.log('Calling updateMemberRole with:', { memberId: member.id, newRole });
     const { error } = await updateMemberRole(member.id, newRole);
+    console.log('updateMemberRole result:', { error });
     
     if (error) {
-      toast.error('Ошибка обновления роли');
+      toast.error('Ошибка обновления роли: ' + error);
     } else {
       setUsers(prev => prev.map(u => 
         u.user_id === memberId ? { ...u, role: newRole } : u
@@ -115,20 +119,28 @@ export function PermissionsManager({ currentUserId }: PermissionsManagerProps) {
     currentAllowed: boolean,
     source: 'role' | 'custom'
   ) => {
+    console.log('handlePermissionToggle:', { userId, tabId, currentAllowed, source });
     setSaving(prev => ({ ...prev, [`${userId}-${tabId}`]: true }));
     
     let error;
     
     if (source === 'role') {
       // Создаём кастомное разрешение противоположное ролевому
-      ({ error } = await setUserPermission(userId, tabId, !currentAllowed));
+      console.log('Calling setUserPermission:', { userId, tabId, allowed: !currentAllowed });
+      const result = await setUserPermission(userId, tabId, !currentAllowed);
+      error = result.error;
+      console.log('setUserPermission result:', result);
     } else {
       // Удаляем кастомное разрешение, возвращаемся к ролевому
-      ({ error } = await removeUserPermission(userId, tabId));
+      console.log('Calling removeUserPermission:', { userId, tabId });
+      const result = await removeUserPermission(userId, tabId);
+      error = result.error;
+      console.log('removeUserPermission result:', result);
     }
     
     if (error) {
-      toast.error('Ошибка обновления разрешения');
+      console.error('Permission toggle error:', error);
+      toast.error('Ошибка обновления разрешения: ' + (error.message || error));
     } else {
       toast.success('Разрешение обновлено');
       await loadUserPermissions(userId);
