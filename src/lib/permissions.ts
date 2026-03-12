@@ -2,11 +2,12 @@ import { supabase } from './supabase';
 
 // Система прав доступа (RBAC) с поддержкой кастомных разрешений
 
-export type UserRole = 'admin' | 'manager' | 'warehouse' | 'accountant';
+export type UserRole = 'owner' | 'admin' | 'manager' | 'warehouse' | 'accountant';
 export type TabId = 'dashboard' | 'equipment' | 'estimates' | 'templates' | 'calendar' | 'checklists' | 'staff' | 'goals' | 'cables' | 'analytics' | 'customers' | 'contracts' | 'settings' | 'admin';
 
 // Разрешения по умолчанию для каждой роли
 export const ROLE_TABS: Record<UserRole, TabId[]> = {
+  owner: ['dashboard', 'equipment', 'estimates', 'templates', 'calendar', 'checklists', 'staff', 'goals', 'cables', 'analytics', 'customers', 'contracts', 'settings', 'admin'],
   admin: ['dashboard', 'equipment', 'estimates', 'templates', 'calendar', 'checklists', 'staff', 'goals', 'cables', 'analytics', 'customers', 'contracts', 'settings', 'admin'],
   manager: ['dashboard', 'equipment', 'estimates', 'templates', 'calendar', 'checklists', 'goals', 'cables', 'analytics', 'customers'],
   warehouse: ['dashboard', 'equipment', 'checklists', 'calendar', 'cables'],
@@ -33,13 +34,14 @@ export const ALL_TABS: { id: TabId; label: string }[] = [
 // Проверка доступа (только на клиенте, для сервера используем has_tab_access)
 export function hasAccess(role: UserRole | undefined, tab: TabId): boolean {
   if (!role) return false;
-  if (role === 'admin') return true;
+  if (role === 'owner' || role === 'admin') return true;
   return ROLE_TABS[role]?.includes(tab) ?? false;
 }
 
 // Получение метки роли
 export function getRoleLabel(role: UserRole | string): string {
   const labels: Record<string, string> = {
+    owner: 'Владелец',
     admin: 'Администратор',
     manager: 'Менеджер',
     warehouse: 'Кладовщик',

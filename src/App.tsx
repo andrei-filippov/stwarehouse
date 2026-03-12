@@ -191,6 +191,7 @@ function AppContent({ user, profile, permissions, signOut }: any) {
       profile={profile}
       permissions={permissions}
       company={company}
+      myRole={companyContext.myRole}
       signOut={signOut}
       onSwitchCompany={() => setShowCompanySelector(true)}
     />
@@ -198,9 +199,9 @@ function AppContent({ user, profile, permissions, signOut }: any) {
 }
 
 // Основной компонент с хуками
-function MainApp({ user, profile, permissions, company, signOut, onSwitchCompany }: any) {
+function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitchCompany }: any) {
   const companyId = company?.id;
-  const userRole = (profile?.role || 'manager') as UserRole;
+  const userRole = (myRole || profile?.role || 'manager') as UserRole;
 
   // Хуки с companyId
   const { equipment, categories, loading: equipmentLoading, addEquipment, updateEquipment, deleteEquipment, bulkInsert, addCategory, deleteCategory } = useEquipment(companyId);
