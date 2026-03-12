@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Wifi, WifiOff, RefreshCw, Trash2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
+import { openDB } from 'idb';
 
 interface OfflineIndicatorProps {
   companyId?: string;
@@ -14,14 +15,26 @@ export function OfflineIndicator({ companyId }: OfflineIndicatorProps = {}) {
   const [isSyncing, setIsSyncing] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Проверяем реальное соединение
+  const checkConnection = useCallback(async () => {
+    try {
+      const { supabase } = await import('../lib/supabase');
+      const { error } = await supabase.from('estimates').select('id').limit(1);
+      const isConnected = !error || error.code !== 'NETWORK_ERROR';
+      setIsOnline(isConnected);
+      return isConnected;
+    } catch (e) {
+      setIsOnline(false);
+      return false;
+    }
+  }, []);
+
   // Загружаем количество несинхронизированных данных
   const checkPending = useCallback(async () => {
     if ('indexedDB' in window && companyId) {
       try {
         const db = await openDB('stwarehouse-offline', 2);
-        const tx = db.transaction('syncQueue', 'readonly');
-        const store = tx.objectStore('syncQueue');
-        const count = await store.count();
+        const count = await db.count('syncQueue');
         setPendingCount(count);
         console.log('[OfflineIndicator] Pending items:', count);
       } catch (e) {
@@ -30,58 +43,7 @@ export function OfflineIndicator({ companyId }: OfflineIndicatorProps = {}) {
     }
   }, [companyId]);
 
-  useEffect(() => {
-    checkPending();
-    const interval = setInterval(checkPending, 3000);
-    return () => clearInterval(interval);
-  }, [checkPending]);
-
-  // Слушаем события сети
-  useEffect(() => {
-    const handleOnline = () => {
-      console.log('[OfflineIndicator] Online event');
-      setIsOnline(true);
-      toast.success('Подключение восстановлено');
-      // Автоматически синхронизируем
-      if (companyId) {
-        handleSync();
-      }
-    };
-    
-    const handleOffline = () => {
-      console.log('[OfflineIndicator] Offline event');
-      setIsOnline(false);
-      toast.warning('Нет подключения к интернету');
-    };
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        setNeedRefresh(true);
-      });
-    }
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, [companyId]);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setShowDetails(false);
-      }
-    };
-
-    if (showDetails) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [showDetails]);
-
+  // Синхронизация
   const handleSync = useCallback(async () => {
     if (!companyId || isSyncing) return;
     
@@ -89,9 +51,10 @@ export function OfflineIndicator({ companyId }: OfflineIndicatorProps = {}) {
     setIsSyncing(true);
     
     try {
-      // Прямой вызов синхронизации через глобальную функцию
-      const { getSyncQueue, removeFromSyncQueue, updateSyncQueueRetry, deleteEstimateLocal, deleteChecklistLocal } = await import('../lib/offlineDB');
+      const { getSyncQueue, removeFromSyncQueue, updateSyncQueueRetry, deleteEstimateLocal, deleteChecklistLocal, initOfflineDB } = await import('../lib/offlineDB');
       const { supabase } = await import('../lib/supabase');
+      
+      await initOfflineDB();
       
       const queue = await getSyncQueue();
       console.log('[OfflineIndicator] Queue:', queue);
@@ -107,7 +70,6 @@ export function OfflineIndicator({ companyId }: OfflineIndicatorProps = {}) {
             
             if (result.error) throw result.error;
             
-            // Синхронизируем items
             if (items?.length > 0 && result.data?.id) {
               const itemsWithIds = items.map((it: any, idx: number) => ({
                 ...it,
@@ -160,6 +122,61 @@ export function OfflineIndicator({ companyId }: OfflineIndicatorProps = {}) {
       setIsSyncing(false);
     }
   }, [companyId, isSyncing, checkPending]);
+
+  // Слушаем события сети
+  useEffect(() => {
+    const handleOnline = async () => {
+      console.log('[OfflineIndicator] Online event');
+      const isConnected = await checkConnection();
+      if (isConnected) {
+        toast.success('Подключение восстановлено');
+        if (companyId) {
+          handleSync();
+        }
+      }
+    };
+    
+    const handleOffline = () => {
+      console.log('[OfflineIndicator] Offline event');
+      setIsOnline(false);
+      toast.warning('Нет подключения к интернету');
+    };
+
+    const interval = setInterval(checkConnection, 10000);
+    const pendingInterval = setInterval(checkPending, 3000);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        setNeedRefresh(true);
+      });
+    }
+
+    checkConnection();
+    checkPending();
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      clearInterval(interval);
+      clearInterval(pendingInterval);
+    };
+  }, [companyId, checkConnection, checkPending, handleSync]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setShowDetails(false);
+      }
+    };
+
+    if (showDetails) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showDetails]);
 
   const updateApp = useCallback(() => {
     if ('serviceWorker' in navigator) {
@@ -273,13 +290,4 @@ export function OfflineIndicator({ companyId }: OfflineIndicatorProps = {}) {
       )}
     </div>
   );
-}
-
-// Helper для IndexedDB
-function openDB(name: string, version: number): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(name, version);
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
 }
