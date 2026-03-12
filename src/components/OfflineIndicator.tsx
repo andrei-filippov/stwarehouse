@@ -5,9 +5,10 @@ import { openDB } from 'idb';
 
 interface OfflineIndicatorProps {
   companyId?: string;
+  onSync?: () => Promise<void>;
 }
 
-export function OfflineIndicator({ companyId }: OfflineIndicatorProps = {}) {
+export function OfflineIndicator({ companyId, onSync }: OfflineIndicatorProps = {}) {
   const [isOnline, setIsOnline] = useState(false); // Начинаем с false, потом проверим
   const [needRefresh, setNeedRefresh] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
@@ -66,79 +67,22 @@ export function OfflineIndicator({ companyId }: OfflineIndicatorProps = {}) {
     setIsSyncing(true);
     
     try {
-      const { getSyncQueue, removeFromSyncQueue, updateSyncQueueRetry, deleteEstimateLocal, deleteChecklistLocal, initOfflineDB } = await import('../lib/offlineDB');
-      const { supabase } = await import('../lib/supabase');
-      
-      await initOfflineDB();
-      
-      const queue = await getSyncQueue();
-      // Фильтруем по текущей компании
-      const companyQueue = queue.filter((item: any) => item.data?.company_id === companyId);
-      console.log('[OfflineIndicator] Queue:', companyQueue);
-      
-      let success = 0;
-      let failed = 0;
-      
-      for (const item of companyQueue) {
-        try {
-          if (item.table === 'estimates' && item.operation === 'create') {
-            const { id, items, ...data } = item.data;
-            const result = await supabase.from('estimates').insert(data).select().single();
-            
-            if (result.error) throw result.error;
-            
-            if (items?.length > 0 && result.data?.id) {
-              const itemsWithIds = items.map((it: any, idx: number) => ({
-                ...it,
-                estimate_id: result.data.id,
-                company_id: companyId,
-                order_index: idx
-              }));
-              await supabase.from('estimate_items').insert(itemsWithIds);
-            }
-            
-            await deleteEstimateLocal(id);
-            await removeFromSyncQueue(item.id!);
-            success++;
-          }
-          else if (item.table === 'equipment' && item.operation === 'create') {
-            const { id, ...data } = item.data;
-            const result = await supabase.from('equipment').insert(data);
-            if (result.error) throw result.error;
-            await removeFromSyncQueue(item.id!);
-            success++;
-          }
-          else if (item.table === 'checklists' && item.operation === 'create') {
-            const { id, ...data } = item.data;
-            const result = await supabase.from('checklists').insert(data);
-            if (result.error) throw result.error;
-            await deleteChecklistLocal(id);
-            await removeFromSyncQueue(item.id!);
-            success++;
-          }
-        } catch (err) {
-          console.error('[OfflineIndicator] Sync error:', err);
-          await updateSyncQueueRetry(item.id!, item.retryCount + 1);
-          failed++;
-        }
+      // Если передан onSync - используем его (единая логика из useOfflineSync)
+      if (onSync) {
+        await onSync();
+        await checkPending();
+        return;
       }
       
-      if (success > 0) {
-        toast.success(`Синхронизировано: ${success} изменений`);
-      }
-      if (failed > 0) {
-        toast.error(`Ошибок: ${failed}`);
-      }
-      
-      await checkPending();
-      window.location.reload();
+      // Fallback - старая логика (не должна использоваться)
+      toast.error('Ошибка конфигурации: onSync не передан');
     } catch (err) {
       console.error('[OfflineIndicator] Sync failed:', err);
       toast.error('Ошибка синхронизации');
     } finally {
       setIsSyncing(false);
     }
-  }, [companyId, isSyncing, checkConnection, checkPending]);
+  }, [companyId, isSyncing, checkConnection, checkPending, onSync]);
 
   // Проверка при монтировании и периодически
   useEffect(() => {

@@ -30,6 +30,7 @@ import { Button } from './ui/button';
 import type { TabId } from '../lib/permissions';
 import { useCompanyContext } from '../contexts/CompanyContext';
 import { OfflineIndicator } from './OfflineIndicator';
+import { useOfflineSync } from '../hooks/useOfflineSync';
 
 interface SidebarProps {
   activeTab: TabId;
@@ -45,6 +46,7 @@ interface SidebarProps {
 export function Sidebar(props: SidebarProps) {
   const { activeTab, onTabChange, availableTabs, onSignOut, userName, userRole, collapsed, onToggleCollapse } = props;
   const ctx = useCompanyContext();
+  const { syncData } = useOfflineSync(ctx.company?.id);
 
   const mainTabs = availableTabs.filter(tab => 
     ['equipment', 'estimates', 'calendar', 'customers', 'contracts'].includes(tab.id)
@@ -176,7 +178,7 @@ export function Sidebar(props: SidebarProps) {
         
         {/* Offline Status */}
         <div className={`${collapsed ? 'flex justify-center' : 'px-3'}`}>
-          <OfflineIndicator companyId={ctx.company?.id} />
+          <OfflineIndicator companyId={ctx.company?.id} onSync={syncData} />
         </div>
         
         {!collapsed && userName && (
