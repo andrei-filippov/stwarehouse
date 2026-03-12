@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Package, User } from 'lucide-react';
 import { useAuth } from './hooks/useAuth';
 import { CompanyProvider, useCompanyContext } from './contexts/CompanyContext';
@@ -101,6 +101,7 @@ function AppContent({ user, profile, permissions, signOut }: any) {
   const [showCompanySelector, setShowCompanySelector] = useState(false);
 
   const [hasCompany, setHasCompany] = useState(false);
+  const companyLoadAttempted = useRef(false);
 
   // Обработка пути /c/company-slug и query параметров
   useEffect(() => {
@@ -121,12 +122,13 @@ function AppContent({ user, profile, permissions, signOut }: any) {
     setHasCompany(!!company);
   }, [company]);
 
-  // Перезагружаем компанию когда появляется пользователь
+  // Перезагружаем компанию один раз когда появляется пользователь
   useEffect(() => {
-    if (user && !company && !companyLoading) {
+    if (user && !company && !companyLoading && !companyLoadAttempted.current) {
+      companyLoadAttempted.current = true;
       loadCompany();
     }
-  }, [user, company, companyLoading, loadCompany]);
+  }, [user]);
 
   if (companyLoading) {
     return (
