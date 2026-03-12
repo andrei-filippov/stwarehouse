@@ -1,13 +1,14 @@
-import { Building2, Plus, Mail, ArrowRight } from 'lucide-react';
+import { Building2, Plus, Mail, ArrowRight, LogOut } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
 import { Button } from './ui/button';
 
 interface CompanyWelcomeProps {
   onCreateCompany: () => void;
   onCheckInvitations: () => void;
+  onSignOut?: () => void;
 }
 
-export function CompanyWelcome({ onCreateCompany, onCheckInvitations }: CompanyWelcomeProps) {
+export function CompanyWelcome({ onCreateCompany, onCheckInvitations, onSignOut }: CompanyWelcomeProps) {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-blue-50 to-indigo-100">
       <Card className="w-full max-w-lg">
@@ -62,6 +63,18 @@ export function CompanyWelcome({ onCreateCompany, onCheckInvitations }: CompanyW
           <p className="text-center text-sm text-gray-500 pt-4">
             Нужна помощь? Обратитесь к администратору вашей компании
           </p>
+          
+          {onSignOut && (
+            <div className="pt-4 border-t mt-4">
+              <button 
+                onClick={onSignOut}
+                className="flex items-center justify-center w-full text-sm text-gray-500 hover:text-red-600 transition-colors"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Войти под другим аккаунтом
+              </button>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

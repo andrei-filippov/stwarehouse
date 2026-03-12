@@ -160,6 +160,7 @@ function AppContent({ user, profile, permissions, signOut }: any) {
               // Перезагружаем чтобы проверить приглашения
               loadCompany();
             }}
+            onSignOut={signOut}
           />
         )}
       </>
