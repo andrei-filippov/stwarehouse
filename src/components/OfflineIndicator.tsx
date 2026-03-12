@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Wifi, WifiOff, RefreshCw, Trash2 } from 'lucide-react';
+import { Wifi, WifiOff, RefreshCw, Trash2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface OfflineIndicatorProps {
@@ -11,35 +11,45 @@ export function OfflineIndicator({ companyId }: OfflineIndicatorProps = {}) {
   const [needRefresh, setNeedRefresh] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
+  const [isSyncing, setIsSyncing] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Загружаем количество несинхронизированных данных
-  useEffect(() => {
-    const checkPending = async () => {
-      if ('indexedDB' in window) {
-        try {
-          const db = await openDB('stwarehouse-offline', 2);
-          const tx = db.transaction('syncQueue', 'readonly');
-          const store = tx.objectStore('syncQueue');
-          const count = await store.count();
-          setPendingCount(count);
-        } catch (e) {
-          // ignore
-        }
+  const checkPending = useCallback(async () => {
+    if ('indexedDB' in window && companyId) {
+      try {
+        const db = await openDB('stwarehouse-offline', 2);
+        const tx = db.transaction('syncQueue', 'readonly');
+        const store = tx.objectStore('syncQueue');
+        const count = await store.count();
+        setPendingCount(count);
+        console.log('[OfflineIndicator] Pending items:', count);
+      } catch (e) {
+        console.log('[OfflineIndicator] Error checking pending:', e);
       }
-    };
-    checkPending();
-    const interval = setInterval(checkPending, 5000);
-    return () => clearInterval(interval);
-  }, []);
+    }
+  }, [companyId]);
 
   useEffect(() => {
+    checkPending();
+    const interval = setInterval(checkPending, 3000);
+    return () => clearInterval(interval);
+  }, [checkPending]);
+
+  // Слушаем события сети
+  useEffect(() => {
     const handleOnline = () => {
+      console.log('[OfflineIndicator] Online event');
       setIsOnline(true);
       toast.success('Подключение восстановлено');
+      // Автоматически синхронизируем
+      if (companyId) {
+        handleSync();
+      }
     };
     
     const handleOffline = () => {
+      console.log('[OfflineIndicator] Offline event');
       setIsOnline(false);
       toast.warning('Нет подключения к интернету');
     };
@@ -57,7 +67,7 @@ export function OfflineIndicator({ companyId }: OfflineIndicatorProps = {}) {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, []);
+  }, [companyId]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -71,6 +81,85 @@ export function OfflineIndicator({ companyId }: OfflineIndicatorProps = {}) {
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [showDetails]);
+
+  const handleSync = useCallback(async () => {
+    if (!companyId || isSyncing) return;
+    
+    console.log('[OfflineIndicator] Manual sync started');
+    setIsSyncing(true);
+    
+    try {
+      // Прямой вызов синхронизации через глобальную функцию
+      const { getSyncQueue, removeFromSyncQueue, updateSyncQueueRetry, deleteEstimateLocal, deleteChecklistLocal } = await import('../lib/offlineDB');
+      const { supabase } = await import('../lib/supabase');
+      
+      const queue = await getSyncQueue();
+      console.log('[OfflineIndicator] Queue:', queue);
+      
+      let success = 0;
+      let failed = 0;
+      
+      for (const item of queue) {
+        try {
+          if (item.table === 'estimates' && item.operation === 'create') {
+            const { id, items, ...data } = item.data;
+            const result = await supabase.from('estimates').insert(data).select().single();
+            
+            if (result.error) throw result.error;
+            
+            // Синхронизируем items
+            if (items?.length > 0 && result.data?.id) {
+              const itemsWithIds = items.map((it: any, idx: number) => ({
+                ...it,
+                estimate_id: result.data.id,
+                company_id: companyId,
+                order_index: idx
+              }));
+              await supabase.from('estimate_items').insert(itemsWithIds);
+            }
+            
+            await deleteEstimateLocal(id);
+            await removeFromSyncQueue(item.id!);
+            success++;
+          }
+          else if (item.table === 'equipment' && item.operation === 'create') {
+            const { id, ...data } = item.data;
+            const result = await supabase.from('equipment').insert(data);
+            if (result.error) throw result.error;
+            await removeFromSyncQueue(item.id!);
+            success++;
+          }
+          else if (item.table === 'checklists' && item.operation === 'create') {
+            const { id, ...data } = item.data;
+            const result = await supabase.from('checklists').insert(data);
+            if (result.error) throw result.error;
+            await deleteChecklistLocal(id);
+            await removeFromSyncQueue(item.id!);
+            success++;
+          }
+        } catch (err) {
+          console.error('[OfflineIndicator] Sync error:', err);
+          await updateSyncQueueRetry(item.id!, item.retryCount + 1);
+          failed++;
+        }
+      }
+      
+      if (success > 0) {
+        toast.success(`Синхронизировано: ${success} изменений`);
+      }
+      if (failed > 0) {
+        toast.error(`Ошибок: ${failed}`);
+      }
+      
+      await checkPending();
+      window.location.reload();
+    } catch (err) {
+      console.error('[OfflineIndicator] Sync failed:', err);
+      toast.error('Ошибка синхронизации');
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [companyId, isSyncing, checkPending]);
 
   const updateApp = useCallback(() => {
     if ('serviceWorker' in navigator) {
@@ -119,7 +208,7 @@ export function OfflineIndicator({ companyId }: OfflineIndicatorProps = {}) {
           </>
         )}
         {pendingCount > 0 && (
-          <span className="ml-1 w-2 h-2 bg-orange-500 rounded-full" />
+          <span className="ml-1 w-2 h-2 bg-orange-500 rounded-full animate-pulse" />
         )}
       </button>
 
@@ -151,6 +240,17 @@ export function OfflineIndicator({ companyId }: OfflineIndicatorProps = {}) {
           </div>
 
           <div className="mt-4 pt-3 border-t border-gray-100 space-y-2">
+            {isOnline && pendingCount > 0 && (
+              <button
+                onClick={handleSync}
+                disabled={isSyncing}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm disabled:opacity-50"
+              >
+                <Upload className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+                {isSyncing ? 'Синхронизация...' : `Синхронизировать (${pendingCount})`}
+              </button>
+            )}
+            
             {needRefresh && (
               <button
                 onClick={updateApp}
