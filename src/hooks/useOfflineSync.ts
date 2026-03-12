@@ -290,7 +290,11 @@ export function useOfflineSync(companyId: string | undefined) {
               console.log('[Sync] Inserting items:', validItems.length);
               
               if (validItems.length > 0) {
+                console.log('[Sync] Inserting estimate_items:', validItems.map((i: any) => ({ name: i.name, estimate_id: i.estimate_id })));
                 result = await supabase.from('estimate_items').insert(validItems);
+                console.log('[Sync] Insert result:', result);
+              } else {
+                console.log('[Sync] No valid items to insert');
               }
             }
           }
