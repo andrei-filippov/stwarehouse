@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 
 const UNISENDER_API_KEY = Deno.env.get('UNISENDER_API_KEY')
+const API_KEY = Deno.env.get('INVITATION_API_KEY') // Добавь этот секрет в Supabase
 
 // CORS заголовки
 const corsHeaders = {
@@ -15,6 +16,20 @@ serve(async (req) => {
   }
 
   try {
+    // Проверяем API ключ (простая защита от спама)
+    const authHeader = req.headers.get('authorization')
+    const apiKeyHeader = req.headers.get('x-api-key')
+    
+    // Принимаем либо Supabase токен, либо API ключ
+    const isValidAuth = authHeader?.startsWith('Bearer ') || apiKeyHeader === API_KEY
+    
+    if (!isValidAuth) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     if (!UNISENDER_API_KEY) {
       return new Response(
         JSON.stringify({ error: 'UNISENDER_API_KEY not configured' }),

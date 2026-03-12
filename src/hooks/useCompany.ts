@@ -254,7 +254,14 @@ export function useCompany() {
 
       // Отправляем email через Edge Function
       try {
+        // Получаем anon key для авторизации
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+        
         await supabase.functions.invoke('send-invitation-email', {
+          headers: {
+            'x-api-key': supabaseKey,
+          },
           body: {
             email,
             companyName: company.name,
