@@ -5,9 +5,8 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Spinner } from './ui/spinner';
 import { toast } from 'sonner';
+import { useCompanyContext } from '../contexts/CompanyContext';
 import {
-  fetchAllUsers,
-  updateUserRole,
   fetchUserEffectivePermissions,
   setUserPermission,
   removeUserPermission,
@@ -18,8 +17,9 @@ import {
   type EffectivePermission,
 } from '../lib/permissions';
 
-interface User {
+interface Member {
   id: string;
+  user_id: string;
   name: string;
   email: string;
   role: UserRole;
@@ -30,7 +30,8 @@ interface PermissionsManagerProps {
 }
 
 export function PermissionsManager({ currentUserId }: PermissionsManagerProps) {
-  const [users, setUsers] = useState<User[]>([]);
+  const { members, myMember, updateMemberRole } = useCompanyContext();
+  const [users, setUsers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [userPermissions, setUserPermissions] = useState<Record<string, EffectivePermission[]>>({});
@@ -38,38 +39,56 @@ export function PermissionsManager({ currentUserId }: PermissionsManagerProps) {
 
   useEffect(() => {
     loadUsers();
-  }, []);
+  }, [members]);
 
   const loadUsers = async () => {
     setLoading(true);
-    const data = await fetchAllUsers();
-    if (data) {
-      setUsers(data);
+    // Загружаем только членов текущей компании
+    if (members) {
+      const formattedMembers = members
+        .filter(m => m.status === 'active' && m.user_id) // Только активные с привязанным пользователем
+        .map(m => ({
+          id: m.user_id!,
+          user_id: m.user_id!,
+          name: m.user?.name || m.email || 'Без имени',
+          email: m.email || m.user?.email || '',
+          role: (m.role as UserRole) || 'manager',
+        }));
+      setUsers(formattedMembers);
     } else {
-      toast.error('Ошибка загрузки пользователей');
+      setUsers([]);
     }
     setLoading(false);
   };
 
-  const handleRoleChange = async (userId: string, newRole: UserRole) => {
-    setSaving(prev => ({ ...prev, [`role-${userId}`]: true }));
+  const handleRoleChange = async (memberId: string, newRole: UserRole) => {
+    setSaving(prev => ({ ...prev, [`role-${memberId}`]: true }));
     
-    const { error } = await updateUserRole(userId, newRole);
+    // Находим member по user_id
+    const member = members?.find(m => m.user_id === memberId);
+    if (!member) {
+      toast.error('Участник не найден');
+      setSaving(prev => ({ ...prev, [`role-${memberId}`]: false }));
+      return;
+    }
+    
+    // Обновляем роль через контекст компании
+    const { error } = await updateMemberRole(member.id, newRole);
     
     if (error) {
       toast.error('Ошибка обновления роли');
     } else {
       setUsers(prev => prev.map(u => 
-        u.id === userId ? { ...u, role: newRole } : u
+        u.user_id === memberId ? { ...u, role: newRole } : u
       ));
       toast.success('Роль обновлена');
       
-      if (expandedUser === userId) {
-        loadUserPermissions(userId);
+      if (expandedUser === memberId) {
+        loadUserPermissions(memberId);
       }
     }
     
-    setSaving(prev => ({ ...prev, [`role-${userId}`]: false }));
+    setSaving(prev => ({ ...prev, [`role-${memberId}`]: false }));
   };
 
   const loadUserPermissions = async (userId: string) => {
@@ -120,6 +139,7 @@ export function PermissionsManager({ currentUserId }: PermissionsManagerProps) {
 
   const getRoleBadgeColor = (role: UserRole) => {
     switch (role) {
+      case 'owner': return 'bg-purple-100 text-purple-800 border-purple-200';
       case 'admin': return 'bg-red-100 text-red-800 border-red-200';
       case 'manager': return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'warehouse': return 'bg-amber-100 text-amber-800 border-amber-200';
@@ -127,6 +147,8 @@ export function PermissionsManager({ currentUserId }: PermissionsManagerProps) {
       default: return 'bg-gray-100 text-gray-800';
     }
   };
+
+  const canManage = myMember?.role === 'owner' || myMember?.role === 'admin';
 
   if (loading) {
     return (
@@ -185,13 +207,13 @@ export function PermissionsManager({ currentUserId }: PermissionsManagerProps) {
       <div className="space-y-3">
         {users.map((user) => (
           <Card 
-            key={user.id} 
-            className={`overflow-hidden transition-shadow ${expandedUser === user.id ? 'ring-2 ring-blue-100 shadow-lg' : 'hover:shadow-md'}`}
+            key={user.user_id} 
+            className={`overflow-hidden transition-shadow ${expandedUser === user.user_id ? 'ring-2 ring-blue-100 shadow-lg' : 'hover:shadow-md'}`}
           >
             {/* Заголовок карточки пользователя */}
             <div 
               className="p-4 flex items-center justify-between cursor-pointer bg-white"
-              onClick={() => toggleUserExpand(user.id)}
+              onClick={() => toggleUserExpand(user.user_id)}
             >
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center">
@@ -200,7 +222,7 @@ export function PermissionsManager({ currentUserId }: PermissionsManagerProps) {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-gray-900">{user.name || 'Без имени'}</span>
-                    {user.id === currentUserId && (
+                    {user.user_id === currentUserId && (
                       <Badge variant="outline" className="text-xs bg-blue-50 text-blue-600 border-blue-200">
                         Вы
                       </Badge>
@@ -216,11 +238,12 @@ export function PermissionsManager({ currentUserId }: PermissionsManagerProps) {
                   <span className="text-sm text-gray-500 hidden sm:inline">Роль:</span>
                   <select
                     value={user.role}
-                    onChange={(e) => handleRoleChange(user.id, e.target.value as UserRole)}
+                    onChange={(e) => handleRoleChange(user.user_id, e.target.value as UserRole)}
                     onClick={(e) => e.stopPropagation()}
-                    disabled={saving[`role-${user.id}`] || user.id === currentUserId}
+                    disabled={!canManage || saving[`role-${user.user_id}`] || user.user_id === currentUserId}
                     className={`text-sm border rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:opacity-50 ${getRoleBadgeColor(user.role)}`}
                   >
+                    <option value="owner">Владелец</option>
                     <option value="admin">Администратор</option>
                     <option value="manager">Менеджер</option>
                     <option value="warehouse">Кладовщик</option>
@@ -231,7 +254,7 @@ export function PermissionsManager({ currentUserId }: PermissionsManagerProps) {
             </div>
 
             {/* Развёрнутые разрешения */}
-            {expandedUser === user.id && (
+            {expandedUser === user.user_id && (
               <div className="border-t bg-gray-50/50 p-4">
                 <div className="flex items-center gap-2 mb-4">
                   <UserCog className="w-4 h-4 text-gray-500" />
@@ -249,12 +272,12 @@ export function PermissionsManager({ currentUserId }: PermissionsManagerProps) {
                         <button
                           key={perm.tab_id}
                           onClick={() => handlePermissionToggle(
-                            user.id, 
+                            user.user_id, 
                             perm.tab_id, 
                             perm.allowed,
                             perm.source
                           )}
-                          disabled={isSaving || user.id === currentUserId}
+                          disabled={!canManage || isSaving || user.user_id === currentUserId}
                           className={`
                             relative p-3 rounded-lg border text-left transition-all
                             ${perm.allowed 
@@ -299,10 +322,16 @@ export function PermissionsManager({ currentUserId }: PermissionsManagerProps) {
                   </div>
                 )}
 
-                {user.id === currentUserId && (
+                {user.user_id === currentUserId && (
                   <p className="text-sm text-amber-600 mt-4 flex items-center gap-2">
                     <Shield className="w-4 h-4" />
                     Вы не можете изменять свои собственные разрешения
+                  </p>
+                )}
+                {!canManage && user.user_id !== currentUserId && (
+                  <p className="text-sm text-gray-500 mt-4 flex items-center gap-2">
+                    <Shield className="w-4 h-4" />
+                    Только владелец или администратор может изменять разрешения
                   </p>
                 )}
               </div>
