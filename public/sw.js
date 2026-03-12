@@ -98,8 +98,8 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   
-  // 3. Assets Vite (JS, CSS, шрифты, иконки) — Cache First
-  if (isViteAsset(url)) {
+  // 3. Assets Vite (JS, CSS, шрифты, иконки) — Cache First (только GET)
+  if (request.method === 'GET' && isViteAsset(url)) {
     event.respondWith(
       caches.match(request).then((cached) => {
         if (cached) {
@@ -132,20 +132,24 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   
-  // 4. Остальные запросы — Network First с fallback к кэшу
-  event.respondWith(
-    fetch(request).then((response) => {
-      if (response && response.status === 200) {
-        const responseClone = response.clone();
-        caches.open(ASSETS_CACHE).then((cache) => {
-          cache.put(request, responseClone);
-        });
-      }
-      return response;
-    }).catch(() => {
-      return caches.match(request);
-    })
-  );
+  // 4. Остальные GET-запросы — Network First с fallback к кэшу
+  if (request.method === 'GET') {
+    event.respondWith(
+      fetch(request).then((response) => {
+        if (response && response.status === 200) {
+          const responseClone = response.clone();
+          caches.open(ASSETS_CACHE).then((cache) => {
+            cache.put(request, responseClone);
+          });
+        }
+        return response;
+      }).catch(() => {
+        return caches.match(request);
+      })
+    );
+  }
+  // POST/PUT/DELETE запросы не кэшируем, просто проксируем
+  return;
 });
 
 // Сообщения из приложения
