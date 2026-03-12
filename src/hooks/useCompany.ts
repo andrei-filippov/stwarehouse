@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { getSubdomain, generateSlug } from '../lib/subdomain';
 import { getSelectedCompany, saveSelectedCompany } from '../lib/companyUrl';
 import type { Company, CompanyMember, CompanyRole } from '../types/company';
+import { isOnline, getCompanyLocal, saveCompanyLocal, getUserLocal } from '../lib/offlineDB';
 
 export function useCompany() {
   const [company, setCompany] = useState<Company | null>(null);
@@ -22,6 +23,28 @@ export function useCompany() {
     try {
       setLoading(true);
       setError(null);
+
+      // Если оффлайн — загружаем из кэша
+      if (!isOnline()) {
+        const cachedCompany = await getCompanyLocal();
+        const cachedUser = await getUserLocal();
+        
+        if (cachedCompany && cachedUser) {
+          setCompany(cachedCompany);
+          setMyMember({
+            id: 'offline',
+            user_id: cachedUser.id,
+            company_id: cachedCompany.id,
+            role: 'manager',
+            status: 'active',
+            joined_at: new Date().toISOString(),
+          });
+        }
+        
+        setLoading(false);
+        isLoadingRef.current = false;
+        return;
+      }
 
       // Получаем текущего пользователя
       const { data: { user } } = await supabase.auth.getUser();
@@ -72,6 +95,8 @@ export function useCompany() {
           if (memberData) {
             setCompany(companyBySlug);
             setMyMember(memberData);
+            // Сохраняем для оффлайн
+            saveCompanyLocal(companyBySlug);
             await loadMembers(companyBySlug.id);
             setLoading(false);
             return;
@@ -107,6 +132,8 @@ export function useCompany() {
         console.log('Found company:', memberData.company?.name);
         setCompany(memberData.company);
         setMyMember(memberData);
+        // Сохраняем для оффлайн
+        saveCompanyLocal(memberData.company);
         // Загружаем всех членов компании только если есть компания
         await loadMembers(memberData.company_id);
       } else {

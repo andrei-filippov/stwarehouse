@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import type { User } from '@supabase/supabase-js';
 import type { Profile } from '../types';
 import type { UserPermission } from '../lib/permissions';
+import { isOnline, getUserLocal, getProfileLocal, saveUserLocal, saveProfileLocal } from '../lib/offlineDB';
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
@@ -11,6 +12,12 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Если оффлайн — загружаем из локального кэша
+    if (!isOnline()) {
+      loadOfflineUser();
+      return;
+    }
+
     // Получаем текущую сессию
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (error) {
@@ -22,6 +29,8 @@ export function useAuth() {
       setUser(session?.user ?? null);
       if (session?.user) {
         fetchProfile(session.user.id);
+        // Сохраняем для оффлайн
+        saveUserLocal(session.user);
       } else {
         setLoading(false);
       }
@@ -53,6 +62,25 @@ export function useAuth() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Загрузка пользователя из оффлайн-кэша
+  const loadOfflineUser = async () => {
+    try {
+      const cachedUser = await getUserLocal();
+      const cachedProfile = await getProfileLocal();
+      
+      if (cachedUser) {
+        setUser(cachedUser);
+        if (cachedProfile) {
+          setProfile(cachedProfile);
+        }
+      }
+    } catch (e) {
+      console.error('Error loading offline user:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Ref для отслеживания загрузки профиля
   const profileLoadingRef = { current: false };
   
@@ -72,6 +100,8 @@ export function useAuth() {
         console.error('Profile fetch error:', error);
       } else if (data) {
         setProfile(data as Profile);
+        // Сохраняем для оффлайн
+        saveProfileLocal(data);
         // Загружаем кастомные разрешения
         await fetchPermissions(userId);
       }

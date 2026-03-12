@@ -201,6 +201,37 @@ export async function getSetting(key: string) {
   return database.get('settings', key);
 }
 
+// === Пользователь (для офлайн-авторизации) ===
+export async function saveUserLocal(user: any) {
+  const database = await initOfflineDB();
+  await database.put('settings', user, 'current_user');
+}
+
+export async function getUserLocal() {
+  const database = await initOfflineDB();
+  return database.get('settings', 'current_user');
+}
+
+export async function saveProfileLocal(profile: any) {
+  const database = await initOfflineDB();
+  await database.put('settings', profile, 'current_profile');
+}
+
+export async function getProfileLocal() {
+  const database = await initOfflineDB();
+  return database.get('settings', 'current_profile');
+}
+
+export async function saveCompanyLocal(company: any) {
+  const database = await initOfflineDB();
+  await database.put('settings', company, 'current_company');
+}
+
+export async function getCompanyLocal() {
+  const database = await initOfflineDB();
+  return database.get('settings', 'current_company');
+}
+
 // === Статус сети ===
 export function isOnline(): boolean {
   return navigator.onLine;
