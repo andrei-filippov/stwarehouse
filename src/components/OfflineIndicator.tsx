@@ -173,6 +173,20 @@ export function OfflineIndicator({ companyId, onSync }: OfflineIndicatorProps = 
     }
   }, [checkPending]);
 
+  // Очистка всех локальных данных (для iPhone когда данные "застревают")
+  const clearAllLocal = useCallback(async () => {
+    try {
+      const { clearAllLocalData, clearDeletedEstimates } = await import('../lib/offlineDB');
+      await clearAllLocalData();
+      await clearDeletedEstimates();
+      await checkPending();
+      toast.success('Локальные данные очищены. Перезагрузка...');
+      setTimeout(() => window.location.reload(), 1000);
+    } catch (e) {
+      toast.error('Ошибка очистки данных');
+    }
+  }, [checkPending]);
+
   return (
     <div ref={containerRef} className="relative">
       <button
@@ -264,6 +278,15 @@ export function OfflineIndicator({ companyId, onSync }: OfflineIndicatorProps = 
                 Очистить очередь ({pendingCount})
               </button>
             )}
+
+            <button
+              onClick={clearAllLocal}
+              disabled={isSyncing}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-yellow-50 text-yellow-700 rounded-lg hover:bg-yellow-100 transition-colors text-sm disabled:opacity-50"
+            >
+              <Trash2 className="w-4 h-4" />
+              Сбросить локальные данные
+            </button>
 
             <button
               onClick={clearCache}

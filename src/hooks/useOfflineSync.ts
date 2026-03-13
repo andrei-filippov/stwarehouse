@@ -14,7 +14,8 @@ import {
   saveEquipmentLocal,
   getEquipmentLocal,
   clearEquipmentLocal,
-  deleteEstimateLocal
+  deleteEstimateLocal,
+  clearDeletedEstimates
 } from '../lib/offlineDB';
 import { supabase } from '../lib/supabase';
 
@@ -269,6 +270,11 @@ export function useOfflineSync(companyId: string | undefined) {
 
       // Обновляем кэш
       await cacheEquipment();
+      
+      // Очищаем список удалённых смет (если синхронизация успешна)
+      if (successCount > 0 && errorCount === 0) {
+        await clearDeletedEstimates();
+      }
       
       // Вызываем callback для обновления UI
       onSyncCompleteRef.current?.();

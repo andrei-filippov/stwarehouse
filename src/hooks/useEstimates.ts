@@ -8,7 +8,10 @@ import {
   getEstimatesLocal,
   deleteEstimateLocal,
   addToSyncQueue,
-  getSyncQueue
+  getSyncQueue,
+  markEstimateDeleted,
+  getDeletedEstimates,
+  clearDeletedEstimates
 } from '../lib/offlineDB';
 
 // Генерируем уникальный ID сессии для этой вкладки
@@ -29,6 +32,10 @@ export function useEstimates(companyId: string | undefined) {
     const localEstimates = await getEstimatesLocal(companyId);
     const localOnly = localEstimates.map(e => e.data);
     
+    // Загружаем список удалённых локально смет (чтобы не показывать их снова)
+    const deletedIds = await getDeletedEstimates();
+    const isDeleted = (id: string) => deletedIds.includes(id);
+    
     if (isOnline()) {
       // ОНЛАЙН: загружаем с сервера и мержим с локальными
       try {
@@ -45,19 +52,22 @@ export function useEstimates(companyId: string | undefined) {
           throw error;
         }
         
-        // Мержим: серверные + локальные которых нет на сервере
+        // Фильтруем серверные данные - убираем удалённые локально
+        const filteredServer = (data || []).filter(e => !isDeleted(e.id));
+        
+        // Мержим: серверные (без удалённых) + локальные которых нет на сервере
         const serverIds = new Set((data || []).map(e => e.id));
         const unsyncedLocal = localOnly.filter(e => !serverIds.has(e.id));
         
         // Сначала локальные (новые), потом серверные
-        setEstimates([...unsyncedLocal, ...(data as Estimate[] || [])]);
+        setEstimates([...unsyncedLocal, ...(filteredServer as Estimate[])]);
       } catch (err) {
         // Ошибка сети (503 и т.д.) - показываем только локальные
         setEstimates(localOnly);
       }
     } else {
-      // ОФФЛАЙН: показываем только локальные сметы
-      setEstimates(localOnly);
+      // ОФФЛАЙН: показываем только локальные сметы (без удалённых)
+      setEstimates(localOnly.filter(e => !isDeleted(e.id)));
     }
     
     setLoading(false);
@@ -351,6 +361,9 @@ export function useEstimates(companyId: string | undefined) {
       
       // Оффлайн или fallback
       await deleteEstimateLocal(id);
+      
+      // Помечаем как удалённую (чтобы не появлялась снова при загрузке)
+      await markEstimateDeleted(id);
       
       if (!isLocalId) {
         await addToSyncQueue('estimates', 'delete', { id });

@@ -415,6 +415,85 @@ export async function clearSyncQueue() {
   }
 }
 
+// Полная очистка всех локальных данных (для сброса кэша на iPhone)
+export async function clearAllLocalData() {
+  // Очищаем localStorage fallback
+  if (useLocalStorageFallback || isLocalStorageAvailable()) {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(STORAGE_PREFIX)) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+  }
+  
+  // Очищаем IndexedDB
+  if (!useLocalStorageFallback && isIndexedDBAvailable()) {
+    try {
+      const database = await initOfflineDB();
+      // Очищаем все таблицы
+      const stores = ['estimates', 'equipment', 'checklists', 'syncQueue', 'settings'];
+      for (const storeName of stores) {
+        if (database.objectStoreNames.contains(storeName)) {
+          const tx = database.transaction(storeName, 'readwrite');
+          const store = tx.objectStore(storeName);
+          await store.clear();
+        }
+      }
+    } catch (e) {
+      // Если не удалось очистить IndexedDB - пробуем удалить всю базу
+      try {
+        indexedDB.deleteDatabase(DB_NAME);
+      } catch {}
+    }
+  }
+  
+  // Сбрасываем флаги
+  useLocalStorageFallback = false;
+  db = null;
+}
+
+// === Удалённые сметы (для фильтрации при мерже с сервером) ===
+const DELETED_ESTIMATES_KEY = 'deleted_estimates';
+
+export async function markEstimateDeleted(id: string) {
+  const deleted = await getDeletedEstimates();
+  if (!deleted.includes(id)) {
+    deleted.push(id);
+    if (useLocalStorageFallback) {
+      setToStorage(DELETED_ESTIMATES_KEY, deleted);
+    } else {
+      const database = await initOfflineDB();
+      await database.put('settings', deleted, DELETED_ESTIMATES_KEY);
+    }
+  }
+}
+
+export async function getDeletedEstimates(): Promise<string[]> {
+  if (useLocalStorageFallback) {
+    return getFromStorage<string[]>(DELETED_ESTIMATES_KEY, []);
+  }
+  try {
+    const database = await initOfflineDB();
+    return (await database.get('settings', DELETED_ESTIMATES_KEY)) || [];
+  } catch {
+    return [];
+  }
+}
+
+export async function clearDeletedEstimates() {
+  if (useLocalStorageFallback) {
+    localStorage.removeItem(STORAGE_PREFIX + DELETED_ESTIMATES_KEY);
+  } else {
+    try {
+      const database = await initOfflineDB();
+      await database.delete('settings', DELETED_ESTIMATES_KEY);
+    } catch {}
+  }
+}
+
 // === Настройки ===
 export async function saveSetting(key: string, value: any) {
   const database = await initOfflineDB();
