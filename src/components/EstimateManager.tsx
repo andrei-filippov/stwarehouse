@@ -84,13 +84,6 @@ export const EstimateManager = memo(function EstimateManager({
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set());
   
-  // При первой загрузке разворачиваем все месяцы
-  useEffect(() => {
-    if (groupedEstimates.length > 0 && expandedMonths.size === 0) {
-      setExpandedMonths(new Set(groupedEstimates.map(([month]) => month)));
-    }
-  }, [groupedEstimates]);
-  
   // Фильтрация смет по поиску
   const filteredEstimates = useMemo(() => {
     if (!searchQuery.trim()) return estimates;
@@ -128,6 +121,13 @@ export const EstimateManager = memo(function EstimateManager({
       return dateB.getTime() - dateA.getTime();
     });
   }, [filteredEstimates]);
+  
+  // При первой загрузке разворачиваем все месяцы
+  useEffect(() => {
+    if (groupedEstimates.length > 0 && expandedMonths.size === 0) {
+      setExpandedMonths(new Set(groupedEstimates.map(([month]) => month)));
+    }
+  }, [groupedEstimates]);
 
   const handleEdit = useCallback(async (estimate: Estimate) => {
     // Устанавливаем статус редактирования
