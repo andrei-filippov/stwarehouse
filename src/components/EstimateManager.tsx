@@ -1,4 +1,4 @@
-import { useState, useCallback, memo, useEffect, useRef, useMemo, useEffect } from 'react';
+import { useState, useCallback, memo, useEffect, useRef, useMemo } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
