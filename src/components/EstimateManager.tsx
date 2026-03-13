@@ -1,14 +1,17 @@
-import { useState, useCallback, memo, useEffect, useRef } from 'react';
+import { useState, useCallback, memo, useEffect, useRef, useMemo, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
-import { Plus, Edit, Trash2, Layout, Copy, FileSpreadsheet, Users, Loader2, Lock, CheckCircle2, Clock, XCircle, FileText } from 'lucide-react';
+import { Input } from './ui/input';
+import { Plus, Edit, Trash2, Layout, Copy, FileSpreadsheet, Users, Loader2, Lock, CheckCircle2, Clock, XCircle, FileText, Search, ChevronDown, ChevronRight, CalendarDays } from 'lucide-react';
 import type { Estimate, PDFSettings, Template, EstimateItem, EstimateStatus } from '../types';
 import { EstimateBuilder } from './EstimateBuilder';
 import { EstimateImportDialog } from './EstimateImportDialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Badge } from './ui/badge';
+import { format, parseISO } from 'date-fns';
+import { ru } from 'date-fns/locale';
 
 interface EstimateManagerProps {
   estimates: Estimate[];
@@ -76,6 +79,55 @@ export const EstimateManager = memo(function EstimateManager({
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [editingEstimate, setEditingEstimate] = useState<Estimate | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
+  
+  // Поиск и группировка
+  const [searchQuery, setSearchQuery] = useState('');
+  const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set());
+  
+  // При первой загрузке разворачиваем все месяцы
+  useEffect(() => {
+    if (groupedEstimates.length > 0 && expandedMonths.size === 0) {
+      setExpandedMonths(new Set(groupedEstimates.map(([month]) => month)));
+    }
+  }, [groupedEstimates]);
+  
+  // Фильтрация смет по поиску
+  const filteredEstimates = useMemo(() => {
+    if (!searchQuery.trim()) return estimates;
+    const query = searchQuery.toLowerCase();
+    return estimates.filter(e => 
+      e.event_name?.toLowerCase().includes(query) ||
+      e.customer_name?.toLowerCase().includes(query) ||
+      e.venue?.toLowerCase().includes(query) ||
+      e.total?.toString().includes(query)
+    );
+  }, [estimates, searchQuery]);
+  
+  // Группировка по месяцам
+  const groupedEstimates = useMemo(() => {
+    const groups: Record<string, Estimate[]> = {};
+    filteredEstimates.forEach(estimate => {
+      const date = estimate.event_date || estimate.created_at;
+      if (date) {
+        const monthKey = format(parseISO(date), 'yyyy-MM', { locale: ru });
+        const monthLabel = format(parseISO(date), 'MMMM yyyy', { locale: ru });
+        if (!groups[monthLabel]) groups[monthLabel] = [];
+        groups[monthLabel].push(estimate);
+      } else {
+        if (!groups['Без даты']) groups['Без даты'] = [];
+        groups['Без даты'].push(estimate);
+      }
+    });
+    // Сортируем месяцы по убыванию (новые сверху)
+    return Object.entries(groups).sort((a, b) => {
+      if (a[0] === 'Без даты') return 1;
+      if (b[0] === 'Без даты') return -1;
+      // Преобразуем обратно в дату для сравнения
+      const dateA = parseISO(filteredEstimates.find(e => format(parseISO(e.event_date || e.created_at!), 'MMMM yyyy', { locale: ru }) === a[0])?.event_date || '');
+      const dateB = parseISO(filteredEstimates.find(e => format(parseISO(e.event_date || e.created_at!), 'MMMM yyyy', { locale: ru }) === b[0])?.event_date || '');
+      return dateB.getTime() - dateA.getTime();
+    });
+  }, [filteredEstimates]);
 
   const handleEdit = useCallback(async (estimate: Estimate) => {
     // Устанавливаем статус редактирования
@@ -235,220 +287,311 @@ export const EstimateManager = memo(function EstimateManager({
             </div>
           </div>
         </CardHeader>
+        
+        {/* Поиск */}
+        <div className="px-6 pb-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Input
+              placeholder="Поиск по названию, заказчику, площадке..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+            {searchQuery && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
+                onClick={() => setSearchQuery('')}
+              >
+                ×
+              </Button>
+            )}
+          </div>
+          {searchQuery && (
+            <p className="text-xs text-gray-500 mt-1">
+              Найдено: {filteredEstimates.length} из {estimates.length}
+            </p>
+          )}
+        </div>
+        
         <CardContent>
-          {/* Desktop Table */}
-          <div className="hidden md:block">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Мероприятие</TableHead>
-                  <TableHead>Заказчик</TableHead>
-                  <TableHead>Площадка</TableHead>
-                  <TableHead>Период</TableHead>
-                  <TableHead>Позиций</TableHead>
-                  <TableHead>Сумма</TableHead>
-                  <TableHead>Статус</TableHead>
-                  <TableHead>Действия</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(estimates || []).map((estimate) => (
-                  <TableRow key={estimate.id} className={estimate.is_editing ? 'bg-blue-50' : ''}>
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-2">
-                        {estimate.event_name}
-                        {estimate.is_editing && (
-                          <span className="inline-flex items-center gap-1 text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded">
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                            {estimate.editor_name || 'редактируется'}
-                          </span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>{estimate.customer_name || '-'}</TableCell>
-                    <TableCell>{estimate.venue || '-'}</TableCell>
-                    <TableCell>
-                      {new Date(estimate.event_start_date || estimate.event_date).toLocaleDateString('ru-RU')}
-                      {(estimate.event_end_date || estimate.event_date) !== (estimate.event_start_date || estimate.event_date) && 
-                        ` — ${new Date(estimate.event_end_date || estimate.event_date).toLocaleDateString('ru-RU')}`}
-                    </TableCell>
-                    <TableCell>{estimate.items?.length || 0}</TableCell>
-                    <TableCell>{estimate.total.toLocaleString('ru-RU')} ₽</TableCell>
-                    <TableCell>
-                      {onUpdateStatus ? (
-                        <Select 
-                          value={estimate.status || 'draft'} 
-                          onValueChange={(value) => onUpdateStatus(estimate.id, value as EstimateStatus)}
-                        >
-                          <SelectTrigger className="w-[140px] h-8">
-                            <SelectValue>{getStatusBadge(estimate.status)}</SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="draft">
-                              <span className="flex items-center gap-2"><FileText className="w-4 h-4" /> Черновик</span>
-                            </SelectItem>
-                            <SelectItem value="pending">
-                              <span className="flex items-center gap-2"><Clock className="w-4 h-4" /> В работе</span>
-                            </SelectItem>
-                            <SelectItem value="completed">
-                              <span className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4" /> Выполнена</span>
-                            </SelectItem>
-                            <SelectItem value="cancelled">
-                              <span className="flex items-center gap-2"><XCircle className="w-4 h-4" /> Отменена</span>
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
+          {/* Desktop Table с группировкой */}
+          <div className="hidden md:block space-y-4">
+            {groupedEstimates.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                {searchQuery ? 'Ничего не найдено' : 'Нет смет'}
+              </div>
+            ) : (
+              groupedEstimates.map(([month, monthEstimates]) => (
+                <div key={month} className="border rounded-lg overflow-hidden">
+                  {/* Заголовок месяца */}
+                  <button
+                    onClick={() => {
+                      const newExpanded = new Set(expandedMonths);
+                      if (newExpanded.has(month)) {
+                        newExpanded.delete(month);
+                      } else {
+                        newExpanded.add(month);
+                      }
+                      setExpandedMonths(newExpanded);
+                    }}
+                    className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <CalendarDays className="w-5 h-5 text-gray-500" />
+                      <span className="font-semibold text-gray-700">{month}</span>
+                      <Badge variant="secondary" className="ml-2">
+                        {monthEstimates.length}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <span className="text-sm text-gray-600">
+                        {monthEstimates.reduce((sum, e) => sum + (e.total || 0), 0).toLocaleString('ru-RU')} ₽
+                      </span>
+                      {expandedMonths.has(month) ? (
+                        <ChevronDown className="w-5 h-5 text-gray-400" />
                       ) : (
-                        getStatusBadge(estimate.status)
+                        <ChevronRight className="w-5 h-5 text-gray-400" />
                       )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => handleEdit(estimate)}
-                          disabled={estimate.is_editing && estimate.editing_by !== currentUserId}
-                          title={estimate.is_editing ? `Редактирует: ${estimate.editor_name || 'другой пользователь'}` : 'Редактировать'}
-                        >
-                          {estimate.is_editing ? (
-                            <Lock className="w-4 h-4 text-orange-500" />
-                          ) : (
-                            <Edit className="w-4 h-4" />
-                          )}
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => onDelete(estimate.id)}
-                        >
-                          <Trash2 className="w-4 h-4 text-red-500" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                    </div>
+                  </button>
+                  
+                  {/* Таблица смет */}
+                  {expandedMonths.has(month) && (
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-gray-50/50">
+                          <TableHead className="w-[30%]">Мероприятие</TableHead>
+                          <TableHead>Заказчик</TableHead>
+                          <TableHead>Площадка</TableHead>
+                          <TableHead>Период</TableHead>
+                          <TableHead className="text-right">Сумма</TableHead>
+                          <TableHead>Статус</TableHead>
+                          <TableHead className="w-[100px]">Действия</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {monthEstimates.map((estimate) => (
+                          <TableRow 
+                            key={estimate.id} 
+                            className={`cursor-pointer hover:bg-blue-50/50 transition-colors ${estimate.is_editing ? 'bg-blue-50' : ''}`}
+                            onClick={() => handleEdit(estimate)}
+                          >
+                            <TableCell className="font-medium">
+                              <div className="flex items-center gap-2">
+                                {estimate.event_name}
+                                {estimate.is_editing && (
+                                  <span className="inline-flex items-center gap-1 text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded">
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                    {estimate.editor_name || 'редактируется'}
+                                  </span>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>{estimate.customer_name || '-'}</TableCell>
+                            <TableCell>{estimate.venue || '-'}</TableCell>
+                            <TableCell>
+                              {new Date(estimate.event_start_date || estimate.event_date).toLocaleDateString('ru-RU')}
+                              {(estimate.event_end_date || estimate.event_date) !== (estimate.event_start_date || estimate.event_date) && 
+                                ` — ${new Date(estimate.event_end_date || estimate.event_date).toLocaleDateString('ru-RU')}`}
+                            </TableCell>
+                            <TableCell className="text-right font-medium">{estimate.total.toLocaleString('ru-RU')} ₽</TableCell>
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                              {onUpdateStatus ? (
+                                <Select 
+                                  value={estimate.status || 'draft'} 
+                                  onValueChange={(value) => onUpdateStatus(estimate.id, value as EstimateStatus)}
+                                >
+                                  <SelectTrigger className="w-[130px] h-8">
+                                    <SelectValue>{getStatusBadge(estimate.status)}</SelectValue>
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="draft">Черновик</SelectItem>
+                                    <SelectItem value="pending">В работе</SelectItem>
+                                    <SelectItem value="completed">Выполнена</SelectItem>
+                                    <SelectItem value="cancelled">Отменена</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              ) : (
+                                getStatusBadge(estimate.status)
+                              )}
+                            </TableCell>
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                              <div className="flex gap-1">
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  className="h-8 w-8 p-0"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEdit(estimate);
+                                  }}
+                                  disabled={estimate.is_editing && estimate.editing_by !== currentUserId}
+                                  title={estimate.is_editing ? `Редактирует: ${estimate.editor_name || 'другой пользователь'}` : 'Редактировать'}
+                                >
+                                  {estimate.is_editing ? (
+                                    <Lock className="w-4 h-4 text-orange-500" />
+                                  ) : (
+                                    <Edit className="w-4 h-4" />
+                                  )}
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  className="h-8 w-8 p-0"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onDelete(estimate.id);
+                                  }}
+                                >
+                                  <Trash2 className="w-4 h-4 text-red-500" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </div>
+              ))
+            )}
           </div>
 
-          {/* Mobile Cards */}
-          <div className="md:hidden space-y-3">
-            {(estimates || []).map((estimate) => {
-              const isMultiDay = (estimate.event_end_date || estimate.event_date) !== (estimate.event_start_date || estimate.event_date);
-              return (
-                <Card 
-                  key={estimate.id} 
-                  className={`overflow-hidden cursor-pointer hover:shadow-md transition-shadow ${estimate.is_editing ? 'border-blue-300 bg-blue-50/50' : ''}`}
-                  onClick={() => handleEdit(estimate)}
-                >
-                  <CardContent className="p-3 sm:p-4">
-                    {/* Верхняя строка: название и кнопки */}
-                    <div className="flex justify-between items-start gap-2">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-sm sm:text-base break-words leading-tight">
-                          {estimate.event_name}
-                          {estimate.is_editing && (
-                            <span className="ml-1.5 inline-flex items-center gap-1 text-[10px] text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded align-middle">
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                            </span>
-                          )}
-                        </h3>
-                        <p className="text-xs sm:text-sm text-gray-500 truncate mt-0.5">{estimate.venue || 'Без площадки'}</p>
-                        {estimate.is_editing && (
-                          <p className="text-[10px] text-blue-600 mt-1">
-                            Редактирует: {estimate.editor_name || 'другой пользователь'}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex gap-1 shrink-0">
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          className="h-9 w-9 p-0 touch-manipulation"
-                          disabled={estimate.is_editing && estimate.editing_by !== currentUserId}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEdit(estimate);
-                          }}
-                        >
-                          {estimate.is_editing ? (
-                            <Lock className="w-4 h-4 text-orange-500" />
-                          ) : (
-                            <Edit className="w-4 h-4" />
-                          )}
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          className="h-9 w-9 p-0 touch-manipulation"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onDelete(estimate.id);
-                          }}
-                        >
-                          <Trash2 className="w-4 h-4 text-red-500" />
-                        </Button>
-                      </div>
+          {/* Mobile Cards с группировкой */}
+          <div className="md:hidden space-y-4">
+            {groupedEstimates.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                {searchQuery ? 'Ничего не найдено' : 'Нет смет'}
+              </div>
+            ) : (
+              groupedEstimates.map(([month, monthEstimates]) => (
+                <div key={month} className="border rounded-lg overflow-hidden">
+                  {/* Заголовок месяца */}
+                  <button
+                    onClick={() => {
+                      const newExpanded = new Set(expandedMonths);
+                      if (newExpanded.has(month)) {
+                        newExpanded.delete(month);
+                      } else {
+                        newExpanded.add(month);
+                      }
+                      setExpandedMonths(newExpanded);
+                    }}
+                    className="w-full flex items-center justify-between px-3 py-2 bg-gray-50"
+                  >
+                    <div className="flex items-center gap-2">
+                      <CalendarDays className="w-4 h-4 text-gray-500" />
+                      <span className="font-semibold text-sm text-gray-700">{month}</span>
+                      <Badge variant="secondary" className="text-xs">
+                        {monthEstimates.length}
+                      </Badge>
                     </div>
-                    
-                    {/* Дата */}
-                    <div className="flex items-center gap-1.5 mt-2 text-xs sm:text-sm text-gray-600">
-                      <span>📅</span>
-                      <span>
-                        {new Date(estimate.event_start_date || estimate.event_date).toLocaleDateString('ru-RU')}
-                        {isMultiDay && (
-                          <span className="text-gray-500 ml-1">
-                            — {new Date(estimate.event_end_date || estimate.event_date).toLocaleDateString('ru-RU')}
-                          </span>
-                        )}
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-600">
+                        {monthEstimates.reduce((sum, e) => sum + (e.total || 0), 0).toLocaleString('ru-RU')} ₽
                       </span>
+                      {expandedMonths.has(month) ? (
+                        <ChevronDown className="w-4 h-4 text-gray-400" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4 text-gray-400" />
+                      )}
                     </div>
-                    
-                    {/* Статус (мобильный) */}
-                    {onUpdateStatus && (
-                      <div 
-                        className="mt-2"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <Select 
-                          value={estimate.status || 'draft'} 
-                          onValueChange={(value) => onUpdateStatus(estimate.id, value as EstimateStatus)}
-                        >
-                          <SelectTrigger className="w-full h-8 text-xs">
-                            <SelectValue>{getStatusBadge(estimate.status)}</SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="draft">Черновик</SelectItem>
-                            <SelectItem value="pending">В работе</SelectItem>
-                            <SelectItem value="completed">Выполнена</SelectItem>
-                            <SelectItem value="cancelled">Отменена</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-                    
-                    {/* Низ: заказчик, позиции, сумма */}
-                    <div className="flex items-end justify-between mt-2 pt-2 border-t border-gray-100">
-                      <div className="flex flex-col gap-0.5 min-w-0">
-                        {estimate.customer_name && (
-                          <span className="text-xs text-gray-600 flex items-center gap-1 truncate">
-                            <Users className="w-3 h-3 shrink-0" />
-                            <span className="truncate">{estimate.customer_name}</span>
-                          </span>
-                        )}
-                        <span className="text-xs text-gray-500">
-                          {estimate.items?.length || 0} позиций
-                        </span>
-                      </div>
-                      <span className="font-bold text-base sm:text-lg text-blue-600 shrink-0">
-                        {estimate.total.toLocaleString('ru-RU')} ₽
-                      </span>
+                  </button>
+                  
+                  {/* Карточки смет */}
+                  {expandedMonths.has(month) && (
+                    <div className="divide-y">
+                      {monthEstimates.map((estimate) => {
+                        const isMultiDay = (estimate.event_end_date || estimate.event_date) !== (estimate.event_start_date || estimate.event_date);
+                        return (
+                          <Card 
+                            key={estimate.id} 
+                            className={`rounded-none border-0 shadow-none cursor-pointer hover:bg-gray-50 ${estimate.is_editing ? 'bg-blue-50/50' : ''}`}
+                            onClick={() => handleEdit(estimate)}
+                          >
+                            <CardContent className="p-3">
+                              <div className="flex justify-between items-start gap-2">
+                                <div className="flex-1 min-w-0">
+                                  <h3 className="font-semibold text-sm break-words leading-tight">
+                                    {estimate.event_name}
+                                    {estimate.is_editing && (
+                                      <span className="ml-1 inline-flex items-center text-[10px] text-blue-600 bg-blue-100 px-1 rounded">
+                                        <Loader2 className="w-2 h-2 animate-spin mr-0.5" />
+                                        редакт.
+                                      </span>
+                                    )}
+                                  </h3>
+                                  <p className="text-xs text-gray-500 truncate">{estimate.venue || 'Без площадки'}</p>
+                                </div>
+                                <div className="flex gap-0.5 shrink-0">
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm"
+                                    className="h-7 w-7 p-0"
+                                    disabled={estimate.is_editing && estimate.editing_by !== currentUserId}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleEdit(estimate);
+                                    }}
+                                  >
+                                    {estimate.is_editing ? <Lock className="w-3.5 h-3.5 text-orange-500" /> : <Edit className="w-3.5 h-3.5" />}
+                                  </Button>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm"
+                                    className="h-7 w-7 p-0"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onDelete(estimate.id);
+                                    }}
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                                  </Button>
+                                </div>
+                              </div>
+                              
+                              <div className="flex items-center gap-1 mt-1 text-xs text-gray-600">
+                                <span>
+                                  {new Date(estimate.event_start_date || estimate.event_date).toLocaleDateString('ru-RU')}
+                                  {isMultiDay && ` — ${new Date(estimate.event_end_date || estimate.event_date).toLocaleDateString('ru-RU')}`}
+                                </span>
+                              </div>
+                              
+                              {onUpdateStatus && (
+                                <div className="mt-1.5" onClick={(e) => e.stopPropagation()}>
+                                  <Select 
+                                    value={estimate.status || 'draft'} 
+                                    onValueChange={(value) => onUpdateStatus(estimate.id, value as EstimateStatus)}
+                                  >
+                                    <SelectTrigger className="w-full h-7 text-xs">
+                                      <SelectValue>{getStatusBadge(estimate.status)}</SelectValue>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="draft">Черновик</SelectItem>
+                                      <SelectItem value="pending">В работе</SelectItem>
+                                      <SelectItem value="completed">Выполнена</SelectItem>
+                                      <SelectItem value="cancelled">Отменена</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              )}
+                              
+                              <div className="flex items-end justify-between mt-1.5 pt-1.5 border-t border-gray-100">
+                                <span className="text-xs text-gray-500 truncate">{estimate.customer_name || '-'}</span>
+                                <span className="font-bold text-sm text-blue-600">{estimate.total.toLocaleString('ru-RU')} ₽</span>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
                     </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+                  )}
+                </div>
+              ))
+            )}
           </div>
         </CardContent>
       </Card>
