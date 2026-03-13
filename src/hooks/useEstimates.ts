@@ -380,6 +380,53 @@ export function useEstimates(companyId: string | undefined) {
     }
   }, [companyId]);
 
+  // Обновление статуса сметы (для аналитики)
+  const updateEstimateStatus = useCallback(async (id: string, status: 'draft' | 'pending' | 'completed' | 'cancelled') => {
+    if (!companyId) return { error: new Error('No company selected') };
+    
+    try {
+      const isLocalId = id.startsWith('local_');
+      
+      if (isOnline() && !isLocalId) {
+        try {
+          const { error } = await supabase
+            .from('estimates')
+            .update({ status, updated_at: new Date().toISOString() })
+            .eq('id', id)
+            .eq('company_id', companyId);
+
+          if (error) throw error;
+          
+          // Обновляем UI
+          setEstimates(prev => prev.map(e => e.id === id ? { ...e, status } as Estimate : e));
+          toast.success('Статус обновлён');
+          return { error: null };
+        } catch (err) {
+          // Fallback к локальному обновлению
+        }
+      }
+      
+      // Офлайн режим - обновляем локально
+      const localEstimates = await getEstimatesLocal(companyId);
+      const estimate = localEstimates.find(e => e.data.id === id);
+      
+      if (estimate) {
+        const updatedEstimate = { ...estimate.data, status, updated_at: new Date().toISOString() };
+        await saveEstimateLocal(updatedEstimate, companyId);
+        await addToSyncQueue('estimates', 'update', updatedEstimate);
+        
+        setEstimates(prev => prev.map(e => e.id === id ? updatedEstimate as Estimate : e));
+        toast.info('Статус обновлён офлайн');
+        return { error: null, queued: true };
+      }
+      
+      return { error: new Error('Смета не найдена') };
+    } catch (err: any) {
+      toast.error('Ошибка при обновлении статуса', { description: err.message });
+      return { error: err };
+    }
+  }, [companyId]);
+
   // Отслеживание статуса сети
   useEffect(() => {
     const handleOnline = () => {
@@ -466,6 +513,7 @@ export function useEstimates(companyId: string | undefined) {
     createEstimate,
     updateEstimate,
     deleteEstimate,
+    updateEstimateStatus,
     startEditing,
     stopEditing,
     refresh: fetchEstimates

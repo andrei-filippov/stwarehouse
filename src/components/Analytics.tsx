@@ -80,8 +80,23 @@ export const Analytics = memo(function Analytics({
     return expenses.filter(e => e.date >= dateRange.start && e.date <= dateRange.end);
   }, [expenses, dateRange]);
 
+  // Выручка только от выполненных смет (для расчета прибыли)
+  const completedEstimates = useMemo(() => {
+    return filteredEstimates.filter(e => e.status === 'completed');
+  }, [filteredEstimates]);
+
   const totalRevenue = useMemo(() => {
-    return filteredEstimates.reduce((sum, e) => sum + (e.total || 0), 0);
+    return completedEstimates.reduce((sum, e) => sum + (e.total || 0), 0);
+  }, [completedEstimates]);
+
+  // Статистика по статусам смет
+  const estimatesByStatus = useMemo(() => {
+    const stats: Record<string, number> = {};
+    filteredEstimates.forEach(e => {
+      const status = e.status || 'draft';
+      stats[status] = (stats[status] || 0) + 1;
+    });
+    return stats;
   }, [filteredEstimates]);
 
   const totalExpenses = useMemo(() => {
@@ -233,7 +248,18 @@ export const Analytics = memo(function Analytics({
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card><CardContent className="p-6"><div className="flex items-center justify-between"><div><p className="text-sm text-gray-500">Выручка</p><p className="text-2xl font-bold text-green-600">{formatCurrency(totalRevenue)}</p></div><DollarSign className="w-8 h-8 text-green-500" /></div></CardContent></Card>
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Выручка</p>
+                <p className="text-2xl font-bold text-green-600">{formatCurrency(totalRevenue)}</p>
+                <p className="text-xs text-green-600/70">только выполненные сметы</p>
+              </div>
+              <DollarSign className="w-8 h-8 text-green-500" />
+            </div>
+          </CardContent>
+        </Card>
         <Card><CardContent className="p-6"><div className="flex items-center justify-between"><div><p className="text-sm text-gray-500">Расходы</p><p className="text-2xl font-bold text-red-600">{formatCurrency(totalExpenses)}</p></div><TrendingDown className="w-8 h-8 text-red-500" /></div></CardContent></Card>
         <Card className={profit >= 0 ? 'border-green-200' : 'border-red-200'}>
           <CardContent className="p-6">
@@ -247,7 +273,23 @@ export const Analytics = memo(function Analytics({
             </div>
           </CardContent>
         </Card>
-        <Card><CardContent className="p-6"><div className="flex items-center justify-between"><div><p className="text-sm text-gray-500">Смет</p><p className="text-2xl font-bold">{estimateCount}</p></div><Calendar className="w-8 h-8 text-blue-500" /></div></CardContent></Card>
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Смет</p>
+                <p className="text-2xl font-bold">{estimateCount}</p>
+                <div className="flex gap-1 mt-1 text-xs">
+                  {estimatesByStatus.completed > 0 && <span className="text-green-600">{estimatesByStatus.completed}✓</span>}
+                  {estimatesByStatus.pending > 0 && <span className="text-yellow-600">{estimatesByStatus.pending}⏳</span>}
+                  {estimatesByStatus.draft > 0 && <span className="text-gray-500">{estimatesByStatus.draft}📝</span>}
+                  {estimatesByStatus.cancelled > 0 && <span className="text-red-600">{estimatesByStatus.cancelled}✕</span>}
+                </div>
+              </div>
+              <Calendar className="w-8 h-8 text-blue-500" />
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
@@ -274,8 +316,39 @@ export const Analytics = memo(function Analytics({
             })}
           </div>
           <div className="flex justify-center gap-4 mt-4 text-sm">
-            <div className="flex items-center gap-2"><div className="w-3 h-3 bg-green-500 rounded"></div><span>Выручка</span></div>
+            <div className="flex items-center gap-2"><div className="w-3 h-3 bg-green-500 rounded"></div><span>Выручка (выполненные сметы)</span></div>
             <div className="flex items-center gap-2"><div className="w-3 h-3 bg-red-500 rounded"></div><span>Расходы</span></div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Статистика по статусам смет */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <CheckCircle2 className="w-5 h-5" />
+            Сметы по статусам
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="text-center p-4 bg-green-50 rounded-lg">
+              <p className="text-2xl font-bold text-green-600">{estimatesByStatus.completed || 0}</p>
+              <p className="text-sm text-green-700">Выполнены</p>
+              <p className="text-xs text-green-600/70">учитываются в прибыли</p>
+            </div>
+            <div className="text-center p-4 bg-yellow-50 rounded-lg">
+              <p className="text-2xl font-bold text-yellow-600">{estimatesByStatus.pending || 0}</p>
+              <p className="text-sm text-yellow-700">В работе</p>
+            </div>
+            <div className="text-center p-4 bg-gray-50 rounded-lg">
+              <p className="text-2xl font-bold text-gray-600">{estimatesByStatus.draft || 0}</p>
+              <p className="text-sm text-gray-700">Черновики</p>
+            </div>
+            <div className="text-center p-4 bg-red-50 rounded-lg">
+              <p className="text-2xl font-bold text-red-600">{estimatesByStatus.cancelled || 0}</p>
+              <p className="text-sm text-red-700">Отменены</p>
+            </div>
           </div>
         </CardContent>
       </Card>

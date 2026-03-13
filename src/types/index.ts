@@ -29,6 +29,8 @@ export type EstimateItem = {
   coefficient: number; // коэффициент, по умолчанию 1
 };
 
+export type EstimateStatus = 'draft' | 'pending' | 'completed' | 'cancelled';
+
 export type Estimate = {
   id: string;
   user_id?: string;
@@ -45,6 +47,8 @@ export type Estimate = {
   items?: EstimateItem[];
   creator_name?: string;
   category_order?: string[]; // Порядок категорий для drag-and-drop
+  // Статус сметы (для аналитики прибыли)
+  status?: EstimateStatus;
   // Статус редактирования (realtime)
   is_editing?: boolean;
   editing_by?: string;

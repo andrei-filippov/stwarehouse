@@ -3,10 +3,12 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
-import { Plus, Edit, Trash2, Layout, Copy, FileSpreadsheet, Users, Loader2, Lock } from 'lucide-react';
-import type { Estimate, PDFSettings, Template, EstimateItem } from '../types';
+import { Plus, Edit, Trash2, Layout, Copy, FileSpreadsheet, Users, Loader2, Lock, CheckCircle2, Clock, XCircle, FileText } from 'lucide-react';
+import type { Estimate, PDFSettings, Template, EstimateItem, EstimateStatus } from '../types';
 import { EstimateBuilder } from './EstimateBuilder';
 import { EstimateImportDialog } from './EstimateImportDialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Badge } from './ui/badge';
 
 interface EstimateManagerProps {
   estimates: Estimate[];
@@ -18,6 +20,7 @@ interface EstimateManagerProps {
   onCreate: (estimate: any, items: any[], categoryOrder?: string[]) => Promise<{ error: any; data?: any }>;
   onUpdate: (id: string, estimate: any, items: any[], categoryOrder?: string[]) => Promise<{ error: any }>;
   onDelete: (id: string) => Promise<{ error: any }>;
+  onUpdateStatus?: (id: string, status: EstimateStatus) => Promise<{ error: any }>;
   onCreateEquipment?: (equipment: any) => Promise<{ error: any; data?: any }>;
   onStartEditing?: (estimateId: string) => Promise<{ error: any }>;
   onStopEditing?: (estimateId?: string) => Promise<{ error: any }>;
@@ -35,12 +38,26 @@ export const EstimateManager = memo(function EstimateManager({
   onCreate,
   onUpdate,
   onDelete,
+  onUpdateStatus,
   onCreateEquipment,
   onStartEditing,
   onStopEditing,
   currentUserId,
   fabAction,
 }: EstimateManagerProps) {
+  // Helper для отображения статуса
+  const getStatusBadge = (status?: EstimateStatus) => {
+    switch (status) {
+      case 'completed':
+        return <Badge className="bg-green-100 text-green-700 hover:bg-green-100"><CheckCircle2 className="w-3 h-3 mr-1" /> Выполнена</Badge>;
+      case 'pending':
+        return <Badge className="bg-yellow-100 text-yellow-700 hover:bg-yellow-100"><Clock className="w-3 h-3 mr-1" /> В работе</Badge>;
+      case 'cancelled':
+        return <Badge className="bg-red-100 text-red-700 hover:bg-red-100"><XCircle className="w-3 h-3 mr-1" /> Отменена</Badge>;
+      default:
+        return <Badge variant="outline"><FileText className="w-3 h-3 mr-1" /> Черновик</Badge>;
+    }
+  };
   // Открываем создание сметы при нажатии FAB (пропускаем первый рендер)
   const isFirstRender = useRef(true);
   useEffect(() => {
@@ -230,6 +247,7 @@ export const EstimateManager = memo(function EstimateManager({
                   <TableHead>Период</TableHead>
                   <TableHead>Позиций</TableHead>
                   <TableHead>Сумма</TableHead>
+                  <TableHead>Статус</TableHead>
                   <TableHead>Действия</TableHead>
                 </TableRow>
               </TableHeader>
@@ -256,6 +274,34 @@ export const EstimateManager = memo(function EstimateManager({
                     </TableCell>
                     <TableCell>{estimate.items?.length || 0}</TableCell>
                     <TableCell>{estimate.total.toLocaleString('ru-RU')} ₽</TableCell>
+                    <TableCell>
+                      {onUpdateStatus ? (
+                        <Select 
+                          value={estimate.status || 'draft'} 
+                          onValueChange={(value) => onUpdateStatus(estimate.id, value as EstimateStatus)}
+                        >
+                          <SelectTrigger className="w-[140px] h-8">
+                            <SelectValue>{getStatusBadge(estimate.status)}</SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="draft">
+                              <span className="flex items-center gap-2"><FileText className="w-4 h-4" /> Черновик</span>
+                            </SelectItem>
+                            <SelectItem value="pending">
+                              <span className="flex items-center gap-2"><Clock className="w-4 h-4" /> В работе</span>
+                            </SelectItem>
+                            <SelectItem value="completed">
+                              <span className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4" /> Выполнена</span>
+                            </SelectItem>
+                            <SelectItem value="cancelled">
+                              <span className="flex items-center gap-2"><XCircle className="w-4 h-4" /> Отменена</span>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        getStatusBadge(estimate.status)
+                      )}
+                    </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
                         <Button 
@@ -358,6 +404,29 @@ export const EstimateManager = memo(function EstimateManager({
                         )}
                       </span>
                     </div>
+                    
+                    {/* Статус (мобильный) */}
+                    {onUpdateStatus && (
+                      <div 
+                        className="mt-2"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Select 
+                          value={estimate.status || 'draft'} 
+                          onValueChange={(value) => onUpdateStatus(estimate.id, value as EstimateStatus)}
+                        >
+                          <SelectTrigger className="w-full h-8 text-xs">
+                            <SelectValue>{getStatusBadge(estimate.status)}</SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="draft">Черновик</SelectItem>
+                            <SelectItem value="pending">В работе</SelectItem>
+                            <SelectItem value="completed">Выполнена</SelectItem>
+                            <SelectItem value="cancelled">Отменена</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                     
                     {/* Низ: заказчик, позиции, сумма */}
                     <div className="flex items-end justify-between mt-2 pt-2 border-t border-gray-100">
