@@ -53,7 +53,6 @@ export function useEstimates(companyId: string | undefined) {
         setEstimates([...unsyncedLocal, ...(data as Estimate[] || [])]);
       } catch (err) {
         // Ошибка сети (503 и т.д.) - показываем только локальные
-        console.log('Network error, showing local data:', err);
         setEstimates(localOnly);
       }
     } else {

@@ -56,53 +56,129 @@ const DB_VERSION = 2; // Увеличиваем версию для добавл
 
 let db: IDBPDatabase<StwarehouseDB> | null = null;
 
+// Проверка доступности IndexedDB (Safari в приватном режиме может блокировать)
+function isIndexedDBAvailable(): boolean {
+  try {
+    return typeof window !== 'undefined' && 
+           'indexedDB' in window && 
+           window.indexedDB !== null;
+  } catch {
+    return false;
+  }
+}
+
+// Проверка доступности localStorage
+function isLocalStorageAvailable(): boolean {
+  try {
+    const test = '__test__';
+    localStorage.setItem(test, test);
+    localStorage.removeItem(test);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Fallback на localStorage для Safari приватного режима
+const STORAGE_PREFIX = 'stwh_';
+let useLocalStorageFallback = false;
+
+// Публичная функция проверки доступности офлайн-хранилища
+export function isOfflineStorageAvailable(): boolean {
+  return isIndexedDBAvailable() || isLocalStorageAvailable();
+}
+
 // Инициализация базы данных
 export async function initOfflineDB(): Promise<IDBPDatabase<StwarehouseDB>> {
   if (db) return db;
   
-  db = await openDB<StwarehouseDB>(DB_NAME, DB_VERSION, {
-    upgrade(database, oldVersion) {
-      // Таблица смет
-      if (!database.objectStoreNames.contains('estimates')) {
-        const estimatesStore = database.createObjectStore('estimates', { keyPath: 'id' });
-        estimatesStore.createIndex('by-company', 'companyId');
-        estimatesStore.createIndex('by-synced', 'synced');
-      }
-      
-      // Таблица оборудования
-      if (!database.objectStoreNames.contains('equipment')) {
-        const equipmentStore = database.createObjectStore('equipment', { keyPath: 'id' });
-        equipmentStore.createIndex('by-company', 'companyId');
-        equipmentStore.createIndex('by-synced', 'synced');
-      }
-      
-      // Таблица чек-листов (новая в версии 2)
-      if (!database.objectStoreNames.contains('checklists')) {
-        const checklistsStore = database.createObjectStore('checklists', { keyPath: 'id' });
-        checklistsStore.createIndex('by-company', 'companyId');
-        checklistsStore.createIndex('by-synced', 'synced');
-      }
-      
-      // Очередь синхронизации
-      if (!database.objectStoreNames.contains('syncQueue')) {
-        database.createObjectStore('syncQueue', { 
-          keyPath: 'id', 
-          autoIncrement: true 
-        });
-      }
-      
-      // Настройки
-      if (!database.objectStoreNames.contains('settings')) {
-        database.createObjectStore('settings');
-      }
-    }
-  });
+  // Проверяем доступность IndexedDB
+  if (!isIndexedDBAvailable()) {
+    useMemoryFallback = true;
+    throw new Error('IndexedDB not available');
+  }
   
-  return db;
+  try {
+    db = await openDB<StwarehouseDB>(DB_NAME, DB_VERSION, {
+      upgrade(database, oldVersion) {
+        // Таблица смет
+        if (!database.objectStoreNames.contains('estimates')) {
+          const estimatesStore = database.createObjectStore('estimates', { keyPath: 'id' });
+          estimatesStore.createIndex('by-company', 'companyId');
+          estimatesStore.createIndex('by-synced', 'synced');
+        }
+        
+        // Таблица оборудования
+        if (!database.objectStoreNames.contains('equipment')) {
+          const equipmentStore = database.createObjectStore('equipment', { keyPath: 'id' });
+          equipmentStore.createIndex('by-company', 'companyId');
+          equipmentStore.createIndex('by-synced', 'synced');
+        }
+        
+        // Таблица чек-листов (новая в версии 2)
+        if (!database.objectStoreNames.contains('checklists')) {
+          const checklistsStore = database.createObjectStore('checklists', { keyPath: 'id' });
+          checklistsStore.createIndex('by-company', 'companyId');
+          checklistsStore.createIndex('by-synced', 'synced');
+        }
+        
+        // Очередь синхронизации
+        if (!database.objectStoreNames.contains('syncQueue')) {
+          database.createObjectStore('syncQueue', { 
+            keyPath: 'id', 
+            autoIncrement: true 
+          });
+        }
+        
+        // Настройки
+        if (!database.objectStoreNames.contains('settings')) {
+          database.createObjectStore('settings');
+        }
+      }
+    });
+    
+    return db;
+  } catch (err) {
+    // Если не удалось открыть БД (приватный режим Safari) - используем localStorage
+    if (isLocalStorageAvailable()) {
+      useLocalStorageFallback = true;
+    }
+    throw err;
+  }
+}
+
+// Helper для localStorage fallback
+function getFromStorage<T>(key: string, defaultValue: T): T {
+  try {
+    const item = localStorage.getItem(STORAGE_PREFIX + key);
+    return item ? JSON.parse(item) : defaultValue;
+  } catch {
+    return defaultValue;
+  }
+}
+
+function setToStorage(key: string, value: any): void {
+  try {
+    localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(value));
+  } catch {
+    // localStorage может быть переполнен
+  }
 }
 
 // === Сметы ===
 export async function saveEstimateLocal(estimate: any, companyId: string) {
+  if (useLocalStorageFallback) {
+    const estimates = getFromStorage<Record<string, any>>('estimates', {});
+    estimates[estimate.id] = {
+      id: estimate.id,
+      data: estimate,
+      synced: false,
+      updatedAt: Date.now(),
+      companyId
+    };
+    setToStorage('estimates', estimates);
+    return;
+  }
   const database = await initOfflineDB();
   await database.put('estimates', {
     id: estimate.id,
@@ -114,21 +190,46 @@ export async function saveEstimateLocal(estimate: any, companyId: string) {
 }
 
 export async function getEstimatesLocal(companyId: string) {
+  if (useLocalStorageFallback) {
+    const estimates = getFromStorage<Record<string, any>>('estimates', {});
+    return Object.values(estimates).filter((e: any) => e.companyId === companyId);
+  }
   const database = await initOfflineDB();
   return database.getAllFromIndex('estimates', 'by-company', companyId);
 }
 
 export async function getEstimateLocal(id: string) {
+  if (useLocalStorageFallback) {
+    const estimates = getFromStorage<Record<string, any>>('estimates', {});
+    return estimates[id] || null;
+  }
   const database = await initOfflineDB();
   return database.get('estimates', id);
 }
 
 export async function deleteEstimateLocal(id: string) {
+  if (useLocalStorageFallback) {
+    const estimates = getFromStorage<Record<string, any>>('estimates', {});
+    delete estimates[id];
+    setToStorage('estimates', estimates);
+    return;
+  }
   const database = await initOfflineDB();
   await database.delete('estimates', id);
 }
 
 export async function clearEstimatesLocal(companyId: string) {
+  if (useLocalStorageFallback) {
+    const estimates = getFromStorage<Record<string, any>>('estimates', {});
+    const filtered: Record<string, any> = {};
+    for (const [key, value] of Object.entries(estimates)) {
+      if (value.companyId !== companyId) {
+        filtered[key] = value;
+      }
+    }
+    setToStorage('estimates', filtered);
+    return;
+  }
   const database = await initOfflineDB();
   const items = await database.getAllFromIndex('estimates', 'by-company', companyId);
   for (const item of items) {
@@ -137,6 +238,14 @@ export async function clearEstimatesLocal(companyId: string) {
 }
 
 export async function markEstimateSynced(id: string) {
+  if (useLocalStorageFallback) {
+    const estimates = getFromStorage<Record<string, any>>('estimates', {});
+    if (estimates[id]) {
+      estimates[id].synced = true;
+      setToStorage('estimates', estimates);
+    }
+    return;
+  }
   const database = await initOfflineDB();
   const estimate = await database.get('estimates', id);
   if (estimate) {
@@ -223,36 +332,66 @@ export async function markChecklistSynced(id: string) {
 }
 
 // === Очередь синхронизации ===
+let queueIdCounter = 1;
+
 export async function addToSyncQueue(
   table: string, 
   operation: 'create' | 'update' | 'delete', 
   data: any
 ) {
-  console.log('[addToSyncQueue] Adding:', table, operation, 'data.id:', data.id, 'company:', data.company_id);
+  if (useLocalStorageFallback) {
+    const queue = getFromStorage<any[]>('syncQueue', []);
+    const id = queueIdCounter++;
+    queue.push({
+      id,
+      table,
+      operation,
+      data,
+      retryCount: 0,
+      createdAt: Date.now()
+    });
+    setToStorage('syncQueue', queue);
+    return id;
+  }
   const database = await initOfflineDB();
-  const result = await database.add('syncQueue', {
+  await database.add('syncQueue', {
     table,
     operation,
     data,
     retryCount: 0,
     createdAt: Date.now()
   });
-  console.log('[addToSyncQueue] Added with id:', result);
 }
 
 export async function getSyncQueue() {
+  if (useLocalStorageFallback) {
+    return getFromStorage<any[]>('syncQueue', []);
+  }
   const database = await initOfflineDB();
-  const items = await database.getAll('syncQueue');
-  console.log('[getSyncQueue] Items:', items.map(i => `${i.table} (id:${i.data?.id?.slice(0,20)})`));
-  return items;
+  return await database.getAll('syncQueue');
 }
 
 export async function removeFromSyncQueue(id: number) {
+  if (useLocalStorageFallback) {
+    const queue = getFromStorage<any[]>('syncQueue', []);
+    const filtered = queue.filter(item => item.id !== id);
+    setToStorage('syncQueue', filtered);
+    return;
+  }
   const database = await initOfflineDB();
   await database.delete('syncQueue', id);
 }
 
 export async function updateSyncQueueRetry(id: number, retryCount: number) {
+  if (useLocalStorageFallback) {
+    const queue = getFromStorage<any[]>('syncQueue', []);
+    const item = queue.find(i => i.id === id);
+    if (item) {
+      item.retryCount = retryCount;
+      setToStorage('syncQueue', queue);
+    }
+    return;
+  }
   const database = await initOfflineDB();
   const item = await database.get('syncQueue', id);
   if (item) {
@@ -262,6 +401,11 @@ export async function updateSyncQueueRetry(id: number, retryCount: number) {
 }
 
 export async function clearSyncQueue() {
+  if (useLocalStorageFallback) {
+    setToStorage('syncQueue', []);
+    queueIdCounter = 1;
+    return;
+  }
   const database = await initOfflineDB();
   const items = await database.getAll('syncQueue');
   for (const item of items) {

@@ -32,11 +32,9 @@ export function OfflineIndicator({ companyId, onSync }: OfflineIndicatorProps = 
       clearTimeout(timeoutId);
       
       const isConnected = !error;
-      console.log('[OfflineIndicator] Connection check:', isConnected, error?.message || '');
       setIsOnline(isConnected);
       return isConnected;
     } catch (e: any) {
-      console.log('[OfflineIndicator] Connection check failed:', e?.message || e);
       setIsOnline(false);
       return false;
     }
@@ -77,7 +75,6 @@ export function OfflineIndicator({ companyId, onSync }: OfflineIndicatorProps = 
       // Fallback - старая логика (не должна использоваться)
       toast.error('Ошибка конфигурации: onSync не передан');
     } catch (err) {
-      console.error('[OfflineIndicator] Sync failed:', err);
       toast.error('Ошибка синхронизации');
     } finally {
       setIsSyncing(false);
@@ -102,13 +99,11 @@ export function OfflineIndicator({ companyId, onSync }: OfflineIndicatorProps = 
   // Слушаем события браузера online/offline
   useEffect(() => {
     const handleBrowserOnline = () => {
-      console.log('[OfflineIndicator] Browser online event');
       // Перепроверяем реальное соединение
       setTimeout(checkConnection, 500);
     };
     
     const handleBrowserOffline = () => {
-      console.log('[OfflineIndicator] Browser offline event');
       setIsOnline(false);
     };
 
