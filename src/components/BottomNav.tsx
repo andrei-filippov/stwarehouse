@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Package, FileText, Calendar, Users, Menu, Plus } from 'lucide-react';
+import { Package, FileText, Calendar, Users, Menu, Plus, Trash2, Wifi, WifiOff } from 'lucide-react';
 import { Button } from './ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './ui/sheet';
+import { toast } from 'sonner';
 import type { TabId } from '../lib/permissions';
 
 interface BottomNavProps {
@@ -14,6 +15,20 @@ interface BottomNavProps {
 
 export function BottomNav({ activeTab, onTabChange, availableTabs, onSignOut, onFabClick }: BottomNavProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  // Сброс локальных данных (для мобильных когда данные "застревают")
+  const handleClearCache = async () => {
+    try {
+      const { clearAllLocalData, clearDeletedEstimates } = await import('../lib/offlineDB');
+      await clearAllLocalData();
+      await clearDeletedEstimates();
+      toast.success('Кэш очищен. Перезагрузка...');
+      setTimeout(() => window.location.reload(), 1000);
+    } catch (e) {
+      toast.error('Ошибка очистки кэша');
+    }
+  };
   
   // Скрываем FAB на дашборде и сметах (там свой интерфейс создания)
   const showFab = activeTab !== 'dashboard' && activeTab !== 'estimates' && onFabClick !== undefined;
@@ -87,7 +102,7 @@ export function BottomNav({ activeTab, onTabChange, availableTabs, onSignOut, on
                   <span className="text-[10px] font-medium">Ещё</span>
                 </button>
               </SheetTrigger>
-              <SheetContent side="bottom" className="h-[70vh] rounded-t-2xl">
+              <SheetContent side="bottom" className="h-[80vh] rounded-t-2xl">
                 <SheetHeader className="pb-4">
                   <SheetTitle className="text-lg">Меню</SheetTitle>
                 </SheetHeader>
@@ -115,6 +130,37 @@ export function BottomNav({ activeTab, onTabChange, availableTabs, onSignOut, on
                     );
                   })}
                 </div>
+                {/* Статус и кнопки сброса */}
+                <div className="absolute bottom-16 left-0 right-0 px-4 py-3 border-t bg-gray-50">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      {isOnline ? (
+                        <>
+                          <Wifi className="w-4 h-4 text-green-500" />
+                          <span>Онлайн</span>
+                        </>
+                      ) : (
+                        <>
+                          <WifiOff className="w-4 h-4 text-red-500" />
+                          <span>Офлайн</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    className="w-full rounded-lg text-yellow-700 border-yellow-200 hover:bg-yellow-50"
+                    onClick={() => {
+                      handleClearCache();
+                      setMenuOpen(false);
+                    }}
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Сбросить кэш
+                  </Button>
+                </div>
+
                 <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-white">
                   <Button 
                     variant="outline" 
