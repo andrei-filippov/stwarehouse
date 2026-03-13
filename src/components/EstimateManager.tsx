@@ -443,7 +443,9 @@ export const EstimateManager = memo(function EstimateManager({
                                   className="h-8 w-8 p-0"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    onDelete(estimate.id);
+                                    if (confirm(`Удалить смету "${estimate.event_name}"?`)) {
+                                      onDelete(estimate.id);
+                                    }
                                   }}
                                 >
                                   <Trash2 className="w-4 h-4 text-red-500" />
@@ -545,7 +547,9 @@ export const EstimateManager = memo(function EstimateManager({
                                     className="h-7 w-7 p-0"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      onDelete(estimate.id);
+                                      if (confirm(`Удалить смету "${estimate.event_name}"?`)) {
+                                        onDelete(estimate.id);
+                                      }
                                     }}
                                   >
                                     <Trash2 className="w-3.5 h-3.5 text-red-500" />
