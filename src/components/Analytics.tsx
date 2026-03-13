@@ -17,7 +17,8 @@ import {
   Wallet,
   Plus,
   Trash2,
-  Edit
+  Edit,
+  CheckCircle2
 } from 'lucide-react';
 import type { Customer, Equipment, Estimate, Staff } from '../types';
 import type { Expense, ExpenseCategory } from '../types/expenses';
