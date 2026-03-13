@@ -496,13 +496,47 @@ export async function clearDeletedEstimates() {
 
 // === Настройки ===
 export async function saveSetting(key: string, value: any) {
+  if (useLocalStorageFallback) {
+    setToStorage(key, value);
+    return;
+  }
   const database = await initOfflineDB();
   await database.put('settings', value, key);
 }
 
 export async function getSetting(key: string) {
+  if (useLocalStorageFallback) {
+    return getFromStorage<any>(key, null);
+  }
   const database = await initOfflineDB();
   return database.get('settings', key);
+}
+
+// === Правила чеклистов (кэш для офлайн) ===
+const CHECKLIST_RULES_KEY = 'checklist_rules_cache';
+
+export async function saveChecklistRulesCache(rules: any[], companyId: string) {
+  const data = { rules, companyId, cachedAt: Date.now() };
+  await saveSetting(CHECKLIST_RULES_KEY, data);
+}
+
+export async function getChecklistRulesCache(companyId: string): Promise<any[] | null> {
+  const data = await getSetting(CHECKLIST_RULES_KEY);
+  if (data && data.companyId === companyId) {
+    return data.rules;
+  }
+  return null;
+}
+
+export async function clearChecklistRulesCache() {
+  if (useLocalStorageFallback) {
+    localStorage.removeItem(STORAGE_PREFIX + CHECKLIST_RULES_KEY);
+  } else {
+    try {
+      const database = await initOfflineDB();
+      await database.delete('settings', CHECKLIST_RULES_KEY);
+    } catch {}
+  }
 }
 
 // === Пользователь (для офлайн-авторизации) ===

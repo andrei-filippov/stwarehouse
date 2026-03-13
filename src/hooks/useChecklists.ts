@@ -7,7 +7,9 @@ import {
   saveChecklistLocal,
   getChecklistsLocal,
   deleteChecklistLocal,
-  addToSyncQueue
+  addToSyncQueue,
+  saveChecklistRulesCache,
+  getChecklistRulesCache
 } from '../lib/offlineDB';
 
 export function useChecklists(companyId: string | undefined, estimates: Estimate[]) {
@@ -69,9 +71,18 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
         toast.error('Ошибка при загрузке правил', { description: error.message });
       } else {
         setRules(data || []);
+        // Кэшируем правила для офлайн-режима
+        if (companyId) {
+          await saveChecklistRulesCache(data || [], companyId);
+        }
+      }
+    } else {
+      // ОФФЛАЙН: загружаем из кэша
+      const cached = await getChecklistRulesCache(companyId);
+      if (cached) {
+        setRules(cached);
       }
     }
-    // Правила не кэшируем оффлайн
   }, [companyId]);
 
   const createRule = useCallback(async (rule: Partial<ChecklistRule>) => {
@@ -136,6 +147,15 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
       // Генерируем локальный ID
       const localId = `local_checklist_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       
+      // Если правила не загружены (например, при быстром создании офлайн), пробуем загрузить из кэша
+      let rulesToUse = rules;
+      if (rules.length === 0 && !isOnline()) {
+        const cached = await getChecklistRulesCache(companyId);
+        if (cached) {
+          rulesToUse = cached;
+        }
+      }
+      
       // Генерируем чек-лист
       const items: any[] = [...customItems];
       
@@ -151,8 +171,8 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
         });
         
         // Правила (только если они загружены)
-        if (rules.length > 0) {
-          const matchingRules = rules.filter(rule => 
+        if (rulesToUse.length > 0) {
+          const matchingRules = rulesToUse.filter(rule => 
             rule.condition_type === 'category' 
               ? item.category === rule.condition_value
               : item.name.includes(rule.condition_value)
@@ -213,17 +233,16 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
       }
       
       // ОФФЛАЙН режим (или fallback)
-        // ОФФЛАЙН - сохраняем только локально
-        await saveChecklistLocal(checklistData, companyId);
-        await addToSyncQueue('checklists', 'create', checklistData);
-        
-        // Обновляем UI только локальными данными
-        setChecklists(prev => [checklistData as Checklist, ...prev]);
-        
-        toast.info('Чек-лист сохранён офлайн', {
-          description: 'Будет синхронизирован при подключении'
-        });
-        return { error: null, data: checklistData, queued: true };
+      await saveChecklistLocal(checklistData, companyId);
+      await addToSyncQueue('checklists', 'create', checklistData);
+      
+      // Обновляем UI только локальными данными
+      setChecklists(prev => [checklistData as Checklist, ...prev]);
+      
+      toast.info('Чек-лист сохранён офлайн', {
+        description: 'Будет синхронизирован при подключении'
+      });
+      return { error: null, data: checklistData, queued: true };
     } catch (err: any) {
       toast.error('Ошибка при создании чек-листа', { description: err.message });
       return { error: err };
