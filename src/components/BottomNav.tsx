@@ -1,8 +1,9 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Package, FileText, Calendar, Users, Menu, Plus, Wifi, WifiOff } from 'lucide-react';
 import { Button } from './ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './ui/sheet';
 import { SyncDialog } from './SyncDialog';
+import { useOfflineSync } from '../hooks/useOfflineSync';
 import type { TabId } from '../lib/permissions';
 
 interface BottomNavProps {
