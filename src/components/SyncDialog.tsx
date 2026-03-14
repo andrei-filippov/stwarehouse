@@ -237,7 +237,7 @@ export function SyncDialog({
             )}
 
             {/* Всё синхронизировано */}
-            {isOnline && localPendingCount === 0 && (
+            {serverAvailable && localPendingCount === 0 && (
               <div className="flex items-center justify-center gap-2 text-sm text-green-600 py-2">
                 <CheckCircle2 className="w-4 h-4" />
                 Все данные синхронизированы
