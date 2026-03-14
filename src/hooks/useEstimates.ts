@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
 import type { Estimate, EstimateItem } from '../types';
 import {
+  initOfflineDB,
   isOnline,
   saveEstimateLocal,
   getEstimatesLocal,
@@ -191,6 +192,9 @@ export function useEstimates(companyId: string | undefined) {
   ) => {
     if (!companyId) return { error: new Error('No company selected') };
     
+    // Убедимся что IndexedDB инициализирован
+    await initOfflineDB();
+    
     try {
       // Генерируем локальный ID для оффлайн-создания
       const localId = `local_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
@@ -265,12 +269,15 @@ export function useEstimates(companyId: string | undefined) {
         console.log('[createEstimate] Creating estimate offline, localId:', localId, 'items count:', items?.length || 0);
         try {
           // ОФФЛАЙН - сохраняем только локально и в очередь
+          console.log('[createEstimate] Calling saveEstimateLocal...');
           await saveEstimateLocal(estimateData, companyId);
-          console.log('[createEstimate] Saved to local DB:', estimateData);
+          console.log('[createEstimate] Saved to local DB successfully');
+          console.log('[createEstimate] Calling addToSyncQueue...');
           await addToSyncQueue('estimates', 'create', estimateData);
-          console.log('[createEstimate] Added to sync queue');
+          console.log('[createEstimate] Added to sync queue successfully');
         } catch (e) {
           console.error('[createEstimate] Error saving offline:', e);
+          toast.error('Ошибка сохранения офлайн', { description: String(e) });
         }
         // Фильтруем пустые позиции и добавляем в очередь только если есть валидные
         const validItems = items.filter(item => item.name || item.equipment_id);
