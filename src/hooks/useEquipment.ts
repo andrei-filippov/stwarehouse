@@ -54,14 +54,15 @@ export function useEquipment(companyId: string | undefined) {
         });
         
         // Убираем дубликаты: если локальная запись похожа на серверную (по имени),
-        // считаем что это дубль и пропускаем локальную версию
+        // считаем что это дубль и удаляем из локальной базы
         const serverNames = new Set(
           (data || []).map(e => e.name?.toLowerCase().trim())
         );
         const uniqueLocal = newLocal.filter(local => {
           const name = local.name?.toLowerCase().trim();
           if (serverNames.has(name)) {
-            console.log('[fetchEquipment] Filtering out duplicate local equipment:', local.id);
+            console.log('[fetchEquipment] Removing duplicate local equipment:', local.id);
+            deleteEquipmentLocal(local.id).catch(console.error);
             return false;
           }
           return true;
@@ -82,15 +83,6 @@ export function useEquipment(companyId: string | undefined) {
         });
         
         setEquipment(deduplicated);
-        
-        // СОХРАНЯЕМ серверные данные в локальную базу для офлайн-доступа
-        for (const item of (data || [])) {
-          try {
-            await saveEquipmentLocal(item, companyId);
-          } catch (saveErr) {
-            console.warn('[fetchEquipment] Failed to cache equipment:', item.id, saveErr);
-          }
-        }
       } catch (err) {
         // Ошибка сети - показываем только локальные
         console.log('Network error, showing local data:', err);

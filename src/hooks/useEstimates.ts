@@ -85,15 +85,16 @@ export function useEstimates(companyId: string | undefined) {
           });
           
           // Убираем дубликаты: если локальная запись похожа на серверную (по имени события и дате),
-          // считаем что это дубль и пропускаем локальную версию
+          // считаем что это дубль и удаляем из локальной базы
           const serverSignatures = new Set(
             filteredServer.map(e => `${e.event_name?.toLowerCase().trim()}_${e.event_date}`)
           );
           const uniqueLocal = newLocal.filter(local => {
             const signature = `${local.event_name?.toLowerCase().trim()}_${local.event_date}`;
-            // Если есть такая же на сервере - пропускаем локальную
+            // Если есть такая же на сервере - удаляем локальную из базы и пропускаем
             if (serverSignatures.has(signature)) {
-              console.log('[fetchEstimates] Filtering out duplicate local estimate:', local.id);
+              console.log('[fetchEstimates] Removing duplicate local estimate:', local.id);
+              deleteEstimateLocal(local.id).catch(console.error);
               return false;
             }
             return true;
@@ -114,16 +115,6 @@ export function useEstimates(companyId: string | undefined) {
           });
           
           setEstimates(deduplicated);
-          
-          // СОХРАНЯЕМ серверные данные в локальную базу для офлайн-доступа
-          // (кроме тех что уже есть в локальной базе - несинхронизированные)
-          for (const estimate of filteredServer) {
-            try {
-              await saveEstimateLocal(estimate, companyId);
-            } catch (saveErr) {
-              console.warn('[fetchEstimates] Failed to cache estimate:', estimate.id, saveErr);
-            }
-          }
         } catch (err) {
           // Ошибка сети (503 и т.д.) - показываем только локальные
           console.log('[fetchEstimates] Network error, showing local data');

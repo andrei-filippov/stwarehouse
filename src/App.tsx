@@ -229,7 +229,7 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
         refreshEstimates();
         refreshChecklists();
         refreshEquipment();
-      }, 100); // Небольшая задержка для завершения delete-операций в IndexedDB
+      }, 500); // Задержка для завершения delete-операций в IndexedDB
     }
   }, [isSyncing, companyId, refreshEstimates, refreshChecklists, refreshEquipment]);
   const { staff, loading: staffLoading, addStaff, updateStaff, deleteStaff } = useStaff(companyId);
