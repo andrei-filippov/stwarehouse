@@ -271,7 +271,7 @@ export function useEstimates(companyId: string | undefined) {
       }
       
       // ОФФЛАЙН режим (или fallback при ошибке сети)
-        console.log('[createEstimate] Creating estimate offline, localId:', localId);
+        console.log('[createEstimate] Creating estimate offline, localId:', localId, 'items count:', items?.length || 0);
         try {
           // ОФФЛАЙН - сохраняем только локально и в очередь
           await saveEstimateLocal(estimateData, companyId);
@@ -281,12 +281,17 @@ export function useEstimates(companyId: string | undefined) {
         } catch (e) {
           console.error('[createEstimate] Error saving offline:', e);
         }
-        if (items.length > 0) {
+        // Фильтруем пустые позиции и добавляем в очередь только если есть валидные
+        const validItems = items.filter(item => item.name || item.equipment_id);
+        if (validItems.length > 0) {
+          console.log('[createEstimate] Adding items to sync queue:', validItems.length);
           await addToSyncQueue('estimate_items', 'create', { 
             estimateId: localId,
             items: estimateData.items,
             company_id: companyId
           });
+        } else {
+          console.log('[createEstimate] No valid items to add to queue');
         }
         
         // Обновляем UI только локальными данными

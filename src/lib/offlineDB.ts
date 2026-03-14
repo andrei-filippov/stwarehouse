@@ -439,6 +439,7 @@ export async function addToSyncQueue(
   operation: 'create' | 'update' | 'delete', 
   data: any
 ) {
+  console.log('[addToSyncQueue] Adding to queue:', { table, operation, dataId: data?.id || data?.estimateId });
   if (useLocalStorageFallback) {
     const queue = getFromStorage<any[]>('syncQueue', []);
     const id = queueIdCounter++;
@@ -482,15 +483,21 @@ export async function addToSyncQueue(
 
 export async function getSyncQueue() {
   if (useLocalStorageFallback) {
-    return getFromStorage<any[]>('syncQueue', []);
+    const queue = getFromStorage<any[]>('syncQueue', []);
+    console.log('[getSyncQueue] localStorage mode, count:', queue.length, 'items:', queue.map(i => ({ table: i.table, operation: i.operation })));
+    return queue;
   }
   try {
     const database = await initOfflineDB();
-    return await database.getAll('syncQueue');
+    const queue = await database.getAll('syncQueue');
+    console.log('[getSyncQueue] IndexedDB mode, count:', queue.length, 'items:', queue.map(i => ({ table: i.table, operation: i.operation })));
+    return queue;
   } catch (e) {
     // Если IndexedDB не работает - переключаемся на localStorage
     useLocalStorageFallback = true;
-    return getFromStorage<any[]>('syncQueue', []);
+    const queue = getFromStorage<any[]>('syncQueue', []);
+    console.log('[getSyncQueue] Error, fallback to localStorage, count:', queue.length);
+    return queue;
   }
 }
 

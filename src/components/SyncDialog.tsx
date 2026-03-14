@@ -24,6 +24,12 @@ interface SyncDialogProps {
   onSync?: () => Promise<void>;
 }
 
+interface QueueItem {
+  table: string;
+  operation: string;
+  data?: any;
+}
+
 export function SyncDialog({ 
   isOpen, 
   onClose, 
@@ -34,6 +40,7 @@ export function SyncDialog({
   onSync 
 }: SyncDialogProps) {
   const [localPendingCount, setLocalPendingCount] = useState(pendingCount);
+  const [queueDetails, setQueueDetails] = useState<QueueItem[]>([]);
 
   // Обновляем счётчик при изменении props
   useEffect(() => {
@@ -53,6 +60,11 @@ export function SyncDialog({
       const { getSyncQueue } = await import('../lib/offlineDB');
       const queue = await getSyncQueue();
       setLocalPendingCount(queue.length);
+      setQueueDetails(queue.map((item: any) => ({
+        table: item.table,
+        operation: item.operation,
+        data: item.data
+      })));
     } catch (e) {
       console.error('Error checking pending:', e);
     }
@@ -158,16 +170,38 @@ export function SyncDialog({
 
           {/* Очередь синхронизации */}
           {localPendingCount > 0 && (
-            <div className="flex items-center justify-between p-3 bg-orange-50 rounded-lg border border-orange-200">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="w-5 h-5 text-orange-600" />
-                <span className="text-sm text-orange-800">
-                  На синхронизацию:
+            <div className="space-y-2">
+              <div className="flex items-center justify-between p-3 bg-orange-50 rounded-lg border border-orange-200">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-5 h-5 text-orange-600" />
+                  <span className="text-sm text-orange-800">
+                    На синхронизацию:
+                  </span>
+                </div>
+                <span className="text-lg font-bold text-orange-600">
+                  {localPendingCount}
                 </span>
               </div>
-              <span className="text-lg font-bold text-orange-600">
-                {localPendingCount}
-              </span>
+              
+              {/* Детали очереди */}
+              <div className="max-h-32 overflow-y-auto space-y-1">
+                {queueDetails.map((item, idx) => (
+                  <div key={idx} className="flex items-center justify-between px-3 py-1.5 bg-gray-50 rounded text-xs">
+                    <span className="text-gray-600">
+                      {item.table === 'estimates' && 'Смета'}
+                      {item.table === 'estimate_items' && 'Позиции сметы'}
+                      {item.table === 'equipment' && 'Оборудование'}
+                      {item.table === 'checklists' && 'Чек-лист'}
+                      {!['estimates', 'estimate_items', 'equipment', 'checklists'].includes(item.table) && item.table}
+                    </span>
+                    <Badge variant="outline" className="text-xs">
+                      {item.operation === 'create' && 'Создание'}
+                      {item.operation === 'update' && 'Обновление'}
+                      {item.operation === 'delete' && 'Удаление'}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
