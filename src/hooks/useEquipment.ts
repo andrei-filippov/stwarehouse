@@ -33,8 +33,35 @@ export function useEquipment(companyId: string | undefined) {
         const serverIds = new Set((data || []).map(e => e.id));
         const unsyncedLocal = localEquipment.filter(e => !serverIds.has(e.id));
         
-        console.log('[fetchEquipment] Server items:', (data || []).length, 'Unsynced local:', unsyncedLocal.length);
-        setEquipment([...unsyncedLocal, ...(data || [])]);
+        // Убираем дубликаты: если локальная запись похожа на серверную (по имени),
+        // считаем что это дубль и пропускаем локальную версию
+        const serverNames = new Set(
+          (data || []).map(e => e.name?.toLowerCase().trim())
+        );
+        const uniqueLocal = unsyncedLocal.filter(local => {
+          const name = local.name?.toLowerCase().trim();
+          if (serverNames.has(name)) {
+            console.log('[fetchEquipment] Filtering out duplicate local equipment:', local.id);
+            return false;
+          }
+          return true;
+        });
+        
+        console.log('[fetchEquipment] Server items:', (data || []).length, 'Unique local:', uniqueLocal.length);
+        
+        // Финальная защита: убираем дубликаты по ID
+        const merged = [...uniqueLocal, ...(data || [])];
+        const seenIds = new Set<string>();
+        const deduplicated = merged.filter(e => {
+          if (seenIds.has(e.id)) {
+            console.log('[fetchEquipment] Removing duplicate by ID:', e.id);
+            return false;
+          }
+          seenIds.add(e.id);
+          return true;
+        });
+        
+        setEquipment(deduplicated);
         
         // СОХРАНЯЕМ серверные данные в локальную базу для офлайн-доступа
         for (const item of (data || [])) {

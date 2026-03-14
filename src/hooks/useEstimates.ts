@@ -64,8 +64,36 @@ export function useEstimates(companyId: string | undefined) {
           const serverIds = new Set((data || []).map(e => e.id));
           const unsyncedLocal = localOnly.filter(e => !serverIds.has(e.id));
           
+          // Убираем дубликаты: если локальная запись похожа на серверную (по имени события и дате),
+          // считаем что это дубль и пропускаем локальную версию
+          const serverSignatures = new Set(
+            filteredServer.map(e => `${e.event_name?.toLowerCase().trim()}_${e.event_date}`)
+          );
+          const uniqueLocal = unsyncedLocal.filter(local => {
+            const signature = `${local.event_name?.toLowerCase().trim()}_${local.event_date}`;
+            // Если есть такая же на сервере - пропускаем локальную
+            if (serverSignatures.has(signature)) {
+              console.log('[fetchEstimates] Filtering out duplicate local estimate:', local.id);
+              return false;
+            }
+            return true;
+          });
+          
           // Сначала локальные (новые), потом серверные
-          setEstimates([...unsyncedLocal, ...(filteredServer as Estimate[])]);
+          const merged = [...uniqueLocal, ...(filteredServer as Estimate[])];
+          
+          // Финальная защита: убираем дубликаты по ID
+          const seenIds = new Set<string>();
+          const deduplicated = merged.filter(e => {
+            if (seenIds.has(e.id)) {
+              console.log('[fetchEstimates] Removing duplicate by ID:', e.id);
+              return false;
+            }
+            seenIds.add(e.id);
+            return true;
+          });
+          
+          setEstimates(deduplicated);
           
           // СОХРАНЯЕМ серверные данные в локальную базу для офлайн-доступа
           // (кроме тех что уже есть в локальной базе - несинхронизированные)

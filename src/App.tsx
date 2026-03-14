@@ -223,11 +223,13 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
     if (isSyncing) {
       wasSyncing.current = true;
     } else if (wasSyncing.current && companyId) {
-      // Синхронизация завершена - обновляем данные
+      // Синхронизация завершена - даём время на завершение IndexedDB транзакций
       wasSyncing.current = false;
-      refreshEstimates();
-      refreshChecklists();
-      refreshEquipment();
+      setTimeout(() => {
+        refreshEstimates();
+        refreshChecklists();
+        refreshEquipment();
+      }, 100); // Небольшая задержка для завершения delete-операций в IndexedDB
     }
   }, [isSyncing, companyId, refreshEstimates, refreshChecklists, refreshEquipment]);
   const { staff, loading: staffLoading, addStaff, updateStaff, deleteStaff } = useStaff(companyId);
