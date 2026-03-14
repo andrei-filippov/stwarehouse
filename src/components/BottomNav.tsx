@@ -1,8 +1,8 @@
-import { useState } from 'react';
-import { Package, FileText, Calendar, Users, Menu, Plus, Trash2, Wifi, WifiOff } from 'lucide-react';
+import { useState, useCallback, useEffect } from 'react';
+import { Package, FileText, Calendar, Users, Menu, Plus, Wifi, WifiOff } from 'lucide-react';
 import { Button } from './ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './ui/sheet';
-import { toast } from 'sonner';
+import { SyncDialog } from './SyncDialog';
 import type { TabId } from '../lib/permissions';
 
 interface BottomNavProps {
@@ -11,24 +11,36 @@ interface BottomNavProps {
   availableTabs: { id: TabId; label: string; icon: React.ElementType }[];
   onSignOut: () => void;
   onFabClick?: () => void;
+  companyId?: string;
+  onSync?: () => Promise<void>;
 }
 
-export function BottomNav({ activeTab, onTabChange, availableTabs, onSignOut, onFabClick }: BottomNavProps) {
+export function BottomNav({ 
+  activeTab, 
+  onTabChange, 
+  availableTabs, 
+  onSignOut, 
+  onFabClick,
+  companyId,
+  onSync
+}: BottomNavProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isSyncDialogOpen, setIsSyncDialogOpen] = useState(false);
 
-  // Сброс локальных данных (для мобильных когда данные "застревают")
-  const handleClearCache = async () => {
-    try {
-      const { clearAllLocalData, clearDeletedEstimates } = await import('../lib/offlineDB');
-      await clearAllLocalData();
-      await clearDeletedEstimates();
-      toast.success('Кэш очищен. Перезагрузка...');
-      setTimeout(() => window.location.reload(), 1000);
-    } catch (e) {
-      toast.error('Ошибка очистки кэша');
-    }
-  };
+  // Обновляем статус онлайн
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
   
   // Скрываем FAB на дашборде и сметах (там свой интерфейс создания)
   const showFab = activeTab !== 'dashboard' && activeTab !== 'estimates' && onFabClick !== undefined;
@@ -106,7 +118,7 @@ export function BottomNav({ activeTab, onTabChange, availableTabs, onSignOut, on
                 <SheetHeader className="pb-4">
                   <SheetTitle className="text-lg">Меню</SheetTitle>
                 </SheetHeader>
-                <div className="grid grid-cols-3 gap-3 pb-20">
+                <div className="grid grid-cols-3 gap-3 pb-32">
                   {otherTabs.map((tab) => {
                     const Icon = tab.icon;
                     const isActive = activeTab === tab.id;
@@ -130,35 +142,33 @@ export function BottomNav({ activeTab, onTabChange, availableTabs, onSignOut, on
                     );
                   })}
                 </div>
-                {/* Статус и кнопки сброса */}
+
+                {/* Статус и кнопка сброса */}
                 <div className="absolute bottom-16 left-0 right-0 px-4 py-3 border-t bg-gray-50">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <button
+                    onClick={() => {
+                      setIsSyncDialogOpen(true);
+                      setMenuOpen(false);
+                    }}
+                    className="w-full flex items-center justify-between p-3 bg-white rounded-lg border hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="flex items-center gap-2 text-sm">
                       {isOnline ? (
                         <>
                           <Wifi className="w-4 h-4 text-green-500" />
-                          <span>Онлайн</span>
+                          <span className="text-gray-700">Онлайн</span>
                         </>
                       ) : (
                         <>
                           <WifiOff className="w-4 h-4 text-red-500" />
-                          <span>Офлайн</span>
+                          <span className="text-gray-700">Офлайн</span>
                         </>
                       )}
                     </div>
-                  </div>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    className="w-full rounded-lg text-yellow-700 border-yellow-200 hover:bg-yellow-50"
-                    onClick={() => {
-                      handleClearCache();
-                      setMenuOpen(false);
-                    }}
-                  >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Сбросить кэш
-                  </Button>
+                    <span className="text-xs text-gray-500">
+                      Нажмите для управления
+                    </span>
+                  </button>
                 </div>
 
                 <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-white">
@@ -180,6 +190,17 @@ export function BottomNav({ activeTab, onTabChange, availableTabs, onSignOut, on
         {/* Safe area для iPhone */}
         <div className="h-safe-area-inset-bottom bg-white" />
       </nav>
+
+      {/* Диалог синхронизации для мобильного */}
+      <SyncDialog
+        isOpen={isSyncDialogOpen}
+        onClose={() => setIsSyncDialogOpen(false)}
+        isOnline={isOnline}
+        pendingCount={0}
+        isSyncing={false}
+        companyId={companyId}
+        onSync={onSync}
+      />
     </>
   );
 }

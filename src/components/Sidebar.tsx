@@ -29,8 +29,9 @@ import {
 import { Button } from './ui/button';
 import type { TabId } from '../lib/permissions';
 import { useCompanyContext } from '../contexts/CompanyContext';
-import { OfflineIndicator } from './OfflineIndicator';
+import { SyncDialog } from './SyncDialog';
 import { useOfflineSync } from '../hooks/useOfflineSync';
+import { useState, useEffect } from 'react';
 
 interface SidebarProps {
   activeTab: TabId;
@@ -46,7 +47,20 @@ interface SidebarProps {
 export function Sidebar(props: SidebarProps) {
   const { activeTab, onTabChange, availableTabs, onSignOut, userName, userRole, collapsed, onToggleCollapse } = props;
   const ctx = useCompanyContext();
-  const { syncData } = useOfflineSync(ctx.company?.id);
+  const { syncData, syncing: isSyncing } = useOfflineSync(ctx.company?.id);
+  const [isSyncDialogOpen, setIsSyncDialogOpen] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   const mainTabs = availableTabs.filter(tab => 
     ['equipment', 'estimates', 'calendar', 'customers', 'contracts'].includes(tab.id)
@@ -178,7 +192,27 @@ export function Sidebar(props: SidebarProps) {
         
         {/* Offline Status */}
         <div className={`${collapsed ? 'flex justify-center' : 'px-3'}`}>
-          <OfflineIndicator companyId={ctx.company?.id} onSync={syncData} />
+          <button
+            onClick={() => setIsSyncDialogOpen(true)}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors w-full ${
+              isOnline 
+                ? 'bg-green-50 text-green-700 hover:bg-green-100' 
+                : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+            } ${collapsed ? 'justify-center' : ''}`}
+            title="Статус синхронизации"
+          >
+            {isOnline ? (
+              <>
+                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                {!collapsed && <span>Онлайн</span>}
+              </>
+            ) : (
+              <>
+                <div className="w-2 h-2 rounded-full bg-amber-500" />
+                {!collapsed && <span>Офлайн</span>}
+              </>
+            )}
+          </button>
         </div>
         
         {!collapsed && userName && (
@@ -208,6 +242,17 @@ export function Sidebar(props: SidebarProps) {
           {collapsed ? <ChevronRight className="w-4 h-4" /> : <><span className="text-xs mr-1">Свернуть</span><ChevronLeft className="w-4 h-4" /></>}
         </Button>
       </div>
+      
+      {/* Sync Dialog */}
+      <SyncDialog
+        isOpen={isSyncDialogOpen}
+        onClose={() => setIsSyncDialogOpen(false)}
+        isOnline={isOnline}
+        pendingCount={0}
+        isSyncing={isSyncing}
+        companyId={ctx.company?.id}
+        onSync={syncData}
+      />
     </aside>
   );
 }
