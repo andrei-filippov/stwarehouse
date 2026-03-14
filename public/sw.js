@@ -1,7 +1,7 @@
 // Service Worker для оффлайн-режима
-const CACHE_NAME = 'stwarehouse-v5';
-const STATIC_CACHE = 'stwarehouse-static-v5';
-const ASSETS_CACHE = 'stwarehouse-assets-v5';
+const CACHE_NAME = 'stwarehouse-v6';
+const STATIC_CACHE = 'stwarehouse-static-v6';
+const ASSETS_CACHE = 'stwarehouse-assets-v6';
 
 // Критические ресурсы для кэширования при установке
 const PRECACHE_URLS = [

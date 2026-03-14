@@ -738,9 +738,12 @@ let serverStatusCache = {
 };
 
 // Быстрая проверка (без запроса к серверу)
-export function isOnline(): boolean {
+export function checkIsOnline(): boolean {
   return navigator.onLine && serverStatusCache.isAvailable;
 }
+
+// Alias для обратной совместимости
+export const isOnline = checkIsOnline;
 
 // Полная проверка с пингом к серверу (использовать перед важными операциями)
 export async function checkServerStatus(): Promise<boolean> {
