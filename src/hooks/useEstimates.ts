@@ -32,8 +32,8 @@ export function useEstimates(companyId: string | undefined) {
       // Всегда загружаем локальные сметы (на случай если есть несинхронизированные)
       console.log('[fetchEstimates] Loading local estimates for company:', companyId);
       const localEstimates = await getEstimatesLocal(companyId);
-      console.log('[fetchEstimates] Raw local estimates:', localEstimates);
-      const localOnly = localEstimates.map(e => e.data).filter(Boolean); // filter(Boolean) - убираем undefined
+      console.log('[fetchEstimates] Local estimates:', localEstimates);
+      const localOnly = localEstimates.filter(e => e && e.id); // Убираем пустые записи
       console.log('[fetchEstimates] Filtered local estimates:', localOnly.length, localOnly);
       
       // Загружаем список удалённых локально смет (чтобы не показывать их снова)
@@ -419,10 +419,10 @@ export function useEstimates(companyId: string | undefined) {
       
       // Офлайн режим - обновляем локально
       const localEstimates = await getEstimatesLocal(companyId);
-      const estimate = localEstimates.find(e => e.data.id === id);
+      const estimate = localEstimates.find(e => e.id === id);
       
       if (estimate) {
-        const updatedEstimate = { ...estimate.data, status, updated_at: new Date().toISOString() };
+        const updatedEstimate = { ...estimate, status, updated_at: new Date().toISOString() };
         await saveEstimateLocal(updatedEstimate, companyId);
         await addToSyncQueue('estimates', 'update', updatedEstimate);
         

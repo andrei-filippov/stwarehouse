@@ -15,6 +15,7 @@ export function useEquipment(companyId: string | undefined) {
 
     // Всегда загружаем локальное оборудование
     const localEquipment = await getEquipmentLocal(companyId);
+    console.log('[fetchEquipment] Local equipment:', localEquipment.length);
 
     if (isOnline()) {
       // ОНЛАЙН: загружаем с сервера и мержим с локальными
@@ -32,6 +33,7 @@ export function useEquipment(companyId: string | undefined) {
         const serverIds = new Set((data || []).map(e => e.id));
         const unsyncedLocal = localEquipment.filter(e => !serverIds.has(e.id));
         
+        console.log('[fetchEquipment] Server items:', (data || []).length, 'Unsynced local:', unsyncedLocal.length);
         setEquipment([...unsyncedLocal, ...(data || [])]);
       } catch (err) {
         // Ошибка сети - показываем только локальные

@@ -16,6 +16,7 @@ import {
   clearEquipmentLocal,
   deleteEstimateLocal,
   deleteChecklistLocal,
+  deleteEquipmentLocal,
   clearDeletedEstimates
 } from '../lib/offlineDB';
 import { supabase } from '../lib/supabase';
@@ -200,15 +201,23 @@ export function useOfflineSync(companyId: string | undefined) {
             throw result.error;
           }
 
-          // Сохраняем соответствие local_id -> server_id
-          if (result?.data?.id && localId?.startsWith('local_')) {
+          // Для create операции - сохраняем маппинг
+          if (item.operation === 'create' && result?.data?.id && localId?.startsWith('local_')) {
             idMapping[localId] = result.data.id;
-            
-            // Удаляем локальную запись
+            console.log('[Sync] Created on server, mapping:', localId, '->', result.data.id);
+          }
+
+          // Удаляем локальную запись после успешной синхронизации (для всех операций)
+          if (localId?.startsWith('local_')) {
             if (item.table === 'estimates') {
               await deleteEstimateLocal(localId);
+              console.log('[Sync] Deleted local estimate:', localId);
+            } else if (item.table === 'equipment') {
+              await deleteEquipmentLocal(localId);
+              console.log('[Sync] Deleted local equipment:', localId);
             } else if (item.table === 'checklists') {
               await deleteChecklistLocal(localId);
+              console.log('[Sync] Deleted local checklist:', localId);
             }
           }
 
