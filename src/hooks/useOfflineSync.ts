@@ -125,12 +125,19 @@ export function useOfflineSync(companyId: string | undefined) {
         }
       }
       
-      // Сортируем очередь: сначала estimates/equipment, потом estimate_items
+      // Сортируем очередь: сначала equipment, потом estimates/checklists, потом estimate_items
+      // Это важно для маппинга ID: оборудование должно быть создано до позиций смет
       const sortedQueue = [...companyQueue].sort((a, b) => {
-        if (a.table === 'estimate_items' && b.table !== 'estimate_items') return 1;
-        if (a.table !== 'estimate_items' && b.table === 'estimate_items') return -1;
-        return 0;
+        const priority: Record<string, number> = {
+          'equipment': 1,      // Сначала оборудование
+          'checklists': 2,     // Потом чек-листы
+          'estimates': 3,      // Потом сметы
+          'estimate_items': 4  // В конце позиции смет (они зависят от оборудования и смет)
+        };
+        return (priority[a.table] || 5) - (priority[b.table] || 5);
       });
+      
+      console.log('[Sync] Sorted queue:', sortedQueue.map(i => `${i.table}(${i.operation})`));
       
       // Карта для отслеживания соответствия local_id -> server_id
       const idMapping: Record<string, string> = {};
@@ -255,12 +262,33 @@ export function useOfflineSync(companyId: string | undefined) {
             }
             
             if (items && items.length > 0) {
+              // Проверяем что все equipment_id замаплены
+              const hasUnmappedEquipment = items.some((item: any) => 
+                item.equipment_id?.startsWith('local_') && !idMapping[item.equipment_id]
+              );
+              
+              if (hasUnmappedEquipment) {
+                console.warn('[Sync] Some equipment not yet synced, retrying later');
+                await updateSyncQueueRetry(item.id!, item.retryCount + 1);
+                errorCount++;
+                continue;
+              }
+              
               const validItems = items
                 .filter((item: any) => item.name || item.equipment_id)
                 .map((item: any, idx: number) => {
                   const { id, estimate_id, ...itemData } = item;
+                  
+                  // Заменяем equipment_id если он локальный
+                  let serverEquipmentId = itemData.equipment_id;
+                  if (itemData.equipment_id?.startsWith('local_')) {
+                    serverEquipmentId = idMapping[itemData.equipment_id];
+                    console.log('[Sync] Mapped equipment:', itemData.equipment_id, '->', serverEquipmentId);
+                  }
+                  
                   return {
                     ...itemData,
+                    equipment_id: serverEquipmentId || itemData.equipment_id,
                     estimate_id: serverEstimateId,
                     company_id: companyId,
                     order_index: idx
@@ -268,6 +296,7 @@ export function useOfflineSync(companyId: string | undefined) {
                 });
               
               if (validItems.length > 0) {
+                console.log('[Sync] Inserting estimate_items:', validItems.length);
                 result = await supabase.from('estimate_items').insert(validItems);
               }
             }
@@ -278,9 +307,13 @@ export function useOfflineSync(companyId: string | undefined) {
           }
 
           await removeFromSyncQueue(item.id!);
+          successCount++;
+          console.log('[Sync] Successfully synced estimate_items');
           
         } catch (err) {
+          console.error('[Sync] Error syncing estimate_items:', err);
           await updateSyncQueueRetry(item.id!, item.retryCount + 1);
+          errorCount++;
         }
       }
 
