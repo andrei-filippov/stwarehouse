@@ -60,16 +60,36 @@ export function useEstimates(companyId: string | undefined) {
           // Фильтруем серверные данные - убираем удалённые локально
           const filteredServer = (data || []).filter(e => !isDeleted(e.id));
           
-          // Мержим: серверные (без удалённых) + локальные которых нет на сервере
+          // Мержим: серверные (без удалённых) + локальные НОВЫЕ (с local_* ID) которых нет на сервере
           const serverIds = new Set((data || []).map(e => e.id));
-          const unsyncedLocal = localOnly.filter(e => !serverIds.has(e.id));
+          
+          // Разделяем локальные записи:
+          // 1. Новые созданные офлайн (local_*) - показываем если нет на сервере
+          // 2. Скопированные с сервера (обычные ID) - удаляем из локальной базы если нет на сервере
+          const newLocal = localOnly.filter(e => {
+            const isNewOffline = e.id?.startsWith('local_');
+            const existsOnServer = serverIds.has(e.id);
+            
+            if (isNewOffline && !existsOnServer) {
+              return true; // Новая офлайн запись - показываем
+            }
+            
+            if (!isNewOffline && !existsOnServer) {
+              // Запись была удалена на сервере - удаляем из локальной базы
+              console.log('[fetchEstimates] Removing locally cached estimate deleted on server:', e.id);
+              deleteEstimateLocal(e.id).catch(console.error);
+              return false;
+            }
+            
+            return false; // Уже есть на сервере
+          });
           
           // Убираем дубликаты: если локальная запись похожа на серверную (по имени события и дате),
           // считаем что это дубль и пропускаем локальную версию
           const serverSignatures = new Set(
             filteredServer.map(e => `${e.event_name?.toLowerCase().trim()}_${e.event_date}`)
           );
-          const uniqueLocal = unsyncedLocal.filter(local => {
+          const uniqueLocal = newLocal.filter(local => {
             const signature = `${local.event_name?.toLowerCase().trim()}_${local.event_date}`;
             // Если есть такая же на сервере - пропускаем локальную
             if (serverSignatures.has(signature)) {
