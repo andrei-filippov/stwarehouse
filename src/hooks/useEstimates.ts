@@ -66,6 +66,16 @@ export function useEstimates(companyId: string | undefined) {
           
           // Сначала локальные (новые), потом серверные
           setEstimates([...unsyncedLocal, ...(filteredServer as Estimate[])]);
+          
+          // СОХРАНЯЕМ серверные данные в локальную базу для офлайн-доступа
+          // (кроме тех что уже есть в локальной базе - несинхронизированные)
+          for (const estimate of filteredServer) {
+            try {
+              await saveEstimateLocal(estimate, companyId);
+            } catch (saveErr) {
+              console.warn('[fetchEstimates] Failed to cache estimate:', estimate.id, saveErr);
+            }
+          }
         } catch (err) {
           // Ошибка сети (503 и т.д.) - показываем только локальные
           console.log('[fetchEstimates] Network error, showing local data');

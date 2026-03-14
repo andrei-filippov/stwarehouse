@@ -35,6 +35,15 @@ export function useEquipment(companyId: string | undefined) {
         
         console.log('[fetchEquipment] Server items:', (data || []).length, 'Unsynced local:', unsyncedLocal.length);
         setEquipment([...unsyncedLocal, ...(data || [])]);
+        
+        // СОХРАНЯЕМ серверные данные в локальную базу для офлайн-доступа
+        for (const item of (data || [])) {
+          try {
+            await saveEquipmentLocal(item, companyId);
+          } catch (saveErr) {
+            console.warn('[fetchEquipment] Failed to cache equipment:', item.id, saveErr);
+          }
+        }
       } catch (err) {
         // Ошибка сети - показываем только локальные
         console.log('Network error, showing local data:', err);
