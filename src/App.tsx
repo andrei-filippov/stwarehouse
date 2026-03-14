@@ -296,6 +296,13 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
 
   const navItems = allNavItems.filter(item => checkAccess(item.id));
 
+  // Логирование для отладки
+  useEffect(() => {
+    console.log('Permissions loaded:', permissions);
+    console.log('User role:', userRole);
+    console.log('Nav items:', navItems.map(i => i.id));
+  }, [permissions, userRole, navItems]);
+
   useEffect(() => {
     if (profile && navItems.length > 0) {
       const currentTabAccessible = checkAccess(activeTab);
