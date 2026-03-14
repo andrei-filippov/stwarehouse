@@ -94,7 +94,7 @@ export async function initOfflineDB(): Promise<IDBPDatabase<StwarehouseDB>> {
   
   // Проверяем доступность IndexedDB
   if (!isIndexedDBAvailable()) {
-    useMemoryFallback = true;
+    useLocalStorageFallback = true;
     throw new Error('IndexedDB not available');
   }
   
@@ -179,14 +179,28 @@ export async function saveEstimateLocal(estimate: any, companyId: string) {
     setToStorage('estimates', estimates);
     return;
   }
-  const database = await initOfflineDB();
-  await database.put('estimates', {
-    id: estimate.id,
-    data: estimate,
-    synced: false,
-    updatedAt: Date.now(),
-    companyId
-  });
+  try {
+    const database = await initOfflineDB();
+    await database.put('estimates', {
+      id: estimate.id,
+      data: estimate,
+      synced: false,
+      updatedAt: Date.now(),
+      companyId
+    });
+  } catch (e) {
+    // Если IndexedDB не работает - переключаемся на localStorage
+    useLocalStorageFallback = true;
+    const estimates = getFromStorage<Record<string, any>>('estimates', {});
+    estimates[estimate.id] = {
+      id: estimate.id,
+      data: estimate,
+      synced: false,
+      updatedAt: Date.now(),
+      companyId
+    };
+    setToStorage('estimates', estimates);
+  }
 }
 
 export async function getEstimatesLocal(companyId: string) {
@@ -194,8 +208,15 @@ export async function getEstimatesLocal(companyId: string) {
     const estimates = getFromStorage<Record<string, any>>('estimates', {});
     return Object.values(estimates).filter((e: any) => e.companyId === companyId);
   }
-  const database = await initOfflineDB();
-  return database.getAllFromIndex('estimates', 'by-company', companyId);
+  try {
+    const database = await initOfflineDB();
+    return database.getAllFromIndex('estimates', 'by-company', companyId);
+  } catch (e) {
+    // Если IndexedDB не работает - переключаемся на localStorage
+    useLocalStorageFallback = true;
+    const estimates = getFromStorage<Record<string, any>>('estimates', {});
+    return Object.values(estimates).filter((e: any) => e.companyId === companyId);
+  }
 }
 
 export async function getEstimateLocal(id: string) {
@@ -214,8 +235,16 @@ export async function deleteEstimateLocal(id: string) {
     setToStorage('estimates', estimates);
     return;
   }
-  const database = await initOfflineDB();
-  await database.delete('estimates', id);
+  try {
+    const database = await initOfflineDB();
+    await database.delete('estimates', id);
+  } catch (e) {
+    // Если IndexedDB не работает - переключаемся на localStorage
+    useLocalStorageFallback = true;
+    const estimates = getFromStorage<Record<string, any>>('estimates', {});
+    delete estimates[id];
+    setToStorage('estimates', estimates);
+  }
 }
 
 export async function clearEstimatesLocal(companyId: string) {
@@ -353,22 +382,45 @@ export async function addToSyncQueue(
     setToStorage('syncQueue', queue);
     return id;
   }
-  const database = await initOfflineDB();
-  await database.add('syncQueue', {
-    table,
-    operation,
-    data,
-    retryCount: 0,
-    createdAt: Date.now()
-  });
+  try {
+    const database = await initOfflineDB();
+    await database.add('syncQueue', {
+      table,
+      operation,
+      data,
+      retryCount: 0,
+      createdAt: Date.now()
+    });
+  } catch (e) {
+    // Если IndexedDB не работает - переключаемся на localStorage
+    useLocalStorageFallback = true;
+    const queue = getFromStorage<any[]>('syncQueue', []);
+    const id = queueIdCounter++;
+    queue.push({
+      id,
+      table,
+      operation,
+      data,
+      retryCount: 0,
+      createdAt: Date.now()
+    });
+    setToStorage('syncQueue', queue);
+    return id;
+  }
 }
 
 export async function getSyncQueue() {
   if (useLocalStorageFallback) {
     return getFromStorage<any[]>('syncQueue', []);
   }
-  const database = await initOfflineDB();
-  return await database.getAll('syncQueue');
+  try {
+    const database = await initOfflineDB();
+    return await database.getAll('syncQueue');
+  } catch (e) {
+    // Если IndexedDB не работает - переключаемся на localStorage
+    useLocalStorageFallback = true;
+    return getFromStorage<any[]>('syncQueue', []);
+  }
 }
 
 export async function removeFromSyncQueue(id: number) {
@@ -378,8 +430,15 @@ export async function removeFromSyncQueue(id: number) {
     setToStorage('syncQueue', filtered);
     return;
   }
-  const database = await initOfflineDB();
-  await database.delete('syncQueue', id);
+  try {
+    const database = await initOfflineDB();
+    await database.delete('syncQueue', id);
+  } catch (e) {
+    useLocalStorageFallback = true;
+    const queue = getFromStorage<any[]>('syncQueue', []);
+    const filtered = queue.filter(item => item.id !== id);
+    setToStorage('syncQueue', filtered);
+  }
 }
 
 export async function updateSyncQueueRetry(id: number, retryCount: number) {
@@ -392,11 +451,21 @@ export async function updateSyncQueueRetry(id: number, retryCount: number) {
     }
     return;
   }
-  const database = await initOfflineDB();
-  const item = await database.get('syncQueue', id);
-  if (item) {
-    item.retryCount = retryCount;
-    await database.put('syncQueue', item);
+  try {
+    const database = await initOfflineDB();
+    const item = await database.get('syncQueue', id);
+    if (item) {
+      item.retryCount = retryCount;
+      await database.put('syncQueue', item);
+    }
+  } catch (e) {
+    useLocalStorageFallback = true;
+    const queue = getFromStorage<any[]>('syncQueue', []);
+    const item = queue.find(i => i.id === id);
+    if (item) {
+      item.retryCount = retryCount;
+      setToStorage('syncQueue', queue);
+    }
   }
 }
 
@@ -465,8 +534,13 @@ export async function markEstimateDeleted(id: string) {
     if (useLocalStorageFallback) {
       setToStorage(DELETED_ESTIMATES_KEY, deleted);
     } else {
-      const database = await initOfflineDB();
-      await database.put('settings', deleted, DELETED_ESTIMATES_KEY);
+      try {
+        const database = await initOfflineDB();
+        await database.put('settings', deleted, DELETED_ESTIMATES_KEY);
+      } catch (e) {
+        useLocalStorageFallback = true;
+        setToStorage(DELETED_ESTIMATES_KEY, deleted);
+      }
     }
   }
 }
