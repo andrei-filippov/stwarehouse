@@ -9,7 +9,7 @@ import {
   Users, 
   Target, 
   Cable,
-  BarChart3,
+  DollarSign,
   Settings, 
   Shield,
   LogOut,
@@ -67,12 +67,16 @@ export function Sidebar(props: SidebarProps) {
     ['equipment', 'estimates', 'calendar', 'customers', 'contracts'].includes(tab.id)
   );
   
+  const financeTabs = availableTabs.filter(tab => 
+    ['finance'].includes(tab.id)
+  );
+  
   const referenceTabs = availableTabs.filter(tab => 
     ['templates', 'checklists', 'staff', 'goals', 'cables'].includes(tab.id)
   );
   
   const systemTabs = availableTabs.filter(tab => 
-    ['analytics', 'settings', 'admin'].includes(tab.id)
+    ['settings', 'admin'].includes(tab.id)
   );
 
   const renderNavItem = (tab: { id: TabId; label: string; icon: React.ElementType }) => {
@@ -131,6 +135,14 @@ export function Sidebar(props: SidebarProps) {
           {!collapsed && <p className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Основное</p>}
           {mainTabs.map(renderNavItem)}
         </div>
+
+        {/* Finance */}
+        {financeTabs.length > 0 && (
+          <div className="space-y-1">
+            {!collapsed && <p className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Финансы</p>}
+            {financeTabs.map(renderNavItem)}
+          </div>
+        )}
 
         {/* References */}
         {referenceTabs.length > 0 && (
