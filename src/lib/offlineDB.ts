@@ -167,6 +167,7 @@ function setToStorage(key: string, value: any): void {
 
 // === Сметы ===
 export async function saveEstimateLocal(estimate: any, companyId: string) {
+  console.log('[saveEstimateLocal] Saving estimate:', estimate.id, 'fallback:', useLocalStorageFallback);
   if (useLocalStorageFallback) {
     const estimates = getFromStorage<Record<string, any>>('estimates', {});
     estimates[estimate.id] = {
@@ -177,6 +178,7 @@ export async function saveEstimateLocal(estimate: any, companyId: string) {
       companyId
     };
     setToStorage('estimates', estimates);
+    console.log('[saveEstimateLocal] Saved to localStorage');
     return;
   }
   try {
@@ -188,7 +190,9 @@ export async function saveEstimateLocal(estimate: any, companyId: string) {
       updatedAt: Date.now(),
       companyId
     });
+    console.log('[saveEstimateLocal] Saved to IndexedDB');
   } catch (e) {
+    console.error('[saveEstimateLocal] Error, switching to localStorage:', e);
     // Если IndexedDB не работает - переключаемся на localStorage
     useLocalStorageFallback = true;
     const estimates = getFromStorage<Record<string, any>>('estimates', {});
@@ -200,6 +204,7 @@ export async function saveEstimateLocal(estimate: any, companyId: string) {
       companyId
     };
     setToStorage('estimates', estimates);
+    console.log('[saveEstimateLocal] Saved to localStorage (fallback)');
   }
 }
 
