@@ -47,13 +47,14 @@ interface SidebarProps {
 export function Sidebar(props: SidebarProps) {
   const { activeTab, onTabChange, availableTabs, onSignOut, userName, userRole, collapsed, onToggleCollapse } = props;
   const ctx = useCompanyContext();
-  const { syncData, syncing: isSyncing } = useOfflineSync(ctx.company?.id);
+  const { syncData, syncing: isSyncing, serverAvailable } = useOfflineSync(ctx.company?.id);
   const [isSyncDialogOpen, setIsSyncDialogOpen] = useState(false);
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  // Используем browser online для индикации, serverAvailable для статуса сервера
+  const [browserOnline, setBrowserOnline] = useState(navigator.onLine);
   
   useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
+    const handleOnline = () => setBrowserOnline(true);
+    const handleOffline = () => setBrowserOnline(false);
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     return () => {
@@ -195,21 +196,28 @@ export function Sidebar(props: SidebarProps) {
           <button
             onClick={() => setIsSyncDialogOpen(true)}
             className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors w-full ${
-              isOnline 
+              serverAvailable 
                 ? 'bg-green-50 text-green-700 hover:bg-green-100' 
-                : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                : browserOnline
+                  ? 'bg-orange-50 text-orange-700 hover:bg-orange-100'
+                  : 'bg-red-50 text-red-700 hover:bg-red-100'
             } ${collapsed ? 'justify-center' : ''}`}
             title="Статус синхронизации"
           >
-            {isOnline ? (
+            {serverAvailable ? (
               <>
                 <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                {!collapsed && <span>Онлайн</span>}
+                {!collapsed && <span>Сервер доступен</span>}
+              </>
+            ) : browserOnline ? (
+              <>
+                <div className="w-2 h-2 rounded-full bg-orange-500" />
+                {!collapsed && <span>Сервер недоступен</span>}
               </>
             ) : (
               <>
-                <div className="w-2 h-2 rounded-full bg-amber-500" />
-                {!collapsed && <span>Офлайн</span>}
+                <div className="w-2 h-2 rounded-full bg-red-500" />
+                {!collapsed && <span>Нет сети</span>}
               </>
             )}
           </button>
@@ -247,7 +255,8 @@ export function Sidebar(props: SidebarProps) {
       <SyncDialog
         isOpen={isSyncDialogOpen}
         onClose={() => setIsSyncDialogOpen(false)}
-        isOnline={isOnline}
+        browserOnline={browserOnline}
+        serverAvailable={serverAvailable}
         pendingCount={0}
         isSyncing={isSyncing}
         companyId={ctx.company?.id}

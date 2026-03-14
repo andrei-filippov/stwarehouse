@@ -25,13 +25,16 @@ export function BottomNav({
   onSync
 }: BottomNavProps) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isSyncDialogOpen, setIsSyncDialogOpen] = useState(false);
+  const [browserOnline, setBrowserOnline] = useState(navigator.onLine);
+  
+  // Получаем реальный статус сервера
+  const { serverAvailable } = useOfflineSync(companyId);
 
-  // Обновляем статус онлайн
+  // Обновляем статус браузера
   useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
+    const handleOnline = () => setBrowserOnline(true);
+    const handleOffline = () => setBrowserOnline(false);
     
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
@@ -153,15 +156,20 @@ export function BottomNav({
                     className="w-full flex items-center justify-between p-3 bg-white rounded-lg border hover:bg-gray-50 transition-colors"
                   >
                     <div className="flex items-center gap-2 text-sm">
-                      {isOnline ? (
+                      {serverAvailable ? (
                         <>
                           <Wifi className="w-4 h-4 text-green-500" />
-                          <span className="text-gray-700">Онлайн</span>
+                          <span className="text-gray-700">Сервер доступен</span>
+                        </>
+                      ) : browserOnline ? (
+                        <>
+                          <WifiOff className="w-4 h-4 text-orange-500" />
+                          <span className="text-gray-700">Сервер недоступен</span>
                         </>
                       ) : (
                         <>
                           <WifiOff className="w-4 h-4 text-red-500" />
-                          <span className="text-gray-700">Офлайн</span>
+                          <span className="text-gray-700">Нет сети</span>
                         </>
                       )}
                     </div>
@@ -195,7 +203,8 @@ export function BottomNav({
       <SyncDialog
         isOpen={isSyncDialogOpen}
         onClose={() => setIsSyncDialogOpen(false)}
-        isOnline={isOnline}
+        browserOnline={browserOnline}
+        serverAvailable={serverAvailable}
         pendingCount={0}
         isSyncing={false}
         companyId={companyId}

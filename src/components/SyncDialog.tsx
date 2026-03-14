@@ -17,7 +17,8 @@ import { toast } from 'sonner';
 interface SyncDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  isOnline: boolean;
+  browserOnline: boolean;
+  serverAvailable: boolean;
   pendingCount: number;
   isSyncing: boolean;
   companyId?: string;
@@ -33,7 +34,8 @@ interface QueueItem {
 export function SyncDialog({ 
   isOpen, 
   onClose, 
-  isOnline, 
+  browserOnline,
+  serverAvailable,
   pendingCount, 
   isSyncing,
   companyId,
@@ -74,8 +76,8 @@ export function SyncDialog({
   const handleSync = async () => {
     if (!companyId || isSyncing || !onSync) return;
     
-    if (!isOnline) {
-      toast.error('Нет подключения к серверу');
+    if (!serverAvailable) {
+      toast.error('Сервер недоступен. Проверьте подключение.');
       return;
     }
     
@@ -129,15 +131,23 @@ export function SyncDialog({
     }
   };
 
+  // Определяем общий статус
+  const isFullyOnline = browserOnline && serverAvailable;
+  
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            {isOnline ? (
+            {isFullyOnline ? (
               <>
                 <Wifi className="w-5 h-5 text-green-600" />
                 <span>Онлайн режим</span>
+              </>
+            ) : browserOnline ? (
+              <>
+                <WifiOff className="w-5 h-5 text-orange-600" />
+                <span>Сервер недоступен</span>
               </>
             ) : (
               <>
@@ -152,19 +162,19 @@ export function SyncDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {/* Статус подключения */}
+          {/* Статус сервера */}
           <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-            <span className="text-sm text-gray-600">Статус сервера:</span>
-            <Badge variant={isOnline ? "default" : "destructive"}>
-              {isOnline ? 'Доступен' : 'Недоступен'}
+            <span className="text-sm text-gray-600">Сервер Supabase:</span>
+            <Badge variant={serverAvailable ? "default" : "destructive"}>
+              {serverAvailable ? 'Доступен' : 'Недоступен'}
             </Badge>
           </div>
 
           {/* Браузер онлайн */}
           <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
             <span className="text-sm text-gray-600">Браузер online:</span>
-            <Badge variant={navigator.onLine ? "default" : "destructive"}>
-              {navigator.onLine ? 'Да' : 'Нет'}
+            <Badge variant={browserOnline ? "default" : "destructive"}>
+              {browserOnline ? 'Да' : 'Нет'}
             </Badge>
           </div>
 
@@ -208,7 +218,7 @@ export function SyncDialog({
           {/* Кнопки действий */}
           <div className="space-y-2 pt-2">
             {/* Синхронизировать */}
-            {isOnline && localPendingCount > 0 && (
+            {serverAvailable && localPendingCount > 0 && (
               <Button
                 onClick={handleSync}
                 disabled={isSyncing}
@@ -220,7 +230,7 @@ export function SyncDialog({
             )}
 
             {/* Нет подключения */}
-            {!isOnline && localPendingCount > 0 && (
+            {!serverAvailable && localPendingCount > 0 && (
               <div className="text-sm text-gray-500 text-center py-2">
                 Подключите интернет для синхронизации
               </div>

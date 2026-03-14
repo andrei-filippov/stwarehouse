@@ -1,4 +1,5 @@
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
+import { supabase } from './supabase';
 
 interface StwarehouseDB extends DBSchema {
   estimates: {
@@ -728,19 +729,90 @@ export async function getCompanyLocal() {
 }
 
 // === Статус сети ===
+
+// Кэш статуса сервера
+let serverStatusCache = {
+  isAvailable: navigator.onLine,
+  lastChecked: 0,
+  checking: false
+};
+
+// Быстрая проверка (без запроса к серверу)
 export function isOnline(): boolean {
-  return navigator.onLine;
+  return navigator.onLine && serverStatusCache.isAvailable;
+}
+
+// Полная проверка с пингом к серверу (использовать перед важными операциями)
+export async function checkServerStatus(): Promise<boolean> {
+  // Если браузер офлайн - сервер точно недоступен
+  if (!navigator.onLine) {
+    serverStatusCache.isAvailable = false;
+    return false;
+  }
+  
+  // Если недавно проверяли (менее 5 сек назад) - возвращаем кэш
+  const now = Date.now();
+  if (now - serverStatusCache.lastChecked < 5000) {
+    return serverStatusCache.isAvailable;
+  }
+  
+  // Если проверка уже идёт - ждём результата
+  if (serverStatusCache.checking) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    return serverStatusCache.isAvailable;
+  }
+  
+  serverStatusCache.checking = true;
+  
+  try {
+    // Пингуем сервер через health check endpoint или простой запрос
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
+    
+    // Используем supabase для проверки - простой запрос к текущей сессии
+    const { error } = await supabase.auth.getSession();
+    clearTimeout(timeout);
+    
+    // Если нет ошибки сети - сервер доступен
+    serverStatusCache.isAvailable = !error || !error.message?.includes('fetch');
+  } catch (e) {
+    serverStatusCache.isAvailable = false;
+  } finally {
+    serverStatusCache.lastChecked = Date.now();
+    serverStatusCache.checking = false;
+  }
+  
+  return serverStatusCache.isAvailable;
+}
+
+// Обновить статус сервера (вызывать периодически или при изменении сети)
+export async function updateServerStatus(): Promise<boolean> {
+  serverStatusCache.lastChecked = 0; // Сбрасываем кэш
+  return checkServerStatus();
 }
 
 export function setupNetworkListeners(
   onOnline: () => void,
   onOffline: () => void
 ) {
-  window.addEventListener('online', onOnline);
-  window.addEventListener('offline', onOffline);
+  const handleOnline = async () => {
+    // При появлении сети проверяем доступность сервера
+    const isServerAvailable = await updateServerStatus();
+    if (isServerAvailable) {
+      onOnline();
+    }
+  };
+  
+  const handleOffline = () => {
+    serverStatusCache.isAvailable = false;
+    onOffline();
+  };
+  
+  window.addEventListener('online', handleOnline);
+  window.addEventListener('offline', handleOffline);
   
   return () => {
-    window.removeEventListener('online', onOnline);
-    window.removeEventListener('offline', onOffline);
+    window.removeEventListener('online', handleOnline);
+    window.removeEventListener('offline', handleOffline);
   };
 }

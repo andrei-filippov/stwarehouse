@@ -3,6 +3,8 @@ import { toast } from 'sonner';
 import {
   initOfflineDB,
   isOnline,
+  checkServerStatus,
+  updateServerStatus,
   setupNetworkListeners,
   saveEstimateLocal,
   getEstimatesLocal,
@@ -23,26 +25,43 @@ import { supabase } from '../lib/supabase';
 
 export function useOfflineSync(companyId: string | undefined) {
   const [isOffline, setIsOffline] = useState(!isOnline());
+  const [serverAvailable, setServerAvailable] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [pendingChanges, setPendingChanges] = useState(0);
   const syncInProgress = useRef(false);
   const onSyncCompleteRef = useRef<(() => void) | null>(null);
 
-  // Инициализация
+  // Инициализация и проверка статуса сервера
   useEffect(() => {
     initOfflineDB();
     
+    // Первоначальная проверка сервера
+    updateServerStatus().then(setServerAvailable);
+    
+    // Периодическая проверка статуса сервера (каждые 30 сек)
+    const statusInterval = setInterval(async () => {
+      const available = await checkServerStatus();
+      setServerAvailable(available);
+    }, 30000);
+    
     const cleanup = setupNetworkListeners(
       () => {
-        setIsOffline(false);
-        toast.success('Подключение восстановлено', {
-          description: 'Синхронизация данных...'
+        // Проверяем сервер перед показом "восстановлено"
+        updateServerStatus().then(available => {
+          setServerAvailable(available);
+          if (available) {
+            setIsOffline(false);
+            toast.success('Подключение восстановлено', {
+              description: 'Синхронизация данных...'
+            });
+            if (companyId) {
+              syncData();
+            }
+          }
         });
-        if (companyId) {
-          syncData();
-        }
       },
       () => {
+        setServerAvailable(false);
         setIsOffline(true);
         toast.warning('Нет подключения', {
           description: 'Работаем в офлайн-режиме'
@@ -62,6 +81,11 @@ export function useOfflineSync(companyId: string | undefined) {
         });
       }, 1000);
     }
+
+    return () => {
+      cleanup();
+      clearInterval(statusInterval);
+    };
 
     return cleanup;
   }, [companyId]);
@@ -350,6 +374,7 @@ export function useOfflineSync(companyId: string | undefined) {
 
   return {
     isOffline,
+    serverAvailable,
     syncing,
     pendingChanges,
     syncData,
