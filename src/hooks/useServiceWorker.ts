@@ -7,10 +7,13 @@ export function useServiceWorker() {
 
   useEffect(() => {
     if ('serviceWorker' in navigator) {
-      // Регистрируем Service Worker
-      navigator.serviceWorker.register('/sw.js')
+      // Принудительно обновляем Service Worker при каждой загрузке
+      navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
         .then((registration) => {
           console.log('SW registered:', registration);
+          
+          // Принудительно проверяем обновления
+          registration.update();
           
           // Проверяем обновления
           registration.addEventListener('updatefound', () => {
@@ -48,6 +51,12 @@ export function useServiceWorker() {
         if (event.data?.type === 'SW_UPDATE') {
           setNeedRefresh(true);
         }
+      });
+      
+      // Принудительно перезагружаем страницу если контролирующий SW изменился
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        console.log('SW controller changed, reloading...');
+        window.location.reload();
       });
     }
   }, []);

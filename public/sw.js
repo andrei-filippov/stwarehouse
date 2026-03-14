@@ -155,7 +155,16 @@ self.addEventListener('fetch', (event) => {
 // Сообщения из приложения
 self.addEventListener('message', (event) => {
   if (event.data === 'SKIP_WAITING') {
-    self.skipWaiting();
+    // Очищаем все старые кэши перед активацией
+    caches.keys().then((names) => {
+      return Promise.all(
+        names
+          .filter((name) => name !== CACHE_NAME && name !== STATIC_CACHE && name !== ASSETS_CACHE)
+          .map((name) => caches.delete(name))
+      );
+    }).then(() => {
+      self.skipWaiting();
+    });
   }
   
   if (event.data === 'CHECK_VERSION') {
