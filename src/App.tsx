@@ -17,7 +17,7 @@ import { GoalsManager } from './components/GoalsManager';
 import { CableManager } from './components/CableManager';
 import { PDFSettings } from './components/PDFSettings';
 import { EventCalendar } from './components/EventCalendar';
-import { Analytics } from './components/Analytics';
+import { FinanceManager } from './components/FinanceManager';
 import { CustomersManager } from './components/CustomersManager';
 import { ContractManager } from './components/ContractManager';
 import { AdminPanel } from './components/AdminPanel';
@@ -53,7 +53,8 @@ import {
   Target,
   Shield,
   Cable,
-  FileSignature
+  FileSignature,
+  DollarSign
 } from 'lucide-react';
 import type { PDFSettings as PDFSettingsType } from './types';
 import { hasAccess, getRoleLabel, type UserRole, type TabId } from './lib/permissions';
@@ -286,7 +287,7 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
     { id: 'staff' as Tab, label: 'Персонал', icon: Users },
     { id: 'goals' as Tab, label: 'Задачи', icon: Target },
     { id: 'cables' as Tab, label: 'Коммутация', icon: Cable },
-    { id: 'analytics' as Tab, label: 'Аналитика', icon: BarChart3 },
+    { id: 'finance' as Tab, label: 'Финансы', icon: DollarSign },
     { id: 'customers' as Tab, label: 'Заказчики', icon: Building2 },
     { id: 'contracts' as Tab, label: 'Договоры', icon: FileSignature },
     { id: 'settings' as Tab, label: 'Настройки PDF', icon: Settings },
@@ -303,8 +304,6 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
       }
     }
   }, [profile, permissions, navItems, activeTab]);
-
-  const analyticsData = { equipment, estimates, staff, customers, expenses, onAddExpense: addExpense, onUpdateExpense: updateExpense, onDeleteExpense: deleteExpense };
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -481,16 +480,11 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
             />
           )}
 
-          {activeTab === 'analytics' && (
-            <Analytics 
-              equipment={equipment}
+          {activeTab === 'finance' && (
+            <FinanceManager 
               estimates={estimates}
               staff={staff}
-              customers={customers}
-              expenses={expenses}
-              onAddExpense={addExpense}
-              onUpdateExpense={updateExpense}
-              onDeleteExpense={deleteExpense}
+              companyId={companyId}
             />
           )}
 

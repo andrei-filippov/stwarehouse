@@ -3,15 +3,15 @@ import { supabase } from './supabase';
 // Система прав доступа (RBAC) с поддержкой кастомных разрешений
 
 export type UserRole = 'owner' | 'admin' | 'manager' | 'warehouse' | 'accountant' | 'viewer';
-export type TabId = 'dashboard' | 'equipment' | 'estimates' | 'templates' | 'calendar' | 'checklists' | 'staff' | 'goals' | 'cables' | 'analytics' | 'customers' | 'contracts' | 'settings' | 'admin';
+export type TabId = 'dashboard' | 'equipment' | 'estimates' | 'templates' | 'calendar' | 'checklists' | 'staff' | 'goals' | 'cables' | 'finance' | 'customers' | 'contracts' | 'settings' | 'admin';
 
 // Разрешения по умолчанию для каждой роли
 export const ROLE_TABS: Record<UserRole, TabId[]> = {
-  owner: ['dashboard', 'equipment', 'estimates', 'templates', 'calendar', 'checklists', 'staff', 'goals', 'cables', 'analytics', 'customers', 'contracts', 'settings', 'admin'],
-  admin: ['dashboard', 'equipment', 'estimates', 'templates', 'calendar', 'checklists', 'staff', 'goals', 'cables', 'analytics', 'customers', 'contracts', 'settings', 'admin'],
-  manager: ['dashboard', 'equipment', 'estimates', 'templates', 'calendar', 'checklists', 'goals', 'cables', 'analytics', 'customers'],
+  owner: ['dashboard', 'equipment', 'estimates', 'templates', 'calendar', 'checklists', 'staff', 'goals', 'cables', 'finance', 'customers', 'contracts', 'settings', 'admin'],
+  admin: ['dashboard', 'equipment', 'estimates', 'templates', 'calendar', 'checklists', 'staff', 'goals', 'cables', 'finance', 'customers', 'contracts', 'settings', 'admin'],
+  manager: ['dashboard', 'equipment', 'estimates', 'templates', 'calendar', 'checklists', 'goals', 'cables', 'finance', 'customers'],
   warehouse: ['dashboard', 'equipment', 'checklists', 'calendar', 'cables'],
-  accountant: ['dashboard', 'estimates', 'analytics', 'customers', 'calendar'],
+  accountant: ['dashboard', 'estimates', 'finance', 'customers', 'calendar'],
   viewer: [], // Наблюдатель - нет доступа по умолчанию, только кастомные разрешения
 };
 
@@ -25,7 +25,7 @@ export const ALL_TABS: { id: TabId; label: string }[] = [
   { id: 'staff', label: 'Персонал' },
   { id: 'goals', label: 'Задачи' },
   { id: 'cables', label: 'Коммутация' },
-  { id: 'analytics', label: 'Аналитика' },
+  { id: 'finance', label: 'Финансы' },
   { id: 'customers', label: 'Заказчики' },
   { id: 'contracts', label: 'Договоры' },
   { id: 'settings', label: 'Настройки PDF' },
