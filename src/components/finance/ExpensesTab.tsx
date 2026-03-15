@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Plus, Package, Wrench, ShoppingCart, Home, Fuel, MoreHorizontal, Trash2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
@@ -9,32 +9,30 @@ import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
+import type { Expense, ExpenseCategory } from '../../types';
+import { getExpenseCategoryLabel, EXPENSE_CATEGORIES } from '../../types/expenses';
 
 interface ExpensesTabProps {
+  expenses: Expense[];
   companyId?: string;
 }
 
-type ExpenseCategory = 'equipment' | 'repair' | 'supplies' | 'rent' | 'fuel' | 'other';
-
-interface Expense {
-  id: string;
-  date: string;
-  category: ExpenseCategory;
-  amount: number;
-  description: string;
-}
-
-const categoryLabels: Record<ExpenseCategory, { label: string; icon: React.ElementType; color: string }> = {
-  equipment: { label: 'Оборудование', icon: Package, color: 'blue' },
-  repair: { label: 'Ремонт', icon: Wrench, color: 'orange' },
-  supplies: { label: 'Расходники', icon: ShoppingCart, color: 'purple' },
-  rent: { label: 'Аренда', icon: Home, color: 'green' },
-  fuel: { label: 'Топливо', icon: Fuel, color: 'red' },
-  other: { label: 'Прочее', icon: MoreHorizontal, color: 'gray' }
+// Маппинг старых категорий на новые иконки
+const categoryIcons: Record<string, { icon: React.ElementType; color: string }> = {
+  equipment: { icon: Package, color: 'blue' },
+  consumables: { icon: ShoppingCart, color: 'purple' },
+  salary: { icon: Users, color: 'indigo' },
+  rent: { icon: Home, color: 'green' },
+  transport: { icon: Fuel, color: 'red' },
+  other: { icon: MoreHorizontal, color: 'gray' },
+  repair: { icon: Wrench, color: 'orange' },
+  supplies: { icon: ShoppingCart, color: 'purple' },
+  fuel: { icon: Fuel, color: 'red' }
 };
 
-export function ExpensesTab({ companyId }: ExpensesTabProps) {
-  const [expenses, setExpenses] = useState<Expense[]>([]);
+import { Users } from 'lucide-react';
+
+export function ExpensesTab({ expenses }: ExpensesTabProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newExpense, setNewExpense] = useState({
     date: format(new Date(), 'yyyy-MM-dd'),
@@ -43,63 +41,57 @@ export function ExpensesTab({ companyId }: ExpensesTabProps) {
     description: ''
   });
 
-  const handleAddExpense = () => {
-    if (!newExpense.category || !newExpense.amount || !newExpense.description) return;
-    
-    const expense: Expense = {
-      id: `exp_${Date.now()}`,
-      date: newExpense.date,
-      category: newExpense.category,
-      amount: parseFloat(newExpense.amount),
-      description: newExpense.description
-    };
-    
-    setExpenses(prev => [expense, ...prev]);
-    setNewExpense({
-      date: format(new Date(), 'yyyy-MM-dd'),
-      category: '',
-      amount: '',
-      description: ''
+  // Группировка по категориям
+  const expensesByCategory = useMemo(() => {
+    const grouped: Record<string, Expense[]> = {};
+    expenses.forEach(expense => {
+      const cat = expense.category;
+      if (!grouped[cat]) grouped[cat] = [];
+      grouped[cat].push(expense);
     });
+    return grouped;
+  }, [expenses]);
+
+  const totalByCategory = useMemo(() => {
+    return Object.entries(expensesByCategory).map(([category, items]) => ({
+      category,
+      total: items.reduce((sum, i) => sum + i.amount, 0),
+      count: items.length
+    }));
+  }, [expensesByCategory]);
+
+  const totalExpenses = useMemo(() => 
+    expenses.reduce((sum, e) => sum + e.amount, 0),
+  [expenses]);
+
+  const handleAddExpense = () => {
+    // TODO: добавление через API
     setIsDialogOpen(false);
   };
-
-  const handleDelete = (id: string) => {
-    setExpenses(prev => prev.filter(e => e.id !== id));
-  };
-
-  // Группировка по категориям
-  const expensesByCategory = expenses.reduce((acc, expense) => {
-    if (!acc[expense.category]) acc[expense.category] = [];
-    acc[expense.category].push(expense);
-    return acc;
-  }, {} as Record<ExpenseCategory, Expense[]>);
-
-  const totalByCategory = Object.entries(expensesByCategory).map(([category, items]) => ({
-    category: category as ExpenseCategory,
-    total: items.reduce((sum, i) => sum + i.amount, 0),
-    count: items.length
-  }));
-
-  const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
 
   return (
     <div className="space-y-6">
       {/* Summary by Category */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        {Object.entries(categoryLabels).map(([key, { label, icon: Icon, color }]) => {
-          const data = totalByCategory.find(t => t.category === key);
+        {EXPENSE_CATEGORIES.map(({ value, label }) => {
+          const data = totalByCategory.find(t => t.category === value);
           const amount = data?.total || 0;
+          const iconData = categoryIcons[value] || categoryIcons.other;
+          const Icon = iconData.icon;
+          const color = iconData.color;
+          
           const colorClasses: Record<string, string> = {
             blue: 'bg-blue-50 border-blue-200 text-blue-700',
             orange: 'bg-orange-50 border-orange-200 text-orange-700',
             purple: 'bg-purple-50 border-purple-200 text-purple-700',
             green: 'bg-green-50 border-green-200 text-green-700',
             red: 'bg-red-50 border-red-200 text-red-700',
-            gray: 'bg-gray-50 border-gray-200 text-gray-700'
+            gray: 'bg-gray-50 border-gray-200 text-gray-700',
+            indigo: 'bg-indigo-50 border-indigo-200 text-indigo-700'
           };
+          
           return (
-            <Card key={key} className={colorClasses[color]}>
+            <Card key={value} className={colorClasses[color]}>
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Icon className="w-4 h-4" />
@@ -157,8 +149,8 @@ export function ExpensesTab({ companyId }: ExpensesTabProps) {
                     <SelectValue placeholder="Выберите..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {Object.entries(categoryLabels).map(([key, { label }]) => (
-                      <SelectItem key={key} value={key}>{label}</SelectItem>
+                    {EXPENSE_CATEGORIES.map(({ value, label }) => (
+                      <SelectItem key={value} value={value}>{label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -198,20 +190,22 @@ export function ExpensesTab({ companyId }: ExpensesTabProps) {
           </div>
         ) : (
           expenses.map((expense) => {
-            const categoryInfo = categoryLabels[expense.category];
-            const Icon = categoryInfo.icon;
+            const iconData = categoryIcons[expense.category] || categoryIcons.other;
+            const Icon = iconData.icon;
+            const color = iconData.color;
+            
             return (
               <Card key={expense.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center bg-${categoryInfo.color}-100`}>
-                        <Icon className={`w-5 h-5 text-${categoryInfo.color}-600`} />
+                      <div className={`w-10 h-10 rounded-full bg-${color}-100 flex items-center justify-center`}>
+                        <Icon className={`w-5 h-5 text-${color}-600`} />
                       </div>
                       <div>
                         <p className="font-medium">{expense.description}</p>
                         <div className="flex items-center gap-2 text-sm text-gray-500">
-                          <Badge variant="outline">{categoryInfo.label}</Badge>
+                          <Badge variant="outline">{getExpenseCategoryLabel(expense.category)}</Badge>
                           <span>{format(new Date(expense.date), 'dd MMMM yyyy', { locale: ru })}</span>
                         </div>
                       </div>
@@ -220,14 +214,6 @@ export function ExpensesTab({ companyId }: ExpensesTabProps) {
                       <p className="text-lg font-bold text-red-600">
                         -{expense.amount.toLocaleString('ru-RU')} ₽
                       </p>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDelete(expense.id)}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
                     </div>
                   </div>
                 </CardContent>

@@ -41,7 +41,7 @@ export function IncomeTab({ estimates, companyId }: IncomeTabProps) {
         id: e.id,
         date: e.event_date || e.created_at,
         source: `Смета: ${e.event_name}`,
-        amount: e.total_price || 0,
+        amount: e.total || 0,
         type: 'estimate' as const,
         status: e.status
       }));
@@ -55,7 +55,7 @@ export function IncomeTab({ estimates, companyId }: IncomeTabProps) {
         id: e.id,
         date: e.event_date || e.created_at,
         source: `Смета: ${e.event_name}`,
-        amount: e.total_price || 0,
+        amount: e.total || 0,
         type: 'pending' as const,
         status: e.status
       }));

@@ -491,6 +491,7 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
             <FinanceManager 
               estimates={estimates}
               staff={staff}
+              expenses={expenses}
               companyId={companyId}
             />
           )}

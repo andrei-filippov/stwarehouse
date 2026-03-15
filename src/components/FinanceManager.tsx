@@ -8,15 +8,16 @@ import { IncomeTab } from './finance/IncomeTab';
 import { ExpensesTab } from './finance/ExpensesTab';
 import { SalaryTab } from './finance/SalaryTab';
 import { AnalyticsTab } from './finance/AnalyticsTab';
-import type { Estimate, Staff } from '../types';
+import type { Estimate, Staff, Expense } from '../types';
 
 interface FinanceManagerProps {
   estimates: Estimate[];
   staff: Staff[];
+  expenses: Expense[];
   companyId?: string;
 }
 
-export function FinanceManager({ estimates, staff, companyId }: FinanceManagerProps) {
+export function FinanceManager({ estimates, staff, expenses, companyId }: FinanceManagerProps) {
   const [activeTab, setActiveTab] = useState('income');
 
   // Фильтруем подтвержденные/завершенные сметы для доходов
@@ -32,12 +33,7 @@ export function FinanceManager({ estimates, staff, companyId }: FinanceManagerPr
           <h1 className="text-2xl font-bold text-gray-900">Финансы</h1>
           <p className="text-gray-500 mt-1">Управление доходами, расходами и зарплатами</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
-            <BarChart3 className="w-4 h-4" />
-            Отчеты
-          </Button>
-        </div>
+
       </div>
 
       {/* Summary Cards */}
@@ -121,7 +117,7 @@ export function FinanceManager({ estimates, staff, companyId }: FinanceManagerPr
         </TabsContent>
 
         <TabsContent value="expenses" className="space-y-4">
-          <ExpensesTab companyId={companyId} />
+          <ExpensesTab expenses={expenses} companyId={companyId} />
         </TabsContent>
 
         <TabsContent value="salary" className="space-y-4">
