@@ -332,6 +332,7 @@ export function useEstimates(companyId: string | undefined) {
       
       // Проверяем, локальная ли это смета
       const isLocalId = id.startsWith('local_');
+      let useOffline = false;
       
       if (isOnline() && !isLocalId) {
         try {
@@ -375,14 +376,38 @@ export function useEstimates(companyId: string | undefined) {
           await fetchEstimates();
           toast.success('Смета обновлена');
           return { error: null };
-        } catch (err) {
-          // При ошибке сети продолжаем в оффлайн-режиме
-          console.log('Network error, switching to offline mode:', err);
+        } catch (err: any) {
+          // Проверяем тип ошибки
+          const isNetworkError = err.message?.includes('fetch') || 
+                                err.message?.includes('network') || 
+                                err.code === 'NETWORK_ERROR';
+          const isServerError = err.status === 500 || err.status === 503;
+          
+          // Если это ошибка клиента (400), показываем ошибку и не переходим в офлайн
+          if (err.status === 400) {
+            console.error('Validation error (400):', err);
+            toast.error('Ошибка сохранения', { 
+              description: err.message || 'Проверьте данные и попробуйте снова' 
+            });
+            return { error: err };
+          }
+          
+          // Только при сетевых ошибках переходим в офлайн
+          if (isNetworkError || isServerError) {
+            console.log('Network error, switching to offline mode:', err);
+            useOffline = true;
+          } else {
+            // Другие ошибки - показываем и выходим
+            throw err;
+          }
         }
+      } else {
+        // Нет сети или локальная смета
+        useOffline = true;
       }
       
-      // ОФФЛАЙН режим (или fallback)
-        // ОФФЛАЙН или локальная смета - обновляем локально
+      // ОФФЛАЙН режим (только если useOffline = true)
+      if (useOffline) {
         await saveEstimateLocal(estimateData, companyId);
         await addToSyncQueue('estimates', isLocalId ? 'create' : 'update', estimateData);
         await addToSyncQueue('estimate_items', 'create', {
@@ -398,6 +423,7 @@ export function useEstimates(companyId: string | undefined) {
           description: 'Будет синхронизирована при подключении'
         });
         return { error: null, queued: true };
+      }
     } catch (err: any) {
       toast.error('Ошибка при обновлении сметы', { description: err.message });
       return { error: err };
