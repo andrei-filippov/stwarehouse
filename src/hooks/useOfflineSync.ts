@@ -333,12 +333,18 @@ export function useOfflineSync(companyId: string | undefined) {
             console.log('[Sync] Created on server, mapping:', localId, '->', result.data.id);
           }
 
-          // Удаляем локальную запись после успешной синхронизации (для всех операций)
-          if (localId?.startsWith('local_')) {
-            if (item.table === 'estimates') {
-              await deleteEstimateLocal(localId);
-              console.log('[Sync] Deleted local estimate:', localId);
-            } else if (item.table === 'equipment') {
+          // Удаляем локальную запись после успешной синхронизации
+          // Для estimates: удаляем ВСЕГДА (и local_* и серверные ID после update)
+          if (item.table === 'estimates') {
+            const estimateId = item.data?.id;
+            if (estimateId) {
+              await deleteEstimateLocal(estimateId);
+              console.log('[Sync] Deleted local estimate:', estimateId);
+            }
+          }
+          // Для остальных таблиц - только если local_*
+          else if (localId?.startsWith('local_')) {
+            if (item.table === 'equipment') {
               await deleteEquipmentLocal(localId);
               console.log('[Sync] Deleted local equipment:', localId);
             } else if (item.table === 'checklists') {
@@ -475,6 +481,14 @@ export function useOfflineSync(companyId: string | undefined) {
           await removeFromSyncQueue(item.id!);
           successCount++;
           console.log('[Sync] Successfully synced estimate_items');
+          
+          // После успешной синхронизации items удаляем локальную смету
+          // чтобы при fetchEstimates загрузилась актуальная версия с сервера
+          const { estimateId } = item.data;
+          if (estimateId && !estimateId.startsWith('local_')) {
+            await deleteEstimateLocal(estimateId);
+            console.log('[Sync] Deleted local estimate after items sync:', estimateId);
+          }
           
         } catch (err) {
           console.error('[Sync] Error syncing estimate_items:', err);
