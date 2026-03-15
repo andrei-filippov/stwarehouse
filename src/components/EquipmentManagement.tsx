@@ -4,7 +4,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './ui/dialog';
 import { Badge } from './ui/badge';
 import { Plus, Upload, Download, Trash2, Edit, Search, FolderPlus, ChevronDown, ChevronUp, X } from 'lucide-react';
 import { toast } from 'sonner';
@@ -61,6 +61,12 @@ export function EquipmentManager({
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Состояние для подтверждения удаления
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteItem, setDeleteItem] = useState<Equipment | null>(null);
+  const [deleteCategoryConfirmOpen, setDeleteCategoryConfirmOpen] = useState(false);
+  const [deleteCategory, setDeleteCategory] = useState<{ id: string; name: string } | null>(null);
+
   // Фильтрация оборудования (мемоизировано)
   const filteredEquipment = useMemo(() =>
     (equipment || []).filter(item =>
@@ -111,6 +117,38 @@ export function EquipmentManager({
   // Свернуть все
   const collapseAll = () => {
     setExpandedCategories(new Set());
+  };
+
+  // Обработчики подтверждения удаления
+  const handleDeleteClick = (item: Equipment) => {
+    setDeleteItem(item);
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteItem) return;
+    const { error } = await onDelete(deleteItem.id);
+    if (!error) {
+      toast.success('Оборудование удалено');
+    }
+    setDeleteConfirmOpen(false);
+    setDeleteItem(null);
+  };
+
+  const handleDeleteCategoryClick = (categoryObj: { id: string; name: string }, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDeleteCategory(categoryObj);
+    setDeleteCategoryConfirmOpen(true);
+  };
+
+  const confirmDeleteCategory = async () => {
+    if (!deleteCategory || !onDeleteCategory) return;
+    const { error } = await onDeleteCategory(deleteCategory.id);
+    if (!error) {
+      toast.success('Категория удалена');
+    }
+    setDeleteCategoryConfirmOpen(false);
+    setDeleteCategory(null);
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -368,12 +406,7 @@ export function EquipmentManager({
                             variant="ghost"
                             size="sm"
                             className="h-6 w-6 p-0 text-gray-400 hover:text-red-500"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (confirm(`Удалить категорию "${category}"?`)) {
-                                onDeleteCategory(categoryObj.id);
-                              }
-                            }}
+                            onClick={(e) => handleDeleteCategoryClick({ id: categoryObj.id, name: category }, e)}
                             title="Удалить категорию"
                           >
                             <X className="w-4 h-4" />
@@ -425,7 +458,7 @@ export function EquipmentManager({
                                       <Button 
                                         variant="ghost" 
                                         size="sm"
-                                        onClick={() => onDelete(item.id)}
+                                        onClick={() => handleDeleteClick(item)}
                                       >
                                         <Trash2 className="w-4 h-4 text-red-500" />
                                       </Button>
@@ -459,7 +492,7 @@ export function EquipmentManager({
                                     variant="ghost" 
                                     size="sm"
                                     className="h-8 w-8 p-0"
-                                    onClick={() => onDelete(item.id)}
+                                    onClick={() => handleDeleteClick(item)}
                                   >
                                     <Trash2 className="w-4 h-4 text-red-500" />
                                   </Button>
@@ -695,6 +728,46 @@ export function EquipmentManager({
             }}
             onAddCategory={onAddCategory}
           />
+        </DialogContent>
+      </Dialog>
+
+      {/* Диалог подтверждения удаления оборудования */}
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent className="max-w-sm" aria-describedby="delete-equipment-desc">
+          <DialogHeader>
+            <DialogTitle>Удалить оборудование?</DialogTitle>
+            <DialogDescription id="delete-equipment-desc">
+              Вы действительно хотите удалить "{deleteItem?.name}"? Это действие нельзя отменить.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>
+              Отмена
+            </Button>
+            <Button variant="destructive" onClick={confirmDelete}>
+              Удалить
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Диалог подтверждения удаления категории */}
+      <Dialog open={deleteCategoryConfirmOpen} onOpenChange={setDeleteCategoryConfirmOpen}>
+        <DialogContent className="max-w-sm" aria-describedby="delete-category-desc">
+          <DialogHeader>
+            <DialogTitle>Удалить категорию?</DialogTitle>
+            <DialogDescription id="delete-category-desc">
+              Вы действительно хотите удалить категорию "{deleteCategory?.name}"? Это действие нельзя отменить.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setDeleteCategoryConfirmOpen(false)}>
+              Отмена
+            </Button>
+            <Button variant="destructive" onClick={confirmDeleteCategory}>
+              Удалить
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
