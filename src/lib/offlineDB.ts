@@ -444,14 +444,26 @@ export async function addToSyncQueue(
   console.log('[addToSyncQueue] Adding to queue:', { table, operation, dataId });
   
   // Проверяем, есть ли уже запись для этого ID в очереди
+  // Для estimates ищем по data.id, для estimate_items ищем по data.estimateId
   const existingQueue = await getSyncQueue();
-  const existingIndex = existingQueue.findIndex(
-    item => item.table === table && (item.data?.id === dataId || item.data?.estimateId === dataId)
-  );
+  const existingIndex = existingQueue.findIndex(item => {
+    if (item.table !== table) return false;
+    
+    if (table === 'estimates') {
+      // Для estimates сравниваем по data.id
+      return item.data?.id === dataId;
+    } else if (table === 'estimate_items') {
+      // Для estimate_items сравниваем по data.estimateId
+      return item.data?.estimateId === dataId;
+    } else {
+      // Для остальных таблиц - общая логика
+      return item.data?.id === dataId || item.data?.estimateId === dataId;
+    }
+  });
   
-  // Если есть существующая запись - удаляем её (будем добавлять новую/обновленную)
+  // Если есть существующая запись для ТОЙ ЖЕ таблицы - удаляем её
   if (existingIndex >= 0) {
-    console.log('[addToSyncQueue] Found existing entry, removing duplicate');
+    console.log('[addToSyncQueue] Found existing entry for same table, removing duplicate');
     await removeFromSyncQueue(existingQueue[existingIndex].id!);
   }
   
