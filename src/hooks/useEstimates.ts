@@ -179,7 +179,7 @@ export function useEstimates(companyId: string | undefined) {
           
           // Кэшируем серверные данные
           // НЕ кэшируем сметы, которые были изменены оффлайн (modifiedOffline)
-          const modifiedOfflineIds = new Set(modifiedOffline.map(e => e.id));
+          // Используем уже созданный modifiedOfflineIds
           
           for (const estimate of deduplicatedServer) {
             // Сохраняем только если:
