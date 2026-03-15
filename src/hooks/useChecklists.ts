@@ -240,6 +240,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
         }
       } else {
         console.log('[createChecklist] Using cached rules:', rulesToUse.length);
+        console.log('[createChecklist] Rules with items:', rulesToUse.map(r => `${r.name}: ${r.items?.length || 0} items`).join(', '));
       }
       
       // Генерируем чек-лист
@@ -271,20 +272,20 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
           console.log('[createChecklist] Matching rules for', item.name, ':', matchingRules.length);
           
           matchingRules.forEach(rule => {
-            // Supabase может вернуть items под ключом checklist_rule_items
-            const ruleItems = rule.items || (rule as any).checklist_rule_items || [];
-            console.log('[createChecklist] Applying rule:', rule.name, 'items count:', ruleItems.length);
-            console.log('[createChecklist] Rule keys:', Object.keys(rule));
-            ruleItems.forEach((ruleItem: any) => {
-              items.push({
-                id: `local_item_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
-                name: ruleItem.name,
-                quantity: ruleItem.quantity * item.quantity,
-                category: ruleItem.category,
-                is_required: ruleItem.is_required,
-                is_checked: false
+            // Берем items напрямую из правила
+            console.log('[createChecklist] Rule:', rule.name, 'has items:', rule.items?.length);
+            if (rule.items && rule.items.length > 0) {
+              rule.items.forEach(ruleItem => {
+                items.push({
+                  id: `local_item_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
+                  name: ruleItem.name,
+                  quantity: ruleItem.quantity * item.quantity,
+                  category: ruleItem.category,
+                  is_required: ruleItem.is_required,
+                  is_checked: false
+                });
               });
-            });
+            }
           });
         }
       });
