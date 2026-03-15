@@ -256,8 +256,17 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
       });
       
       console.log('[createChecklist] Total items generated:', items.length);
-
-      // Получаем текущего пользователя (для офлайн-режима нужно сохранить user_id)
+      
+      // Проверяем применились ли правила
+      const equipmentCount = estimate.items?.length || 0;
+      const totalItemsCount = items.length;
+      const rulesItemsCount = totalItemsCount - equipmentCount - customItems.length;
+      
+      if (rulesToUse.length > 0 && rulesItemsCount === 0) {
+        console.warn('[createChecklist] Rules exist but none matched! Rules:', rulesToUse.map(r => `${r.condition_type}:${r.condition_value}`).join(', '));
+        console.warn('[createChecklist] Equipment in estimate:', estimate.items?.map(i => `${i.name}(${i.category})`).join(', '));
+        toast.info('Правила не применились', {
+          description: 'Созданы правила для другого оборудования. Проверьте названия в правилах или используйте тип 
       const { data: { user } } = await supabase.auth.getUser();
       
       const checklistData = {
