@@ -120,6 +120,23 @@ export function useEstimates(companyId: string | undefined) {
           // СОХРАНЯЕМ серверные данные в локальную базу для офлайн-доступа
           // (только серверные ID, без перезаписи существующих локальных)
           const localIds = new Set(localOnly.map(e => e.id));
+          
+          // Удаляем локальные дубликаты (по содержимому) перед кэшированием
+          for (const localEstimate of localOnly) {
+            if (localEstimate.id?.startsWith('local_')) {
+              // Ищем серверную копию по названию и дате
+              const serverDuplicate = filteredServer.find(
+                e => e.event_name === localEstimate.event_name && 
+                     e.event_date === localEstimate.event_date
+              );
+              if (serverDuplicate) {
+                console.log('[fetchEstimates] Removing local duplicate:', localEstimate.id);
+                await deleteEstimateLocal(localEstimate.id);
+              }
+            }
+          }
+          
+          // Кэшируем серверные данные
           for (const estimate of filteredServer) {
             // Сохраняем только если:
             // 1. Это серверный ID (не local_*)
