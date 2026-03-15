@@ -306,7 +306,11 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
         console.warn('[createChecklist] Rules exist but none matched! Rules:', rulesToUse.map(r => `${r.condition_type}:${r.condition_value}`).join(', '));
         console.warn('[createChecklist] Equipment in estimate:', estimate.items?.map(i => `${i.name}(${i.category})`).join(', '));
         toast.info('Правила не применились', {
-          description: 'Созданы правила для другого оборудования. Проверьте названия в правилах или используйте тип 
+          description: 'Созданы правила для другого оборудования. Проверьте названия в правилах или используйте тип "Категория"'
+        });
+      }
+      
+      // Получаем текущего пользователя (для офлайн-режима нужно сохранить user_id)
       const { data: { user } } = await supabase.auth.getUser();
       
       const checklistData = {
