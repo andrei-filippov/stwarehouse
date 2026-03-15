@@ -94,9 +94,16 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
     }
     
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
       const { error } = await supabase
         .from('checklist_rules')
-        .insert({ ...rule, company_id: companyId });
+        .insert({ 
+          ...rule, 
+          company_id: companyId,
+          user_id: user.id
+        });
 
       if (error) throw error;
 
