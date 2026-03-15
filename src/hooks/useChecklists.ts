@@ -94,6 +94,8 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
       }));
       
       console.log('[fetchRules] Rules with items:', rulesWithItems.length);
+      console.log('[fetchRules] First rule items check:', rulesWithItems[0]?.name, 'has', rulesWithItems[0]?.items?.length, 'items');
+      console.log('[fetchRules] All rules items:', rulesWithItems.map(r => `${r.name}: ${r.items?.length || 0}`).join(', '));
       setRules(rulesWithItems);
       
       // Кэшируем правила для офлайн-режима
@@ -138,14 +140,15 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
       if (ruleError) throw ruleError;
 
       // 2. Создаём items отдельно
+      console.log('[createRule] Rule items input:', rule.items);
       console.log('[createRule] Creating rule items:', rule.items?.length, 'for rule:', ruleData?.id);
       if (rule.items && rule.items.length > 0 && ruleData) {
-        const itemsToInsert = rule.items.map(item => ({
+        const itemsToInsert = rule.items.map((item, idx) => ({
           rule_id: ruleData.id,
-          name: item.name,
-          quantity: item.quantity,
-          category: item.category,
-          is_required: item.is_required
+          name: item.name || `Item ${idx}`,
+          quantity: item.quantity || 1,
+          category: item.category || 'other',
+          is_required: item.is_required ?? true
         }));
         console.log('[createRule] Items to insert:', JSON.stringify(itemsToInsert));
 
@@ -156,10 +159,12 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
 
         if (itemsError) {
           console.error('[createRule] Error creating rule items:', itemsError);
+          toast.error('Ошибка при сохранении позиций правила', { description: itemsError.message });
         } else {
-          console.log('[createRule] Created items:', itemsData?.length);
+          console.log('[createRule] Created items:', itemsData?.length, JSON.stringify(itemsData));
         }
-        }
+      } else {
+        console.log('[createRule] No items to create - items empty or undefined');
       }
 
       await fetchRules();
