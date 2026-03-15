@@ -101,6 +101,27 @@ export function EstimateBuilder({
   const [draggedCategory, setDraggedCategory] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
 
+  // Дедуплицируем items при изменении estimate (защита от дубликатов после синхронизации)
+  useEffect(() => {
+    if (estimate?.items && estimate.items.length > 0) {
+      const seenKeys = new Set<string>();
+      const uniqueItems = estimate.items.filter((item: any) => {
+        const key = `${item.name}_${item.category}_${item.price}_${item.quantity}`;
+        if (seenKeys.has(key)) {
+          console.log('[EstimateBuilder] Removing duplicate item:', item.name);
+          return false;
+        }
+        seenKeys.add(key);
+        return true;
+      });
+      
+      if (uniqueItems.length !== estimate.items.length) {
+        console.log('[EstimateBuilder] Items deduplicated:', estimate.items.length, '->', uniqueItems.length);
+        setItems(uniqueItems);
+      }
+    }
+  }, [estimate?.id]); // Запускаем только при изменении сметы
+
   const selectedCustomer = useMemo(() => 
     customers.find(c => c.id === customerId),
     [customers, customerId]

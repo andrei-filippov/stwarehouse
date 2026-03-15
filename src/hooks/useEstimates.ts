@@ -158,7 +158,30 @@ export function useEstimates(companyId: string | undefined) {
             return true;
           });
           
-          setEstimates(deduplicated);
+          // Дедуплицируем items внутри каждой сметы
+          // (если есть items с одинаковым name - оставляем только первый)
+          const deduplicatedWithCleanItems = deduplicated.map(e => {
+            if (!e.items || e.items.length === 0) return e;
+            
+            const seenItemNames = new Set<string>();
+            const uniqueItems = e.items.filter((item: any) => {
+              const key = `${item.name}_${item.category}_${item.price}`;
+              if (seenItemNames.has(key)) {
+                console.log('[fetchEstimates] Removing duplicate item:', item.name, 'from estimate:', e.id);
+                return false;
+              }
+              seenItemNames.add(key);
+              return true;
+            });
+            
+            if (uniqueItems.length !== e.items.length) {
+              console.log('[fetchEstimates] Cleaned items for estimate:', e.id, 'was:', e.items.length, 'now:', uniqueItems.length);
+              return { ...e, items: uniqueItems };
+            }
+            return e;
+          });
+          
+          setEstimates(deduplicatedWithCleanItems);
           
           // СОХРАНЯЕМ серверные данные в локальную базу для офлайн-доступа
           // (только серверные ID, без перезаписи существующих локальных)
@@ -192,8 +215,17 @@ export function useEstimates(companyId: string | undefined) {
                 !localIds.has(estimate.id) && 
                 !modifiedOfflineIds.has(estimate.id)) {
               try {
-                await saveEstimateLocal(estimate, companyId);
-                console.log('[fetchEstimates] Cached server estimate:', estimate.id);
+                // Дедуплицируем items перед кэшированием
+                const estimateToCache = estimate.items && estimate.items.length > 0
+                  ? { ...estimate, items: estimate.items.filter((item: any, idx: number, self: any[]) => 
+                      idx === self.findIndex((t: any) => 
+                        t.name === item.name && t.category === item.category && t.price === item.price
+                      )
+                    )}
+                  : estimate;
+                
+                await saveEstimateLocal(estimateToCache, companyId);
+                console.log('[fetchEstimates] Cached server estimate:', estimate.id, 'items:', estimateToCache.items?.length);
               } catch (saveErr) {
                 console.warn('[fetchEstimates] Failed to cache estimate:', estimate.id, saveErr);
               }
