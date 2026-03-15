@@ -310,14 +310,37 @@ export function useOfflineSync(companyId: string | undefined) {
               
             case 'checklists':
               if (item.operation === 'create') {
-                const { id, ...data } = item.data;
+                const { id, items, ...data } = item.data;
+                // 1. Создаём чек-лист
                 result = await supabase.from('checklists').insert({
                   ...data,
                   company_id: companyId
                 }).select().single();
+                
+                // 2. Создаём items отдельно
+                if (items && items.length > 0 && result?.data?.id) {
+                  const checklistId = result.data.id;
+                  const itemsToInsert = items.map((item: any) => ({
+                    checklist_id: checklistId,
+                    name: item.name,
+                    quantity: item.quantity,
+                    category: item.category,
+                    is_required: item.is_required ?? true,
+                    is_checked: item.is_checked ?? false
+                  }));
+                  
+                  const { error: itemsError } = await supabase
+                    .from('checklist_items')
+                    .insert(itemsToInsert);
+                    
+                  if (itemsError) {
+                    console.error('[Sync] Error creating checklist items:', itemsError);
+                  }
+                }
               } else if (item.operation === 'update') {
-                const { id, ...data } = item.data;
+                const { id, items, ...data } = item.data;
                 result = await supabase.from('checklists').update(data).eq('id', id);
+                // Note: при update items не обновляем - они синхронизируются отдельно
               } else if (item.operation === 'delete') {
                 result = await supabase.from('checklists').delete().eq('id', item.data.id);
               }

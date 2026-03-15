@@ -30,7 +30,10 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
       try {
         const { data, error } = await supabase
           .from('checklists')
-          .select('*')
+          .select(`
+            *,
+            items:checklist_items(*)
+          `)
           .eq('company_id', companyId)
           .order('created_at', { ascending: false });
         
@@ -154,12 +157,25 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
       // Генерируем локальный ID
       const localId = `local_checklist_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       
-      // Если правила не загружены (например, при быстром создании офлайн), пробуем загрузить из кэша
+      // Если правила не загружены, загружаем их
       let rulesToUse = rules;
-      if (rules.length === 0 && !isOnline()) {
-        const cached = await getChecklistRulesCache(companyId);
-        if (cached) {
-          rulesToUse = cached;
+      if (rulesToUse.length === 0) {
+        if (isOnline()) {
+          // Онлайн: загружаем с сервера
+          const { data } = await supabase
+            .from('checklist_rules')
+            .select(`
+              *,
+              items:checklist_rule_items(*)
+            `)
+            .eq('company_id', companyId);
+          rulesToUse = data || [];
+        } else {
+          // Офлайн: пробуем загрузить из кэша
+          const cached = await getChecklistRulesCache(companyId);
+          if (cached) {
+            rulesToUse = cached;
+          }
         }
       }
       
@@ -215,25 +231,45 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
       
       if (isOnline()) {
         try {
-          // Пробуем сохранить на сервер
-          const { data, error } = await supabase
+          // 1. Создаём чек-лист
+          const { data: checklistData, error: checklistError } = await supabase
             .from('checklists')
             .insert({
               estimate_id: estimate.id,
               company_id: companyId,
               event_name: estimate.event_name,
               event_date: estimate.event_date || null,
-              items: items,
               notes: notes || null,
               category_order: estimate.category_order || null
             })
-            .select();
+            .select()
+            .single();
 
-          if (error) throw error;
+          if (checklistError) throw checklistError;
+
+          // 2. Создаём items отдельно
+          if (items.length > 0 && checklistData) {
+            const itemsWithChecklistId = items.map(item => ({
+              checklist_id: checklistData.id,
+              name: item.name,
+              quantity: item.quantity,
+              category: item.category,
+              is_required: item.is_required ?? true,
+              is_checked: item.is_checked ?? false
+            }));
+
+            const { error: itemsError } = await supabase
+              .from('checklist_items')
+              .insert(itemsWithChecklistId);
+
+            if (itemsError) {
+              console.error('Error creating checklist items:', itemsError);
+            }
+          }
 
           await fetchChecklists();
           toast.success('Чек-лист создан');
-          return { error: null, data: data?.[0] };
+          return { error: null, data: checklistData };
         } catch (err) {
           console.log('Network error, switching to offline mode:', err);
         }
