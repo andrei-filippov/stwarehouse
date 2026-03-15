@@ -36,6 +36,8 @@ export function useEstimates(companyId: string | undefined) {
     fetchInProgressRef.current = true;
     setLoading(true);
     
+    console.log('[fetchEstimates] ========== START ==========', new Date().toISOString());
+    
     try {
       // Всегда загружаем локальные сметы (на случай если есть несинхронизированные)
       console.log('[fetchEstimates] Loading local estimates for company:', companyId);
@@ -213,6 +215,7 @@ export function useEstimates(companyId: string | undefined) {
     } finally {
       setLoading(false);
       fetchInProgressRef.current = false;
+      console.log('[fetchEstimates] ========== END ==========', new Date().toISOString());
     }
   }, [companyId]);
 
@@ -616,8 +619,16 @@ export function useEstimates(companyId: string | undefined) {
     const handleOnline = () => {
       setIsOffline(false);
       toast.success('Подключение восстановлено');
-      // Переключаемся на серверные данные
-      fetchEstimates();
+      // Задержка перед fetchEstimates чтобы дать время на синхронизацию
+      // (useOfflineSync запускает syncData при восстановлении сети)
+      setTimeout(() => {
+        // Проверяем что синхронизация не в процессе
+        if (!(window as any).__syncing) {
+          fetchEstimates();
+        } else {
+          console.log('[handleOnline] Sync in progress, skipping fetchEstimates');
+        }
+      }, 2000);
     };
     
     const handleOffline = () => {
@@ -641,13 +652,21 @@ export function useEstimates(companyId: string | undefined) {
   }, [fetchEstimates]);
 
   // Debounced fetch для realtime подписки
+  // Задержка увеличена до 1.5с чтобы избежать race condition с синхронизацией
   const debouncedFetchEstimates = useCallback(() => {
+    // Проверяем глобальный флаг синхронизации из useOfflineSync
+    if ((window as any).__syncing) {
+      console.log('[debouncedFetchEstimates] Sync in progress (global), skipping');
+      return;
+    }
     if (debounceTimeoutRef.current) {
       clearTimeout(debounceTimeoutRef.current);
     }
     debounceTimeoutRef.current = setTimeout(() => {
-      fetchEstimates();
-    }, 500);
+      if (!(window as any).__syncing) {
+        fetchEstimates();
+      }
+    }, 1500);
   }, [fetchEstimates]);
 
   // Подписка на изменения (только в онлайн режиме)

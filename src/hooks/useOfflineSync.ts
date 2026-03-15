@@ -119,6 +119,7 @@ export function useOfflineSync(companyId: string | undefined) {
     
     syncInProgress.current = true;
     setSyncing(true);
+    (window as any).__syncing = true; // Глобальный флаг для других хуков
     if (onComplete) onSyncCompleteRef.current = onComplete;
     
     try {
@@ -516,6 +517,10 @@ export function useOfflineSync(companyId: string | undefined) {
         await clearDeletedEstimates();
       }
       
+      // Задержка перед callback чтобы Supabase успел реплицировать данные
+      // и чтобы useEstimates успел завершить текущий fetchEstimates (если есть)
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
       // Вызываем callback для обновления UI
       onSyncCompleteRef.current?.();
       onSyncCompleteRef.current = null;
@@ -525,6 +530,7 @@ export function useOfflineSync(companyId: string | undefined) {
     } finally {
       setSyncing(false);
       syncInProgress.current = false;
+      (window as any).__syncing = false; // Сброс глобального флага
     }
   }, [companyId]);
 
