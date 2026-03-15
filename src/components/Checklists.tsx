@@ -89,6 +89,15 @@ export const ChecklistsManager = memo(function ChecklistsManager({
     setIsRuleDialogOpen(false);
   }, []);
 
+  const handleCreateRule = useCallback(async (rule: any, items?: any[]) => {
+    console.log('[ChecklistsManager] handleCreateRule called with items:', items?.length, items);
+    const result = await onCreateRule(rule, items);
+    if (!result.error) {
+      handleCloseRuleDialog();
+    }
+    return result;
+  }, [onCreateRule]);
+
   const handleOpenChecklistDialog = useCallback(() => {
     setIsChecklistDialogOpen(true);
   }, []);
@@ -288,7 +297,7 @@ export const ChecklistsManager = memo(function ChecklistsManager({
           <RuleForm 
             equipment={equipment}
             categories={categories}
-            onSubmit={onCreateRule}
+            onSubmit={handleCreateRule}
             onCancel={handleCloseRuleDialog}
           />
         </DialogContent>
@@ -530,7 +539,10 @@ function RuleForm({
 
       <div className="flex gap-3 pt-4">
         <Button 
-          onClick={() => onSubmit({ name, condition_type: conditionType, condition_value: conditionValue }, items)}
+          onClick={() => {
+            console.log('[RuleForm] Submitting with items:', items);
+            onSubmit({ name, condition_type: conditionType, condition_value: conditionValue }, items);
+          }}
           className="flex-1"
           disabled={!name || !conditionValue}
         >
