@@ -62,24 +62,43 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
     if (!companyId) return;
     
     if (isOnline()) {
-      const { data, error } = await supabase
+      console.log('[fetchRules] Fetching rules for companyId:', companyId);
+      
+      // Сначала загружаем правила
+      const { data: rulesData, error: rulesError } = await supabase
         .from('checklist_rules')
-        .select(`
-          *,
-          items:checklist_rule_items(*)
-        `)
+        .select('*')
         .eq('company_id', companyId);
       
-      if (error) {
-        toast.error('Ошибка при загрузке правил', { description: error.message });
-        console.error('[fetchRules] Error:', error);
-      } else {
-        console.log('[fetchRules] Loaded rules:', data?.length, 'First rule items:', data?.[0]?.items?.length);
-        setRules(data || []);
-        // Кэшируем правила для офлайн-режима
-        if (companyId) {
-          await saveChecklistRulesCache(data || [], companyId);
+      if (rulesError) {
+        console.error('[fetchRules] Error loading rules:', rulesError);
+        toast.error('Ошибка при загрузке правил', { description: rulesError.message });
+        return;
+      }
+      
+      console.log('[fetchRules] Loaded rules:', rulesData?.length);
+      
+      // Затем загружаем items для каждого правила отдельно
+      const rulesWithItems = await Promise.all((rulesData || []).map(async (rule) => {
+        const { data: itemsData, error: itemsError } = await supabase
+          .from('checklist_rule_items')
+          .select('*')
+          .eq('rule_id', rule.id);
+        
+        if (itemsError) {
+          console.error('[fetchRules] Error loading items for rule', rule.id, ':', itemsError);
         }
+        
+        console.log('[fetchRules] Rule', rule.id, 'items:', itemsData?.length);
+        return { ...rule, items: itemsData || [] };
+      }));
+      
+      console.log('[fetchRules] Rules with items:', rulesWithItems.length);
+      setRules(rulesWithItems);
+      
+      // Кэшируем правила для офлайн-режима
+      if (companyId) {
+        await saveChecklistRulesCache(rulesWithItems, companyId);
       }
     } else {
       // ОФФЛАЙН: загружаем из кэша
@@ -119,6 +138,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
       if (ruleError) throw ruleError;
 
       // 2. Создаём items отдельно
+      console.log('[createRule] Creating rule items:', rule.items?.length, 'for rule:', ruleData?.id);
       if (rule.items && rule.items.length > 0 && ruleData) {
         const itemsToInsert = rule.items.map(item => ({
           rule_id: ruleData.id,
@@ -127,13 +147,18 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
           category: item.category,
           is_required: item.is_required
         }));
+        console.log('[createRule] Items to insert:', JSON.stringify(itemsToInsert));
 
-        const { error: itemsError } = await supabase
+        const { data: itemsData, error: itemsError } = await supabase
           .from('checklist_rule_items')
-          .insert(itemsToInsert);
+          .insert(itemsToInsert)
+          .select();
 
         if (itemsError) {
-          console.error('Error creating rule items:', itemsError);
+          console.error('[createRule] Error creating rule items:', itemsError);
+        } else {
+          console.log('[createRule] Created items:', itemsData?.length);
+        }
         }
       }
 
@@ -191,14 +216,20 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
       if (rulesToUse.length === 0) {
         if (isOnline()) {
           // Онлайн: загружаем с сервера
-          const { data } = await supabase
+          const { data: rulesData } = await supabase
             .from('checklist_rules')
-            .select(`
-              *,
-              items:checklist_rule_items(*)
-            `)
+            .select('*')
             .eq('company_id', companyId);
-          rulesToUse = data || [];
+          
+          // Загружаем items для каждого правила
+          rulesToUse = await Promise.all((rulesData || []).map(async (rule) => {
+            const { data: itemsData } = await supabase
+              .from('checklist_rule_items')
+              .select('*')
+              .eq('rule_id', rule.id);
+            return { ...rule, items: itemsData || [] };
+          }));
+          
           console.log('[createChecklist] Loaded rules from server:', rulesToUse.length);
         } else {
           // Офлайн: пробуем загрузить из кэша
@@ -240,8 +271,11 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
           console.log('[createChecklist] Matching rules for', item.name, ':', matchingRules.length);
           
           matchingRules.forEach(rule => {
-            console.log('[createChecklist] Applying rule:', rule.name, 'items:', rule.items?.length);
-            rule.items?.forEach(ruleItem => {
+            // Supabase может вернуть items под ключом checklist_rule_items
+            const ruleItems = rule.items || (rule as any).checklist_rule_items || [];
+            console.log('[createChecklist] Applying rule:', rule.name, 'items count:', ruleItems.length);
+            console.log('[createChecklist] Rule keys:', Object.keys(rule));
+            ruleItems.forEach((ruleItem: any) => {
               items.push({
                 id: `local_item_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
                 name: ruleItem.name,
