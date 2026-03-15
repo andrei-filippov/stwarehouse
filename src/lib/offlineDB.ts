@@ -440,7 +440,21 @@ export async function addToSyncQueue(
   operation: 'create' | 'update' | 'delete', 
   data: any
 ) {
-  console.log('[addToSyncQueue] Adding to queue:', { table, operation, dataId: data?.id || data?.estimateId });
+  const dataId = data?.id || data?.estimateId;
+  console.log('[addToSyncQueue] Adding to queue:', { table, operation, dataId });
+  
+  // Проверяем, есть ли уже запись для этого ID в очереди
+  const existingQueue = await getSyncQueue();
+  const existingIndex = existingQueue.findIndex(
+    item => item.table === table && (item.data?.id === dataId || item.data?.estimateId === dataId)
+  );
+  
+  // Если есть существующая запись - удаляем её (будем добавлять новую/обновленную)
+  if (existingIndex >= 0) {
+    console.log('[addToSyncQueue] Found existing entry, removing duplicate');
+    await removeFromSyncQueue(existingQueue[existingIndex].id!);
+  }
+  
   if (useLocalStorageFallback) {
     const queue = getFromStorage<any[]>('syncQueue', []);
     const id = queueIdCounter++;

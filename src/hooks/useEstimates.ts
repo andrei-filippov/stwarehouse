@@ -23,10 +23,17 @@ export function useEstimates(companyId: string | undefined) {
   const [loading, setLoading] = useState(false);
   const [isOffline, setIsOffline] = useState(!isOnline());
   const currentEditingIdRef = useRef<string | null>(null);
+  const fetchInProgressRef = useRef(false);
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Загрузка смет - в онлайн с сервера + локальные несинхронизированные, в оффлайн из кэша
   const fetchEstimates = useCallback(async () => {
     if (!companyId) return;
+    if (fetchInProgressRef.current) {
+      console.log('[fetchEstimates] Already in progress, skipping');
+      return;
+    }
+    fetchInProgressRef.current = true;
     setLoading(true);
     
     try {
@@ -61,8 +68,21 @@ export function useEstimates(companyId: string | undefined) {
           // Фильтруем серверные данные - убираем удалённые локально
           const filteredServer = (data || []).filter(e => !isDeleted(e.id));
           
+          // Дедуплицируем серверные данные по сигнатуре (event_name + event_date)
+          // Если есть дубликаты, оставляем только первый (самый новый по created_at)
+          const seenSignatures = new Set<string>();
+          const deduplicatedServer = filteredServer.filter(e => {
+            const signature = `${e.event_name?.toLowerCase().trim()}_${e.event_date}`;
+            if (seenSignatures.has(signature)) {
+              console.log('[fetchEstimates] Removing server duplicate:', e.id, signature);
+              return false;
+            }
+            seenSignatures.add(signature);
+            return true;
+          });
+          
           // Мержим: серверные (без удалённых) + локальные НОВЫЕ (с local_* ID) которых нет на сервере
-          const serverIds = new Set((data || []).map(e => e.id));
+          const serverIds = new Set(deduplicatedServer.map(e => e.id));
           
           // Разделяем локальные записи:
           // 1. Новые созданные офлайн (local_*) - показываем если нет на сервере
@@ -88,7 +108,7 @@ export function useEstimates(companyId: string | undefined) {
           // Убираем дубликаты: если локальная запись похожа на серверную (по имени события и дате),
           // считаем что это дубль и удаляем из локальной базы
           const serverSignatures = new Set(
-            filteredServer.map(e => `${e.event_name?.toLowerCase().trim()}_${e.event_date}`)
+            deduplicatedServer.map(e => `${e.event_name?.toLowerCase().trim()}_${e.event_date}`)
           );
           const uniqueLocal = newLocal.filter(local => {
             const signature = `${local.event_name?.toLowerCase().trim()}_${local.event_date}`;
@@ -102,7 +122,7 @@ export function useEstimates(companyId: string | undefined) {
           });
           
           // Сначала локальные (новые), потом серверные
-          const merged = [...uniqueLocal, ...(filteredServer as Estimate[])];
+          const merged = [...uniqueLocal, ...(deduplicatedServer as Estimate[])];
           
           // Финальная защита: убираем дубликаты по ID
           const seenIds = new Set<string>();
@@ -125,7 +145,7 @@ export function useEstimates(companyId: string | undefined) {
           for (const localEstimate of localOnly) {
             if (localEstimate.id?.startsWith('local_')) {
               // Ищем серверную копию по названию и дате
-              const serverDuplicate = filteredServer.find(
+              const serverDuplicate = deduplicatedServer.find(
                 e => e.event_name === localEstimate.event_name && 
                      e.event_date === localEstimate.event_date
               );
@@ -137,7 +157,7 @@ export function useEstimates(companyId: string | undefined) {
           }
           
           // Кэшируем серверные данные
-          for (const estimate of filteredServer) {
+          for (const estimate of deduplicatedServer) {
             // Сохраняем только если:
             // 1. Это серверный ID (не local_*)
             // 2. Такой записи ещё нет локально
@@ -163,9 +183,10 @@ export function useEstimates(companyId: string | undefined) {
     } catch (e) {
       console.error('[fetchEstimates] Error loading estimates:', e);
       setEstimates([]);
+    } finally {
+      setLoading(false);
+      fetchInProgressRef.current = false;
     }
-    
-    setLoading(false);
   }, [companyId]);
 
   // Устанавливаем статус "редактируется" при открытии сметы
@@ -588,6 +609,16 @@ export function useEstimates(companyId: string | undefined) {
     fetchEstimates();
   }, [fetchEstimates]);
 
+  // Debounced fetch для realtime подписки
+  const debouncedFetchEstimates = useCallback(() => {
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+    debounceTimeoutRef.current = setTimeout(() => {
+      fetchEstimates();
+    }, 500);
+  }, [fetchEstimates]);
+
   // Подписка на изменения (только в онлайн режиме)
   useEffect(() => {
     if (!companyId || !isOnline()) return;
@@ -610,7 +641,7 @@ export function useEstimates(companyId: string | undefined) {
               });
             }
           }
-          fetchEstimates();
+          debouncedFetchEstimates();
         }
       )
       .on('postgres_changes',
@@ -620,14 +651,17 @@ export function useEstimates(companyId: string | undefined) {
           table: 'estimate_items',
           filter: `company_id=eq.${companyId}`
         },
-        () => fetchEstimates()
+        () => debouncedFetchEstimates()
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
     };
-  }, [fetchEstimates, companyId]);
+  }, [debouncedFetchEstimates, companyId]);
 
   // Очистка при размонтировании
   useEffect(() => {

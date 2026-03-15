@@ -198,10 +198,37 @@ export function useOfflineSync(companyId: string | undefined) {
             case 'estimates':
               if (item.operation === 'create') {
                 const { id, items, ...data } = item.data;
-                result = await supabase.from('estimates').insert({
-                  ...data,
-                  company_id: companyId
-                }).select().single();
+                
+                // Сначала проверяем, не существует ли уже такая смета на сервере
+                const { data: existing } = await supabase
+                  .from('estimates')
+                  .select('id')
+                  .eq('company_id', companyId)
+                  .eq('event_name', data.event_name)
+                  .eq('event_date', data.event_date)
+                  .limit(1);
+                
+                if (existing && existing.length > 0) {
+                  // Смета уже существует - делаем UPDATE вместо INSERT
+                  console.log('[Sync] Estimate already exists, updating:', existing[0].id);
+                  idMapping[id] = existing[0].id;
+                  result = await supabase.from('estimates')
+                    .update(data)
+                    .eq('id', existing[0].id)
+                    .select().single();
+                } else {
+                  // Создаём новую смету
+                  result = await supabase.from('estimates').insert({
+                    ...data,
+                    company_id: companyId
+                  }).select().single();
+                  
+                  // Сохраняем маппинг для новой сметы
+                  if (result.data && id) {
+                    idMapping[id] = result.data.id;
+                    console.log('[Sync] Created estimate mapping:', id, '->', result.data.id);
+                  }
+                }
               } else if (item.operation === 'update') {
                 const { id, items, created_at, updated_at, user_id, company_id, ...data } = item.data;
                 console.log('[Sync] Estimate update - original ID:', id);
@@ -232,6 +259,11 @@ export function useOfflineSync(companyId: string | undefined) {
                 }
                 
                 console.log('[Sync] Updating estimate - server ID:', serverId);
+                
+                // Удаляем старые позиции перед обновлением (чтобы избежать дубликатов)
+                await supabase.from('estimate_items').delete().eq('estimate_id', serverId);
+                console.log('[Sync] Deleted old estimate_items for:', serverId);
+                
                 result = await supabase.from('estimates').update(data).eq('id', serverId);
               } else if (item.operation === 'delete') {
                 const { id, event_name, event_date } = item.data;
@@ -383,6 +415,11 @@ export function useOfflineSync(companyId: string | undefined) {
                 });
               
               if (validItems.length > 0) {
+                // Сначала удаляем старые позиции, чтобы избежать дублирования
+                console.log('[Sync] Deleting old estimate_items for:', serverEstimateId);
+                await supabase.from('estimate_items').delete().eq('estimate_id', serverEstimateId);
+                
+                // Вставляем новые позиции
                 console.log('[Sync] Inserting estimate_items:', validItems.length);
                 result = await supabase.from('estimate_items').insert(validItems);
               }
