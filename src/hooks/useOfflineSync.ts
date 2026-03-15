@@ -150,15 +150,28 @@ export function useOfflineSync(companyId: string | undefined) {
       }
       
       // Сортируем очередь: сначала equipment, потом estimates/checklists, потом estimate_items
-      // Это важно для маппинга ID: оборудование должно быть создано до позиций смет
+      // Внутри одной таблицы: сначала create, потом update, потом delete
+      // Это важно для маппинга ID
       const sortedQueue = [...companyQueue].sort((a, b) => {
-        const priority: Record<string, number> = {
+        const tablePriority: Record<string, number> = {
           'equipment': 1,      // Сначала оборудование
           'checklists': 2,     // Потом чек-листы
           'estimates': 3,      // Потом сметы
-          'estimate_items': 4  // В конце позиции смет (они зависят от оборудования и смет)
+          'estimate_items': 4  // В конце позиции смет
         };
-        return (priority[a.table] || 5) - (priority[b.table] || 5);
+        
+        const opPriority: Record<string, number> = {
+          'create': 1,
+          'update': 2,
+          'delete': 3
+        };
+        
+        // Сначала по таблице
+        const tableDiff = (tablePriority[a.table] || 5) - (tablePriority[b.table] || 5);
+        if (tableDiff !== 0) return tableDiff;
+        
+        // Потом по операции (внутри одной таблицы)
+        return (opPriority[a.operation] || 4) - (opPriority[b.operation] || 4);
       });
       
       console.log('[Sync] Sorted queue:', sortedQueue.map(i => `${i.table}(${i.operation})`));
@@ -190,10 +203,60 @@ export function useOfflineSync(companyId: string | undefined) {
                   company_id: companyId
                 }).select().single();
               } else if (item.operation === 'update') {
-                const { id, items, ...data } = item.data;
-                result = await supabase.from('estimates').update(data).eq('id', id);
+                const { id, items, created_at, updated_at, user_id, company_id, ...data } = item.data;
+                console.log('[Sync] Estimate update - original ID:', id);
+                
+                let serverId = id?.startsWith('local_') ? idMapping[id] : id;
+                
+                // Если нет маппинга и ID локальный - ищем на сервере по названию и дате
+                if (!serverId && id?.startsWith('local_')) {
+                  console.log('[Sync] No mapping found, searching on server...');
+                  const { data: existing } = await supabase
+                    .from('estimates')
+                    .select('id')
+                    .eq('company_id', companyId)
+                    .eq('event_name', data.event_name)
+                    .eq('event_date', data.event_date)
+                    .limit(1);
+                  
+                  if (existing && existing.length > 0) {
+                    serverId = existing[0].id;
+                    idMapping[id] = serverId; // Сохраняем для будущего использования
+                    console.log('[Sync] Found on server:', serverId);
+                  }
+                }
+                
+                if (!serverId) {
+                  console.warn('[Sync] Cannot update estimate - no server ID found for:', id);
+                  throw new Error('No server ID for update');
+                }
+                
+                console.log('[Sync] Updating estimate - server ID:', serverId);
+                result = await supabase.from('estimates').update(data).eq('id', serverId);
               } else if (item.operation === 'delete') {
-                result = await supabase.from('estimates').delete().eq('id', item.data.id);
+                const { id, event_name, event_date } = item.data;
+                let serverId = id?.startsWith('local_') ? idMapping[id] : id;
+                
+                // Если нет маппинга и ID локальный - ищем на сервере
+                if (!serverId && id?.startsWith('local_')) {
+                  const { data: existing } = await supabase
+                    .from('estimates')
+                    .select('id')
+                    .eq('company_id', companyId)
+                    .eq('event_name', event_name)
+                    .eq('event_date', event_date)
+                    .limit(1);
+                  
+                  if (existing && existing.length > 0) {
+                    serverId = existing[0].id;
+                  }
+                }
+                
+                if (!serverId) {
+                  console.warn('[Sync] Cannot delete estimate - no server ID found for:', id);
+                  throw new Error('No server ID for delete');
+                }
+                result = await supabase.from('estimates').delete().eq('id', serverId);
               }
               break;
               
