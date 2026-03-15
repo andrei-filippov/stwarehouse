@@ -495,6 +495,7 @@ export function useEstimates(companyId: string | undefined) {
       if (useOffline) {
         await saveEstimateLocal(estimateData, companyId);
         await addToSyncQueue('estimates', isLocalId ? 'create' : 'update', estimateData);
+        console.log('[updateEstimate] Adding estimate_items to queue:', id, 'items:', estimateData.items?.length);
         await addToSyncQueue('estimate_items', 'create', {
           estimateId: id,
           items: estimateData.items,

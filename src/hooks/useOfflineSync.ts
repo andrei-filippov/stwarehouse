@@ -367,14 +367,31 @@ export function useOfflineSync(companyId: string | undefined) {
         try {
           let result: any;
           
+          console.log('[Sync] Processing estimate_items:', item.data);
+          
           if (item.operation === 'create') {
             const { estimateId, items } = item.data;
             
-            // Заменяем local_id на server_id
-            let serverEstimateId = idMapping[estimateId];
+            console.log('[Sync] estimate_items create - estimateId:', estimateId, 'items count:', items?.length);
+            console.log('[Sync] Current idMapping:', idMapping);
             
-            // Если маппинг не найден - пропускаем
+            // Заменяем local_id на server_id
+            // Если estimateId не начинается с local_ - это уже серверный ID
+            let serverEstimateId = estimateId?.startsWith('local_') ? idMapping[estimateId] : estimateId;
+            
+            console.log('[Sync] serverEstimateId:', serverEstimateId);
+            
+            // Если маппинг не найден и это был local_id - пропускаем
+            if (!serverEstimateId && estimateId?.startsWith('local_')) {
+              console.warn('[Sync] No mapping found for estimate:', estimateId, '- will retry later');
+              await updateSyncQueueRetry(item.id!, item.retryCount + 1);
+              errorCount++;
+              continue;
+            }
+            
+            // Если всё ещё нет serverEstimateId - ошибка
             if (!serverEstimateId) {
+              console.error('[Sync] Cannot determine server estimate ID for:', estimateId);
               await updateSyncQueueRetry(item.id!, item.retryCount + 1);
               errorCount++;
               continue;
@@ -393,10 +410,21 @@ export function useOfflineSync(companyId: string | undefined) {
                 continue;
               }
               
+              console.log('[Sync] Mapping items with serverEstimateId:', serverEstimateId);
+              
+              console.log('[Sync] Items before filtering:', items?.length);
+              
               const validItems = items
-                .filter((item: any) => item.name || item.equipment_id)
+                .filter((item: any) => {
+                  const hasName = !!item.name;
+                  const hasEquipment = !!item.equipment_id;
+                  console.log('[Sync] Filtering item:', item.name, 'hasName:', hasName, 'hasEquipment:', hasEquipment);
+                  return hasName || hasEquipment;
+                })
                 .map((item: any, idx: number) => {
                   const { id, estimate_id, ...itemData } = item;
+                  
+                  console.log('[Sync] Processing item:', item.name, 'itemData keys:', Object.keys(itemData));
                   
                   // Заменяем equipment_id если он локальный
                   let serverEquipmentId = itemData.equipment_id;
@@ -405,23 +433,37 @@ export function useOfflineSync(companyId: string | undefined) {
                     console.log('[Sync] Mapped equipment:', itemData.equipment_id, '->', serverEquipmentId);
                   }
                   
-                  return {
+                  const mappedItem = {
                     ...itemData,
                     equipment_id: serverEquipmentId || itemData.equipment_id,
                     estimate_id: serverEstimateId,
                     company_id: companyId,
                     order_index: idx
                   };
+                  
+                  console.log('[Sync] Mapped item:', mappedItem.name, 'estimate_id:', mappedItem.estimate_id);
+                  return mappedItem;
                 });
               
               if (validItems.length > 0) {
                 // Сначала удаляем старые позиции, чтобы избежать дублирования
                 console.log('[Sync] Deleting old estimate_items for:', serverEstimateId);
-                await supabase.from('estimate_items').delete().eq('estimate_id', serverEstimateId);
+                const { error: deleteError } = await supabase.from('estimate_items').delete().eq('estimate_id', serverEstimateId);
+                if (deleteError) {
+                  console.error('[Sync] Error deleting old items:', deleteError);
+                }
                 
                 // Вставляем новые позиции
                 console.log('[Sync] Inserting estimate_items:', validItems.length);
+                console.log('[Sync] First item:', JSON.stringify(validItems[0]));
                 result = await supabase.from('estimate_items').insert(validItems);
+                console.log('[Sync] Insert result:', result);
+                if (result.error) {
+                  console.error('[Sync] Insert error:', result.error);
+                  throw result.error;
+                }
+              } else {
+                console.warn('[Sync] No valid items to insert after filtering');
               }
             }
           }
