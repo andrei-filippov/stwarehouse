@@ -116,6 +116,23 @@ export function useEstimates(companyId: string | undefined) {
           });
           
           setEstimates(deduplicated);
+          
+          // СОХРАНЯЕМ серверные данные в локальную базу для офлайн-доступа
+          // (только серверные ID, без перезаписи существующих локальных)
+          const localIds = new Set(localOnly.map(e => e.id));
+          for (const estimate of filteredServer) {
+            // Сохраняем только если:
+            // 1. Это серверный ID (не local_*)
+            // 2. Такой записи ещё нет локально
+            if (!estimate.id?.startsWith('local_') && !localIds.has(estimate.id)) {
+              try {
+                await saveEstimateLocal(estimate, companyId);
+                console.log('[fetchEstimates] Cached server estimate:', estimate.id);
+              } catch (saveErr) {
+                console.warn('[fetchEstimates] Failed to cache estimate:', estimate.id, saveErr);
+              }
+            }
+          }
         } catch (err) {
           // Ошибка сети (503 и т.д.) - показываем только локальные
           console.log('[fetchEstimates] Network error, showing local data');
