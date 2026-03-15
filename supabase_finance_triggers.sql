@@ -26,7 +26,7 @@ BEGIN
                 NEW.company_id,
                 NEW.id,
                 'Смета: ' || COALESCE(NEW.event_name, 'Без названия'),
-                COALESCE(NEW.total_price, 0),
+                COALESCE(NEW.total, 0),
                 COALESCE(NEW.event_date::date, CURRENT_DATE),
                 'Автоматическое создание при завершении сметы',
                 'estimate',
@@ -56,9 +56,9 @@ CREATE OR REPLACE FUNCTION update_income_on_estimate_change()
 RETURNS TRIGGER AS $$
 BEGIN
     -- Обновляем сумму дохода если смета завершена и изменилась сумма
-    IF NEW.status = 'completed' AND NEW.total_price IS DISTINCT FROM OLD.total_price THEN
+    IF NEW.status = 'completed' AND NEW.total IS DISTINCT FROM OLD.total THEN
         UPDATE income 
-        SET amount = COALESCE(NEW.total_price, 0),
+        SET amount = COALESCE(NEW.total, 0),
             updated_at = NOW()
         WHERE estimate_id = NEW.id AND type = 'estimate';
     END IF;

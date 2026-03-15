@@ -47,7 +47,7 @@ interface SidebarProps {
 export function Sidebar(props: SidebarProps) {
   const { activeTab, onTabChange, availableTabs, onSignOut, userName, userRole, collapsed, onToggleCollapse } = props;
   const ctx = useCompanyContext();
-  const { syncData, syncing: isSyncing, serverAvailable } = useOfflineSync(ctx.company?.id);
+  const { syncData, syncing: isSyncing, serverAvailable, pendingChanges } = useOfflineSync(ctx.company?.id);
   const [isSyncDialogOpen, setIsSyncDialogOpen] = useState(false);
   // Используем browser online для индикации, serverAvailable для статуса сервера
   const [browserOnline, setBrowserOnline] = useState(navigator.onLine);
@@ -62,6 +62,19 @@ export function Sidebar(props: SidebarProps) {
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
+
+  // Обновление счётчика очереди каждые 5 секунд
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      if (ctx.company?.id) {
+        const { getSyncQueue } = await import('../lib/offlineDB');
+        const queue = await getSyncQueue();
+        // Не обновляем состояние напрямую, т.к. pendingChanges из useOfflineSync
+        // обновится при следующем вызове syncData
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [ctx.company?.id]);
 
   const mainTabs = availableTabs.filter(tab => 
     ['equipment', 'estimates', 'calendar', 'customers', 'contracts'].includes(tab.id)
@@ -269,7 +282,7 @@ export function Sidebar(props: SidebarProps) {
         onClose={() => setIsSyncDialogOpen(false)}
         browserOnline={browserOnline}
         serverAvailable={serverAvailable}
-        pendingCount={0}
+        pendingCount={pendingChanges}
         isSyncing={isSyncing}
         companyId={ctx.company?.id}
         onSync={syncData}
