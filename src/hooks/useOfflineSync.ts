@@ -314,7 +314,8 @@ export function useOfflineSync(companyId: string | undefined) {
                 // 1. Создаём чек-лист
                 result = await supabase.from('checklists').insert({
                   ...data,
-                  company_id: companyId
+                  company_id: companyId,
+                  // user_id уже должен быть в data
                 }).select().single();
                 
                 // 2. Создаём items отдельно

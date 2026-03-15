@@ -216,10 +216,14 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
         }
       });
 
+      // Получаем текущего пользователя (для офлайн-режима нужно сохранить user_id)
+      const { data: { user } } = await supabase.auth.getUser();
+      
       const checklistData = {
         id: localId,
         estimate_id: estimate.id,
         company_id: companyId,
+        user_id: user?.id,
         event_name: estimate.event_name,
         event_date: estimate.event_date || null,
         items: items,
@@ -231,12 +235,17 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
       
       if (isOnline()) {
         try {
+          // Получаем текущего пользователя
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) throw new Error('Not authenticated');
+          
           // 1. Создаём чек-лист
           const { data: checklistData, error: checklistError } = await supabase
             .from('checklists')
             .insert({
               estimate_id: estimate.id,
               company_id: companyId,
+              user_id: user.id,
               event_name: estimate.event_name,
               event_date: estimate.event_date || null,
               notes: notes || null,
