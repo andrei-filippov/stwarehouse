@@ -112,7 +112,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
     }
   }, [companyId]);
 
-  const createRule = useCallback(async (rule: Partial<ChecklistRule>) => {
+  const createRule = useCallback(async (rule: Partial<ChecklistRule>, items?: ChecklistRuleItem[]) => {
     if (!companyId) return { error: new Error('No company selected') };
     
     if (!isOnline()) {
@@ -124,7 +124,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // 1. Создаём правило (без items)
+      // 1. Создаём правило
       const { data: ruleData, error: ruleError } = await supabase
         .from('checklist_rules')
         .insert({ 
@@ -139,11 +139,13 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
 
       if (ruleError) throw ruleError;
 
-      // 2. Создаём items отдельно
-      console.log('[createRule] Rule items input:', rule.items);
-      console.log('[createRule] Creating rule items:', rule.items?.length, 'for rule:', ruleData?.id);
-      if (rule.items && rule.items.length > 0 && ruleData) {
-        const itemsToInsert = rule.items.map((item, idx) => ({
+      // 2. Создаём items отдельно (из параметра items или из rule.items для обратной совместимости)
+      const ruleItems = items || rule.items || [];
+      console.log('[createRule] Rule items input:', ruleItems);
+      console.log('[createRule] Creating rule items:', ruleItems?.length, 'for rule:', ruleData?.id);
+      
+      if (ruleItems.length > 0 && ruleData) {
+        const itemsToInsert = ruleItems.map((item, idx) => ({
           rule_id: ruleData.id,
           name: item.name || `Item ${idx}`,
           quantity: item.quantity || 1,

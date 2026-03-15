@@ -29,7 +29,7 @@ interface ChecklistsProps {
   categories: { id: string; name: string }[];
   checklists: Checklist[];
   rules: ChecklistRule[];
-  onCreateRule: (rule: any, items: any[]) => Promise<{ error: any }>;
+  onCreateRule: (rule: any, items?: any[]) => Promise<{ error: any }>;
   onDeleteRule: (id: string) => Promise<{ error: any }>;
   onCreateChecklist: (estimate: Estimate, customItems?: ChecklistItem[], notes?: string) => Promise<{ error: any }>;
   onUpdateChecklistItem: (checklistId: string, itemId: string, updates: Partial<ChecklistItem>) => Promise<{ error: any }>;
