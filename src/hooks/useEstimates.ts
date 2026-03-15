@@ -82,11 +82,15 @@ export function useEstimates(companyId: string | undefined) {
           });
           
           // Мержим: серверные (без удалённых) + локальные НОВЫЕ (с local_* ID) которых нет на сервере
+          // + локальные с серверными ID которые были изменены оффлайн (новее чем на сервере)
           const serverIds = new Set(deduplicatedServer.map(e => e.id));
+          const serverDataMap = new Map(deduplicatedServer.map(e => [e.id, e]));
           
           // Разделяем локальные записи:
           // 1. Новые созданные офлайн (local_*) - показываем если нет на сервере
           // 2. Скопированные с сервера (обычные ID) - удаляем из локальной базы если нет на сервере
+          // 3. Изменённые оффлайн (серверный ID но новая дата) - показываем локальную версию
+          const modifiedOffline: Estimate[] = [];
           const newLocal = localOnly.filter(e => {
             const isNewOffline = e.id?.startsWith('local_');
             const existsOnServer = serverIds.has(e.id);
@@ -100,6 +104,21 @@ export function useEstimates(companyId: string | undefined) {
               console.log('[fetchEstimates] Removing locally cached estimate deleted on server:', e.id);
               deleteEstimateLocal(e.id).catch(console.error);
               return false;
+            }
+            
+            // Смета с серверным ID существует на сервере
+            // Проверяем, была ли она изменена оффлайн (локальная версия новее)
+            if (!isNewOffline && existsOnServer) {
+              const serverVersion = serverDataMap.get(e.id);
+              const localUpdated = new Date(e.updated_at || 0).getTime();
+              const serverUpdated = new Date(serverVersion?.updated_at || 0).getTime();
+              
+              // Если локальная версия новее на более чем 5 секунд - используем её
+              if (localUpdated > serverUpdated + 5000) {
+                console.log('[fetchEstimates] Local version is newer, will use local:', e.id);
+                modifiedOffline.push(e);
+                return false; // Не включаем в newLocal, добавим отдельно
+              }
             }
             
             return false; // Уже есть на сервере
@@ -121,10 +140,12 @@ export function useEstimates(companyId: string | undefined) {
             return true;
           });
           
-          // Сначала локальные (новые), потом серверные
-          const merged = [...uniqueLocal, ...(deduplicatedServer as Estimate[])];
+          // Сначала локальные изменённые оффлайн (приоритет), потом новые local_*, потом серверные
+          const modifiedOfflineIds = new Set(modifiedOffline.map(e => e.id));
+          const serverWithoutModified = deduplicatedServer.filter(e => !modifiedOfflineIds.has(e.id));
+          const merged = [...modifiedOffline, ...uniqueLocal, ...serverWithoutModified];
           
-          // Финальная защита: убираем дубликаты по ID
+          // Финальная защита: убираем дубликаты по ID (первый имеет приоритет)
           const seenIds = new Set<string>();
           const deduplicated = merged.filter(e => {
             if (seenIds.has(e.id)) {
@@ -157,11 +178,17 @@ export function useEstimates(companyId: string | undefined) {
           }
           
           // Кэшируем серверные данные
+          // НЕ кэшируем сметы, которые были изменены оффлайн (modifiedOffline)
+          const modifiedOfflineIds = new Set(modifiedOffline.map(e => e.id));
+          
           for (const estimate of deduplicatedServer) {
             // Сохраняем только если:
             // 1. Это серверный ID (не local_*)
             // 2. Такой записи ещё нет локально
-            if (!estimate.id?.startsWith('local_') && !localIds.has(estimate.id)) {
+            // 3. Это не смета, изменённая оффлайн (не в modifiedOffline)
+            if (!estimate.id?.startsWith('local_') && 
+                !localIds.has(estimate.id) && 
+                !modifiedOfflineIds.has(estimate.id)) {
               try {
                 await saveEstimateLocal(estimate, companyId);
                 console.log('[fetchEstimates] Cached server estimate:', estimate.id);
@@ -428,6 +455,9 @@ export function useEstimates(companyId: string | undefined) {
             if (itemsError) throw itemsError;
           }
 
+          // Удаляем локальную версию если была (чтобы не было конфликтов)
+          await deleteEstimateLocal(id).catch(() => {});
+          
           await fetchEstimates();
           toast.success('Смета обновлена');
           return { error: null };
