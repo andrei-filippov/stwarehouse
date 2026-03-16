@@ -112,12 +112,12 @@ export const EstimateManager = memo(function EstimateManager({
       }
     });
     
-    // Сортируем сметы внутри каждого месяца по дате (от ближайшей к дальней)
+    // Сортируем сметы внутри каждого месяца по дате (от дальней к ближайшей)
     Object.values(groups).forEach(monthEstimates => {
       monthEstimates.sort((a, b) => {
         const dateA = parseISO(a.event_date || a.created_at || '');
         const dateB = parseISO(b.event_date || b.created_at || '');
-        return dateA.getTime() - dateB.getTime(); // По возрастанию (ближайшие сверху)
+        return dateB.getTime() - dateA.getTime(); // По убыванию (новые сверху)
       });
     });
     
