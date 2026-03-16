@@ -894,5 +894,3 @@ import { toast } from 'sonner';
 
 export default TemplatesManager;
 
-export default TemplatesManager;
-
