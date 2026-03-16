@@ -111,6 +111,16 @@ export const EstimateManager = memo(function EstimateManager({
         groups['Без даты'].push(estimate);
       }
     });
+    
+    // Сортируем сметы внутри каждого месяца по дате (от ближайшей к дальней)
+    Object.values(groups).forEach(monthEstimates => {
+      monthEstimates.sort((a, b) => {
+        const dateA = parseISO(a.event_date || a.created_at || '');
+        const dateB = parseISO(b.event_date || b.created_at || '');
+        return dateA.getTime() - dateB.getTime(); // По возрастанию (ближайшие сверху)
+      });
+    });
+    
     // Сортируем месяцы по убыванию (новые сверху)
     return Object.entries(groups).sort((a, b) => {
       if (a[0] === 'Без даты') return 1;
