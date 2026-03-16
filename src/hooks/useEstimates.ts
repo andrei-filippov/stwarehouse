@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
+import { debugLog, debugError } from '../lib/utils';
 import type { Estimate, EstimateItem } from '../types';
 import {
   initOfflineDB,
@@ -30,25 +31,25 @@ export function useEstimates(companyId: string | undefined) {
   const fetchEstimates = useCallback(async () => {
     if (!companyId) return;
     if (fetchInProgressRef.current) {
-      console.log('[fetchEstimates] Already in progress, skipping');
+      debugLog('[fetchEstimates] Already in progress, skipping');
       return;
     }
     fetchInProgressRef.current = true;
     setLoading(true);
     
-    console.log('[fetchEstimates] ========== START ==========', new Date().toISOString());
+    debugLog('[fetchEstimates] ========== START ==========', new Date().toISOString());
     
     try {
       // Всегда загружаем локальные сметы (на случай если есть несинхронизированные)
-      console.log('[fetchEstimates] Loading local estimates for company:', companyId);
+      debugLog('[fetchEstimates] Loading local estimates for company:', companyId);
       const localEstimates = await getEstimatesLocal(companyId);
-      console.log('[fetchEstimates] Local estimates:', localEstimates);
+      debugLog('[fetchEstimates] Local estimates:', localEstimates);
       const localOnly = localEstimates.filter(e => e && e.id); // Убираем пустые записи
-      console.log('[fetchEstimates] Filtered local estimates:', localOnly.length, localOnly);
+      debugLog('[fetchEstimates] Filtered local estimates:', localOnly.length, localOnly);
       
       // Загружаем список удалённых локально смет (чтобы не показывать их снова)
       const deletedIds = await getDeletedEstimates();
-      console.log('[fetchEstimates] Deleted estimate IDs:', deletedIds);
+      debugLog('[fetchEstimates] Deleted estimate IDs:', deletedIds);
       const isDeleted = (id: string) => deletedIds.includes(id);
       
       if (isOnline()) {
@@ -61,7 +62,8 @@ export function useEstimates(companyId: string | undefined) {
               items:estimate_items(*)
             `)
             .eq('company_id', companyId)
-            .order('created_at', { ascending: false });
+            .order('created_at', { ascending: false })
+            .limit(500); // Защита от перегрузки при большом количестве смет
           
           if (error) {
             throw error;
@@ -76,7 +78,7 @@ export function useEstimates(companyId: string | undefined) {
           const deduplicatedServer = filteredServer.filter(e => {
             const signature = `${e.event_name?.toLowerCase().trim()}_${e.event_date}`;
             if (seenSignatures.has(signature)) {
-              console.log('[fetchEstimates] Removing server duplicate:', e.id, signature);
+              debugLog('[fetchEstimates] Removing server duplicate:', e.id, signature);
               return false;
             }
             seenSignatures.add(signature);
@@ -103,7 +105,7 @@ export function useEstimates(companyId: string | undefined) {
             
             if (!isNewOffline && !existsOnServer) {
               // Запись была удалена на сервере - удаляем из локальной базы
-              console.log('[fetchEstimates] Removing locally cached estimate deleted on server:', e.id);
+              debugLog('[fetchEstimates] Removing locally cached estimate deleted on server:', e.id);
               deleteEstimateLocal(e.id).catch(console.error);
               return false;
             }
@@ -117,7 +119,7 @@ export function useEstimates(companyId: string | undefined) {
               
               // Если локальная версия новее на более чем 5 секунд - используем её
               if (localUpdated > serverUpdated + 5000) {
-                console.log('[fetchEstimates] Local version is newer, will use local:', e.id);
+                debugLog('[fetchEstimates] Local version is newer, will use local:', e.id);
                 modifiedOffline.push(e);
                 return false; // Не включаем в newLocal, добавим отдельно
               }
@@ -135,7 +137,7 @@ export function useEstimates(companyId: string | undefined) {
             const signature = `${local.event_name?.toLowerCase().trim()}_${local.event_date}`;
             // Если есть такая же на сервере - удаляем локальную из базы и пропускаем
             if (serverSignatures.has(signature)) {
-              console.log('[fetchEstimates] Removing duplicate local estimate:', local.id);
+              debugLog('[fetchEstimates] Removing duplicate local estimate:', local.id);
               deleteEstimateLocal(local.id).catch(console.error);
               return false;
             }
@@ -151,7 +153,7 @@ export function useEstimates(companyId: string | undefined) {
           const seenIds = new Set<string>();
           const deduplicated = merged.filter(e => {
             if (seenIds.has(e.id)) {
-              console.log('[fetchEstimates] Removing duplicate by ID:', e.id);
+              debugLog('[fetchEstimates] Removing duplicate by ID:', e.id);
               return false;
             }
             seenIds.add(e.id);
@@ -167,7 +169,7 @@ export function useEstimates(companyId: string | undefined) {
             const uniqueItems = e.items.filter((item: any) => {
               const key = `${item.name}_${item.category}_${item.price}`;
               if (seenItemNames.has(key)) {
-                console.log('[fetchEstimates] Removing duplicate item:', item.name, 'from estimate:', e.id);
+                debugLog('[fetchEstimates] Removing duplicate item:', item.name, 'from estimate:', e.id);
                 return false;
               }
               seenItemNames.add(key);
@@ -175,7 +177,7 @@ export function useEstimates(companyId: string | undefined) {
             });
             
             if (uniqueItems.length !== e.items.length) {
-              console.log('[fetchEstimates] Cleaned items for estimate:', e.id, 'was:', e.items.length, 'now:', uniqueItems.length);
+              debugLog('[fetchEstimates] Cleaned items for estimate:', e.id, 'was:', e.items.length, 'now:', uniqueItems.length);
               return { ...e, items: uniqueItems };
             }
             return e;
@@ -196,7 +198,7 @@ export function useEstimates(companyId: string | undefined) {
                      e.event_date === localEstimate.event_date
               );
               if (serverDuplicate) {
-                console.log('[fetchEstimates] Removing local duplicate:', localEstimate.id);
+                debugLog('[fetchEstimates] Removing local duplicate:', localEstimate.id);
                 await deleteEstimateLocal(localEstimate.id);
               }
             }
@@ -225,7 +227,7 @@ export function useEstimates(companyId: string | undefined) {
                   : estimate;
                 
                 await saveEstimateLocal(estimateToCache, companyId);
-                console.log('[fetchEstimates] Cached server estimate:', estimate.id, 'items:', estimateToCache.items?.length);
+                debugLog('[fetchEstimates] Cached server estimate:', estimate.id, 'items:', estimateToCache.items?.length);
               } catch (saveErr) {
                 console.warn('[fetchEstimates] Failed to cache estimate:', estimate.id, saveErr);
               }
@@ -233,12 +235,12 @@ export function useEstimates(companyId: string | undefined) {
           }
         } catch (err) {
           // Ошибка сети (503 и т.д.) - показываем только локальные
-          console.log('[fetchEstimates] Network error, showing local data');
+          debugLog('[fetchEstimates] Network error, showing local data');
           setEstimates(localOnly);
         }
       } else {
         // ОФФЛАЙН: показываем только локальные сметы (без удалённых)
-        console.log('[fetchEstimates] Offline mode, showing local data');
+        debugLog('[fetchEstimates] Offline mode, showing local data');
         setEstimates(localOnly.filter(e => !isDeleted(e.id)));
       }
     } catch (e) {
@@ -247,7 +249,7 @@ export function useEstimates(companyId: string | undefined) {
     } finally {
       setLoading(false);
       fetchInProgressRef.current = false;
-      console.log('[fetchEstimates] ========== END ==========', new Date().toISOString());
+      debugLog('[fetchEstimates] ========== END ==========', new Date().toISOString());
     }
   }, [companyId]);
 
@@ -377,21 +379,21 @@ export function useEstimates(companyId: string | undefined) {
           return { error: null, data: newEstimate };
         } catch (err: any) {
           // Если ошибка сети - переключаемся на оффлайн режим
-          console.log('Network error, switching to offline mode:', err);
+          debugLog('Network error, switching to offline mode:', err);
           // Продолжаем в оффлайн-блок ниже
         }
       }
       
       // ОФФЛАЙН режим (или fallback при ошибке сети)
-        console.log('[createEstimate] Creating estimate offline, localId:', localId, 'items count:', items?.length || 0);
+        debugLog('[createEstimate] Creating estimate offline, localId:', localId, 'items count:', items?.length || 0);
         try {
           // ОФФЛАЙН - сохраняем только локально и в очередь
-          console.log('[createEstimate] Calling saveEstimateLocal...');
+          debugLog('[createEstimate] Calling saveEstimateLocal...');
           await saveEstimateLocal(estimateData, companyId);
-          console.log('[createEstimate] Saved to local DB successfully');
-          console.log('[createEstimate] Calling addToSyncQueue...');
+          debugLog('[createEstimate] Saved to local DB successfully');
+          debugLog('[createEstimate] Calling addToSyncQueue...');
           await addToSyncQueue('estimates', 'create', estimateData);
-          console.log('[createEstimate] Added to sync queue successfully');
+          debugLog('[createEstimate] Added to sync queue successfully');
         } catch (e) {
           console.error('[createEstimate] Error saving offline:', e);
           toast.error('Ошибка сохранения офлайн', { description: String(e) });
@@ -399,14 +401,14 @@ export function useEstimates(companyId: string | undefined) {
         // Фильтруем пустые позиции и добавляем в очередь только если есть валидные
         const validItems = items.filter(item => item.name || item.equipment_id);
         if (validItems.length > 0) {
-          console.log('[createEstimate] Adding items to sync queue:', validItems.length);
+          debugLog('[createEstimate] Adding items to sync queue:', validItems.length);
           await addToSyncQueue('estimate_items', 'create', { 
             estimateId: localId,
             items: estimateData.items,
             company_id: companyId
           });
         } else {
-          console.log('[createEstimate] No valid items to add to queue');
+          debugLog('[createEstimate] No valid items to add to queue');
         }
         
         // Обновляем UI только локальными данными
@@ -514,7 +516,7 @@ export function useEstimates(companyId: string | undefined) {
           
           // Только при сетевых ошибках переходим в офлайн
           if (isNetworkError || isServerError) {
-            console.log('Network error, switching to offline mode:', err);
+            debugLog('Network error, switching to offline mode:', err);
             useOffline = true;
           } else {
             // Другие ошибки - показываем и выходим
@@ -530,7 +532,7 @@ export function useEstimates(companyId: string | undefined) {
       if (useOffline) {
         await saveEstimateLocal(estimateData, companyId);
         await addToSyncQueue('estimates', isLocalId ? 'create' : 'update', estimateData);
-        console.log('[updateEstimate] Adding estimate_items to queue:', id, 'items:', estimateData.items?.length);
+        debugLog('[updateEstimate] Adding estimate_items to queue:', id, 'items:', estimateData.items?.length);
         await addToSyncQueue('estimate_items', 'create', {
           estimateId: id,
           items: estimateData.items,
@@ -574,7 +576,7 @@ export function useEstimates(companyId: string | undefined) {
           toast.success('Смета удалена');
           return { error: null };
         } catch (err) {
-          console.log('Network error, switching to offline mode:', err);
+          debugLog('Network error, switching to offline mode:', err);
         }
       }
       
@@ -658,7 +660,7 @@ export function useEstimates(companyId: string | undefined) {
         if (!(window as any).__syncing) {
           fetchEstimates();
         } else {
-          console.log('[handleOnline] Sync in progress, skipping fetchEstimates');
+          debugLog('[handleOnline] Sync in progress, skipping fetchEstimates');
         }
       }, 2000);
     };
@@ -688,7 +690,7 @@ export function useEstimates(companyId: string | undefined) {
   const debouncedFetchEstimates = useCallback(() => {
     // Проверяем глобальный флаг синхронизации из useOfflineSync
     if ((window as any).__syncing) {
-      console.log('[debouncedFetchEstimates] Sync in progress (global), skipping');
+      debugLog('[debouncedFetchEstimates] Sync in progress (global), skipping');
       return;
     }
     if (debounceTimeoutRef.current) {
@@ -767,3 +769,4 @@ export function useEstimates(companyId: string | undefined) {
     refresh: fetchEstimates
   };
 }
+

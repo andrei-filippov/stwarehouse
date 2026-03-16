@@ -16,8 +16,19 @@ import {
 } from 'lucide-react';
 import type { Equipment, Estimate, Customer, Staff, Goal } from '../types';
 import { TASK_CATEGORIES, TASK_PRIORITIES } from '../types/goals';
-import { format, isToday, isTomorrow, isPast, parseISO } from 'date-fns';
+import { format, isToday, isTomorrow, isPast, parseISO, isValid } from 'date-fns';
 import { ru } from 'date-fns/locale';
+
+// Безопасный парсинг даты
+const safeParseISO = (date: string | undefined): Date | null => {
+  if (!date) return null;
+  try {
+    const parsed = parseISO(date);
+    return isValid(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+};
 
 interface DashboardProps {
   equipment: Equipment[];
@@ -77,12 +88,14 @@ export function Dashboard({
   const upcomingEvents = useMemo(() => {
     return estimates
       .filter(e => {
-        const date = parseISO(e.event_start_date || e.event_date);
+        const date = safeParseISO(e.event_start_date || e.event_date);
+        if (!date) return false;
         return !isPast(date) || isToday(date);
       })
       .sort((a, b) => {
-        const dateA = parseISO(a.event_start_date || a.event_date);
-        const dateB = parseISO(b.event_start_date || b.event_date);
+        const dateA = safeParseISO(a.event_start_date || a.event_date);
+        const dateB = safeParseISO(b.event_start_date || b.event_date);
+        if (!dateA || !dateB) return 0;
         return dateA.getTime() - dateB.getTime();
       })
       .slice(0, 5);
@@ -91,8 +104,8 @@ export function Dashboard({
   // Мероприятия сегодня
   const todayEvents = useMemo(() => {
     return estimates.filter(e => {
-      const date = parseISO(e.event_start_date || e.event_date);
-      return isToday(date);
+      const date = safeParseISO(e.event_start_date || e.event_date);
+      return date ? isToday(date) : false;
     });
   }, [estimates]);
 

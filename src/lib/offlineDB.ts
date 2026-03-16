@@ -1,5 +1,6 @@
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
 import { supabase } from './supabase';
+import { debugLog, debugError } from './utils';
 
 interface StwarehouseDB extends DBSchema {
   estimates: {
@@ -168,7 +169,7 @@ function setToStorage(key: string, value: any): void {
 
 // === Сметы ===
 export async function saveEstimateLocal(estimate: any, companyId: string) {
-  console.log('[saveEstimateLocal] Saving estimate:', estimate.id, 'fallback:', useLocalStorageFallback);
+  debugLog('[saveEstimateLocal] Saving estimate:', estimate.id, 'fallback:', useLocalStorageFallback);
   if (useLocalStorageFallback) {
     const estimates = getFromStorage<Record<string, any>>('estimates', {});
     estimates[estimate.id] = {
@@ -179,7 +180,7 @@ export async function saveEstimateLocal(estimate: any, companyId: string) {
       companyId
     };
     setToStorage('estimates', estimates);
-    console.log('[saveEstimateLocal] Saved to localStorage');
+    debugLog('[saveEstimateLocal] Saved to localStorage');
     return;
   }
   try {
@@ -191,9 +192,9 @@ export async function saveEstimateLocal(estimate: any, companyId: string) {
       updatedAt: Date.now(),
       companyId
     });
-    console.log('[saveEstimateLocal] Saved to IndexedDB');
+    debugLog('[saveEstimateLocal] Saved to IndexedDB');
   } catch (e) {
-    console.error('[saveEstimateLocal] Error, switching to localStorage:', e);
+    debugError('[saveEstimateLocal] Error, switching to localStorage:', e);
     // Если IndexedDB не работает - переключаемся на localStorage
     useLocalStorageFallback = true;
     const estimates = getFromStorage<Record<string, any>>('estimates', {});
@@ -205,7 +206,7 @@ export async function saveEstimateLocal(estimate: any, companyId: string) {
       companyId
     };
     setToStorage('estimates', estimates);
-    console.log('[saveEstimateLocal] Saved to localStorage (fallback)');
+    debugLog('[saveEstimateLocal] Saved to localStorage (fallback)');
   }
 }
 
@@ -215,16 +216,16 @@ export async function getEstimatesLocal(companyId: string) {
     const result = Object.values(estimates)
       .filter((e: any) => e.companyId === companyId)
       .map((e: any) => e.data);
-    console.log('[getEstimatesLocal] localStorage mode, found:', result.length);
+    debugLog('[getEstimatesLocal] localStorage mode, found:', result.length);
     return result;
   }
   try {
     const database = await initOfflineDB();
     const items = await database.getAllFromIndex('estimates', 'by-company', companyId);
-    console.log('[getEstimatesLocal] IndexedDB mode, found:', items.length);
+    debugLog('[getEstimatesLocal] IndexedDB mode, found:', items.length);
     return items.map(item => item.data);
   } catch (e) {
-    console.error('[getEstimatesLocal] Error, switching to localStorage:', e);
+    debugError('[getEstimatesLocal] Error, switching to localStorage:', e);
     useLocalStorageFallback = true;
     const estimates = getFromStorage<Record<string, any>>('estimates', {});
     return Object.values(estimates)
@@ -243,20 +244,20 @@ export async function getEstimateLocal(id: string) {
 }
 
 export async function deleteEstimateLocal(id: string) {
-  console.log('[deleteEstimateLocal] Deleting estimate:', id, 'fallback:', useLocalStorageFallback);
+  debugLog('[deleteEstimateLocal] Deleting estimate:', id, 'fallback:', useLocalStorageFallback);
   if (useLocalStorageFallback) {
     const estimates = getFromStorage<Record<string, any>>('estimates', {});
     delete estimates[id];
     setToStorage('estimates', estimates);
-    console.log('[deleteEstimateLocal] Deleted from localStorage');
+    debugLog('[deleteEstimateLocal] Deleted from localStorage');
     return;
   }
   try {
     const database = await initOfflineDB();
     await database.delete('estimates', id);
-    console.log('[deleteEstimateLocal] Deleted from IndexedDB');
+    debugLog('[deleteEstimateLocal] Deleted from IndexedDB');
   } catch (e) {
-    console.error('[deleteEstimateLocal] Error, switching to localStorage:', e);
+    debugError('[deleteEstimateLocal] Error, switching to localStorage:', e);
     // Если IndexedDB не работает - переключаемся на localStorage
     useLocalStorageFallback = true;
     const estimates = getFromStorage<Record<string, any>>('estimates', {});
@@ -441,7 +442,7 @@ export async function addToSyncQueue(
   data: any
 ) {
   const dataId = data?.id || data?.estimateId;
-  console.log('[addToSyncQueue] Adding to queue:', { table, operation, dataId });
+  debugLog('[addToSyncQueue] Adding to queue:', { table, operation, dataId });
   
   // Проверяем, есть ли уже запись для этого ID в очереди
   // Для estimates ищем по data.id, для estimate_items ищем по data.estimateId
@@ -463,7 +464,7 @@ export async function addToSyncQueue(
   
   // Если есть существующая запись для ТОЙ ЖЕ таблицы - удаляем её
   if (existingIndex >= 0) {
-    console.log('[addToSyncQueue] Found existing entry for same table, removing duplicate');
+    debugLog('[addToSyncQueue] Found existing entry for same table, removing duplicate');
     await removeFromSyncQueue(existingQueue[existingIndex].id!);
   }
   
@@ -511,19 +512,19 @@ export async function addToSyncQueue(
 export async function getSyncQueue() {
   if (useLocalStorageFallback) {
     const queue = getFromStorage<any[]>('syncQueue', []);
-    console.log('[getSyncQueue] localStorage mode, count:', queue.length, 'items:', queue.map(i => ({ table: i.table, operation: i.operation })));
+    debugLog('[getSyncQueue] localStorage mode, count:', queue.length, 'items:', queue.map(i => ({ table: i.table, operation: i.operation })));
     return queue;
   }
   try {
     const database = await initOfflineDB();
     const queue = await database.getAll('syncQueue');
-    console.log('[getSyncQueue] IndexedDB mode, count:', queue.length, 'items:', queue.map(i => ({ table: i.table, operation: i.operation })));
+    debugLog('[getSyncQueue] IndexedDB mode, count:', queue.length, 'items:', queue.map(i => ({ table: i.table, operation: i.operation })));
     return queue;
   } catch (e) {
     // Если IndexedDB не работает - переключаемся на localStorage
     useLocalStorageFallback = true;
     const queue = getFromStorage<any[]>('syncQueue', []);
-    console.log('[getSyncQueue] Error, fallback to localStorage, count:', queue.length);
+    debugLog('[getSyncQueue] Error, fallback to localStorage, count:', queue.length);
     return queue;
   }
 }
@@ -601,7 +602,7 @@ export async function clearAllLocalData() {
       }
     }
     keysToRemove.forEach(key => localStorage.removeItem(key));
-    console.log('[clearAllLocalData] Cleared localStorage keys:', keysToRemove);
+    debugLog('[clearAllLocalData] Cleared localStorage keys:', keysToRemove);
   }
   
   // Всегда пытаемся очистить IndexedDB
@@ -615,15 +616,15 @@ export async function clearAllLocalData() {
           const tx = database.transaction(storeName, 'readwrite');
           const store = tx.objectStore(storeName);
           await store.clear();
-          console.log('[clearAllLocalData] Cleared IndexedDB store:', storeName);
+          debugLog('[clearAllLocalData] Cleared IndexedDB store:', storeName);
         }
       }
     } catch (e) {
-      console.error('[clearAllLocalData] Error clearing IndexedDB:', e);
+      debugError('[clearAllLocalData] Error clearing IndexedDB:', e);
       // Если не удалось очистить IndexedDB - пробуем удалить всю базу
       try {
         indexedDB.deleteDatabase(DB_NAME);
-        console.log('[clearAllLocalData] Deleted entire IndexedDB database');
+        debugLog('[clearAllLocalData] Deleted entire IndexedDB database');
       } catch {}
     }
   }
@@ -631,7 +632,7 @@ export async function clearAllLocalData() {
   // Сбрасываем флаги
   useLocalStorageFallback = false;
   db = null;
-  console.log('[clearAllLocalData] Reset flags');
+  debugLog('[clearAllLocalData] Reset flags');
 }
 
 // === Удалённые сметы (для фильтрации при мерже с сервером) ===
@@ -845,3 +846,50 @@ export function setupNetworkListeners(
     window.removeEventListener('offline', handleOffline);
   };
 }
+
+
+
+// === ������� ������ ������� (������ �� ������������) ===
+const MAX_LOCAL_ESTIMATES = 1000;
+const MAX_LOCAL_EQUIPMENT = 2000;
+const CLEANUP_INTERVAL = 7 * 24 * 60 * 60 * 1000; // 7 ����
+
+export async function cleanupOldRecords(companyId: string) {
+  const now = Date.now();
+  const cutoff = now - CLEANUP_INTERVAL;
+  
+  try {
+    const database = await initOfflineDB();
+    
+    // ������� ������ �����
+    const estimates = await database.getAllFromIndex('estimates', 'by-company', companyId);
+    const oldEstimates = estimates
+      .filter(e => e.updatedAt < cutoff && e.synced)
+      .sort((a, b) => a.updatedAt - b.updatedAt)
+      .slice(0, Math.max(0, estimates.length - MAX_LOCAL_ESTIMATES));
+    
+    for (const item of oldEstimates) {
+      await database.delete('estimates', item.id);
+    }
+    if (oldEstimates.length > 0) {
+      debugLog('[cleanup] Removed old estimates:', oldEstimates.length);
+    }
+    
+    // ������� ������ ������������
+    const equipment = await database.getAllFromIndex('equipment', 'by-company', companyId);
+    const oldEquipment = equipment
+      .filter(e => e.updatedAt < cutoff && e.synced)
+      .sort((a, b) => a.updatedAt - b.updatedAt)
+      .slice(0, Math.max(0, equipment.length - MAX_LOCAL_EQUIPMENT));
+    
+    for (const item of oldEquipment) {
+      await database.delete('equipment', item.id);
+    }
+    if (oldEquipment.length > 0) {
+      debugLog('[cleanup] Removed old equipment:', oldEquipment.length);
+    }
+  } catch (e) {
+    debugError('[cleanup] Error during cleanup:', e);
+  }
+}
+

@@ -24,7 +24,8 @@ export function useEquipment(companyId: string | undefined) {
           .from('equipment')
           .select('*')
           .eq('company_id', companyId)
-          .order('name');
+          .order('name')
+          .limit(2000); // Защита от перегрузки
 
         if (error) {
           throw error;

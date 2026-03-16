@@ -16,7 +16,8 @@ export function useStaff(companyId: string | undefined) {
       .select('*')
       .eq('company_id', companyId)
       .eq('is_active', true)
-      .order('full_name');
+      .order('full_name')
+      .limit(500);
     
     if (error) {
       toast.error('Ошибка при загрузке персонала', { description: error.message });

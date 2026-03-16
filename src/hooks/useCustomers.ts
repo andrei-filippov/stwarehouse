@@ -17,7 +17,8 @@ export function useCustomers(companyId: string | undefined) {
       .from('customers')
       .select('*')
       .eq('company_id', companyId)
-      .order('name');
+      .order('name')
+      .limit(1000);
     
     if (fetchError) {
       setError(fetchError.message);

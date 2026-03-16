@@ -15,7 +15,8 @@ export function useGoals(companyId: string | undefined) {
       .from('goals')
       .select('*')
       .eq('company_id', companyId)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(500);
     
     if (error) {
       toast.error('Ошибка при загрузке задач', { description: error.message });
