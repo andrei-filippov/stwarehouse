@@ -306,6 +306,7 @@ export function EstimateBuilder({
       event_start_date: eventStartDate || null,
       event_end_date: eventEndDate || null,
       customer_id: customerId || null,
+      customer_name: selectedCustomer?.name || null,
       total,
     };
     setHasUnsavedChanges(false);
