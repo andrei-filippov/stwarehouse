@@ -131,3 +131,6 @@ export function FinanceManager({ estimates, staff, expenses, companyId }: Financ
     </div>
   );
 }
+
+export default FinanceManager;
+

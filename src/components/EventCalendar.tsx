@@ -818,3 +818,6 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
     </div>
   );
 });
+
+export default EventCalendar;
+

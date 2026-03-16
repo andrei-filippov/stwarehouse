@@ -691,3 +691,6 @@ export const CableManager = memo(function CableManager({
     </div>
   );
 });
+
+export default CableManager;
+

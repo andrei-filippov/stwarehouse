@@ -769,3 +769,6 @@ function StaffForm({ initialData, onSubmit, onCancel, submitting }: StaffFormPro
     </form>
   );
 }
+
+export default StaffManager;
+

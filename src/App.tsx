@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
 import { Package, User } from 'lucide-react';
 import { useAuth } from './hooks/useAuth';
 import { CompanyProvider, useCompanyContext } from './contexts/CompanyContext';
@@ -8,19 +8,21 @@ import { CompanySelector } from './components/auth/CompanySelector';
 import { CompanyWelcome } from './components/CompanyWelcome';
 import { InvitationsList } from './components/InvitationsList';
 import { Auth } from './components/Auth';
-import { EquipmentManager } from './components/EquipmentManagement';
-import { EstimateManager } from './components/EstimateManager';
-import { TemplatesManager } from './components/Templates';
-import { ChecklistsManager } from './components/Checklists';
-import { StaffManager } from './components/StaffManager';
-import { GoalsManager } from './components/GoalsManager';
-import { CableManager } from './components/CableManager';
-import { PDFSettings } from './components/PDFSettings';
-import { EventCalendar } from './components/EventCalendar';
-import { FinanceManager } from './components/FinanceManager';
-import { CustomersManager } from './components/CustomersManager';
-import { ContractManager } from './components/ContractManager';
-import { AdminPanel } from './components/AdminPanel';
+// Ленивая загрузка тяжелых компонентов
+const EquipmentManager = lazy(() => import('./components/EquipmentManagement'));
+const EstimateManager = lazy(() => import('./components/EstimateManager'));
+const TemplatesManager = lazy(() => import('./components/Templates'));
+const ChecklistsManager = lazy(() => import('./components/Checklists'));
+const StaffManager = lazy(() => import('./components/StaffManager'));
+const GoalsManager = lazy(() => import('./components/GoalsManager'));
+const CableManager = lazy(() => import('./components/CableManager'));
+const PDFSettings = lazy(() => import('./components/PDFSettings'));
+const EventCalendar = lazy(() => import('./components/EventCalendar'));
+const FinanceManager = lazy(() => import('./components/FinanceManager'));
+const CustomersManager = lazy(() => import('./components/CustomersManager'));
+const ContractManager = lazy(() => import('./components/ContractManager'));
+const AdminPanel = lazy(() => import('./components/AdminPanel'));
+
 import { AccessDenied } from './components/AccessDenied';
 import { BottomNav } from './components/BottomNav';
 import { Sidebar } from './components/Sidebar';
@@ -40,6 +42,17 @@ import { useCustomers } from './hooks/useCustomers';
 import { useCableInventory } from './hooks/useCableInventory';
 import { useExpenses } from './hooks/useExpenses';
 import { useContracts } from './hooks/useContracts';
+
+// Компонент-обёртка для Suspense
+const LazyComponent = ({ children }: { children: React.ReactNode }) => (
+  <Suspense fallback={
+    <div className="flex items-center justify-center h-64">
+      <Spinner className="w-8 h-8" />
+    </div>
+  }>
+    {children}
+  </Suspense>
+);
 
 import { 
   BarChart3,
@@ -368,173 +381,199 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
           )}
 
           {activeTab === 'equipment' && (
-            <EquipmentManager
-              equipment={equipment}
-              categories={categories}
-              userId={user?.id}
-              onAdd={addEquipment}
-              onUpdate={updateEquipment}
-              onDelete={deleteEquipment}
-              onBulkInsert={bulkInsert}
-              onAddCategory={addCategory}
-              onDeleteCategory={deleteCategory}
-              loading={equipmentLoading}
-              fabAction={fabAction}
-            />
+            <LazyComponent>
+              <EquipmentManager
+                equipment={equipment}
+                categories={categories}
+                userId={user?.id}
+                onAdd={addEquipment}
+                onUpdate={updateEquipment}
+                onDelete={deleteEquipment}
+                onBulkInsert={bulkInsert}
+                onAddCategory={addCategory}
+                onDeleteCategory={deleteCategory}
+                loading={equipmentLoading}
+                fabAction={fabAction}
+              />
+            </LazyComponent>
           )}
 
           {activeTab === 'estimates' && (
-            <EstimateManager
-              estimates={estimates}
-              equipment={equipment}
-              templates={templates}
-              customers={customers}
-              pdfSettings={pdfSettings}
-              equipmentCategories={
-                (categories?.length > 0 
-                  ? categories.map((c: any) => c.name)
-                  : [...new Set(equipment?.map((e: any) => e.category).filter(Boolean) || [])].sort()
-                )
-              }
-              onCreate={(estimate, items, categoryOrder) => createEstimate(estimate, items, user!.id, profile?.name, categoryOrder)}
-              onUpdate={(id, estimate, items, categoryOrder) => updateEstimate(id, estimate, items, user!.id, categoryOrder)}
-              onDelete={deleteEstimate}
-              onUpdateStatus={updateEstimateStatus}
-              onCreateEquipment={addEquipment}
-              onStartEditing={startEditing}
-              onStopEditing={stopEditing}
-              currentUserId={user?.id}
-              fabAction={fabAction}
-            />
+            <LazyComponent>
+              <EstimateManager
+                estimates={estimates}
+                equipment={equipment}
+                templates={templates}
+                customers={customers}
+                pdfSettings={pdfSettings}
+                equipmentCategories={
+                  (categories?.length > 0 
+                    ? categories.map((c: any) => c.name)
+                    : [...new Set(equipment?.map((e: any) => e.category).filter(Boolean) || [])].sort()
+                  )
+                }
+                onCreate={(estimate, items, categoryOrder) => createEstimate(estimate, items, user!.id, profile?.name, categoryOrder)}
+                onUpdate={(id, estimate, items, categoryOrder) => updateEstimate(id, estimate, items, user!.id, categoryOrder)}
+                onDelete={deleteEstimate}
+                onUpdateStatus={updateEstimateStatus}
+                onCreateEquipment={addEquipment}
+                onStartEditing={startEditing}
+                onStopEditing={stopEditing}
+                currentUserId={user?.id}
+                fabAction={fabAction}
+              />
+            </LazyComponent>
           )}
 
           {activeTab === 'templates' && (
-            <TemplatesManager
-              templates={templates}
-              categories={categories}
-              equipment={equipment}
-              onCreate={createTemplate}
-              onUpdate={updateTemplate}
-              onDelete={deleteTemplate}
-              userId={user?.id}
-              fabAction={fabAction}
-            />
+            <LazyComponent>
+              <TemplatesManager
+                templates={templates}
+                categories={categories}
+                equipment={equipment}
+                onCreate={createTemplate}
+                onUpdate={updateTemplate}
+                onDelete={deleteTemplate}
+                userId={user?.id}
+                fabAction={fabAction}
+              />
+            </LazyComponent>
           )}
 
           {activeTab === 'calendar' && (
-            <EventCalendar
-              estimates={estimates}
-              equipment={equipment}
-            />
+            <LazyComponent>
+              <EventCalendar
+                estimates={estimates}
+                equipment={equipment}
+              />
+            </LazyComponent>
           )}
 
           {activeTab === 'checklists' && (
-            <ChecklistsManager
-              estimates={estimates}
-              equipment={equipment}
-              categories={categories}
-              checklists={checklists}
-              rules={rules}
-              onCreateRule={createRule}
-              onDeleteRule={deleteRule}
-              onCreateChecklist={createChecklist}
-              onUpdateChecklistItem={updateChecklistItem}
-              onDeleteChecklist={deleteChecklist}
-              loading={checklistsLoading}
-              fabAction={fabAction}
-            />
+            <LazyComponent>
+              <ChecklistsManager
+                estimates={estimates}
+                equipment={equipment}
+                categories={categories}
+                checklists={checklists}
+                rules={rules}
+                onCreateRule={createRule}
+                onDeleteRule={deleteRule}
+                onCreateChecklist={createChecklist}
+                onUpdateChecklistItem={updateChecklistItem}
+                onDeleteChecklist={deleteChecklist}
+                loading={checklistsLoading}
+                fabAction={fabAction}
+              />
+            </LazyComponent>
           )}
 
           {activeTab === 'staff' && (
-            <StaffManager
-              staff={staff}
-              onAdd={addStaff}
-              onUpdate={updateStaff}
-              onDelete={deleteStaff}
-              loading={staffLoading}
-              fabAction={fabAction}
-            />
+            <LazyComponent>
+              <StaffManager
+                staff={staff}
+                onAdd={addStaff}
+                onUpdate={updateStaff}
+                onDelete={deleteStaff}
+                loading={staffLoading}
+                fabAction={fabAction}
+              />
+            </LazyComponent>
           )}
 
           {activeTab === 'goals' && (
-            <GoalsManager
-              tasks={tasks}
-              staff={staff}
-              onAdd={addTask}
-              onUpdate={updateTask}
-              onDelete={deleteTask}
-              loading={goalsLoading}
-              fabAction={fabAction}
-            />
+            <LazyComponent>
+              <GoalsManager
+                tasks={tasks}
+                staff={staff}
+                onAdd={addTask}
+                onUpdate={updateTask}
+                onDelete={deleteTask}
+                loading={goalsLoading}
+                fabAction={fabAction}
+              />
+            </LazyComponent>
           )}
 
           {activeTab === 'cables' && (
-            <CableManager
-              categories={cableCategories}
-              inventory={cableInventory}
-              movements={cableMovements}
-              stats={cableStats}
-              loading={cableLoading}
-              onAddCategory={addCableCategory}
-              onUpdateCategory={updateCableCategory}
-              onDeleteCategory={deleteCableCategory}
-              onUpsertInventory={upsertCableInventory}
-              onUpdateInventoryQty={updateCableInventoryQty}
-              onDeleteInventory={deleteCableInventory}
-              onIssueCable={issueCable}
-              onReturnCable={returnCable}
-              fabAction={fabAction}
-            />
+            <LazyComponent>
+              <CableManager
+                categories={cableCategories}
+                inventory={cableInventory}
+                movements={cableMovements}
+                stats={cableStats}
+                loading={cableLoading}
+                onAddCategory={addCableCategory}
+                onUpdateCategory={updateCableCategory}
+                onDeleteCategory={deleteCableCategory}
+                onUpsertInventory={upsertCableInventory}
+                onUpdateInventoryQty={updateCableInventoryQty}
+                onDeleteInventory={deleteCableInventory}
+                onIssueCable={issueCable}
+                onReturnCable={returnCable}
+                fabAction={fabAction}
+              />
+            </LazyComponent>
           )}
 
           {activeTab === 'finance' && (
-            <FinanceManager 
-              estimates={estimates}
-              staff={staff}
-              expenses={expenses}
-              companyId={companyId}
-            />
+            <LazyComponent>
+              <FinanceManager 
+                estimates={estimates}
+                staff={staff}
+                expenses={expenses}
+                companyId={companyId}
+              />
+            </LazyComponent>
           )}
 
           {activeTab === 'customers' && (
-            <CustomersManager
-              customers={customers}
-              userId={user?.id}
-              onAdd={addCustomer}
-              onUpdate={updateCustomer}
-              onDelete={deleteCustomer}
-              loading={customersLoading}
-              error={customersError}
-              fabAction={fabAction}
-            />
+            <LazyComponent>
+              <CustomersManager
+                customers={customers}
+                userId={user?.id}
+                onAdd={addCustomer}
+                onUpdate={updateCustomer}
+                onDelete={deleteCustomer}
+                loading={customersLoading}
+                error={customersError}
+                fabAction={fabAction}
+              />
+            </LazyComponent>
           )}
 
           {activeTab === 'contracts' && (
             checkAccess('contracts') ? (
-              <ContractManager
-                contracts={contracts}
-                templates={contractTemplates}
-                customers={customers}
-                estimates={estimates}
-                pdfSettings={pdfSettings}
-                onCreate={createContract}
-                onUpdate={updateContract}
-                onDelete={deleteContract}
-                getNextNumber={getNextContractNumber}
-                fabAction={fabAction}
-              />
+              <LazyComponent>
+                <ContractManager
+                  contracts={contracts}
+                  templates={contractTemplates}
+                  customers={customers}
+                  estimates={estimates}
+                  pdfSettings={pdfSettings}
+                  onCreate={createContract}
+                  onUpdate={updateContract}
+                  onDelete={deleteContract}
+                  getNextNumber={getNextContractNumber}
+                  fabAction={fabAction}
+                />
+              </LazyComponent>
             ) : (
               <AccessDenied role={userRole} requiredRole="Администратор" />
             )
           )}
 
           {activeTab === 'settings' && (
-            <PDFSettings settings={pdfSettings} onSave={savePdfSettings} />
+            <LazyComponent>
+              <PDFSettings settings={pdfSettings} onSave={savePdfSettings} />
+            </LazyComponent>
           )}
 
           {activeTab === 'admin' && (
             checkAccess('admin') ? (
-              <AdminPanel currentUserId={user?.id} />
+              <LazyComponent>
+                <AdminPanel currentUserId={user?.id} />
+              </LazyComponent>
             ) : (
               <AccessDenied role={userRole} requiredRole="Администратор" />
             )

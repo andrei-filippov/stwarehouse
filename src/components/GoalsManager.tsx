@@ -646,3 +646,6 @@ function TaskForm({ initialData, staff, onSubmit, onCancel }: TaskFormProps) {
     </form>
   );
 }
+
+export default GoalsManager;
+

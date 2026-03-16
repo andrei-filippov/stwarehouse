@@ -366,3 +366,6 @@ export const ContractManager = memo(function ContractManager({
     </div>
   );
 });
+
+export default ContractManager;
+

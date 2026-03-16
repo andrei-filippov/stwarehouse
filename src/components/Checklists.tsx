@@ -1098,3 +1098,6 @@ function CalculatorForm({ onClose }: { onClose: () => void }) {
     </div>
   );
 }
+
+export default ChecklistsManager;
+

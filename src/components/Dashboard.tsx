@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { 
@@ -53,12 +53,12 @@ export function Dashboard({
   availableTabs = [],
   checkAccess
 }: DashboardProps) {
-  // Функция проверки доступа к вкладке
-  const hasAccess = (tab: string): boolean => {
+  // Функция проверки доступа к вкладке (мемоизирована)
+  const hasAccess = useCallback((tab: string): boolean => {
     if (checkAccess) return checkAccess(tab);
     if (availableTabs.length > 0) return availableTabs.includes(tab);
     return true; // Если ничего не передано — показываем всё
-  };
+  }, [checkAccess, availableTabs]);
   // Текущая дата для автообновления задач
   const [currentDate, setCurrentDate] = useState(new Date());
   
@@ -108,6 +108,17 @@ export function Dashboard({
       return date ? isToday(date) : false;
     });
   }, [estimates]);
+
+  // Обработчики с useCallback
+  const handleTabChange = useCallback((tab: string) => {
+    onTabChange(tab);
+  }, [onTabChange]);
+
+  const handleOpenEstimate = useCallback((estimate: Estimate) => {
+    if (onOpenEstimate) {
+      onOpenEstimate(estimate);
+    }
+  }, [onOpenEstimate]);
 
   // Низкий запас оборудования (меньше 3 шт)
   const lowStockItems = useMemo(() => {

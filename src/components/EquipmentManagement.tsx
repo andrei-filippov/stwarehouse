@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, memo, useCallback } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -9,8 +9,54 @@ import { Badge } from './ui/badge';
 import { Plus, Upload, Download, Trash2, Edit, Search, FolderPlus, ChevronDown, ChevronUp, X } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Equipment } from '../types';
+import { useDebounce } from '../hooks/useDebounce';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
+
+// Мемоизированная строка таблицы оборудования
+interface EquipmentRowProps {
+  item: Equipment;
+  onEdit: (item: Equipment) => void;
+  onDelete: (item: Equipment) => void;
+}
+
+const EquipmentRow = memo(function EquipmentRow({ item, onEdit, onDelete }: EquipmentRowProps) {
+  return (
+    <TableRow>
+      <TableCell>
+        <div>
+          <p className="font-medium">{item.name}</p>
+        </div>
+      </TableCell>
+      <TableCell>
+        <p className="text-sm text-gray-600 max-w-xs truncate" title={item.description}>
+          {item.description || '—'}
+        </p>
+      </TableCell>
+      <TableCell>{item.quantity}</TableCell>
+      <TableCell>{item.unit || 'шт'}</TableCell>
+      <TableCell>{item.price.toLocaleString('ru-RU')} ₽</TableCell>
+      <TableCell>
+        <div className="flex justify-end gap-1">
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={() => onEdit(item)}
+          >
+            <Edit className="w-4 h-4" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={() => onDelete(item)}
+          >
+            <Trash2 className="w-4 h-4 text-red-500" />
+          </Button>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+});
 
 interface EquipmentManagerProps {
   equipment: Equipment[];
@@ -52,6 +98,7 @@ export function EquipmentManager({
     }
   }, [fabAction]);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 200); // 200ms задержка
   const [editingItem, setEditingItem] = useState<Equipment | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
@@ -67,14 +114,14 @@ export function EquipmentManager({
   const [deleteCategoryConfirmOpen, setDeleteCategoryConfirmOpen] = useState(false);
   const [deleteCategory, setDeleteCategory] = useState<{ id: string; name: string } | null>(null);
 
-  // Фильтрация оборудования (мемоизировано)
+  // Фильтрация оборудования (мемоизировано + debounce)
   const filteredEquipment = useMemo(() =>
     (equipment || []).filter(item =>
-      item.name.toLowerCase().includes(search.toLowerCase()) ||
-      item.category.toLowerCase().includes(search.toLowerCase()) ||
-      (item.description && item.description.toLowerCase().includes(search.toLowerCase()))
+      item.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      item.category.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      (item.description && item.description.toLowerCase().includes(debouncedSearch.toLowerCase()))
     ),
-    [equipment, search]
+    [equipment, debouncedSearch]
   );
 
   // Группировка по категориям (мемоизировано)
@@ -432,39 +479,12 @@ export function EquipmentManager({
                             </TableHeader>
                             <TableBody>
                               {items.map((item) => (
-                                <TableRow key={item.id}>
-                                  <TableCell>
-                                    <div>
-                                      <p className="font-medium">{item.name}</p>
-                                    </div>
-                                  </TableCell>
-                                  <TableCell>
-                                    <p className="text-sm text-gray-600 max-w-xs truncate" title={item.description}>
-                                      {item.description || '—'}
-                                    </p>
-                                  </TableCell>
-                                  <TableCell>{item.quantity}</TableCell>
-                                  <TableCell>{item.unit || 'шт'}</TableCell>
-                                  <TableCell>{item.price.toLocaleString('ru-RU')} ₽</TableCell>
-                                  <TableCell>
-                                    <div className="flex justify-end gap-1">
-                                      <Button 
-                                        variant="ghost" 
-                                        size="sm"
-                                        onClick={() => setEditingItem(item)}
-                                      >
-                                        <Edit className="w-4 h-4" />
-                                      </Button>
-                                      <Button 
-                                        variant="ghost" 
-                                        size="sm"
-                                        onClick={() => handleDeleteClick(item)}
-                                      >
-                                        <Trash2 className="w-4 h-4 text-red-500" />
-                                      </Button>
-                                    </div>
-                                  </TableCell>
-                                </TableRow>
+                                <EquipmentRow 
+                                  key={item.id} 
+                                  item={item}
+                                  onEdit={setEditingItem}
+                                  onDelete={handleDeleteClick}
+                                />
                               ))}
                             </TableBody>
                           </Table>
@@ -1004,3 +1024,6 @@ function EquipmentForm({ categories, initialData, onSubmit, onAddCategory }: Equ
     </form>
   );
 }
+
+export default EquipmentManager;
+

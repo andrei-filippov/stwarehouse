@@ -91,3 +91,6 @@ export function AdminPanel({ currentUserId }: { currentUserId?: string }) {
     </div>
   );
 }
+
+export default AdminPanel;
+

@@ -102,3 +102,5 @@ export function PDFSettings({ settings, onSave }: PDFSettingsProps) {
     </Card>
   );
 }
+export default PDFSettings;
+

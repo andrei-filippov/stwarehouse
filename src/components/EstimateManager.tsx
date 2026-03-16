@@ -650,3 +650,5 @@ export const EstimateManager = memo(function EstimateManager({
     </div>
   );
 });
+export default EstimateManager;
+

@@ -637,3 +637,6 @@ function CustomerForm({ initialData, onSubmit, onCancel, submitting }: CustomerF
     </form>
   );
 }
+
+export default CustomersManager;
+
