@@ -3,6 +3,7 @@ import { Button } from './ui/button';
 import { Download, FileText, Edit, Save, X, Printer } from 'lucide-react';
 import type { Invoice, PDFSettings } from '../types';
 import { generateInvoiceHTML, exportInvoiceToDOCX } from '../lib/invoiceExport';
+import { sanitizeHtml } from '../lib/utils';
 
 interface InvoicePreviewProps {
   invoice: Invoice;
@@ -25,7 +26,7 @@ export function InvoicePreview({
 
   useEffect(() => {
     if (isEditing && editRef.current) {
-      editRef.current.innerHTML = htmlContent;
+      editRef.current.innerHTML = sanitizeHtml(htmlContent);
     }
   }, [isEditing, htmlContent]);
 
@@ -78,7 +79,7 @@ export function InvoicePreview({
 
   const handleSaveEdit = () => {
     if (editRef.current && onSaveContent) {
-      onSaveContent(editRef.current.innerHTML);
+      onSaveContent(sanitizeHtml(editRef.current.innerHTML));
     }
     setIsEditing(false);
   };

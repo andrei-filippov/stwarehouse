@@ -20,6 +20,7 @@ import type { Contract, PDFSettings } from '../types';
 import { CONTRACT_STATUS_LABELS, CONTRACT_STATUS_COLORS, CONTRACT_TYPE_LABELS } from '../types';
 import { generateContractHTML, exportContractToDOCX, printContract } from '../lib/contractExport';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+import { sanitizeHtml } from '../lib/utils';
 
 interface ContractPreviewProps {
   contract: Contract;
@@ -42,8 +43,11 @@ export function ContractPreview({ contract, pdfSettings, onClose, onSaveContent 
     return generateContractHTML(contract, pdfSettings);
   }, [contract, pdfSettings]);
 
-  // Текущий контент (отредактированный или оригинальный)
-  const currentContent = editedHtml || htmlContent;
+  // Текущий контент (отредактированный или оригинальный) - санитизирован
+  const currentContent = useMemo(() => {
+    const content = editedHtml || htmlContent;
+    return sanitizeHtml(content);
+  }, [editedHtml, htmlContent]);
 
   // Обработчик экспорта в DOCX
   const handleExportDOCX = async () => {
@@ -74,7 +78,7 @@ export function ContractPreview({ contract, pdfSettings, onClose, onSaveContent 
   // Обработчик сохранения отредактированного текста
   const handleSaveEdit = () => {
     if (editRef.current) {
-      const newContent = editRef.current.innerHTML;
+      const newContent = sanitizeHtml(editRef.current.innerHTML);
       setEditedHtml(newContent);
       // Вызываем callback если передан
       if (onSaveContent) {

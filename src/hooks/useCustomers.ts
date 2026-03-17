@@ -80,11 +80,35 @@ export function useCustomers(companyId: string | undefined) {
   const addCustomer = useCallback(async (customer: Partial<Customer>) => {
     if (!companyId) return { error: new Error('No company selected') };
     
+    // Валидация
+    if (!customer.name || customer.name.trim().length < 2) {
+      return { error: new Error('Имя клиента должно содержать минимум 2 символа') };
+    }
+    if (customer.name && customer.name.length > 200) {
+      return { error: new Error('Имя клиента слишком длинное (макс. 200 символов)') };
+    }
+    if (customer.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email)) {
+      return { error: new Error('Некорректный email') };
+    }
+    if (customer.phone && customer.phone.length > 50) {
+      return { error: new Error('Номер телефона слишком длинный') };
+    }
+    
+    // Санитизация
+    const sanitizedCustomer = {
+      ...customer,
+      name: customer.name?.trim(),
+      email: customer.email?.trim().toLowerCase(),
+      phone: customer.phone?.trim(),
+      address: customer.address?.trim(),
+      notes: customer.notes?.trim()
+    };
+    
     try {
       if (isOnline()) {
         const { data, error: insertError } = await supabase
           .from('customers')
-          .insert({ ...customer, company_id: companyId })
+          .insert({ ...sanitizedCustomer, company_id: companyId })
           .select()
           .single();
 
@@ -97,7 +121,7 @@ export function useCustomers(companyId: string | undefined) {
       // ОФФЛАЙН режим
       const localId = `local_customer_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       const newCustomer = { 
-        ...customer, 
+        ...sanitizedCustomer, 
         id: localId,
         company_id: companyId,
         created_at: new Date().toISOString()

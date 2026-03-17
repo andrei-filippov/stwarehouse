@@ -54,9 +54,87 @@ git log --all --full-history -- .env
 # или создайте новый репозиторий
 ```
 
+## CSP Заголовки (Content Security Policy)
+
+В `vercel.json` настроены security headers:
+
+```json
+{
+  "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co https://*.dadata.ru; frame-ancestors 'none'; base-uri 'self'; form-action 'self';",
+  "X-Frame-Options": "DENY",
+  "X-Content-Type-Options": "nosniff",
+  "Referrer-Policy": "strict-origin-when-cross-origin",
+  "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()",
+  "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload"
+}
+```
+
+## XSS Защита
+
+### DOMPurify
+
+Все компоненты с HTML-редактированием используют санитизацию:
+
+```typescript
+import { sanitizeHtml } from '../lib/utils';
+
+// Санитизация перед отображением
+<div dangerouslySetInnerHTML={{ __html: sanitizeHtml(content) }} />
+
+// Санитизация при сохранении
+const cleanContent = sanitizeHtml(editRef.current.innerHTML);
+```
+
+### Разрешенные теги
+
+- Текст: `p`, `br`, `strong`, `b`, `em`, `i`, `u`, `s`, `strike`
+- Заголовки: `h1-h6`
+- Списки: `ul`, `ol`, `li`
+- Таблицы: `table`, `thead`, `tbody`, `tr`, `td`, `th`
+- Другое: `div`, `span`, `img`
+
+### Запрещенные теги
+
+`script`, `iframe`, `object`, `embed`, `form`, `input`
+
+## Валидация данных
+
+### Клиентская валидация
+
+```typescript
+import { validateEmail, validatePhone, validateName } from '../lib/validation';
+
+const error = validateEmail(email);
+if (error) {
+  toast.error(error);
+  return;
+}
+```
+
+### Серверная валидация (RLS)
+
+Все таблицы защищены Row Level Security:
+
+```sql
+CREATE POLICY "Users can view data for their company"
+  ON customers FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM company_members cm
+      WHERE cm.company_id = customers.company_id
+      AND cm.user_id = auth.uid()
+    )
+  );
+```
+
 ## Что было сделано
 
 1. ✅ Supabase ключи перенесены в переменные окружения
 2. ✅ Добавлена проверка наличия переменных окружения
 3. ✅ `.env` добавлен в `.gitignore`
 4. ✅ Создан `.env.example` шаблон
+5. ✅ CSP заголовки настроены в `vercel.json`
+6. ✅ DOMPurify для защиты от XSS
+7. ✅ RLS политики для всех таблиц
+8. ✅ Валидация входных данных
+9. ✅ Security headers (HSTS, X-Frame-Options, etc)

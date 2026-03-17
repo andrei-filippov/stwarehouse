@@ -3,6 +3,7 @@ import { Button } from './ui/button';
 import { Download, FileText, Edit, Save, X, Printer } from 'lucide-react';
 import type { Act, PDFSettings } from '../types';
 import { generateActHTML, exportActToDOCX } from '../lib/actExport';
+import { sanitizeHtml } from '../lib/utils';
 
 interface ActPreviewProps {
   act: Act;
@@ -25,7 +26,7 @@ export function ActPreview({
 
   useEffect(() => {
     if (isEditing && editRef.current) {
-      editRef.current.innerHTML = htmlContent;
+      editRef.current.innerHTML = sanitizeHtml(htmlContent);
     }
   }, [isEditing, htmlContent]);
 
@@ -76,7 +77,7 @@ export function ActPreview({
 
   const handleSaveEdit = () => {
     if (editRef.current && onSaveContent) {
-      onSaveContent(editRef.current.innerHTML);
+      onSaveContent(sanitizeHtml(editRef.current.innerHTML));
     }
     setIsEditing(false);
   };
