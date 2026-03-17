@@ -196,7 +196,7 @@ function EstimateTemplates({
       </CardContent>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" aria-describedby="template-dialog-desc">
+        <DialogContent className="max-w-3xl w-[95%] max-h-[90vh] overflow-y-auto rounded-xl p-4 sm:p-6" aria-describedby="template-dialog-desc">
           <DialogHeader>
             <DialogTitle>
               {editingTemplate ? 'Редактировать шаблон' : 'Новый шаблон'}
@@ -387,7 +387,7 @@ function ContractTemplates({ userId }: ContractTemplatesProps) {
 
       {/* Диалог загрузки файла */}
       <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
-        <DialogContent className="max-w-lg" aria-describedby="upload-dialog-desc">
+        <DialogContent className="max-w-lg w-[95%] rounded-xl p-4 sm:p-6" aria-describedby="upload-dialog-desc">
           <DialogHeader>
             <DialogTitle>Загрузить шаблон договора</DialogTitle>
             <DialogDescription id="upload-dialog-desc">
@@ -472,7 +472,7 @@ function ContractTemplates({ userId }: ContractTemplatesProps) {
 
       {/* Диалог создания текстового шаблона */}
       <Dialog open={isTextDialogOpen} onOpenChange={setIsTextDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" aria-describedby="text-template-desc">
+        <DialogContent className="max-w-3xl w-[95%] max-h-[90vh] overflow-y-auto rounded-xl p-4 sm:p-6" aria-describedby="text-template-desc">
           <DialogHeader>
             <DialogTitle>Текстовый шаблон договора</DialogTitle>
             <DialogDescription id="text-template-desc">

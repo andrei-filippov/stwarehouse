@@ -539,7 +539,7 @@ export function EquipmentManager({
 
       {/* Диалог импорта */}
       <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
-        <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col" aria-describedby="import-equipment-desc">
+        <DialogContent className="max-w-4xl w-[95%] max-h-[90vh] flex flex-col rounded-xl p-4 sm:p-6" aria-describedby="import-equipment-desc">
           <DialogHeader>
             <DialogTitle>Импорт оборудования</DialogTitle>
             <DialogDescription id="import-equipment-desc">Загрузите оборудование из Excel или CSV файла</DialogDescription>
@@ -727,7 +727,7 @@ export function EquipmentManager({
           setEditingItem(null);
         }
       }}>
-        <DialogContent className="max-w-lg" aria-describedby="equipment-form-desc">
+        <DialogContent className="max-w-lg w-[95%] rounded-xl p-4 sm:p-6" aria-describedby="equipment-form-desc">
           <DialogHeader>
             <DialogTitle>
               {editingItem ? 'Редактировать оборудование' : 'Добавить оборудование'}
@@ -753,7 +753,7 @@ export function EquipmentManager({
 
       {/* Диалог подтверждения удаления оборудования */}
       <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
-        <DialogContent className="max-w-sm" aria-describedby="delete-equipment-desc">
+        <DialogContent className="max-w-sm w-[95%] rounded-xl p-4 sm:p-6" aria-describedby="delete-equipment-desc">
           <DialogHeader>
             <DialogTitle>Удалить оборудование?</DialogTitle>
             <DialogDescription id="delete-equipment-desc">
@@ -773,7 +773,7 @@ export function EquipmentManager({
 
       {/* Диалог подтверждения удаления категории */}
       <Dialog open={deleteCategoryConfirmOpen} onOpenChange={setDeleteCategoryConfirmOpen}>
-        <DialogContent className="max-w-sm" aria-describedby="delete-category-desc">
+        <DialogContent className="max-w-sm w-[95%] rounded-xl p-4 sm:p-6" aria-describedby="delete-category-desc">
           <DialogHeader>
             <DialogTitle>Удалить категорию?</DialogTitle>
             <DialogDescription id="delete-category-desc">

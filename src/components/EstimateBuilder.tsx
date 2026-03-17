@@ -827,28 +827,28 @@ export function EstimateBuilder({
           </div>
           <div className="flex items-center gap-1">
             {onCreateEquipment && (
-              <Button variant="outline" size="sm" onClick={() => setShowCreateEquipment(true)} className="h-8 w-8 md:w-auto p-0 md:px-2" title="Новое оборудование">
+              <Button variant="outline" size="sm" onClick={() => setShowCreateEquipment(true)} className="h-8 w-8 md:w-auto p-0 md:px-2 shrink-0" title="Новое оборудование">
                 <PackagePlus className="w-4 h-4" />
-                <span className="hidden md:inline ml-2">Новое</span>
+                <span className="hidden md:inline ml-2 whitespace-nowrap">Новое</span>
               </Button>
             )}
             {/* Excel только на десктопе */}
-            <Button variant="outline" size="sm" onClick={exportExcel} className="hidden md:flex h-8 px-2">
-              <FileSpreadsheet className="w-4 h-4 mr-2" />
-              Excel
+            <Button variant="outline" size="sm" onClick={exportExcel} className="hidden md:flex h-8 px-2 shrink-0">
+              <FileSpreadsheet className="w-4 h-4 mr-2 shrink-0" />
+              <span className="whitespace-nowrap">Excel</span>
             </Button>
             {/* На мобильном только иконки */}
-            <Button variant="outline" size="sm" onClick={exportPDF} className="h-8 w-8 md:w-auto p-0 md:px-2" title="PDF">
+            <Button variant="outline" size="sm" onClick={exportPDF} className="h-8 w-8 md:w-auto p-0 md:px-2 shrink-0" title="PDF">
               <FileText className="w-4 h-4" />
-              <span className="hidden md:inline ml-2">PDF</span>
+              <span className="hidden md:inline ml-2 whitespace-nowrap">PDF</span>
             </Button>
-            <Button variant="outline" size="sm" onClick={handlePrint} className="hidden md:flex h-8 px-2">
-              <Printer className="w-4 h-4 mr-2" />
-              Печать
+            <Button variant="outline" size="sm" onClick={handlePrint} className="hidden md:flex h-8 px-2 shrink-0">
+              <Printer className="w-4 h-4 mr-2 shrink-0" />
+              <span className="whitespace-nowrap">Печать</span>
             </Button>
-            <Button size="sm" onClick={handleSave} disabled={!eventName || items.length === 0} className="h-8 px-2 md:px-3">
-              <Save className="w-4 h-4 md:mr-2" />
-              <span className="hidden md:inline">Сохранить</span>
+            <Button size="sm" onClick={handleSave} disabled={!eventName || items.length === 0} className="h-8 px-2 md:px-3 shrink-0">
+              <Save className="w-4 h-4 md:mr-2 shrink-0" />
+              <span className="hidden md:inline whitespace-nowrap">Сохранить</span>
             </Button>
           </div>
         </div>
@@ -1721,7 +1721,7 @@ export function EstimateBuilder({
 
       {/* Диалог подтверждения выхода */}
       <Dialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-sm w-[95%] rounded-xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-amber-500" />
@@ -1744,7 +1744,7 @@ export function EstimateBuilder({
 
       {/* Диалог создания оборудования */}
       <Dialog open={showCreateEquipment} onOpenChange={setShowCreateEquipment}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-lg w-[95%] max-h-[90vh] overflow-y-auto rounded-xl p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle>Новое оборудование</DialogTitle>
             <DialogDescription>

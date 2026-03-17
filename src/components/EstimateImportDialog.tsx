@@ -296,7 +296,7 @@ export function EstimateImportDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && resetAndClose()}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col" aria-describedby="estimate-import-desc">
+      <DialogContent className="max-w-5xl w-[95%] max-h-[90vh] overflow-hidden flex flex-col rounded-xl p-4 sm:p-6" aria-describedby="estimate-import-desc">
         <DialogHeader>
           <DialogTitle>Импорт сметы из Excel</DialogTitle>
           <DialogDescription id="estimate-import-desc">

@@ -509,7 +509,7 @@ export const CableManager = memo(function CableManager({
 
       {/* Диалог категории */}
       <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
-        <DialogContent className="max-w-md" aria-describedby="category-dialog-desc">
+        <DialogContent className="max-w-lg w-[95%] rounded-xl p-4 sm:p-6" aria-describedby="category-dialog-desc">
           <DialogHeader>
             <DialogTitle>
               {editingCategory ? 'Редактировать категорию' : 'Новая категория'}
@@ -579,7 +579,7 @@ export const CableManager = memo(function CableManager({
 
       {/* Диалог добавления позиции */}
       <Dialog open={isInventoryDialogOpen} onOpenChange={setIsInventoryDialogOpen}>
-        <DialogContent className="max-w-md" aria-describedby="inventory-dialog-desc">
+        <DialogContent className="max-w-lg w-[95%] rounded-xl p-4 sm:p-6" aria-describedby="inventory-dialog-desc">
           <DialogHeader>
             <DialogTitle>Добавить позицию</DialogTitle>
             <DialogDescription id="inventory-dialog-desc">
@@ -640,7 +640,7 @@ export const CableManager = memo(function CableManager({
 
       {/* Диалог выдачи */}
       <Dialog open={isIssueDialogOpen} onOpenChange={setIsIssueDialogOpen}>
-        <DialogContent className="max-w-md" aria-describedby="issue-dialog-desc">
+        <DialogContent className="max-w-lg w-[95%] rounded-xl p-4 sm:p-6" aria-describedby="issue-dialog-desc">
           <DialogHeader>
             <DialogTitle>Выдать кабель</DialogTitle>
             <DialogDescription id="issue-dialog-desc">

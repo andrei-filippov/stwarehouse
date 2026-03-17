@@ -641,7 +641,7 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
 
       {/* Диалог с деталями дня */}
       <Dialog open={!!selectedDate} onOpenChange={() => setSelectedDate(null)}>
-        <DialogContent className="max-w-[95vw] sm:max-w-3xl max-h-[85vh] overflow-auto p-4 sm:p-6" aria-describedby="day-details-desc">
+        <DialogContent className="max-w-2xl w-[95%] max-h-[85vh] overflow-auto rounded-xl p-4 sm:p-6" aria-describedby="day-details-desc">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl">
               <CalendarIcon className="w-5 h-5 text-blue-500" />
@@ -781,7 +781,7 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
 
       {/* Диалог с деталями сметы */}
       <Dialog open={!!selectedEstimate} onOpenChange={() => setSelectedEstimate(null)}>
-        <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[85vh] overflow-auto p-4 sm:p-6" aria-describedby="estimate-details-desc">
+        <DialogContent className="max-w-2xl w-[95%] max-h-[85vh] overflow-auto rounded-xl p-4 sm:p-6" aria-describedby="estimate-details-desc">
           <DialogHeader>
             <DialogTitle className="text-xl">{selectedEstimate?.event_name}</DialogTitle>
             <DialogDescription id="estimate-details-desc">

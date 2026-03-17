@@ -310,7 +310,7 @@ export function AuditLogs() {
 
       {/* Диалог деталей */}
       <Dialog open={!!selectedLog} onOpenChange={() => setSelectedLog(null)}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-auto" aria-describedby="audit-log-description">
+        <DialogContent className="max-w-2xl w-[95%] max-h-[80vh] overflow-auto rounded-xl p-4 sm:p-6" aria-describedby="audit-log-description">
           <DialogHeader>
             <DialogTitle>Детали действия</DialogTitle>
             <DialogDescription id="audit-log-description">

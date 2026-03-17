@@ -372,7 +372,7 @@ export function ContractPreview({ contract, pdfSettings, onClose, onSaveContent 
   if (isFullscreen) {
     return (
       <Dialog open={isFullscreen} onOpenChange={setIsFullscreen}>
-        <DialogContent className="max-w-[98vw] w-full h-[98vh] p-0 overflow-hidden flex flex-col">
+        <DialogContent className="max-w-5xl w-[95%] h-[95vh] p-0 overflow-hidden flex flex-col rounded-xl">
           <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
             <DialogTitle>Просмотр договора</DialogTitle>
           </DialogHeader>

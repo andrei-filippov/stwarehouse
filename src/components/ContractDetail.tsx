@@ -441,7 +441,7 @@ export function ContractDetail({
 
       {/* Диалог формы счета */}
       <Dialog open={isInvoiceFormOpen} onOpenChange={setIsInvoiceFormOpen}>
-        <DialogContent className="max-w-[600px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-xl w-[95%] max-h-[90vh] overflow-y-auto rounded-xl p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle>
               {editingInvoice ? 'Редактирование счета' : 'Новый счет'}
@@ -459,7 +459,7 @@ export function ContractDetail({
 
       {/* Диалог формы акта */}
       <Dialog open={isActFormOpen} onOpenChange={setIsActFormOpen}>
-        <DialogContent className="max-w-[900px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl w-[95%] max-h-[90vh] overflow-y-auto rounded-xl p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle>
               {editingAct ? 'Редактирование акта' : 'Новый акт'}
@@ -478,7 +478,7 @@ export function ContractDetail({
 
       {/* Диалог просмотра счета */}
       <Dialog open={isInvoicePreviewOpen} onOpenChange={setIsInvoicePreviewOpen}>
-        <DialogContent className="max-w-[98vw] w-[1200px] max-h-[95vh] p-0 overflow-hidden flex flex-col">
+        <DialogContent className="max-w-4xl w-[95%] max-h-[95vh] p-0 overflow-hidden flex flex-col rounded-xl">
           <DialogHeader className="px-6 py-4 border-b">
             <DialogTitle>Просмотр счета</DialogTitle>
           </DialogHeader>
@@ -496,7 +496,7 @@ export function ContractDetail({
 
       {/* Диалог просмотра акта */}
       <Dialog open={isActPreviewOpen} onOpenChange={setIsActPreviewOpen}>
-        <DialogContent className="max-w-[98vw] w-[1200px] max-h-[95vh] p-0 overflow-hidden flex flex-col">
+        <DialogContent className="max-w-4xl w-[95%] max-h-[95vh] p-0 overflow-hidden flex flex-col rounded-xl">
           <DialogHeader className="px-6 py-4 border-b">
             <DialogTitle>Просмотр акта</DialogTitle>
           </DialogHeader>

@@ -136,7 +136,7 @@ export function SyncDialog({
   
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-w-sm w-[95%] rounded-xl p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {isFullyOnline ? (
