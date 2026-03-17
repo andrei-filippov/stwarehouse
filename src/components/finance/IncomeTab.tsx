@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Plus, FileText, CheckCircle2, Clock, Calendar, Trash2 } from 'lucide-react';
+import { Plus, FileText, CheckCircle2, Clock, Calendar, Trash2, TrendingUp } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
@@ -23,6 +23,8 @@ interface ManualIncome {
   description?: string;
 }
 
+type IncomeFilter = 'all' | 'estimates' | 'manual' | 'pending';
+
 export function IncomeTab({ estimates, companyId }: IncomeTabProps) {
   // Загружаем из localStorage при инициализации
   const [manualIncomes, setManualIncomes] = useState<ManualIncome[]>(() => {
@@ -30,6 +32,7 @@ export function IncomeTab({ estimates, companyId }: IncomeTabProps) {
     const saved = localStorage.getItem(`income_manual_${companyId}`);
     return saved ? JSON.parse(saved) : [];
   });
+  const [activeFilter, setActiveFilter] = useState<IncomeFilter>('all');
 
   // Сохраняем в localStorage при изменении
   useEffect(() => {
@@ -104,9 +107,37 @@ export function IncomeTab({ estimates, companyId }: IncomeTabProps) {
 
   return (
     <div className="space-y-6">
-      {/* Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="bg-green-50 border-green-200">
+      {/* Summary - Filter Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card 
+          className={`cursor-pointer transition-all hover:shadow-md ${
+            activeFilter === 'all' 
+              ? 'bg-gray-100 border-gray-400 ring-2 ring-gray-300' 
+              : 'bg-gray-50 border-gray-200'
+          }`}
+          onClick={() => setActiveFilter('all')}
+        >
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-gray-700">Всего</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-gray-900">
+              {(totalEstimateIncome + totalManualIncome).toLocaleString('ru-RU')} ₽
+            </div>
+            <p className="text-xs text-gray-600">
+              {estimateIncomes.length + manualIncomes.length} записей
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card 
+          className={`cursor-pointer transition-all hover:shadow-md ${
+            activeFilter === 'estimates' 
+              ? 'bg-green-100 border-green-400 ring-2 ring-green-300' 
+              : 'bg-green-50 border-green-200'
+          }`}
+          onClick={() => setActiveFilter('estimates')}
+        >
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-green-700">Получено (сметы)</CardTitle>
           </CardHeader>
@@ -118,7 +149,14 @@ export function IncomeTab({ estimates, companyId }: IncomeTabProps) {
           </CardContent>
         </Card>
 
-        <Card className="bg-blue-50 border-blue-200">
+        <Card 
+          className={`cursor-pointer transition-all hover:shadow-md ${
+            activeFilter === 'manual' 
+              ? 'bg-blue-100 border-blue-400 ring-2 ring-blue-300' 
+              : 'bg-blue-50 border-blue-200'
+          }`}
+          onClick={() => setActiveFilter('manual')}
+        >
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-blue-700">Ручные поступления</CardTitle>
           </CardHeader>
@@ -130,7 +168,14 @@ export function IncomeTab({ estimates, companyId }: IncomeTabProps) {
           </CardContent>
         </Card>
 
-        <Card className="bg-amber-50 border-amber-200">
+        <Card 
+          className={`cursor-pointer transition-all hover:shadow-md ${
+            activeFilter === 'pending' 
+              ? 'bg-amber-100 border-amber-400 ring-2 ring-amber-300' 
+              : 'bg-amber-50 border-amber-200'
+          }`}
+          onClick={() => setActiveFilter('pending')}
+        >
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-amber-700">Ожидается</CardTitle>
           </CardHeader>
@@ -201,10 +246,27 @@ export function IncomeTab({ estimates, companyId }: IncomeTabProps) {
         </Dialog>
       </div>
 
+      {/* Active Filter Indicator */}
+      {activeFilter !== 'all' && (
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-500">Фильтр:</span>
+          <Badge 
+            variant="outline" 
+            className="cursor-pointer hover:bg-gray-100"
+            onClick={() => setActiveFilter('all')}
+          >
+            {activeFilter === 'estimates' && 'Получено от смет'}
+            {activeFilter === 'manual' && 'Ручные поступления'}
+            {activeFilter === 'pending' && 'Ожидается'}
+            <span className="ml-1">×</span>
+          </Badge>
+        </div>
+      )}
+
       {/* Income List */}
       <div className="space-y-4">
         {/* From Estimates */}
-        {estimateIncomes.length > 0 && (
+        {(activeFilter === 'all' || activeFilter === 'estimates') && estimateIncomes.length > 0 && (
           <div className="space-y-2">
             <h4 className="text-sm font-medium text-gray-500">От смет</h4>
             {estimateIncomes.map((income) => (
@@ -240,7 +302,7 @@ export function IncomeTab({ estimates, companyId }: IncomeTabProps) {
         )}
 
         {/* Manual Incomes */}
-        {manualIncomes.length > 0 && (
+        {(activeFilter === 'all' || activeFilter === 'manual') && manualIncomes.length > 0 && (
           <div className="space-y-2">
             <h4 className="text-sm font-medium text-gray-500">Ручные поступления</h4>
             {manualIncomes.map((income) => (
@@ -283,7 +345,7 @@ export function IncomeTab({ estimates, companyId }: IncomeTabProps) {
         )}
 
         {/* Pending */}
-        {pendingIncomes.length > 0 && (
+        {(activeFilter === 'all' || activeFilter === 'pending') && pendingIncomes.length > 0 && (
           <div className="space-y-2">
             <h4 className="text-sm font-medium text-gray-500">Ожидается оплата</h4>
             {pendingIncomes.map((income) => (
@@ -318,11 +380,24 @@ export function IncomeTab({ estimates, companyId }: IncomeTabProps) {
           </div>
         )}
 
-        {estimateIncomes.length === 0 && manualIncomes.length === 0 && pendingIncomes.length === 0 && (
+        {(
+          (activeFilter === 'all' && estimateIncomes.length === 0 && manualIncomes.length === 0 && pendingIncomes.length === 0) ||
+          (activeFilter === 'estimates' && estimateIncomes.length === 0) ||
+          (activeFilter === 'manual' && manualIncomes.length === 0) ||
+          (activeFilter === 'pending' && pendingIncomes.length === 0)
+        ) && (
           <div className="text-center py-12 text-gray-500">
             <TrendingUp className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p>Нет данных о поступлениях</p>
-            <p className="text-sm">Завершите сметы или добавьте поступления вручную</p>
+            <p>
+              {activeFilter === 'all' && 'Нет данных о поступлениях'}
+              {activeFilter === 'estimates' && 'Нет полученных доходов от смет'}
+              {activeFilter === 'manual' && 'Нет ручных поступлений'}
+              {activeFilter === 'pending' && 'Нет ожидаемых поступлений'}
+            </p>
+            <p className="text-sm">
+              {activeFilter === 'all' && 'Завершите сметы или добавьте поступления вручную'}
+              {activeFilter !== 'all' && 'Выберите другой фильтр или добавьте запись'}
+            </p>
           </div>
         )}
       </div>

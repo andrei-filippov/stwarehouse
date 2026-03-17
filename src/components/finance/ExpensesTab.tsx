@@ -34,8 +34,11 @@ const categoryIcons: Record<string, { icon: React.ElementType; color: string }> 
 
 import { Users } from 'lucide-react';
 
+type ExpenseFilter = 'all' | ExpenseCategory;
+
 export function ExpensesTab({ expenses, onAdd, onDelete }: ExpensesTabProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<ExpenseFilter>('all');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [newExpense, setNewExpense] = useState({
     date: format(new Date(), 'yyyy-MM-dd'),
@@ -67,6 +70,12 @@ export function ExpensesTab({ expenses, onAdd, onDelete }: ExpensesTabProps) {
     expenses.reduce((sum, e) => sum + e.amount, 0),
   [expenses]);
 
+  // Фильтрованные расходы
+  const filteredExpenses = useMemo(() => {
+    if (activeFilter === 'all') return expenses;
+    return expenses.filter(e => e.category === activeFilter);
+  }, [expenses, activeFilter]);
+
   const handleAddExpense = async () => {
     if (!onAdd) return;
     
@@ -93,27 +102,75 @@ export function ExpensesTab({ expenses, onAdd, onDelete }: ExpensesTabProps) {
 
   return (
     <div className="space-y-6">
-      {/* Summary by Category */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      {/* Summary by Category - Filter Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
+        {/* All */}
+        <Card 
+          className={`cursor-pointer transition-all hover:shadow-md ${
+            activeFilter === 'all' 
+              ? 'bg-gray-100 border-gray-400 ring-2 ring-gray-300' 
+              : 'bg-gray-50 border-gray-200'
+          }`}
+          onClick={() => setActiveFilter('all')}
+        >
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-xs font-medium text-gray-700">Всего</span>
+            </div>
+            <p className="text-lg font-bold text-gray-900">
+              {totalExpenses.toLocaleString('ru-RU')} ₽
+            </p>
+            <p className="text-xs text-gray-600">{expenses.length} записей</p>
+          </CardContent>
+        </Card>
+
         {EXPENSE_CATEGORIES.map(({ value, label }) => {
           const data = totalByCategory.find(t => t.category === value);
           const amount = data?.total || 0;
           const iconData = categoryIcons[value] || categoryIcons.other;
           const Icon = iconData.icon;
           const color = iconData.color;
+          const isActive = activeFilter === value;
           
-          const colorClasses: Record<string, string> = {
-            blue: 'bg-blue-50 border-blue-200 text-blue-700',
-            orange: 'bg-orange-50 border-orange-200 text-orange-700',
-            purple: 'bg-purple-50 border-purple-200 text-purple-700',
-            green: 'bg-green-50 border-green-200 text-green-700',
-            red: 'bg-red-50 border-red-200 text-red-700',
-            gray: 'bg-gray-50 border-gray-200 text-gray-700',
-            indigo: 'bg-indigo-50 border-indigo-200 text-indigo-700'
+          const colorClasses: Record<string, { normal: string; active: string }> = {
+            blue: { 
+              normal: 'bg-blue-50 border-blue-200 text-blue-700', 
+              active: 'bg-blue-100 border-blue-400 ring-2 ring-blue-300 text-blue-800' 
+            },
+            orange: { 
+              normal: 'bg-orange-50 border-orange-200 text-orange-700', 
+              active: 'bg-orange-100 border-orange-400 ring-2 ring-orange-300 text-orange-800' 
+            },
+            purple: { 
+              normal: 'bg-purple-50 border-purple-200 text-purple-700', 
+              active: 'bg-purple-100 border-purple-400 ring-2 ring-purple-300 text-purple-800' 
+            },
+            green: { 
+              normal: 'bg-green-50 border-green-200 text-green-700', 
+              active: 'bg-green-100 border-green-400 ring-2 ring-green-300 text-green-800' 
+            },
+            red: { 
+              normal: 'bg-red-50 border-red-200 text-red-700', 
+              active: 'bg-red-100 border-red-400 ring-2 ring-red-300 text-red-800' 
+            },
+            gray: { 
+              normal: 'bg-gray-50 border-gray-200 text-gray-700', 
+              active: 'bg-gray-100 border-gray-400 ring-2 ring-gray-300 text-gray-800' 
+            },
+            indigo: { 
+              normal: 'bg-indigo-50 border-indigo-200 text-indigo-700', 
+              active: 'bg-indigo-100 border-indigo-400 ring-2 ring-indigo-300 text-indigo-800' 
+            }
           };
           
           return (
-            <Card key={value} className={colorClasses[color]}>
+            <Card 
+              key={value} 
+              className={`cursor-pointer transition-all hover:shadow-md ${
+                isActive ? colorClasses[color].active : colorClasses[color].normal
+              }`}
+              onClick={() => setActiveFilter(value as ExpenseFilter)}
+            >
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Icon className="w-4 h-4" />
@@ -130,6 +187,21 @@ export function ExpensesTab({ expenses, onAdd, onDelete }: ExpensesTabProps) {
           );
         })}
       </div>
+
+      {/* Active Filter Indicator */}
+      {activeFilter !== 'all' && (
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-500">Фильтр:</span>
+          <Badge 
+            variant="outline" 
+            className="cursor-pointer hover:bg-gray-100"
+            onClick={() => setActiveFilter('all')}
+          >
+            {getExpenseCategoryLabel(activeFilter)}
+            <span className="ml-1">×</span>
+          </Badge>
+        </div>
+      )}
 
       {/* Total and Actions */}
       <div className="flex justify-between items-center">
@@ -208,14 +280,22 @@ export function ExpensesTab({ expenses, onAdd, onDelete }: ExpensesTabProps) {
 
       {/* Expenses List */}
       <div className="space-y-4">
-        {expenses.length === 0 ? (
+        {filteredExpenses.length === 0 ? (
           <div className="text-center py-12 text-gray-500">
             <ShoppingCart className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p>Нет записей о расходах</p>
-            <p className="text-sm">Добавьте первый расход</p>
+            <p>
+              {activeFilter === 'all' 
+                ? 'Нет записей о расходах' 
+                : `Нет расходов в категории "${getExpenseCategoryLabel(activeFilter)}"`}
+            </p>
+            <p className="text-sm">
+              {activeFilter === 'all' 
+                ? 'Добавьте первый расход' 
+                : 'Выберите другой фильтр или добавьте расход'}
+            </p>
           </div>
         ) : (
-          expenses.map((expense) => {
+          filteredExpenses.map((expense) => {
             const iconData = categoryIcons[expense.category] || categoryIcons.other;
             const Icon = iconData.icon;
             const color = iconData.color;
