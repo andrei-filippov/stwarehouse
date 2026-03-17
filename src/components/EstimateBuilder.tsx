@@ -557,7 +557,7 @@ export function EstimateBuilder({
             <thead>
               <tr style="background:#e3f2fd;">
                 <th colspan="8" style="text-align:left;padding:8px;font-size:13px;">
-                  ${category} (${categoryItems.length} поз.)
+                  ${category}
                 </th>
               </tr>
               <tr>
