@@ -63,7 +63,6 @@ export function FinanceManager({ estimates, staff, expenses, companyId, onAddExp
   // Расчёт расходов за месяц
   const monthlyExpenses = useMemo(() => {
     return expenses
-      .filter(e => e.type === 'expense')
       .reduce((sum, e) => {
         const date = new Date(e.date || e.created_at || 0);
         if (date.getMonth() === currentMonth && date.getFullYear() === currentYear) {
@@ -76,7 +75,6 @@ export function FinanceManager({ estimates, staff, expenses, companyId, onAddExp
   // Расчёт расходов за прошлый месяц
   const prevMonthExpenses = useMemo(() => {
     return expenses
-      .filter(e => e.type === 'expense')
       .reduce((sum, e) => {
         const date = new Date(e.date || e.created_at || 0);
         if (date.getMonth() === prevMonth && date.getFullYear() === prevYear) {
@@ -89,7 +87,7 @@ export function FinanceManager({ estimates, staff, expenses, companyId, onAddExp
   // Расчёт зарплат за месяц (упрощённо: считаем что зарплата = сумма сдельных оплат)
   const monthlySalary = useMemo(() => {
     return expenses
-      .filter(e => e.category === 'salary' || e.type === 'salary')
+      .filter(e => e.category === 'salary')
       .reduce((sum, e) => {
         const date = new Date(e.date || e.created_at || 0);
         if (date.getMonth() === currentMonth && date.getFullYear() === currentYear) {
