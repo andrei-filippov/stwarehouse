@@ -914,14 +914,14 @@ export async function cleanupOldRecords(companyId: string) {
 
 
 // === 3aказчики ===
-export async function saveCustomerLocal(customer: any, companyId: string) {
-  debugLog('[saveCustomerLocal] Saving customer:', customer.id);
+export async function saveCustomerLocal(customer: any, companyId: string, isSynced: boolean = false) {
+  debugLog('[saveCustomerLocal] Saving customer:', customer.id, 'synced:', isSynced);
   if (useLocalStorageFallback) {
     const customers = getFromStorage<Record<string, any>>('customers', {});
     customers[customer.id] = {
       id: customer.id,
       data: customer,
-      synced: false,
+      synced: isSynced,
       updatedAt: Date.now(),
       companyId
     };
@@ -933,7 +933,7 @@ export async function saveCustomerLocal(customer: any, companyId: string) {
     await database.put('customers', {
       id: customer.id,
       data: customer,
-      synced: false,
+      synced: isSynced,
       updatedAt: Date.now(),
       companyId
     });

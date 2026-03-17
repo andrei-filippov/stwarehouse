@@ -28,6 +28,11 @@ export function useCustomers(companyId: string | undefined) {
         
         if (fetchError) throw fetchError;
         
+        // Сохраняем серверные данные в локальное хранилище для офлайн-доступа
+        for (const customer of (data || [])) {
+          await saveCustomerLocal(customer, companyId, true);
+        }
+        
         // Мержим: серверные + локальные новые (с local_* ID)
         const serverIds = new Set((data || []).map(c => c.id));
         const newLocal = localCustomers.filter(c => {
