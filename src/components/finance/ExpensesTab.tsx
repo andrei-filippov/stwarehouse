@@ -75,8 +75,7 @@ export function ExpensesTab({ expenses, onAdd, onDelete }: ExpensesTabProps) {
       date: newExpense.date,
       category: newExpense.category,
       amount: Number(newExpense.amount) || 0,
-      description: newExpense.description,
-      type: 'expense'
+      description: newExpense.description
     });
     setIsSubmitting(false);
     

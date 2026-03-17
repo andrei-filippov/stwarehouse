@@ -11,10 +11,12 @@ export type ExpenseCategory =
 export interface Expense {
   id: string;
   user_id?: string;
+  company_id?: string;
   category: ExpenseCategory;
   amount: number;
   description: string;
   date: string; // YYYY-MM-DD
+  type?: 'expense' | 'income';
   created_at?: string;
   updated_at?: string;
 }

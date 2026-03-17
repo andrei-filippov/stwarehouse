@@ -28,18 +28,34 @@ export function useExpenses(companyId: string | undefined) {
   const addExpense = useCallback(async (expense: Partial<Expense>) => {
     if (!companyId) return { error: new Error('No company selected') };
     
+    // Подготавливаем данные для отправки
+    const dataToInsert = {
+      ...expense,
+      company_id: companyId,
+      // Убираем type если его нет в схеме
+      ...(expense.type ? { type: expense.type } : {})
+    };
+    
+    console.log('Adding expense:', dataToInsert);
+    
     try {
-      const { error } = await supabase
+      const { error, data } = await supabase
         .from('expenses')
-        .insert({ ...expense, company_id: companyId });
+        .insert(dataToInsert)
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
 
+      console.log('Expense added:', data);
       await fetchExpenses();
       toast.success('Расход добавлен');
-      return { error: null };
+      return { error: null, data };
     } catch (err: any) {
-      toast.error('Ошибка при добавлении', { description: err.message });
+      console.error('Add expense error:', err);
+      toast.error('Ошибка при добавлении', { description: err.message || err.details || 'Неизвестная ошибка' });
       return { error: err };
     }
   }, [companyId, fetchExpenses]);
