@@ -52,15 +52,15 @@ export const EstimateManager = memo(function EstimateManager({
   const getStatusBadge = (status?: EstimateStatus) => {
     switch (status) {
       case 'completed':
-        return <Badge className="bg-green-100 text-green-700 hover:bg-green-100"><CheckCircle2 className="w-3 h-3 mr-1" /> Выполнена</Badge>;
+        return <Badge className="bg-green-100 text-green-700 hover:bg-green-100 whitespace-nowrap"><CheckCircle2 className="w-3 h-3 mr-1 shrink-0" /> Выполнена</Badge>;
       case 'approved':
-        return <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100"><CheckCircle2 className="w-3 h-3 mr-1" /> Согласована</Badge>;
+        return <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 whitespace-nowrap"><CheckCircle2 className="w-3 h-3 mr-1 shrink-0" /> Согласована</Badge>;
       case 'pending':
-        return <Badge className="bg-yellow-100 text-yellow-700 hover:bg-yellow-100"><Clock className="w-3 h-3 mr-1" /> В работе</Badge>;
+        return <Badge className="bg-yellow-100 text-yellow-700 hover:bg-yellow-100 whitespace-nowrap"><Clock className="w-3 h-3 mr-1 shrink-0" /> В работе</Badge>;
       case 'cancelled':
-        return <Badge className="bg-red-100 text-red-700 hover:bg-red-100"><XCircle className="w-3 h-3 mr-1" /> Отменена</Badge>;
+        return <Badge className="bg-red-100 text-red-700 hover:bg-red-100 whitespace-nowrap"><XCircle className="w-3 h-3 mr-1 shrink-0" /> Отменена</Badge>;
       default:
-        return <Badge variant="outline"><FileText className="w-3 h-3 mr-1" /> Черновик</Badge>;
+        return <Badge variant="outline" className="whitespace-nowrap"><FileText className="w-3 h-3 mr-1 shrink-0" /> Черновик</Badge>;
     }
   };
   // Открываем создание сметы при нажатии FAB (пропускаем первый рендер)
@@ -416,7 +416,7 @@ export const EstimateManager = memo(function EstimateManager({
                                   value={estimate.status || 'draft'} 
                                   onValueChange={(value) => onUpdateStatus(estimate.id, value as EstimateStatus)}
                                 >
-                                  <SelectTrigger className="w-[130px] h-8">
+                                  <SelectTrigger className="w-[150px] h-8 shrink-0">
                                     <SelectValue>{getStatusBadge(estimate.status)}</SelectValue>
                                   </SelectTrigger>
                                   <SelectContent>
@@ -583,7 +583,7 @@ export const EstimateManager = memo(function EstimateManager({
                                     value={estimate.status || 'draft'} 
                                     onValueChange={(value) => onUpdateStatus(estimate.id, value as EstimateStatus)}
                                   >
-                                    <SelectTrigger className="w-full h-7 text-xs">
+                                    <SelectTrigger className="w-full h-7 text-xs min-w-[120px]">
                                       <SelectValue>{getStatusBadge(estimate.status)}</SelectValue>
                                     </SelectTrigger>
                                     <SelectContent>
