@@ -15,6 +15,8 @@ interface FinanceManagerProps {
   staff: Staff[];
   expenses: Expense[];
   companyId?: string;
+  onAddExpense?: (expense: Partial<Expense>) => Promise<{ error: any }>;
+  onDeleteExpense?: (id: string) => Promise<{ error: any }>;
 }
 
 export function FinanceManager({ estimates, staff, expenses, companyId }: FinanceManagerProps) {
@@ -201,7 +203,7 @@ export function FinanceManager({ estimates, staff, expenses, companyId }: Financ
         </TabsContent>
 
         <TabsContent value="expenses" className="space-y-4">
-          <ExpensesTab expenses={expenses} companyId={companyId} />
+          <ExpensesTab expenses={expenses} companyId={companyId} onAdd={onAddExpense} onDelete={onDeleteExpense} />
         </TabsContent>
 
         <TabsContent value="salary" className="space-y-4">

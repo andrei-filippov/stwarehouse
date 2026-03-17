@@ -523,6 +523,8 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
                 staff={staff}
                 expenses={expenses}
                 companyId={companyId}
+                onAddExpense={addExpense}
+                onDeleteExpense={deleteExpense}
               />
             </LazyComponent>
           )}

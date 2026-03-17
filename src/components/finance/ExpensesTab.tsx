@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Plus, Package, Wrench, ShoppingCart, Home, Fuel, MoreHorizontal, Trash2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
@@ -15,6 +15,8 @@ import { getExpenseCategoryLabel, EXPENSE_CATEGORIES } from '../../types/expense
 interface ExpensesTabProps {
   expenses: Expense[];
   companyId?: string;
+  onAdd?: (expense: Partial<Expense>) => Promise<{ error: any }>;
+  onDelete?: (id: string) => Promise<{ error: any }>;
 }
 
 // Маппинг старых категорий на новые иконки
@@ -32,8 +34,9 @@ const categoryIcons: Record<string, { icon: React.ElementType; color: string }> 
 
 import { Users } from 'lucide-react';
 
-export function ExpensesTab({ expenses }: ExpensesTabProps) {
+export function ExpensesTab({ expenses, onAdd, onDelete }: ExpensesTabProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [newExpense, setNewExpense] = useState({
     date: format(new Date(), 'yyyy-MM-dd'),
     category: '' as ExpenseCategory | '',
@@ -64,9 +67,29 @@ export function ExpensesTab({ expenses }: ExpensesTabProps) {
     expenses.reduce((sum, e) => sum + e.amount, 0),
   [expenses]);
 
-  const handleAddExpense = () => {
-    // TODO: добавление через API
-    setIsDialogOpen(false);
+  const handleAddExpense = async () => {
+    if (!onAdd) return;
+    
+    setIsSubmitting(true);
+    const { error } = await onAdd({
+      date: newExpense.date,
+      category: newExpense.category,
+      amount: Number(newExpense.amount) || 0,
+      description: newExpense.description,
+      type: 'expense'
+    });
+    setIsSubmitting(false);
+    
+    if (!error) {
+      setIsDialogOpen(false);
+      // Сброс формы
+      setNewExpense({
+        date: format(new Date(), 'yyyy-MM-dd'),
+        category: '' as ExpenseCategory | '',
+        amount: '',
+        description: ''
+      });
+    }
   };
 
   return (
@@ -173,8 +196,12 @@ export function ExpensesTab({ expenses }: ExpensesTabProps) {
                 onChange={(e) => setNewExpense(prev => ({ ...prev, description: e.target.value }))}
               />
             </div>
-            <Button onClick={handleAddExpense} className="w-full">
-              Добавить
+            <Button 
+              onClick={handleAddExpense} 
+              className="w-full"
+              disabled={isSubmitting || !newExpense.category || !newExpense.amount}
+            >
+              {isSubmitting ? 'Добавление...' : 'Добавить'}
             </Button>
           </div>
         </DialogContent>
@@ -214,6 +241,16 @@ export function ExpensesTab({ expenses }: ExpensesTabProps) {
                       <p className="text-lg font-bold text-red-600">
                         -{expense.amount.toLocaleString('ru-RU')} ₽
                       </p>
+                      {onDelete && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onDelete(expense.id)}
+                          className="text-gray-400 hover:text-red-500"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </CardContent>
