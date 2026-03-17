@@ -282,6 +282,7 @@ export const Analytics = memo(function Analytics({
                 <p className="text-2xl font-bold">{estimateCount}</p>
                 <div className="flex gap-1 mt-1 text-xs">
                   {estimatesByStatus.completed > 0 && <span className="text-green-600">{estimatesByStatus.completed}✓</span>}
+                  {estimatesByStatus.approved > 0 && <span className="text-blue-600">{estimatesByStatus.approved}✓</span>}
                   {estimatesByStatus.pending > 0 && <span className="text-yellow-600">{estimatesByStatus.pending}⏳</span>}
                   {estimatesByStatus.draft > 0 && <span className="text-gray-500">{estimatesByStatus.draft}📝</span>}
                   {estimatesByStatus.cancelled > 0 && <span className="text-red-600">{estimatesByStatus.cancelled}✕</span>}
@@ -332,11 +333,15 @@ export const Analytics = memo(function Analytics({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
             <div className="text-center p-4 bg-green-50 rounded-lg">
               <p className="text-2xl font-bold text-green-600">{estimatesByStatus.completed || 0}</p>
               <p className="text-sm text-green-700">Выполнены</p>
               <p className="text-xs text-green-600/70">учитываются в прибыли</p>
+            </div>
+            <div className="text-center p-4 bg-blue-50 rounded-lg">
+              <p className="text-2xl font-bold text-blue-600">{estimatesByStatus.approved || 0}</p>
+              <p className="text-sm text-blue-700">Согласованы</p>
             </div>
             <div className="text-center p-4 bg-yellow-50 rounded-lg">
               <p className="text-2xl font-bold text-yellow-600">{estimatesByStatus.pending || 0}</p>

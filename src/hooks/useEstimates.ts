@@ -602,7 +602,7 @@ export function useEstimates(companyId: string | undefined) {
   }, [companyId]);
 
   // Обновление статуса сметы (для аналитики)
-  const updateEstimateStatus = useCallback(async (id: string, status: 'draft' | 'pending' | 'completed' | 'cancelled') => {
+  const updateEstimateStatus = useCallback(async (id: string, status: 'draft' | 'pending' | 'approved' | 'completed' | 'cancelled') => {
     if (!companyId) return { error: new Error('No company selected') };
     
     try {

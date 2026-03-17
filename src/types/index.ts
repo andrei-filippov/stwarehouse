@@ -29,7 +29,7 @@ export type EstimateItem = {
   coefficient: number; // коэффициент, по умолчанию 1
 };
 
-export type EstimateStatus = 'draft' | 'pending' | 'completed' | 'cancelled';
+export type EstimateStatus = 'draft' | 'pending' | 'approved' | 'completed' | 'cancelled';
 
 export type Estimate = {
   id: string;

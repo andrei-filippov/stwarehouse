@@ -53,6 +53,8 @@ export const EstimateManager = memo(function EstimateManager({
     switch (status) {
       case 'completed':
         return <Badge className="bg-green-100 text-green-700 hover:bg-green-100"><CheckCircle2 className="w-3 h-3 mr-1" /> Выполнена</Badge>;
+      case 'approved':
+        return <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100"><CheckCircle2 className="w-3 h-3 mr-1" /> Согласована</Badge>;
       case 'pending':
         return <Badge className="bg-yellow-100 text-yellow-700 hover:bg-yellow-100"><Clock className="w-3 h-3 mr-1" /> В работе</Badge>;
       case 'cancelled':
@@ -420,6 +422,7 @@ export const EstimateManager = memo(function EstimateManager({
                                   <SelectContent>
                                     <SelectItem value="draft">Черновик</SelectItem>
                                     <SelectItem value="pending">В работе</SelectItem>
+                                    <SelectItem value="approved">Согласована</SelectItem>
                                     <SelectItem value="completed">Выполнена</SelectItem>
                                     <SelectItem value="cancelled">Отменена</SelectItem>
                                   </SelectContent>
@@ -586,6 +589,7 @@ export const EstimateManager = memo(function EstimateManager({
                                     <SelectContent>
                                       <SelectItem value="draft">Черновик</SelectItem>
                                       <SelectItem value="pending">В работе</SelectItem>
+                                      <SelectItem value="approved">Согласована</SelectItem>
                                       <SelectItem value="completed">Выполнена</SelectItem>
                                       <SelectItem value="cancelled">Отменена</SelectItem>
                                     </SelectContent>

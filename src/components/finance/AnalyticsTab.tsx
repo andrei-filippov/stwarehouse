@@ -36,6 +36,7 @@ export function AnalyticsTab({ estimates }: AnalyticsTabProps) {
     const counts: Record<string, { name: string; value: number; color: string }> = {
       draft: { name: 'Черновик', value: 0, color: '#9ca3af' },
       pending: { name: 'В работе', value: 0, color: '#f59e0b' },
+      approved: { name: 'Согласовано', value: 0, color: '#3b82f6' },
       completed: { name: 'Выполнено', value: 0, color: '#10b981' },
       cancelled: { name: 'Отменено', value: 0, color: '#ef4444' }
     };
@@ -51,15 +52,19 @@ export function AnalyticsTab({ estimates }: AnalyticsTabProps) {
   // Общая статистика
   const stats = useMemo(() => {
     const completed = estimates.filter(e => e.status === 'completed');
+    const approved = estimates.filter(e => e.status === 'approved');
     const pending = estimates.filter(e => e.status === 'pending');
     const totalIncome = completed.reduce((sum, e) => sum + (e.total_price || 0), 0);
+    const approvedIncome = approved.reduce((sum, e) => sum + (e.total_price || 0), 0);
     const pendingIncome = pending.reduce((sum, e) => sum + (e.total_price || 0), 0);
     
     return {
       totalEstimates: estimates.length,
       completed: completed.length,
+      approved: approved.length,
       pending: pending.length,
       totalIncome,
+      approvedIncome,
       pendingIncome
     };
   }, [estimates]);
