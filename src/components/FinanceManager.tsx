@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { DollarSign, TrendingUp, TrendingDown, Users, BarChart3 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -22,8 +22,88 @@ export function FinanceManager({ estimates, staff, expenses, companyId }: Financ
 
   // Фильтруем подтвержденные/завершенные сметы для доходов
   const completedEstimates = estimates.filter(e => 
-    e.status === 'completed' || e.status === 'pending'
+    e.status === 'completed' || e.status === 'pending' || e.status === 'approved'
   );
+
+  // Получаем текущий месяц и предыдущий
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+  const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+  const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+
+  // Расчёт доходов за месяц (completed сметы)
+  const monthlyIncome = useMemo(() => {
+    return estimates
+      .filter(e => e.status === 'completed')
+      .reduce((sum, e) => {
+        const date = e.event_date ? new Date(e.event_date) : new Date(e.created_at || 0);
+        if (date.getMonth() === currentMonth && date.getFullYear() === currentYear) {
+          return sum + (e.total || 0);
+        }
+        return sum;
+      }, 0);
+  }, [estimates, currentMonth, currentYear]);
+
+  // Расчёт доходов за прошлый месяц
+  const prevMonthIncome = useMemo(() => {
+    return estimates
+      .filter(e => e.status === 'completed')
+      .reduce((sum, e) => {
+        const date = e.event_date ? new Date(e.event_date) : new Date(e.created_at || 0);
+        if (date.getMonth() === prevMonth && date.getFullYear() === prevYear) {
+          return sum + (e.total || 0);
+        }
+        return sum;
+      }, 0);
+  }, [estimates, prevMonth, prevYear]);
+
+  // Расчёт расходов за месяц
+  const monthlyExpenses = useMemo(() => {
+    return expenses
+      .filter(e => e.type === 'expense')
+      .reduce((sum, e) => {
+        const date = new Date(e.date || e.created_at || 0);
+        if (date.getMonth() === currentMonth && date.getFullYear() === currentYear) {
+          return sum + (e.amount || 0);
+        }
+        return sum;
+      }, 0);
+  }, [expenses, currentMonth, currentYear]);
+
+  // Расчёт расходов за прошлый месяц
+  const prevMonthExpenses = useMemo(() => {
+    return expenses
+      .filter(e => e.type === 'expense')
+      .reduce((sum, e) => {
+        const date = new Date(e.date || e.created_at || 0);
+        if (date.getMonth() === prevMonth && date.getFullYear() === prevYear) {
+          return sum + (e.amount || 0);
+        }
+        return sum;
+      }, 0);
+  }, [expenses, prevMonth, prevYear]);
+
+  // Расчёт зарплат за месяц (упрощённо: считаем что зарплата = сумма сдельных оплат)
+  const monthlySalary = useMemo(() => {
+    return expenses
+      .filter(e => e.category === 'salary' || e.type === 'salary')
+      .reduce((sum, e) => {
+        const date = new Date(e.date || e.created_at || 0);
+        if (date.getMonth() === currentMonth && date.getFullYear() === currentYear) {
+          return sum + (e.amount || 0);
+        }
+        return sum;
+      }, 0);
+  }, [expenses, currentMonth, currentYear]);
+
+  // Прибыль
+  const monthlyProfit = monthlyIncome - monthlyExpenses - monthlySalary;
+  const profitMargin = monthlyIncome > 0 ? (monthlyProfit / monthlyIncome) * 100 : 0;
+
+  // Рост/падение в процентах
+  const incomeChange = prevMonthIncome > 0 ? ((monthlyIncome - prevMonthIncome) / prevMonthIncome) * 100 : 0;
+  const expensesChange = prevMonthExpenses > 0 ? ((monthlyExpenses - prevMonthExpenses) / prevMonthExpenses) * 100 : 0;
 
   return (
     <div className="space-y-6">
@@ -46,8 +126,10 @@ export function FinanceManager({ estimates, staff, expenses, companyId }: Financ
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-900">0 ₽</div>
-            <p className="text-xs text-green-600 mt-1">+0% к прошлому месяцу</p>
+            <div className="text-2xl font-bold text-green-900">{monthlyIncome.toLocaleString('ru-RU')} ₽</div>
+            <p className={`text-xs mt-1 ${incomeChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              {incomeChange >= 0 ? '+' : ''}{incomeChange.toFixed(1)}% к прошлому месяцу
+            </p>
           </CardContent>
         </Card>
 
@@ -59,8 +141,10 @@ export function FinanceManager({ estimates, staff, expenses, companyId }: Financ
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-900">0 ₽</div>
-            <p className="text-xs text-red-600 mt-1">+0% к прошлому месяцу</p>
+            <div className="text-2xl font-bold text-red-900">{monthlyExpenses.toLocaleString('ru-RU')} ₽</div>
+            <p className={`text-xs mt-1 ${expensesChange >= 0 ? 'text-red-600' : 'text-green-600'}`}>
+              {expensesChange >= 0 ? '+' : ''}{expensesChange.toFixed(1)}% к прошлому месяцу
+            </p>
           </CardContent>
         </Card>
 
@@ -72,7 +156,7 @@ export function FinanceManager({ estimates, staff, expenses, companyId }: Financ
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-900">0 ₽</div>
+            <div className="text-2xl font-bold text-blue-900">{monthlySalary.toLocaleString('ru-RU')} ₽</div>
             <p className="text-xs text-blue-600 mt-1">{staff.length} сотрудников</p>
           </CardContent>
         </Card>
@@ -85,8 +169,8 @@ export function FinanceManager({ estimates, staff, expenses, companyId }: Financ
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-purple-900">0 ₽</div>
-            <p className="text-xs text-purple-600 mt-1">Маржа: 0%</p>
+            <div className="text-2xl font-bold text-purple-900">{monthlyProfit.toLocaleString('ru-RU')} ₽</div>
+            <p className="text-xs text-purple-600 mt-1">Маржа: {profitMargin.toFixed(1)}%</p>
           </CardContent>
         </Card>
       </div>

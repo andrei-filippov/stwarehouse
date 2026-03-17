@@ -1,9 +1,17 @@
 -- Добавление поля status для смет (для аналитики прибыли)
 
--- Добавляем поле status в таблицу estimates
+-- Удаляем старый CHECK constraint если есть
 ALTER TABLE estimates 
-ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'draft' 
-CHECK (status IN ('draft', 'pending', 'completed', 'cancelled'));
+DROP CONSTRAINT IF EXISTS estimates_status_check;
+
+-- Добавляем поле status в таблицу estimates (если ещё не добавлено)
+ALTER TABLE estimates 
+ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'draft';
+
+-- Добавляем CHECK constraint с новым статусом 'approved'
+ALTER TABLE estimates 
+ADD CONSTRAINT estimates_status_check 
+CHECK (status IN ('draft', 'pending', 'approved', 'completed', 'cancelled'));
 
 -- Создаем индекс для быстрого фильтра по статусу
 CREATE INDEX IF NOT EXISTS idx_estimates_status ON estimates(status);
@@ -19,4 +27,4 @@ WHERE status = 'draft'
 AND created_at < NOW() - INTERVAL '30 days';
 
 -- Комментарий к полю
-COMMENT ON COLUMN estimates.status IS 'Статус сметы: draft (черновик), pending (в работе), completed (выполнена), cancelled (отменена)';
+COMMENT ON COLUMN estimates.status IS 'Статус сметы: draft (черновик), pending (в работе), approved (согласована), completed (выполнена), cancelled (отменена)';
