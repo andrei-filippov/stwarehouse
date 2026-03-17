@@ -25,6 +25,7 @@ interface TemplatesManagerProps {
   onUpdate: (id: string, updates: any, items?: any[]) => Promise<{ error: any }>;
   onDelete: (id: string) => Promise<{ error: any }>;
   userId?: string;
+  companyId?: string;
   fabAction?: number;
 }
 
@@ -39,6 +40,7 @@ export const TemplatesManager = memo(function TemplatesManager({
   onUpdate,
   onDelete,
   userId,
+  companyId,
   fabAction
 }: TemplatesManagerProps) {
   return (
@@ -68,7 +70,7 @@ export const TemplatesManager = memo(function TemplatesManager({
         </TabsContent>
 
         <TabsContent value="contracts" className="mt-4">
-          <ContractTemplates userId={userId} />
+          <ContractTemplates userId={userId} companyId={companyId} />
         </TabsContent>
       </Tabs>
     </div>
@@ -223,9 +225,10 @@ function EstimateTemplates({
 // ============================================
 interface ContractTemplatesProps {
   userId?: string;
+  companyId?: string;
 }
 
-function ContractTemplates({ userId }: ContractTemplatesProps) {
+function ContractTemplates({ userId, companyId }: ContractTemplatesProps) {
   const {
     templates,
     loading,
@@ -233,7 +236,7 @@ function ContractTemplates({ userId }: ContractTemplatesProps) {
     createTextTemplate,
     deleteTemplate,
     downloadFile,
-  } = useContractTemplates(userId);
+  } = useContractTemplates(userId, companyId);
 
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [isTextDialogOpen, setIsTextDialogOpen] = useState(false);
@@ -480,6 +483,7 @@ function ContractTemplates({ userId }: ContractTemplatesProps) {
             </DialogDescription>
           </DialogHeader>
           <ContractTemplateForm
+            companyId={companyId}
             onCancel={() => setIsTextDialogOpen(false)}
             onSave={async (data) => {
               const { error } = await createTextTemplate(data);
@@ -498,11 +502,12 @@ function ContractTemplates({ userId }: ContractTemplatesProps) {
 // Contract Template Form (for text templates)
 // ============================================
 interface ContractTemplateFormProps {
+  companyId?: string;
   onCancel: () => void;
   onSave: (data: any) => void;
 }
 
-function ContractTemplateForm({ onCancel, onSave }: ContractTemplateFormProps) {
+function ContractTemplateForm({ companyId, onCancel, onSave }: ContractTemplateFormProps) {
   const [formData, setFormData] = useState({
     name: '',
     type: 'service' as ContractType,
@@ -654,7 +659,7 @@ function ContractTemplateForm({ onCancel, onSave }: ContractTemplateFormProps) {
 
       <div className="flex gap-3 justify-end pt-4">
         <Button variant="outline" onClick={onCancel}>Отмена</Button>
-        <Button onClick={() => onSave(formData)} disabled={!formData.name}>
+        <Button onClick={() => onSave({ ...formData, company_id: companyId })} disabled={!formData.name}>
           <Copy className="w-4 h-4 mr-2" />
           Сохранить шаблон
         </Button>

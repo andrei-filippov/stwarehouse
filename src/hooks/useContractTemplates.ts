@@ -3,17 +3,18 @@ import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
 import type { ContractTemplate } from '../types';
 
-export function useContractTemplates(userId: string | undefined) {
+export function useContractTemplates(userId: string | undefined, companyId: string | undefined) {
   const [templates, setTemplates] = useState<ContractTemplate[]>([]);
   const [loading, setLoading] = useState(false);
 
   const fetchTemplates = useCallback(async () => {
-    if (!userId) return;
+    if (!userId || !companyId) return;
     setLoading(true);
     
     const { data, error } = await supabase
       .from('contract_templates')
       .select('*')
+      .eq('company_id', companyId)
       .order('name');
     
     if (error) {
@@ -22,7 +23,7 @@ export function useContractTemplates(userId: string | undefined) {
       setTemplates(data as ContractTemplate[]);
     }
     setLoading(false);
-  }, [userId]);
+  }, [userId, companyId]);
 
   useEffect(() => {
     fetchTemplates();
@@ -78,6 +79,7 @@ export function useContractTemplates(userId: string | undefined) {
         .from('contract_templates')
         .insert([{
           user_id: userId,
+          company_id: companyId,
           name: templateData.name,
           type: templateData.type,
           description: templateData.description,

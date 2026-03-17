@@ -437,6 +437,7 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
                 onUpdate={updateTemplate}
                 onDelete={deleteTemplate}
                 userId={user?.id}
+                companyId={companyId}
                 fabAction={fabAction}
               />
             </LazyComponent>
