@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Plus, FileText, CheckCircle2, Clock, Calendar, Trash2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
@@ -24,7 +24,19 @@ interface ManualIncome {
 }
 
 export function IncomeTab({ estimates, companyId }: IncomeTabProps) {
-  const [manualIncomes, setManualIncomes] = useState<ManualIncome[]>([]);
+  // Загружаем из localStorage при инициализации
+  const [manualIncomes, setManualIncomes] = useState<ManualIncome[]>(() => {
+    if (!companyId) return [];
+    const saved = localStorage.getItem(`income_manual_${companyId}`);
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // Сохраняем в localStorage при изменении
+  useEffect(() => {
+    if (companyId) {
+      localStorage.setItem(`income_manual_${companyId}`, JSON.stringify(manualIncomes));
+    }
+  }, [manualIncomes, companyId]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newIncome, setNewIncome] = useState({
     date: format(new Date(), 'yyyy-MM-dd'),

@@ -1,0 +1,61 @@
+
+// === Заказчики ===
+export async function saveCustomerLocal(customer: any, companyId: string) {
+  debugLog('[saveCustomerLocal] Saving customer:', customer.id);
+  if (useLocalStorageFallback) {
+    const customers = getFromStorage<Record<string, any>>('customers', {});
+    customers[customer.id] = {
+      id: customer.id,
+      data: customer,
+      synced: false,
+      updatedAt: Date.now(),
+      companyId
+    };
+    setToStorage('customers', customers);
+    return;
+  }
+  try {
+    const database = await initOfflineDB();
+    await database.put('customers', {
+      id: customer.id,
+      data: customer,
+      synced: false,
+      updatedAt: Date.now(),
+      companyId
+    });
+  } catch (e) {
+    debugError('[saveCustomerLocal] Error:', e);
+  }
+}
+
+export async function getCustomersLocal(companyId: string) {
+  if (useLocalStorageFallback) {
+    const customers = getFromStorage<Record<string, any>>('customers', {});
+    return Object.values(customers)
+      .filter((c: any) => c.companyId === companyId)
+      .map((c: any) => c.data);
+  }
+  try {
+    const database = await initOfflineDB();
+    const items = await database.getAllFromIndex('customers', 'by-company', companyId);
+    return items.map(item => item.data);
+  } catch (e) {
+    return [];
+  }
+}
+
+export async function deleteCustomerLocal(id: string) {
+  if (useLocalStorageFallback) {
+    const customers = getFromStorage<Record<string, any>>('customers', {});
+    delete customers[id];
+    setToStorage('customers', customers);
+    return;
+  }
+  try {
+    const database = await initOfflineDB();
+    await database.delete('customers', id);
+  } catch (e) {
+    debugError('[deleteCustomerLocal] Error:', e);
+  }
+}
+

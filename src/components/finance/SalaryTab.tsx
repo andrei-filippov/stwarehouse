@@ -155,11 +155,16 @@ export function SalaryTab({ staff, records = [], onAddOrUpdate, onDelete }: Sala
           onChange={(e) => setActiveMonth(e.target.value)}
           className="border rounded-md px-3 py-2"
         >
-          {months.map(m => (
-            <option key={m} value={m}>
-              {format(new Date(m + '-01'), 'MMMM yyyy', { locale: ru })}
-            </option>
-          ))}
+          {months.map(m => {
+            const [year, month] = m.split('-');
+            const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+            const monthName = monthNames[parseInt(month) - 1];
+            return (
+              <option key={m} value={m}>
+                {monthName} {year}
+              </option>
+            );
+          })}
         </select>
       </div>
 

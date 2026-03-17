@@ -1,4 +1,4 @@
-import { openDB, DBSchema, IDBPDatabase } from 'idb';
+﻿import { openDB, DBSchema, IDBPDatabase } from 'idb';
 import { supabase } from './supabase';
 import { debugLog, debugError } from './utils';
 
@@ -65,11 +65,11 @@ interface StwarehouseDB extends DBSchema {
 }
 
 const DB_NAME = 'stwarehouse-offline';
-const DB_VERSION = 3; // Увеличиваем версию для добавления заказчиков
+const DB_VERSION = 3; // РЈРІРµР»РёС‡РёРІР°РµРј РІРµСЂСЃРёСЋ РґР»СЏ РґРѕР±Р°РІР»РµРЅРёСЏ Р·Р°РєР°Р·С‡РёРєРѕРІ
 
 let db: IDBPDatabase<StwarehouseDB> | null = null;
 
-// Проверка доступности IndexedDB (Safari в приватном режиме может блокировать)
+// РџСЂРѕРІРµСЂРєР° РґРѕСЃС‚СѓРїРЅРѕСЃС‚Рё IndexedDB (Safari РІ РїСЂРёРІР°С‚РЅРѕРј СЂРµР¶РёРјРµ РјРѕР¶РµС‚ Р±Р»РѕРєРёСЂРѕРІР°С‚СЊ)
 function isIndexedDBAvailable(): boolean {
   try {
     return typeof window !== 'undefined' && 
@@ -80,7 +80,7 @@ function isIndexedDBAvailable(): boolean {
   }
 }
 
-// Проверка доступности localStorage
+// РџСЂРѕРІРµСЂРєР° РґРѕСЃС‚СѓРїРЅРѕСЃС‚Рё localStorage
 function isLocalStorageAvailable(): boolean {
   try {
     const test = '__test__';
@@ -92,20 +92,20 @@ function isLocalStorageAvailable(): boolean {
   }
 }
 
-// Fallback на localStorage для Safari приватного режима
+// Fallback РЅР° localStorage РґР»СЏ Safari РїСЂРёРІР°С‚РЅРѕРіРѕ СЂРµР¶РёРјР°
 const STORAGE_PREFIX = 'stwh_';
 let useLocalStorageFallback = false;
 
-// Публичная функция проверки доступности офлайн-хранилища
+// РџСѓР±Р»РёС‡РЅР°СЏ С„СѓРЅРєС†РёСЏ РїСЂРѕРІРµСЂРєРё РґРѕСЃС‚СѓРїРЅРѕСЃС‚Рё РѕС„Р»Р°Р№РЅ-С…СЂР°РЅРёР»РёС‰Р°
 export function isOfflineStorageAvailable(): boolean {
   return isIndexedDBAvailable() || isLocalStorageAvailable();
 }
 
-// Инициализация базы данных
+// РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ Р±Р°Р·С‹ РґР°РЅРЅС‹С…
 export async function initOfflineDB(): Promise<IDBPDatabase<StwarehouseDB>> {
   if (db) return db;
   
-  // Проверяем доступность IndexedDB
+  // РџСЂРѕРІРµСЂСЏРµРј РґРѕСЃС‚СѓРїРЅРѕСЃС‚СЊ IndexedDB
   if (!isIndexedDBAvailable()) {
     useLocalStorageFallback = true;
     throw new Error('IndexedDB not available');
@@ -114,35 +114,35 @@ export async function initOfflineDB(): Promise<IDBPDatabase<StwarehouseDB>> {
   try {
     db = await openDB<StwarehouseDB>(DB_NAME, DB_VERSION, {
       upgrade(database, oldVersion) {
-        // Таблица смет
+        // РўР°Р±Р»РёС†Р° СЃРјРµС‚
         if (!database.objectStoreNames.contains('estimates')) {
           const estimatesStore = database.createObjectStore('estimates', { keyPath: 'id' });
           estimatesStore.createIndex('by-company', 'companyId');
           estimatesStore.createIndex('by-synced', 'synced');
         }
         
-        // Таблица оборудования
+        // РўР°Р±Р»РёС†Р° РѕР±РѕСЂСѓРґРѕРІР°РЅРёСЏ
         if (!database.objectStoreNames.contains('equipment')) {
           const equipmentStore = database.createObjectStore('equipment', { keyPath: 'id' });
           equipmentStore.createIndex('by-company', 'companyId');
           equipmentStore.createIndex('by-synced', 'synced');
         }
         
-        // Таблица чек-листов (новая в версии 2)
+        // РўР°Р±Р»РёС†Р° С‡РµРє-Р»РёСЃС‚РѕРІ (РЅРѕРІР°СЏ РІ РІРµСЂСЃРёРё 2)
         if (!database.objectStoreNames.contains('checklists')) {
           const checklistsStore = database.createObjectStore('checklists', { keyPath: 'id' });
           checklistsStore.createIndex('by-company', 'companyId');
           checklistsStore.createIndex('by-synced', 'synced');
         }
         
-        // Таблица заказчиков (новая в версии 3)
+        // РўР°Р±Р»РёС†Р° Р·Р°РєР°Р·С‡РёРєРѕРІ (РЅРѕРІР°СЏ РІ РІРµСЂСЃРёРё 3)
         if (!database.objectStoreNames.contains('customers')) {
           const customersStore = database.createObjectStore('customers', { keyPath: 'id' });
           customersStore.createIndex('by-company', 'companyId');
           customersStore.createIndex('by-synced', 'synced');
         }
         
-        // Очередь синхронизации
+        // РћС‡РµСЂРµРґСЊ СЃРёРЅС…СЂРѕРЅРёР·Р°С†РёРё
         if (!database.objectStoreNames.contains('syncQueue')) {
           database.createObjectStore('syncQueue', { 
             keyPath: 'id', 
@@ -150,7 +150,7 @@ export async function initOfflineDB(): Promise<IDBPDatabase<StwarehouseDB>> {
           });
         }
         
-        // Настройки
+        // РќР°СЃС‚СЂРѕР№РєРё
         if (!database.objectStoreNames.contains('settings')) {
           database.createObjectStore('settings');
         }
@@ -159,7 +159,7 @@ export async function initOfflineDB(): Promise<IDBPDatabase<StwarehouseDB>> {
     
     return db;
   } catch (err) {
-    // Если не удалось открыть БД (приватный режим Safari) - используем localStorage
+    // Р•СЃР»Рё РЅРµ СѓРґР°Р»РѕСЃСЊ РѕС‚РєСЂС‹С‚СЊ Р‘Р” (РїСЂРёРІР°С‚РЅС‹Р№ СЂРµР¶РёРј Safari) - РёСЃРїРѕР»СЊР·СѓРµРј localStorage
     if (isLocalStorageAvailable()) {
       useLocalStorageFallback = true;
     }
@@ -167,7 +167,7 @@ export async function initOfflineDB(): Promise<IDBPDatabase<StwarehouseDB>> {
   }
 }
 
-// Helper для localStorage fallback
+// Helper РґР»СЏ localStorage fallback
 function getFromStorage<T>(key: string, defaultValue: T): T {
   try {
     const item = localStorage.getItem(STORAGE_PREFIX + key);
@@ -181,11 +181,11 @@ function setToStorage(key: string, value: any): void {
   try {
     localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(value));
   } catch {
-    // localStorage может быть переполнен
+    // localStorage РјРѕР¶РµС‚ Р±С‹С‚СЊ РїРµСЂРµРїРѕР»РЅРµРЅ
   }
 }
 
-// === Сметы ===
+// === РЎРјРµС‚С‹ ===
 export async function saveEstimateLocal(estimate: any, companyId: string) {
   debugLog('[saveEstimateLocal] Saving estimate:', estimate.id, 'fallback:', useLocalStorageFallback);
   if (useLocalStorageFallback) {
@@ -213,7 +213,7 @@ export async function saveEstimateLocal(estimate: any, companyId: string) {
     debugLog('[saveEstimateLocal] Saved to IndexedDB');
   } catch (e) {
     debugError('[saveEstimateLocal] Error, switching to localStorage:', e);
-    // Если IndexedDB не работает - переключаемся на localStorage
+    // Р•СЃР»Рё IndexedDB РЅРµ СЂР°Р±РѕС‚Р°РµС‚ - РїРµСЂРµРєР»СЋС‡Р°РµРјСЃСЏ РЅР° localStorage
     useLocalStorageFallback = true;
     const estimates = getFromStorage<Record<string, any>>('estimates', {});
     estimates[estimate.id] = {
@@ -276,7 +276,7 @@ export async function deleteEstimateLocal(id: string) {
     debugLog('[deleteEstimateLocal] Deleted from IndexedDB');
   } catch (e) {
     debugError('[deleteEstimateLocal] Error, switching to localStorage:', e);
-    // Если IndexedDB не работает - переключаемся на localStorage
+    // Р•СЃР»Рё IndexedDB РЅРµ СЂР°Р±РѕС‚Р°РµС‚ - РїРµСЂРµРєР»СЋС‡Р°РµРјСЃСЏ РЅР° localStorage
     useLocalStorageFallback = true;
     const estimates = getFromStorage<Record<string, any>>('estimates', {});
     delete estimates[id];
@@ -320,7 +320,7 @@ export async function markEstimateSynced(id: string) {
   }
 }
 
-// === Оборудование ===
+// === РћР±РѕСЂСѓРґРѕРІР°РЅРёРµ ===
 export async function saveEquipmentLocal(equipment: any, companyId: string) {
   const database = await initOfflineDB();
   await database.put('equipment', {
@@ -378,7 +378,7 @@ export async function deleteEquipmentLocal(id: string) {
   }
 }
 
-// === Чек-листы ===
+// === Р§РµРє-Р»РёСЃС‚С‹ ===
 export async function saveChecklistLocal(checklist: any, companyId: string) {
   const database = await initOfflineDB();
   await database.put('checklists', {
@@ -451,7 +451,7 @@ export async function markChecklistSynced(id: string) {
   }
 }
 
-// === Очередь синхронизации ===
+// === РћС‡РµСЂРµРґСЊ СЃРёРЅС…СЂРѕРЅРёР·Р°С†РёРё ===
 let queueIdCounter = 1;
 
 export async function addToSyncQueue(
@@ -462,25 +462,25 @@ export async function addToSyncQueue(
   const dataId = data?.id || data?.estimateId;
   debugLog('[addToSyncQueue] Adding to queue:', { table, operation, dataId });
   
-  // Проверяем, есть ли уже запись для этого ID в очереди
-  // Для estimates ищем по data.id, для estimate_items ищем по data.estimateId
+  // РџСЂРѕРІРµСЂСЏРµРј, РµСЃС‚СЊ Р»Рё СѓР¶Рµ Р·Р°РїРёСЃСЊ РґР»СЏ СЌС‚РѕРіРѕ ID РІ РѕС‡РµСЂРµРґРё
+  // Р”Р»СЏ estimates РёС‰РµРј РїРѕ data.id, РґР»СЏ estimate_items РёС‰РµРј РїРѕ data.estimateId
   const existingQueue = await getSyncQueue();
   const existingIndex = existingQueue.findIndex(item => {
     if (item.table !== table) return false;
     
     if (table === 'estimates') {
-      // Для estimates сравниваем по data.id
+      // Р”Р»СЏ estimates СЃСЂР°РІРЅРёРІР°РµРј РїРѕ data.id
       return item.data?.id === dataId;
     } else if (table === 'estimate_items') {
-      // Для estimate_items сравниваем по data.estimateId
+      // Р”Р»СЏ estimate_items СЃСЂР°РІРЅРёРІР°РµРј РїРѕ data.estimateId
       return item.data?.estimateId === dataId;
     } else {
-      // Для остальных таблиц - общая логика
+      // Р”Р»СЏ РѕСЃС‚Р°Р»СЊРЅС‹С… С‚Р°Р±Р»РёС† - РѕР±С‰Р°СЏ Р»РѕРіРёРєР°
       return item.data?.id === dataId || item.data?.estimateId === dataId;
     }
   });
   
-  // Если есть существующая запись для ТОЙ ЖЕ таблицы - удаляем её
+  // Р•СЃР»Рё РµСЃС‚СЊ СЃСѓС‰РµСЃС‚РІСѓСЋС‰Р°СЏ Р·Р°РїРёСЃСЊ РґР»СЏ РўРћР™ Р–Р• С‚Р°Р±Р»РёС†С‹ - СѓРґР°Р»СЏРµРј РµС‘
   if (existingIndex >= 0) {
     debugLog('[addToSyncQueue] Found existing entry for same table, removing duplicate');
     await removeFromSyncQueue(existingQueue[existingIndex].id!);
@@ -510,7 +510,7 @@ export async function addToSyncQueue(
       createdAt: Date.now()
     });
   } catch (e) {
-    // Если IndexedDB не работает - переключаемся на localStorage
+    // Р•СЃР»Рё IndexedDB РЅРµ СЂР°Р±РѕС‚Р°РµС‚ - РїРµСЂРµРєР»СЋС‡Р°РµРјСЃСЏ РЅР° localStorage
     useLocalStorageFallback = true;
     const queue = getFromStorage<any[]>('syncQueue', []);
     const id = queueIdCounter++;
@@ -539,7 +539,7 @@ export async function getSyncQueue() {
     debugLog('[getSyncQueue] IndexedDB mode, count:', queue.length, 'items:', queue.map(i => ({ table: i.table, operation: i.operation })));
     return queue;
   } catch (e) {
-    // Если IndexedDB не работает - переключаемся на localStorage
+    // Р•СЃР»Рё IndexedDB РЅРµ СЂР°Р±РѕС‚Р°РµС‚ - РїРµСЂРµРєР»СЋС‡Р°РµРјСЃСЏ РЅР° localStorage
     useLocalStorageFallback = true;
     const queue = getFromStorage<any[]>('syncQueue', []);
     debugLog('[getSyncQueue] Error, fallback to localStorage, count:', queue.length);
@@ -608,9 +608,9 @@ export async function clearSyncQueue() {
   }
 }
 
-// Полная очистка всех локальных данных (для сброса кэша на iPhone)
+// РџРѕР»РЅР°СЏ РѕС‡РёСЃС‚РєР° РІСЃРµС… Р»РѕРєР°Р»СЊРЅС‹С… РґР°РЅРЅС‹С… (РґР»СЏ СЃР±СЂРѕСЃР° РєСЌС€Р° РЅР° iPhone)
 export async function clearAllLocalData() {
-  // Всегда очищаем localStorage (наши данные с префиксом)
+  // Р’СЃРµРіРґР° РѕС‡РёС‰Р°РµРј localStorage (РЅР°С€Рё РґР°РЅРЅС‹Рµ СЃ РїСЂРµС„РёРєСЃРѕРј)
   if (isLocalStorageAvailable()) {
     const keysToRemove: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
@@ -623,11 +623,11 @@ export async function clearAllLocalData() {
     debugLog('[clearAllLocalData] Cleared localStorage keys:', keysToRemove);
   }
   
-  // Всегда пытаемся очистить IndexedDB
+  // Р’СЃРµРіРґР° РїС‹С‚Р°РµРјСЃСЏ РѕС‡РёСЃС‚РёС‚СЊ IndexedDB
   if (isIndexedDBAvailable()) {
     try {
       const database = await initOfflineDB();
-      // Очищаем все таблицы
+      // РћС‡РёС‰Р°РµРј РІСЃРµ С‚Р°Р±Р»РёС†С‹
       const stores = ['estimates', 'equipment', 'checklists', 'syncQueue', 'settings'];
       for (const storeName of stores) {
         if (database.objectStoreNames.contains(storeName)) {
@@ -639,7 +639,7 @@ export async function clearAllLocalData() {
       }
     } catch (e) {
       debugError('[clearAllLocalData] Error clearing IndexedDB:', e);
-      // Если не удалось очистить IndexedDB - пробуем удалить всю базу
+      // Р•СЃР»Рё РЅРµ СѓРґР°Р»РѕСЃСЊ РѕС‡РёСЃС‚РёС‚СЊ IndexedDB - РїСЂРѕР±СѓРµРј СѓРґР°Р»РёС‚СЊ РІСЃСЋ Р±Р°Р·Сѓ
       try {
         indexedDB.deleteDatabase(DB_NAME);
         debugLog('[clearAllLocalData] Deleted entire IndexedDB database');
@@ -647,13 +647,13 @@ export async function clearAllLocalData() {
     }
   }
   
-  // Сбрасываем флаги
+  // РЎР±СЂР°СЃС‹РІР°РµРј С„Р»Р°РіРё
   useLocalStorageFallback = false;
   db = null;
   debugLog('[clearAllLocalData] Reset flags');
 }
 
-// === Удалённые сметы (для фильтрации при мерже с сервером) ===
+// === РЈРґР°Р»С‘РЅРЅС‹Рµ СЃРјРµС‚С‹ (РґР»СЏ С„РёР»СЊС‚СЂР°С†РёРё РїСЂРё РјРµСЂР¶Рµ СЃ СЃРµСЂРІРµСЂРѕРј) ===
 const DELETED_ESTIMATES_KEY = 'deleted_estimates';
 
 export async function markEstimateDeleted(id: string) {
@@ -697,7 +697,7 @@ export async function clearDeletedEstimates() {
   }
 }
 
-// === Настройки ===
+// === РќР°СЃС‚СЂРѕР№РєРё ===
 export async function saveSetting(key: string, value: any) {
   if (useLocalStorageFallback) {
     setToStorage(key, value);
@@ -715,7 +715,7 @@ export async function getSetting(key: string) {
   return database.get('settings', key);
 }
 
-// === Правила чеклистов (кэш для офлайн) ===
+// === РџСЂР°РІРёР»Р° С‡РµРєР»РёСЃС‚РѕРІ (РєСЌС€ РґР»СЏ РѕС„Р»Р°Р№РЅ) ===
 const CHECKLIST_RULES_KEY = 'checklist_rules_cache';
 
 export async function saveChecklistRulesCache(rules: any[], companyId: string) {
@@ -742,7 +742,7 @@ export async function clearChecklistRulesCache() {
   }
 }
 
-// === Пользователь (для офлайн-авторизации) ===
+// === РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ (РґР»СЏ РѕС„Р»Р°Р№РЅ-Р°РІС‚РѕСЂРёР·Р°С†РёРё) ===
 export async function saveUserLocal(user: any) {
   const database = await initOfflineDB();
   await database.put('settings', user, 'current_user');
@@ -773,38 +773,38 @@ export async function getCompanyLocal() {
   return database.get('settings', 'current_company');
 }
 
-// === Статус сети ===
+// === РЎС‚Р°С‚СѓСЃ СЃРµС‚Рё ===
 
-// Кэш статуса сервера
+// РљСЌС€ СЃС‚Р°С‚СѓСЃР° СЃРµСЂРІРµСЂР°
 let serverStatusCache = {
   isAvailable: navigator.onLine,
   lastChecked: 0,
   checking: false
 };
 
-// Быстрая проверка (без запроса к серверу)
+// Р‘С‹СЃС‚СЂР°СЏ РїСЂРѕРІРµСЂРєР° (Р±РµР· Р·Р°РїСЂРѕСЃР° Рє СЃРµСЂРІРµСЂСѓ)
 export function checkIsOnline(): boolean {
   return navigator.onLine && serverStatusCache.isAvailable;
 }
 
-// Alias для обратной совместимости
+// Alias РґР»СЏ РѕР±СЂР°С‚РЅРѕР№ СЃРѕРІРјРµСЃС‚РёРјРѕСЃС‚Рё
 export const isOnline = checkIsOnline;
 
-// Полная проверка с пингом к серверу (использовать перед важными операциями)
+// РџРѕР»РЅР°СЏ РїСЂРѕРІРµСЂРєР° СЃ РїРёРЅРіРѕРј Рє СЃРµСЂРІРµСЂСѓ (РёСЃРїРѕР»СЊР·РѕРІР°С‚СЊ РїРµСЂРµРґ РІР°Р¶РЅС‹РјРё РѕРїРµСЂР°С†РёСЏРјРё)
 export async function checkServerStatus(): Promise<boolean> {
-  // Если браузер офлайн - сервер точно недоступен
+  // Р•СЃР»Рё Р±СЂР°СѓР·РµСЂ РѕС„Р»Р°Р№РЅ - СЃРµСЂРІРµСЂ С‚РѕС‡РЅРѕ РЅРµРґРѕСЃС‚СѓРїРµРЅ
   if (!navigator.onLine) {
     serverStatusCache.isAvailable = false;
     return false;
   }
   
-  // Если недавно проверяли (менее 5 сек назад) - возвращаем кэш
+  // Р•СЃР»Рё РЅРµРґР°РІРЅРѕ РїСЂРѕРІРµСЂСЏР»Рё (РјРµРЅРµРµ 5 СЃРµРє РЅР°Р·Р°Рґ) - РІРѕР·РІСЂР°С‰Р°РµРј РєСЌС€
   const now = Date.now();
   if (now - serverStatusCache.lastChecked < 5000) {
     return serverStatusCache.isAvailable;
   }
   
-  // Если проверка уже идёт - ждём результата
+  // Р•СЃР»Рё РїСЂРѕРІРµСЂРєР° СѓР¶Рµ РёРґС‘С‚ - Р¶РґС‘Рј СЂРµР·СѓР»СЊС‚Р°С‚Р°
   if (serverStatusCache.checking) {
     await new Promise(resolve => setTimeout(resolve, 100));
     return serverStatusCache.isAvailable;
@@ -813,15 +813,15 @@ export async function checkServerStatus(): Promise<boolean> {
   serverStatusCache.checking = true;
   
   try {
-    // Пингуем сервер через health check endpoint или простой запрос
+    // РџРёРЅРіСѓРµРј СЃРµСЂРІРµСЂ С‡РµСЂРµР· health check endpoint РёР»Рё РїСЂРѕСЃС‚РѕР№ Р·Р°РїСЂРѕСЃ
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 3000);
     
-    // Используем supabase для проверки - простой запрос к текущей сессии
+    // РСЃРїРѕР»СЊР·СѓРµРј supabase РґР»СЏ РїСЂРѕРІРµСЂРєРё - РїСЂРѕСЃС‚РѕР№ Р·Р°РїСЂРѕСЃ Рє С‚РµРєСѓС‰РµР№ СЃРµСЃСЃРёРё
     const { error } = await supabase.auth.getSession();
     clearTimeout(timeout);
     
-    // Если нет ошибки сети - сервер доступен
+    // Р•СЃР»Рё РЅРµС‚ РѕС€РёР±РєРё СЃРµС‚Рё - СЃРµСЂРІРµСЂ РґРѕСЃС‚СѓРїРµРЅ
     serverStatusCache.isAvailable = !error || !error.message?.includes('fetch');
   } catch (e) {
     serverStatusCache.isAvailable = false;
@@ -833,9 +833,9 @@ export async function checkServerStatus(): Promise<boolean> {
   return serverStatusCache.isAvailable;
 }
 
-// Обновить статус сервера (вызывать периодически или при изменении сети)
+// РћР±РЅРѕРІРёС‚СЊ СЃС‚Р°С‚СѓСЃ СЃРµСЂРІРµСЂР° (РІС‹Р·С‹РІР°С‚СЊ РїРµСЂРёРѕРґРёС‡РµСЃРєРё РёР»Рё РїСЂРё РёР·РјРµРЅРµРЅРёРё СЃРµС‚Рё)
 export async function updateServerStatus(): Promise<boolean> {
-  serverStatusCache.lastChecked = 0; // Сбрасываем кэш
+  serverStatusCache.lastChecked = 0; // РЎР±СЂР°СЃС‹РІР°РµРј РєСЌС€
   return checkServerStatus();
 }
 
@@ -844,7 +844,7 @@ export function setupNetworkListeners(
   onOffline: () => void
 ) {
   const handleOnline = async () => {
-    // При появлении сети проверяем доступность сервера
+    // РџСЂРё РїРѕСЏРІР»РµРЅРёРё СЃРµС‚Рё РїСЂРѕРІРµСЂСЏРµРј РґРѕСЃС‚СѓРїРЅРѕСЃС‚СЊ СЃРµСЂРІРµСЂР°
     const isServerAvailable = await updateServerStatus();
     if (isServerAvailable) {
       onOnline();
@@ -867,10 +867,10 @@ export function setupNetworkListeners(
 
 
 
-// === ������� ������ ������� (������ �� ������������) ===
+// === пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ) ===
 const MAX_LOCAL_ESTIMATES = 1000;
 const MAX_LOCAL_EQUIPMENT = 2000;
-const CLEANUP_INTERVAL = 7 * 24 * 60 * 60 * 1000; // 7 ����
+const CLEANUP_INTERVAL = 7 * 24 * 60 * 60 * 1000; // 7 пїЅпїЅпїЅпїЅ
 
 export async function cleanupOldRecords(companyId: string) {
   const now = Date.now();
@@ -879,7 +879,7 @@ export async function cleanupOldRecords(companyId: string) {
   try {
     const database = await initOfflineDB();
     
-    // ������� ������ �����
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
     const estimates = await database.getAllFromIndex('estimates', 'by-company', companyId);
     const oldEstimates = estimates
       .filter(e => e.updatedAt < cutoff && e.synced)
@@ -893,7 +893,7 @@ export async function cleanupOldRecords(companyId: string) {
       debugLog('[cleanup] Removed old estimates:', oldEstimates.length);
     }
     
-    // ������� ������ ������������
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
     const equipment = await database.getAllFromIndex('equipment', 'by-company', companyId);
     const oldEquipment = equipment
       .filter(e => e.updatedAt < cutoff && e.synced)
@@ -912,63 +912,3 @@ export async function cleanupOldRecords(companyId: string) {
 }
 
 
-
-// === 3aказчики ===
-export async function saveCustomerLocal(customer: any, companyId: string) {
-  debugLog('[saveCustomerLocal] Saving customer:', customer.id);
-  if (useLocalStorageFallback) {
-    const customers = getFromStorage<Record<string, any>>('customers', {});
-    customers[customer.id] = {
-      id: customer.id,
-      data: customer,
-      synced: false,
-      updatedAt: Date.now(),
-      companyId
-    };
-    setToStorage('customers', customers);
-    return;
-  }
-  try {
-    const database = await initOfflineDB();
-    await database.put('customers', {
-      id: customer.id,
-      data: customer,
-      synced: false,
-      updatedAt: Date.now(),
-      companyId
-    });
-  } catch (e) {
-    debugError('[saveCustomerLocal] Error:', e);
-  }
-}
-
-export async function getCustomersLocal(companyId: string) {
-  if (useLocalStorageFallback) {
-    const customers = getFromStorage<Record<string, any>>('customers', {});
-    return Object.values(customers)
-      .filter((c: any) => c.companyId === companyId)
-      .map((c: any) => c.data);
-  }
-  try {
-    const database = await initOfflineDB();
-    const items = await database.getAllFromIndex('customers', 'by-company', companyId);
-    return items.map(item => item.data);
-  } catch (e) {
-    return [];
-  }
-}
-
-export async function deleteCustomerLocal(id: string) {
-  if (useLocalStorageFallback) {
-    const customers = getFromStorage<Record<string, any>>('customers', {});
-    delete customers[id];
-    setToStorage('customers', customers);
-    return;
-  }
-  try {
-    const database = await initOfflineDB();
-    await database.delete('customers', id);
-  } catch (e) {
-    debugError('[deleteCustomerLocal] Error:', e);
-  }
-}
