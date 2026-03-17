@@ -19,7 +19,7 @@ interface FinanceManagerProps {
   onDeleteExpense?: (id: string) => Promise<{ error: any }>;
 }
 
-export function FinanceManager({ estimates, staff, expenses, companyId }: FinanceManagerProps) {
+export function FinanceManager({ estimates, staff, expenses, companyId, onAddExpense, onDeleteExpense }: FinanceManagerProps) {
   const [activeTab, setActiveTab] = useState('income');
 
   // Фильтруем подтвержденные/завершенные сметы для доходов
