@@ -46,7 +46,7 @@ export function CommandMenu({
       checklists: ClipboardCheck,
       staff: Users,
       goals: Target,
-      analytics: Search,
+      finance: Search,
       settings: Settings,
       admin: Shield,
     };
