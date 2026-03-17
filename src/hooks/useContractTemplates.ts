@@ -35,6 +35,7 @@ export function useContractTemplates(userId: string | undefined, companyId: stri
     templateData: Omit<ContractTemplate, 'id' | 'created_at' | 'updated_at'>
   ) => {
     if (!userId) return { error: new Error('User not authenticated') };
+    if (!companyId) return { error: new Error('No company selected') };
 
     // Проверяем тип файла
     const allowedTypes = [
@@ -111,6 +112,9 @@ export function useContractTemplates(userId: string | undefined, companyId: stri
 
   // Создание текстового шаблона (без файла)
   const createTextTemplate = async (template: Omit<ContractTemplate, 'id' | 'created_at' | 'updated_at'>) => {
+    if (!userId) return { error: new Error('User not authenticated') };
+    if (!companyId) return { error: new Error('No company selected') };
+    
     const { data, error } = await supabase
       .from('contract_templates')
       .insert([{ ...template, user_id: userId, is_file_template: false }])

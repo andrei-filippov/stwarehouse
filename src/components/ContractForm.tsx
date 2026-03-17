@@ -111,6 +111,17 @@ export function ContractForm({
     setTotalAmount(sum);
   }, [selectedEstimateIds]);
 
+  // Автовыбор шаблона при создании нового договора
+  useEffect(() => {
+    if (!isEditing && !templateId && templates.length > 0) {
+      // Ищем шаблон по умолчанию или берем первый
+      const defaultTemplate = templates.find(t => t.is_default) || templates[0];
+      if (defaultTemplate) {
+        setTemplateId(defaultTemplate.id);
+      }
+    }
+  }, [templates, isEditing, templateId]);
+
   const handleTypeChange = useCallback((newType: ContractType) => {
     setType(newType);
     if (!isEditing) {
@@ -234,17 +245,23 @@ export function ContractForm({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="template">Шаблон договора</Label>
+            <Label htmlFor="template">Шаблон договора ({templates.length})</Label>
             <Select value={templateId} onValueChange={setTemplateId}>
               <SelectTrigger>
                 <SelectValue placeholder="Выберите шаблон" />
               </SelectTrigger>
               <SelectContent>
-                {templates.map((template) => (
-                  <SelectItem key={template.id} value={template.id}>
-                    {template.name} {template.is_default && '(по умолчанию)'}
+                {templates.length === 0 ? (
+                  <SelectItem value="" disabled>
+                    Нет доступных шаблонов
                   </SelectItem>
-                ))}
+                ) : (
+                  templates.map((template) => (
+                    <SelectItem key={template.id} value={template.id}>
+                      {template.name} {template.is_default && '(по умолчанию)'}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
           </div>
