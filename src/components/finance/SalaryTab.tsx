@@ -223,11 +223,11 @@ export function SalaryTab({ staff, companyId }: SalaryTabProps) {
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center">
                         <span className="font-bold text-indigo-600">
-                          {(member as any).full_name?.charAt(0).toUpperCase() || (member as any).name?.charAt(0).toUpperCase() || '?'}
+                          {member.full_name?.charAt(0).toUpperCase() || '?'}
                         </span>
                       </div>
                       <div>
-                        <p className="font-medium">{(member as any).full_name || (member as any).name || 'Без имени'}</p>
+                        <p className="font-medium">{member.full_name || 'Без имени'}</p>
                         <p className="text-sm text-gray-500">{member.position || 'Сотрудник'}</p>
                         {record?.projects && record.projects.length > 0 && (
                           <div className="text-xs text-gray-400 mt-1">
@@ -303,7 +303,7 @@ export function SalaryTab({ staff, companyId }: SalaryTabProps) {
       <Dialog open={isProjectDialogOpen} onOpenChange={setIsProjectDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Добавить проект - {selectedStaff?.name}</DialogTitle>
+            <DialogTitle>Добавить проект - {selectedStaff?.full_name}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-4">
             <div className="space-y-2">
@@ -344,7 +344,7 @@ export function SalaryTab({ staff, companyId }: SalaryTabProps) {
       <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Отметить выплату - {selectedStaff?.name}</DialogTitle>
+            <DialogTitle>Отметить выплату - {selectedStaff?.full_name}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-4">
             {selectedStaff && (
