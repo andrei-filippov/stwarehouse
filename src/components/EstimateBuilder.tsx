@@ -67,6 +67,7 @@ export function EstimateBuilder({
   const [eventEndDate, setEventEndDate] = useState(estimate?.event_end_date || '');
   const [customerId, setCustomerId] = useState(estimate?.customer_id || '');
   const [items, setItems] = useState<EstimateItem[]>(estimate?.items || []);
+  const [eventColor, setEventColor] = useState(estimate?.color || 'blue');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [activeMobileTab, setActiveMobileTab] = useState<'equipment' | 'estimate'>('equipment');
@@ -308,6 +309,7 @@ export function EstimateBuilder({
       customer_id: customerId || null,
       customer_name: selectedCustomer?.name || null,
       total,
+      color: eventColor,
     };
     setHasUnsavedChanges(false);
     onSave(estimateData, items, categoryOrder);
@@ -1050,6 +1052,35 @@ export function EstimateBuilder({
                         </option>
                       ))}
                     </select>
+
+                    {/* Выбор цвета для календаря - мобильная версия */}
+                    <div>
+                      <Label className="text-[10px] text-gray-500 mb-1 block">Цвет в календаре</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          { value: 'blue', label: 'Синий', class: 'bg-blue-500' },
+                          { value: 'green', label: 'Зеленый', class: 'bg-green-500' },
+                          { value: 'red', label: 'Красный', class: 'bg-red-500' },
+                          { value: 'purple', label: 'Фиолетовый', class: 'bg-purple-500' },
+                          { value: 'orange', label: 'Оранжевый', class: 'bg-orange-500' },
+                          { value: 'pink', label: 'Розовый', class: 'bg-pink-500' },
+                          { value: 'cyan', label: 'Голубой', class: 'bg-cyan-500' },
+                          { value: 'amber', label: 'Желтый', class: 'bg-amber-500' },
+                        ].map((color) => (
+                          <button
+                            key={color.value}
+                            type="button"
+                            onClick={() => setEventColor(color.value)}
+                            title={color.label}
+                            className={`
+                              w-7 h-7 rounded-full ${color.class}
+                              transition-all hover:scale-110 focus:outline-none
+                              ${eventColor === color.value ? 'ring-2 ring-offset-2 ring-gray-800 scale-110' : ''}
+                            `}
+                          />
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1459,6 +1490,35 @@ export function EstimateBuilder({
                     </option>
                   ))}
                 </select>
+
+                {/* Выбор цвета для календаря */}
+                <div>
+                  <Label className="text-[10px] text-gray-500 mb-1 block">Цвет в календаре</Label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { value: 'blue', label: 'Синий', class: 'bg-blue-500' },
+                      { value: 'green', label: 'Зеленый', class: 'bg-green-500' },
+                      { value: 'red', label: 'Красный', class: 'bg-red-500' },
+                      { value: 'purple', label: 'Фиолетовый', class: 'bg-purple-500' },
+                      { value: 'orange', label: 'Оранжевый', class: 'bg-orange-500' },
+                      { value: 'pink', label: 'Розовый', class: 'bg-pink-500' },
+                      { value: 'cyan', label: 'Голубой', class: 'bg-cyan-500' },
+                      { value: 'amber', label: 'Желтый', class: 'bg-amber-500' },
+                    ].map((color) => (
+                      <button
+                        key={color.value}
+                        type="button"
+                        onClick={() => setEventColor(color.value)}
+                        title={color.label}
+                        className={`
+                          w-6 h-6 rounded-full ${color.class}
+                          transition-all hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-gray-400
+                          ${eventColor === color.value ? 'ring-2 ring-offset-2 ring-gray-800 scale-110' : ''}
+                        `}
+                      />
+                    ))}
+                  </div>
+                </div>
               </div>
 
               {/* Список позиций */}

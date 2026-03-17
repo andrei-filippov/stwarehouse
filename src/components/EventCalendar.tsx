@@ -242,6 +242,24 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
   const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 
                       'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
 
+  // Функция для получения класса цвета события
+  const getEventColorClass = (color?: string, isMultiDay: boolean = false) => {
+    const colorMap: Record<string, string> = {
+      blue: 'bg-gradient-to-r from-blue-500 to-indigo-500',
+      green: 'bg-gradient-to-r from-green-500 to-emerald-500',
+      red: 'bg-gradient-to-r from-red-500 to-rose-500',
+      purple: 'bg-gradient-to-r from-purple-500 to-violet-500',
+      orange: 'bg-gradient-to-r from-orange-500 to-amber-500',
+      pink: 'bg-gradient-to-r from-pink-500 to-rose-400',
+      cyan: 'bg-gradient-to-r from-cyan-500 to-blue-400',
+      amber: 'bg-gradient-to-r from-amber-400 to-yellow-300',
+    };
+    
+    // Если цвет не указан или не найден, используем дефолтный
+    const baseColor = colorMap[color || 'blue'] || colorMap.blue;
+    return baseColor;
+  };
+
   // Рендер ячейки дня для месяца
   const renderMonthDay = (day: Date, idx: number) => {
     const dateStr = format(day, 'yyyy-MM-dd');
@@ -301,10 +319,8 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
                   <div
                     key={i}
                     className={cn(
-                      "text-xs px-2 py-1 rounded-lg font-medium truncate shadow-sm",
-                      isMultiDay 
-                        ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white" 
-                        : "bg-gradient-to-r from-blue-500 to-indigo-500 text-white"
+                      "text-xs px-2 py-1 rounded-lg font-medium truncate shadow-sm text-white",
+                      getEventColorClass(estimate.color, isMultiDay)
                     )}
                     title={estimate.event_name}
                   >
@@ -372,7 +388,10 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
                     {dayEstimates.map((estimate, i) => (
                       <div
                         key={i}
-                        className="p-1.5 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-xs shadow-md"
+                        className={cn(
+                          "p-1.5 rounded-lg text-white text-xs shadow-md",
+                          getEventColorClass(estimate.color)
+                        )}
                         onClick={(e) => {
                           e.stopPropagation();
                           setSelectedEstimate(estimate);
@@ -426,7 +445,10 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
                   {dayEstimates.map((estimate, i) => (
                     <div
                       key={i}
-                      className="p-2 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-sm shadow-md hover:shadow-lg transition-shadow"
+                      className={cn(
+                        "p-2 rounded-lg text-white text-sm shadow-md hover:shadow-lg transition-shadow",
+                        getEventColorClass(estimate.color)
+                      )}
                       onClick={(e) => {
                         e.stopPropagation();
                         setSelectedEstimate(estimate);
@@ -496,7 +518,7 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
                   onClick={() => setSelectedEstimate(estimate)}
                 >
                   <div className="flex">
-                    <div className="w-1.5 sm:w-2 bg-gradient-to-b from-blue-500 to-indigo-500" />
+                    <div className={cn("w-1.5 sm:w-2", getEventColorClass(estimate.color))} />
                     <CardContent className="flex-1 p-3 sm:p-4">
                       <div className="flex justify-between items-start gap-2">
                         <div className="flex-1 min-w-0">
@@ -647,10 +669,24 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {selectedDateEstimates.map(estimate => (
+                  {selectedDateEstimates.map(estimate => {
+                    const colorClasses: Record<string, string> = {
+                      blue: 'border-l-blue-500',
+                      green: 'border-l-green-500',
+                      red: 'border-l-red-500',
+                      purple: 'border-l-purple-500',
+                      orange: 'border-l-orange-500',
+                      pink: 'border-l-pink-500',
+                      cyan: 'border-l-cyan-500',
+                      amber: 'border-l-amber-500',
+                    };
+                    return (
                     <Card
                       key={estimate.id}
-                      className="cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-blue-500"
+                      className={cn(
+                        "cursor-pointer hover:shadow-md transition-shadow border-l-4",
+                        colorClasses[estimate.color || 'blue'] || 'border-l-blue-500'
+                      )}
                       onClick={() => setSelectedEstimate(estimate)}
                     >
                       <CardContent className="p-4">
@@ -696,7 +732,7 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
                         </div>
                       </CardContent>
                     </Card>
-                  ))}
+                  )})}
                 </div>
               )}
             </div>

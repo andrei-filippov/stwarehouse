@@ -56,6 +56,8 @@ export type Estimate = {
   editing_session_id?: string;
   // Данные редактора (join с profiles)
   editor_name?: string;
+  // Цвет события в календаре
+  color?: string;
 };
 
 export type TemplateItem = {
