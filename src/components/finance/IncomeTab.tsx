@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Plus, FileText, CheckCircle2, Clock, Calendar } from 'lucide-react';
+import { Plus, FileText, CheckCircle2, Clock, Calendar, Trash2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
@@ -84,6 +84,10 @@ export function IncomeTab({ estimates, companyId }: IncomeTabProps) {
       description: ''
     });
     setIsDialogOpen(false);
+  };
+
+  const handleDeleteIncome = (id: string) => {
+    setManualIncomes(prev => prev.filter(income => income.id !== id));
   };
 
   return (
@@ -250,6 +254,14 @@ export function IncomeTab({ estimates, companyId }: IncomeTabProps) {
                       <p className="text-lg font-bold text-blue-600">
                         +{income.amount.toLocaleString('ru-RU')} ₽
                       </p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteIncome(income.id)}
+                        className="text-gray-400 hover:text-red-500 mt-1"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </div>
                   </div>
                 </CardContent>
