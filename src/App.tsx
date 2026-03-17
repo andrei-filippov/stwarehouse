@@ -41,6 +41,7 @@ import { useGoals } from './hooks/useGoals';
 import { useCustomers } from './hooks/useCustomers';
 import { useCableInventory } from './hooks/useCableInventory';
 import { useExpenses } from './hooks/useExpenses';
+import { useSalary } from './hooks/useSalary';
 import { useContracts } from './hooks/useContracts';
 
 // Компонент-обёртка для Suspense
@@ -251,6 +252,7 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
   const { customers, loading: customersLoading, error: customersError, addCustomer, updateCustomer, deleteCustomer } = useCustomers(companyId);
   const { categories: cableCategories, inventory: cableInventory, movements: cableMovements, stats: cableStats, loading: cableLoading, addCategory: addCableCategory, updateCategory: updateCableCategory, deleteCategory: deleteCableCategory, upsertInventory: upsertCableInventory, updateInventoryQty: updateCableInventoryQty, deleteInventory: deleteCableInventory, issueCable, returnCable } = useCableInventory(companyId);
   const { expenses, loading: expensesLoading, addExpense, updateExpense, deleteExpense } = useExpenses(companyId);
+  const { records: salaryRecords, addOrUpdateRecord: addOrUpdateSalary, deleteRecord: deleteSalary } = useSalary(companyId);
   const { contracts, templates: contractTemplates, loading: contractsLoading, createContract, updateContract, deleteContract, getNextContractNumber } = useContracts(companyId);
 
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -525,6 +527,9 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
                 companyId={companyId}
                 onAddExpense={addExpense}
                 onDeleteExpense={deleteExpense}
+                salaryRecords={salaryRecords}
+                onAddOrUpdateSalary={addOrUpdateSalary}
+                onDeleteSalary={deleteSalary}
               />
             </LazyComponent>
           )}

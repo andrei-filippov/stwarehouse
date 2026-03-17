@@ -9,6 +9,7 @@ import { ExpensesTab } from './finance/ExpensesTab';
 import { SalaryTab } from './finance/SalaryTab';
 import { AnalyticsTab } from './finance/AnalyticsTab';
 import type { Estimate, Staff, Expense } from '../types';
+import type { SalaryRecord } from '../hooks/useSalary';
 
 interface FinanceManagerProps {
   estimates: Estimate[];
@@ -17,9 +18,22 @@ interface FinanceManagerProps {
   companyId?: string;
   onAddExpense?: (expense: Partial<Expense>) => Promise<{ error: any }>;
   onDeleteExpense?: (id: string) => Promise<{ error: any }>;
+  salaryRecords?: SalaryRecord[];
+  onAddOrUpdateSalary?: (record: Partial<SalaryRecord>) => Promise<{ error: any }>;
+  onDeleteSalary?: (id: string) => Promise<{ error: any }>;
 }
 
-export function FinanceManager({ estimates, staff, expenses, companyId, onAddExpense, onDeleteExpense }: FinanceManagerProps) {
+export function FinanceManager({ 
+  estimates, 
+  staff, 
+  expenses, 
+  companyId, 
+  onAddExpense, 
+  onDeleteExpense,
+  salaryRecords = [],
+  onAddOrUpdateSalary,
+  onDeleteSalary
+}: FinanceManagerProps) {
   const [activeTab, setActiveTab] = useState('income');
 
   // Фильтруем подтвержденные/завершенные сметы для доходов
@@ -205,7 +219,13 @@ export function FinanceManager({ estimates, staff, expenses, companyId, onAddExp
         </TabsContent>
 
         <TabsContent value="salary" className="space-y-4">
-          <SalaryTab staff={staff} companyId={companyId} />
+          <SalaryTab 
+            staff={staff} 
+            companyId={companyId}
+            records={salaryRecords}
+            onAddOrUpdate={onAddOrUpdateSalary}
+            onDelete={onDeleteSalary}
+          />
         </TabsContent>
 
         <TabsContent value="analytics" className="space-y-4">

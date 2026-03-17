@@ -1,138 +1,100 @@
 import { useState, useMemo } from 'react';
-import { Users, Calendar, CheckCircle2, DollarSign, Plus, Wallet } from 'lucide-react';
+import { Users, Calendar, CheckCircle2, DollarSign, Plus, Wallet, Trash2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import { format, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
+import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import type { Staff } from '../../types';
+import type { SalaryRecord, SalaryProject } from '../../hooks/useSalary';
 
 interface SalaryTabProps {
   staff: Staff[];
   companyId?: string;
+  records?: SalaryRecord[];
+  onAddOrUpdate?: (record: Partial<SalaryRecord>) => Promise<{ error: any }>;
+  onDelete?: (id: string) => Promise<{ error: any }>;
 }
 
-interface SalaryRecord {
-  id: string;
-  staffId: string;
-  month: string; // YYYY-MM
-  projects: {
-    name: string;
-    amount: number;
-    date: string;
-  }[];
-  totalCalculated: number;
-  paid: number;
-  paymentDate?: string;
-  notes?: string;
-}
-
-export function SalaryTab({ staff, companyId }: SalaryTabProps) {
-  const [salaryRecords, setSalaryRecords] = useState<SalaryRecord[]>([]);
+export function SalaryTab({ staff, records = [], onAddOrUpdate, onDelete }: SalaryTabProps) {
   const [activeMonth, setActiveMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [isProjectDialogOpen, setIsProjectDialogOpen] = useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
   const [newProject, setNewProject] = useState({ name: '', amount: '', date: format(new Date(), 'yyyy-MM-dd') });
   const [paymentAmount, setPaymentAmount] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Получаем запись для сотрудника на текущий месяц
   const getRecordForStaff = (staffId: string, month: string): SalaryRecord | undefined => {
-    return salaryRecords.find(r => r.staffId === staffId && r.month === month);
+    return records.find(r => r.staff_id === staffId && r.month === month);
   };
 
   // Добавить проект сотруднику
-  const handleAddProject = () => {
-    if (!selectedStaff || !newProject.name || !newProject.amount) return;
+  const handleAddProject = async () => {
+    if (!selectedStaff || !newProject.name || !newProject.amount || !onAddOrUpdate) return;
     
+    setIsSubmitting(true);
     const projectAmount = parseFloat(newProject.amount);
     const existingRecord = getRecordForStaff(selectedStaff.id, activeMonth);
     
-    if (existingRecord) {
-      // Обновляем существующую запись
-      setSalaryRecords(prev => prev.map(r => {
-        if (r.id === existingRecord.id) {
-          return {
-            ...r,
-            projects: [...r.projects, {
-              name: newProject.name,
-              amount: projectAmount,
-              date: newProject.date
-            }],
-            totalCalculated: r.totalCalculated + projectAmount
-          };
-        }
-        return r;
-      }));
-    } else {
-      // Создаем новую запись
-      const newRecord: SalaryRecord = {
-        id: `sal_${Date.now()}`,
-        staffId: selectedStaff.id,
-        month: activeMonth,
-        projects: [{
-          name: newProject.name,
-          amount: projectAmount,
-          date: newProject.date
-        }],
-        totalCalculated: projectAmount,
-        paid: 0
-      };
-      setSalaryRecords(prev => [...prev, newRecord]);
-    }
+    const projects: SalaryProject[] = existingRecord 
+      ? [...existingRecord.projects, { name: newProject.name, amount: projectAmount, date: newProject.date }]
+      : [{ name: newProject.name, amount: projectAmount, date: newProject.date }];
     
+    const totalCalculated = projects.reduce((sum, p) => sum + p.amount, 0);
+    
+    await onAddOrUpdate({
+      staff_id: selectedStaff.id,
+      month: activeMonth,
+      projects,
+      total_calculated: totalCalculated,
+      paid: existingRecord?.paid || 0
+    });
+    
+    setIsSubmitting(false);
     setNewProject({ name: '', amount: '', date: format(new Date(), 'yyyy-MM-dd') });
     setIsProjectDialogOpen(false);
   };
 
   // Отметить выплату
-  const handlePayment = () => {
-    if (!selectedStaff || !paymentAmount) return;
+  const handlePayment = async () => {
+    if (!selectedStaff || !paymentAmount || !onAddOrUpdate) return;
     
+    setIsSubmitting(true);
     const amount = parseFloat(paymentAmount);
     const existingRecord = getRecordForStaff(selectedStaff.id, activeMonth);
     
-    if (existingRecord) {
-      setSalaryRecords(prev => prev.map(r => {
-        if (r.id === existingRecord.id) {
-          return {
-            ...r,
-            paid: r.paid + amount,
-            paymentDate: format(new Date(), 'yyyy-MM-dd')
-          };
-        }
-        return r;
-      }));
-    } else {
-      // Создаем запись с нулевым начислением но с выплатой (аванс)
-      const newRecord: SalaryRecord = {
-        id: `sal_${Date.now()}`,
-        staffId: selectedStaff.id,
-        month: activeMonth,
-        projects: [],
-        totalCalculated: 0,
-        paid: amount,
-        paymentDate: format(new Date(), 'yyyy-MM-dd'),
-        notes: 'Аванс'
-      };
-      setSalaryRecords(prev => [...prev, newRecord]);
-    }
+    await onAddOrUpdate({
+      staff_id: selectedStaff.id,
+      month: activeMonth,
+      projects: existingRecord?.projects || [],
+      total_calculated: existingRecord?.total_calculated || 0,
+      paid: (existingRecord?.paid || 0) + amount,
+      payment_date: format(new Date(), 'yyyy-MM-dd')
+    });
     
+    setIsSubmitting(false);
     setPaymentAmount('');
     setIsPaymentDialogOpen(false);
   };
 
+  // Удалить запись
+  const handleDelete = async (recordId: string) => {
+    if (!onDelete) return;
+    await onDelete(recordId);
+  };
+
   // Статистика по месяцу
   const monthStats = useMemo(() => {
-    const monthRecords = salaryRecords.filter(r => r.month === activeMonth);
-    const totalCalculated = monthRecords.reduce((sum, r) => sum + r.totalCalculated, 0);
+    const monthRecords = records.filter(r => r.month === activeMonth);
+    const totalCalculated = monthRecords.reduce((sum, r) => sum + r.total_calculated, 0);
     const totalPaid = monthRecords.reduce((sum, r) => sum + r.paid, 0);
     return { totalCalculated, totalPaid, balance: totalCalculated - totalPaid };
-  }, [salaryRecords, activeMonth]);
+  }, [records, activeMonth]);
 
   // Генерация списка месяцев
   const months = useMemo(() => {
@@ -214,7 +176,7 @@ export function SalaryTab({ staff, companyId }: SalaryTabProps) {
         ) : (
           staff.map((member) => {
             const record = getRecordForStaff(member.id, activeMonth);
-            const balance = (record?.totalCalculated || 0) - (record?.paid || 0);
+            const balance = (record?.total_calculated || 0) - (record?.paid || 0);
             
             return (
               <Card key={member.id} className="hover:shadow-md transition-shadow">
@@ -240,7 +202,7 @@ export function SalaryTab({ staff, companyId }: SalaryTabProps) {
                     <div className="flex items-center gap-6">
                       <div className="text-right">
                         <p className="text-sm text-gray-500">Начислено</p>
-                        <p className="font-semibold">{record?.totalCalculated?.toLocaleString('ru-RU') || 0} ₽</p>
+                        <p className="font-semibold">{record?.total_calculated?.toLocaleString('ru-RU') || 0} ₽</p>
                       </div>
                       <div className="text-right">
                         <p className="text-sm text-gray-500">Выдано</p>
@@ -276,6 +238,16 @@ export function SalaryTab({ staff, companyId }: SalaryTabProps) {
                           <Wallet className="w-4 h-4 mr-1" />
                           Выдано
                         </Button>
+                        {record && onDelete && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDelete(record.id)}
+                            className="text-gray-400 hover:text-red-500"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -333,8 +305,12 @@ export function SalaryTab({ staff, companyId }: SalaryTabProps) {
                 />
               </div>
             </div>
-            <Button onClick={handleAddProject} className="w-full">
-              Добавить проект
+            <Button 
+              onClick={handleAddProject} 
+              className="w-full"
+              disabled={isSubmitting || !newProject.name || !newProject.amount}
+            >
+              {isSubmitting ? 'Сохранение...' : 'Добавить проект'}
             </Button>
           </div>
         </DialogContent>
@@ -349,10 +325,10 @@ export function SalaryTab({ staff, companyId }: SalaryTabProps) {
           <div className="space-y-4 pt-4">
             {selectedStaff && (
               <div className="bg-gray-50 p-3 rounded-lg text-sm">
-                <p>Начислено: {getRecordForStaff(selectedStaff.id, activeMonth)?.totalCalculated?.toLocaleString('ru-RU') || 0} ₽</p>
+                <p>Начислено: {getRecordForStaff(selectedStaff.id, activeMonth)?.total_calculated?.toLocaleString('ru-RU') || 0} ₽</p>
                 <p>Уже выдано: {getRecordForStaff(selectedStaff.id, activeMonth)?.paid?.toLocaleString('ru-RU') || 0} ₽</p>
                 <p className="font-medium">
-                  Остаток: {((getRecordForStaff(selectedStaff.id, activeMonth)?.totalCalculated || 0) - 
+                  Остаток: {((getRecordForStaff(selectedStaff.id, activeMonth)?.total_calculated || 0) - 
                     (getRecordForStaff(selectedStaff.id, activeMonth)?.paid || 0)).toLocaleString('ru-RU')} ₽
                 </p>
               </div>
@@ -366,9 +342,12 @@ export function SalaryTab({ staff, companyId }: SalaryTabProps) {
                 onChange={(e) => setPaymentAmount(e.target.value)}
               />
             </div>
-            <Button onClick={handlePayment} className="w-full">
-              <CheckCircle2 className="w-4 h-4 mr-2" />
-              Отметить как выдано
+            <Button 
+              onClick={handlePayment} 
+              className="w-full"
+              disabled={isSubmitting || !paymentAmount}
+            >
+              {isSubmitting ? 'Сохранение...' : 'Отметить как выдано'}
             </Button>
           </div>
         </DialogContent>
