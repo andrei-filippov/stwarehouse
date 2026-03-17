@@ -219,7 +219,7 @@ export function ExpensesTab({ expenses, onAdd, onDelete }: ExpensesTabProps) {
 
       {/* Add Expense Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-lg w-[95%] rounded-xl p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle>Новый расход</DialogTitle>
           </DialogHeader>

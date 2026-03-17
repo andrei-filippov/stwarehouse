@@ -198,7 +198,7 @@ export function IncomeTab({ estimates, companyId }: IncomeTabProps) {
               Добавить поступление
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-lg w-[95%] rounded-xl p-4 sm:p-6">
             <DialogHeader>
               <DialogTitle>Новое поступление</DialogTitle>
             </DialogHeader>

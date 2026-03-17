@@ -278,7 +278,7 @@ export function SalaryTab({ staff, records = [], onAddOrUpdate, onDelete }: Sala
 
       {/* Add Project Dialog */}
       <Dialog open={isProjectDialogOpen} onOpenChange={setIsProjectDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-lg w-[95%] rounded-xl p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle>Добавить проект - {selectedStaff?.full_name}</DialogTitle>
           </DialogHeader>
@@ -323,7 +323,7 @@ export function SalaryTab({ staff, records = [], onAddOrUpdate, onDelete }: Sala
 
       {/* Payment Dialog */}
       <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-lg w-[95%] rounded-xl p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle>Отметить выплату - {selectedStaff?.full_name}</DialogTitle>
           </DialogHeader>
