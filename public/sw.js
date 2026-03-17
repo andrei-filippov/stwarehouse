@@ -1,7 +1,7 @@
 // Service Worker для оффлайн-режима
-const CACHE_NAME = 'stwarehouse-v6';
-const STATIC_CACHE = 'stwarehouse-static-v6';
-const ASSETS_CACHE = 'stwarehouse-assets-v6';
+const CACHE_NAME = 'stwarehouse-v7';
+const STATIC_CACHE = 'stwarehouse-static-v7';
+const ASSETS_CACHE = 'stwarehouse-assets-v7';
 
 // Критические ресурсы для кэширования при установке
 const PRECACHE_URLS = [
@@ -103,25 +103,33 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       caches.match(request).then((cached) => {
         if (cached) {
-          // Есть в кэше — возвращаем, но параллельно обновляем
+          // Есть в кэше — возвращаем, но параллельно проверяем обновление
           fetch(request).then((networkResponse) => {
+            // Кэшируем только если получили валидный JS/CSS (не HTML)
             if (networkResponse && networkResponse.status === 200) {
-              const responseClone = networkResponse.clone();
-              caches.open(ASSETS_CACHE).then((cache) => {
-                cache.put(request, responseClone);
-              });
+              const contentType = networkResponse.headers.get('content-type');
+              if (contentType && (contentType.includes('javascript') || contentType.includes('css'))) {
+                const responseClone = networkResponse.clone();
+                caches.open(ASSETS_CACHE).then((cache) => {
+                  cache.put(request, responseClone);
+                });
+              }
             }
           }).catch(() => {});
           return cached;
         }
         
-        // Нет в кэше — загружаем и кэшируем
+        // Нет в кэше — загружаем и кэшируем только валидные ответы
         return fetch(request).then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
-            const responseClone = networkResponse.clone();
-            caches.open(ASSETS_CACHE).then((cache) => {
-              cache.put(request, responseClone);
-            });
+            const contentType = networkResponse.headers.get('content-type');
+            // Не кэшируем если получили HTML вместо JS/CSS
+            if (contentType && !contentType.includes('text/html')) {
+              const responseClone = networkResponse.clone();
+              caches.open(ASSETS_CACHE).then((cache) => {
+                cache.put(request, responseClone);
+              });
+            }
           }
           return networkResponse;
         }).catch(() => {
