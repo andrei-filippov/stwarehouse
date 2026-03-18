@@ -25,6 +25,14 @@ import { Spinner } from './ui/spinner';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 
+interface SelectedItem {
+  inventory_id: string;
+  category_id: string;
+  length: number;
+  available: number;
+  quantity: number;
+}
+
 interface CableManagerProps {
   categories: CableCategory[];
   inventory: CableInventory[];
@@ -67,6 +75,15 @@ export const CableManager = memo(function CableManager({
 }: CableManagerProps) {
   const [activeTab, setActiveTab] = useState('warehouse');
   
+  // Выбранные позиции для массовой выдачи
+  const [selectedItems, setSelectedItems] = useState<SelectedItem[]>([]);
+  const [isBulkIssueDialogOpen, setIsBulkIssueDialogOpen] = useState(false);
+  const [bulkIssueForm, setBulkIssueForm] = useState({
+    issued_to: '',
+    contact: '',
+    items: [] as SelectedItem[],
+  });
+  
   // Открываем добавление при нажатии FAB (пропускаем первый рендер)
   const isFirstRender = useRef(false);
   useEffect(() => {
@@ -79,17 +96,6 @@ export const CableManager = memo(function CableManager({
         setEditingCategory(null);
         setCategoryForm({ name: '', description: '', color: '#3b82f6' });
         setIsCategoryDialogOpen(true);
-      } else if (activeTab === 'issue') {
-        setIssueForm({
-          category_id: '',
-          inventory_id: '',
-          length: 0,
-          availableQty: 0,
-          quantity: '',
-          issued_to: '',
-          contact: '',
-        });
-        setIsIssueDialogOpen(true);
       }
     }
   }, [fabAction]);
@@ -189,45 +195,81 @@ export const CableManager = memo(function CableManager({
     }
   };
 
-  const handleIssue = async () => {
-    const qty = parseInt(issueForm.quantity);
-    if (qty > issueForm.availableQty) {
-      alert('Недостаточно на складе!');
+  // Обработка выбора позиции
+  const toggleItemSelection = (item: CableInventory) => {
+    setSelectedItems(prev => {
+      const exists = prev.find(i => i.inventory_id === item.id);
+      if (exists) {
+        return prev.filter(i => i.inventory_id !== item.id);
+      }
+      return [...prev, {
+        inventory_id: item.id!,
+        category_id: item.category_id,
+        length: item.length,
+        available: item.quantity,
+        quantity: 1, // По умолчанию 1
+      }];
+    });
+  };
+
+  // Открытие диалога массовой выдачи
+  const openBulkIssueDialog = () => {
+    setBulkIssueForm({
+      issued_to: '',
+      contact: '',
+      items: [...selectedItems],
+    });
+    setIsBulkIssueDialogOpen(true);
+  };
+
+  // Обработка массовой выдачи
+  const handleBulkIssue = async () => {
+    if (!bulkIssueForm.issued_to.trim()) {
+      toast.error('Укажите, кому выдается кабель');
       return;
     }
-    const { error } = await onIssueCable({
-      category_id: issueForm.category_id,
-      inventory_id: issueForm.inventory_id,
-      length: issueForm.length,
-      quantity: qty,
-      issued_to: issueForm.issued_to,
-      contact: issueForm.contact || undefined,
-    });
-    if (!error) {
-      setIsIssueDialogOpen(false);
-      setIssueForm({
-        category_id: '',
-        inventory_id: '',
-        length: 0,
-        availableQty: 0,
-        quantity: '',
-        issued_to: '',
-        contact: '',
+
+    let hasError = false;
+    
+    for (const item of bulkIssueForm.items) {
+      if (item.quantity <= 0 || item.quantity > item.available) {
+        toast.error(`Некорректное количество для ${item.length}м`);
+        hasError = true;
+        break;
+      }
+      
+      const { error } = await onIssueCable({
+        category_id: item.category_id,
+        inventory_id: item.inventory_id,
+        length: item.length,
+        quantity: item.quantity,
+        issued_to: bulkIssueForm.issued_to,
+        contact: bulkIssueForm.contact || undefined,
       });
+      
+      if (error) {
+        hasError = true;
+        break;
+      }
+    }
+    
+    if (!hasError) {
+      setIsBulkIssueDialogOpen(false);
+      setSelectedItems([]);
+      toast.success('Кабель успешно выдан');
     }
   };
 
-  const openIssueDialog = (categoryId: string, invId: string, length: number, available: number) => {
-    setIssueForm({
-      category_id: categoryId,
-      inventory_id: invId,
-      length,
-      availableQty: available,
-      quantity: '',
-      issued_to: '',
-      contact: '',
-    });
-    setIsIssueDialogOpen(true);
+  // Обновление количества в форме массовой выдачи
+  const updateBulkItemQuantity = (inventoryId: string, quantity: number) => {
+    setBulkIssueForm(prev => ({
+      ...prev,
+      items: prev.items.map(item => 
+        item.inventory_id === inventoryId 
+          ? { ...item, quantity: Math.max(1, Math.min(quantity, item.available)) }
+          : item
+      ),
+    }));
   };
 
   const openCategoryEdit = (cat: CableCategory) => {
@@ -368,64 +410,59 @@ export const CableManager = memo(function CableManager({
                         <p className="text-sm text-gray-500">Нет позиций</p>
                       ) : (
                         <div className="space-y-2">
-                          {catInventory.map(item => (
-                            <div 
-                              key={item.id}
-                              className={`flex items-center justify-between p-2 rounded ${
-                                (item.min_quantity ?? 0) > 0 && item.quantity < (item.min_quantity ?? 0) ? 'bg-orange-50' : 'bg-gray-50'
-                              }`}
-                            >
-                              <div className="flex items-center gap-3">
-                                {(() => {
-                                  const minQty = item.min_quantity ?? 0;
-                                  const isLow = minQty > 0 && item.quantity < minQty;
-                                  return (
-                                    <>
-                                      <span className="font-medium w-16">{item.length} м</span>
-                                      <div className="flex items-center gap-1">
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          className="h-6 w-6 p-0"
-                                          onClick={() => handleUpdateInventoryQty(item.id, item.quantity - 1, item.length)}
-                                          disabled={item.quantity <= 0}
-                                        >
-                                          -
-                                        </Button>
-                                        <span className={`text-sm w-10 text-center ${isLow ? 'text-orange-600 font-medium' : 'text-gray-600'}`}>
-                                          {item.quantity}
-                                        </span>
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          className="h-6 w-6 p-0"
-                                          onClick={() => handleUpdateInventoryQty(item.id, item.quantity + 1, item.length)}
-                                        >
-                                          +
-                                        </Button>
-                                      </div>
-                                      {isLow && (
-                                        <AlertCircle className="w-4 h-4 text-orange-500 shrink-0" />
-                                      )}
-                                    </>
-                                  );
-                                })()}
-                                {item.notes && (
-                                  <span className="text-sm text-gray-500 truncate max-w-[150px]" title={item.notes}>
-                                    {item.notes}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-2">
-                                {item.quantity > 0 && (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => openIssueDialog(category.id, item.id, item.length, item.quantity)}
-                                  >
-                                    Выдать
-                                  </Button>
-                                )}
+                          {catInventory.map(item => {
+                            const isSelected = selectedItems.some(i => i.inventory_id === item.id);
+                            const minQty = item.min_quantity ?? 0;
+                            const isLow = minQty > 0 && item.quantity < minQty;
+                            
+                            return (
+                              <div 
+                                key={item.id}
+                                className={`flex items-center justify-between p-2 rounded ${
+                                  isSelected ? 'bg-blue-50 border border-blue-200' : 
+                                  isLow ? 'bg-orange-50' : 'bg-gray-50'
+                                }`}
+                              >
+                                <div className="flex items-center gap-3">
+                                  {/* Чекбокс выбора */}
+                                  <Checkbox
+                                    checked={isSelected}
+                                    onCheckedChange={() => item.quantity > 0 && toggleItemSelection(item)}
+                                    disabled={item.quantity <= 0}
+                                  />
+                                  
+                                  <span className="font-medium w-16">{item.length} м</span>
+                                  <div className="flex items-center gap-1">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-6 w-6 p-0"
+                                      onClick={() => handleUpdateInventoryQty(item.id, item.quantity - 1, item.length)}
+                                      disabled={item.quantity <= 0}
+                                    >
+                                      -
+                                    </Button>
+                                    <span className={`text-sm w-10 text-center ${isLow ? 'text-orange-600 font-medium' : 'text-gray-600'}`}>
+                                      {item.quantity}
+                                    </span>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-6 w-6 p-0"
+                                      onClick={() => handleUpdateInventoryQty(item.id, item.quantity + 1, item.length)}
+                                    >
+                                      +
+                                    </Button>
+                                  </div>
+                                  {isLow && (
+                                    <AlertCircle className="w-4 h-4 text-orange-500 shrink-0" />
+                                  )}
+                                  {item.notes && (
+                                    <span className="text-sm text-gray-500 truncate max-w-[150px]" title={item.notes}>
+                                      {item.notes}
+                                    </span>
+                                  )}
+                                </div>
                                 <Button
                                   size="sm"
                                   variant="ghost"
@@ -434,8 +471,8 @@ export const CableManager = memo(function CableManager({
                                   <Trash2 className="w-4 h-4 text-red-500" />
                                 </Button>
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
                     </CardContent>
@@ -443,6 +480,34 @@ export const CableManager = memo(function CableManager({
                 </Card>
               );
             })
+          )}
+          
+          {/* Плавающая панель выдачи */}
+          {selectedItems.length > 0 && (
+            <div className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-50">
+              <Card className="bg-blue-600 text-white shadow-lg border-0">
+                <CardContent className="p-3 flex items-center gap-4">
+                  <span className="text-sm font-medium">
+                    Выбрано: {selectedItems.length} позиций
+                  </span>
+                  <Button 
+                    size="sm" 
+                    variant="secondary"
+                    onClick={openBulkIssueDialog}
+                  >
+                    Выдать
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="ghost"
+                    className="text-white hover:text-white/80"
+                    onClick={() => setSelectedItems([])}
+                  >
+                    Отмена
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
           )}
         </TabsContent>
 
@@ -681,6 +746,88 @@ export const CableManager = memo(function CableManager({
               <Button 
                 onClick={handleIssue}
                 disabled={!issueForm.issued_to.trim() || !issueForm.quantity || parseInt(issueForm.quantity) > issueForm.availableQty}
+              >
+                Выдать
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Диалог массовой выдачи */}
+      <Dialog open={isBulkIssueDialogOpen} onOpenChange={setIsBulkIssueDialogOpen}>
+        <DialogContent className="max-w-lg w-[95%] rounded-xl p-4 sm:p-6 max-h-[90vh] overflow-y-auto" aria-describedby="bulk-issue-dialog-desc">
+          <DialogHeader>
+            <DialogTitle>Выдать кабель</DialogTitle>
+            <DialogDescription id="bulk-issue-dialog-desc">
+              Выбрано позиций: {bulkIssueForm.items.length}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">Кому выдаётся *</label>
+              <Input
+                value={bulkIssueForm.issued_to}
+                onChange={(e) => setBulkIssueForm({ ...bulkIssueForm, issued_to: e.target.value })}
+                placeholder="ФИО или название организации"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Контакт</label>
+              <Input
+                value={bulkIssueForm.contact}
+                onChange={(e) => setBulkIssueForm({ ...bulkIssueForm, contact: e.target.value })}
+                placeholder="Телефон для связи"
+              />
+            </div>
+            
+            {/* Список выбранных позиций с редактированием количества */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Позиции:</label>
+              {bulkIssueForm.items.map((item) => {
+                const category = categories.find(c => c.id === item.category_id);
+                return (
+                  <div key={item.inventory_id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                    <div className="flex items-center gap-2">
+                      <div 
+                        className="w-3 h-3 rounded-full" 
+                        style={{ backgroundColor: category?.color || '#ccc' }} 
+                      />
+                      <span className="text-sm">{category?.name}</span>
+                      <span className="text-sm text-gray-500">{item.length} м</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 w-7 p-0"
+                        onClick={() => updateBulkItemQuantity(item.inventory_id, item.quantity - 1)}
+                      >
+                        -
+                      </Button>
+                      <span className="text-sm w-8 text-center">{item.quantity}</span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 w-7 p-0"
+                        onClick={() => updateBulkItemQuantity(item.inventory_id, item.quantity + 1)}
+                      >
+                        +
+                      </Button>
+                      <span className="text-xs text-gray-400 ml-1">/ {item.available}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4">
+              <Button variant="outline" onClick={() => setIsBulkIssueDialogOpen(false)}>
+                Отмена
+              </Button>
+              <Button 
+                onClick={handleBulkIssue}
+                disabled={!bulkIssueForm.issued_to.trim()}
               >
                 Выдать
               </Button>
