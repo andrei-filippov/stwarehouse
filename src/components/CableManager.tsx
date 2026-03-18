@@ -19,7 +19,8 @@ import {
   ChevronUp,
   Cable
 } from 'lucide-react';
-import type { CableCategory, CableInventory, CableMovement } from '../types/cable';
+import type { CableCategory, CableInventory, CableMovement, EquipmentRepair } from '../types';
+import { REPAIR_STATUSES, getRepairStatusLabel, getRepairStatusColor } from '../types';
 import { CABLE_COLORS } from '../types/cable';
 import { Spinner } from './ui/spinner';
 import { format } from 'date-fns';
@@ -37,7 +38,8 @@ interface CableManagerProps {
   categories: CableCategory[];
   inventory: CableInventory[];
   movements: CableMovement[];
-  stats: Record<string, { totalLength: number; totalQty: number; issuedQty: number }>;
+  repairs: EquipmentRepair[];
+  stats: Record<string, { totalLength: number; totalQty: number; issuedQty: number; repairQty: number }>;
   loading?: boolean;
   onAddCategory: (data: Omit<CableCategory, 'id' | 'created_at' | 'updated_at' | 'user_id'>) => Promise<{ error: any }>;
   onUpdateCategory: (id: string, updates: Partial<CableCategory>) => Promise<{ error: any }>;
@@ -54,6 +56,9 @@ interface CableManagerProps {
     contact?: string;
   }) => Promise<{ error: any }>;
   onReturnCable: (movementId: string) => Promise<{ error: any }>;
+  onSendToRepair?: (repair: Partial<EquipmentRepair>) => Promise<{ error: any }>;
+  onUpdateRepairStatus?: (repairId: string, status: EquipmentRepair['status'], returnedDate?: string) => Promise<{ error: any }>;
+  onDeleteRepair?: (repairId: string) => Promise<{ error: any }>;
   fabAction?: number;
 }
 
@@ -61,6 +66,7 @@ export const CableManager = memo(function CableManager({
   categories,
   inventory,
   movements,
+  repairs,
   stats,
   loading,
   onAddCategory,
@@ -71,6 +77,9 @@ export const CableManager = memo(function CableManager({
   onDeleteInventory,
   onIssueCable,
   onReturnCable,
+  onSendToRepair,
+  onUpdateRepairStatus,
+  onDeleteRepair,
   fabAction,
 }: CableManagerProps) {
   const [activeTab, setActiveTab] = useState('warehouse');
@@ -112,6 +121,17 @@ export const CableManager = memo(function CableManager({
   const [categoryForm, setCategoryForm] = useState({ name: '', description: '', color: '#3b82f6', parent_id: '' as string | undefined });
   const [inventoryForm, setInventoryForm] = useState({ category_id: '', length: '', quantity: '', min_quantity: '0', notes: '' });
   
+  // Repair dialog states
+  const [isRepairDialogOpen, setIsRepairDialogOpen] = useState(false);
+  const [repairForm, setRepairForm] = useState({
+    category_id: '',
+    inventory_id: '',
+    equipment_name: '',
+    length: 0,
+    quantity: 1,
+    reason: '',
+    notes: '',
+  });
 
   const toggleCategory = (id: string) => {
     setExpandedCategories(prev => {
@@ -268,6 +288,46 @@ export const CableManager = memo(function CableManager({
     }));
   };
 
+  // Открыть диалог отправки в ремонт
+  const openRepairDialog = (categoryId: string, item: CableInventory, categoryName: string) => {
+    setRepairForm({
+      category_id: categoryId,
+      inventory_id: item.id!,
+      equipment_name: `${categoryName} ${item.length}м`,
+      length: item.length,
+      quantity: 1,
+      reason: '',
+      notes: '',
+    });
+    setIsRepairDialogOpen(true);
+  };
+
+  // Отправить в ремонт
+  const handleSendToRepair = async () => {
+    if (!repairForm.reason.trim()) {
+      toast.error('Укажите причину поломки');
+      return;
+    }
+    if (!onSendToRepair) {
+      toast.error('Функция отправки в ремонт не доступна');
+      return;
+    }
+
+    const { error } = await onSendToRepair(repairForm);
+    if (!error) {
+      setIsRepairDialogOpen(false);
+      setRepairForm({
+        category_id: '',
+        inventory_id: '',
+        equipment_name: '',
+        length: 0,
+        quantity: 1,
+        reason: '',
+        notes: '',
+      });
+    }
+  };
+
   const openCategoryEdit = (cat: CableCategory) => {
     setEditingCategory(cat);
     setCategoryForm({
@@ -353,12 +413,18 @@ export const CableManager = memo(function CableManager({
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="warehouse">На складе</TabsTrigger>
           <TabsTrigger value="issued">
             Выдано
             {movements.filter(m => m.is_returned !== true).length > 0 && (
               <Badge variant="secondary" className="ml-2">{movements.filter(m => m.is_returned !== true).length}</Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="repair">
+            В ремонте
+            {repairs.filter(r => r.status === 'in_repair').length > 0 && (
+              <Badge variant="secondary" className="ml-2">{repairs.filter(r => r.status === 'in_repair').length}</Badge>
             )}
           </TabsTrigger>
         </TabsList>
@@ -479,7 +545,140 @@ export const CableManager = memo(function CableManager({
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Вкладка В ремонте */}
+        <TabsContent value="repair">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                🔧 Оборудование в ремонте
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {repairs.filter(r => r.status === 'in_repair').length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <CheckCircle2 className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>Всё исправно</p>
+                  <p className="text-sm">Нет оборудования в ремонте</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {repairs.filter(r => r.status === 'in_repair').map(repair => {
+                    const category = categories.find(c => c.id === repair.category_id);
+                    return (
+                      <div 
+                        key={repair.id}
+                        className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg border border-yellow-200"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <div 
+                                className="w-3 h-3 rounded-full"
+                                style={{ backgroundColor: category?.color || '#ccc' }}
+                              />
+                              <span className="font-medium">{repair.equipment_name}</span>
+                              <span className="text-gray-600">× {repair.quantity} шт</span>
+                              <Badge className={getRepairStatusColor(repair.status)}>
+                                {getRepairStatusLabel(repair.status)}
+                              </Badge>
+                            </div>
+                            <div className="text-sm text-gray-600 mt-1">
+                              <span className="font-medium">Причина:</span> {repair.reason}
+                            </div>
+                            {repair.notes && (
+                              <div className="text-sm text-gray-500">
+                                <span className="font-medium">Примечание:</span> {repair.notes}
+                              </div>
+                            )}
+                            <div className="text-xs text-gray-400 mt-1">
+                              Отправлено: {format(new Date(repair.sent_date), 'dd.MM.yyyy')}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => onUpdateRepairStatus?.(repair.id, 'repaired', new Date().toISOString())}
+                          >
+                            ✅ Отремонтировано
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => onUpdateRepairStatus?.(repair.id, 'written_off')}
+                            className="text-red-600"
+                          >
+                            🗑️ Списать
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => onDeleteRepair?.(repair.id)}
+                          >
+                            <Trash2 className="w-4 h-4 text-red-500" />
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
+
+      {/* Диалог отправки в ремонт */}
+      <Dialog open={isRepairDialogOpen} onOpenChange={setIsRepairDialogOpen}>
+        <DialogContent className="max-w-lg w-[95%] rounded-xl p-4 sm:p-6" aria-describedby="repair-dialog-desc">
+          <DialogHeader>
+            <DialogTitle>Отправить в ремонт</DialogTitle>
+            <DialogDescription id="repair-dialog-desc">
+              {repairForm.equipment_name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">Количество</label>
+              <Input
+                type="number"
+                min={1}
+                value={repairForm.quantity}
+                onChange={(e) => setRepairForm({ ...repairForm, quantity: parseInt(e.target.value) || 1 })}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Причина поломки *</label>
+              <Input
+                value={repairForm.reason}
+                onChange={(e) => setRepairForm({ ...repairForm, reason: e.target.value })}
+                placeholder="Например: Обрыв кабеля, неисправный разъем"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Примечание</label>
+              <Input
+                value={repairForm.notes}
+                onChange={(e) => setRepairForm({ ...repairForm, notes: e.target.value })}
+                placeholder="Дополнительная информация"
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-4">
+              <Button variant="outline" onClick={() => setIsRepairDialogOpen(false)}>
+                Отмена
+              </Button>
+              <Button 
+                onClick={handleSendToRepair}
+                disabled={!repairForm.reason.trim()}
+              >
+                Отправить в ремонт
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Диалог категории */}
       <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
@@ -726,7 +925,7 @@ interface CategoryListProps {
   categories: (CableCategory & { children?: CableCategory[]; level?: number })[];
   inventory: CableInventory[];
   movements: CableMovement[];
-  stats: Record<string, { totalLength: number; totalQty: number; issuedQty: number }>;
+  stats: Record<string, { totalLength: number; totalQty: number; issuedQty: number; repairQty: number }>;
   selectedItems: SelectedItem[];
   expandedCategories: Set<string>;
   onToggleCategory: (id: string) => void;
@@ -736,6 +935,8 @@ interface CategoryListProps {
   onAddInventory: (categoryId: string) => void;
   onEditCategory: (cat: CableCategory) => void;
   onDeleteCategory: (id: string) => Promise<{ error: any }>;
+  onSendToRepair?: (categoryId: string, item: CableInventory, categoryName: string) => void;
+  categoryName?: string;
   level?: number;
 }
 
@@ -753,6 +954,8 @@ function CategoryList({
   onAddInventory,
   onEditCategory,
   onDeleteCategory,
+  onSendToRepair,
+  categoryName = '',
   level = 0,
 }: CategoryListProps) {
   // Подсчет выданного по конкретной позиции (по category_id и length)
@@ -834,6 +1037,11 @@ function CategoryList({
                       Выдано: <strong>{catStats.issuedQty} шт</strong>
                     </span>
                   )}
+                  {catStats.repairQty > 0 && (
+                    <span className="text-yellow-600">
+                      В ремонте: <strong>{catStats.repairQty} шт</strong>
+                    </span>
+                  )}
                 </div>
               </CardHeader>
 
@@ -901,13 +1109,24 @@ function CategoryList({
                                 </span>
                               )}
                             </div>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => onDeleteInventory(item.id!)}
-                            >
-                              <Trash2 className="w-4 h-4 text-red-500" />
-                            </Button>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => onSendToRepair?.(category.id, item, category.name)}
+                                disabled={actualQty <= 0}
+                                title="Отправить в ремонт"
+                              >
+                                🔧
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => onDeleteInventory(item.id!)}
+                              >
+                                <Trash2 className="w-4 h-4 text-red-500" />
+                              </Button>
+                            </div>
                           </div>
                         );
                       })}
@@ -934,6 +1153,8 @@ function CategoryList({
                   onAddInventory={onAddInventory}
                   onEditCategory={onEditCategory}
                   onDeleteCategory={onDeleteCategory}
+                  onSendToRepair={onSendToRepair}
+                  categoryName={category.name}
                   level={level + 1}
                 />
               </div>

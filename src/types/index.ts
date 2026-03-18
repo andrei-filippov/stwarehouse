@@ -196,6 +196,8 @@ export type { Task, Task as Goal } from './goals';
 
 // Cable management
 export type { CableCategory, CableInventory, CableMovement, CableMovementWithCategory } from './cable';
+export type { EquipmentRepair } from './repair';
+export { REPAIR_STATUSES, getRepairStatusLabel, getRepairStatusColor } from './repair';
 
 // Expenses
 export type { Expense, ExpenseCategory } from './expenses';

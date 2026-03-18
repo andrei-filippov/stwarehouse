@@ -30,7 +30,7 @@ import {
   PackagePlus,
   Settings2
 } from 'lucide-react';
-import type { Equipment, Estimate, EstimateItem, Customer, PDFSettings } from '../types';
+import type { Equipment, Estimate, EstimateItem, Customer, PDFSettings, EquipmentRepair, CableCategory } from '../types';
 import { cn } from '../lib/utils';
 import { toast } from 'sonner';
 
@@ -43,6 +43,8 @@ interface EstimateBuilderProps {
   selectedTemplate: any;
   pdfSettings: PDFSettings;
   equipmentCategories: string[];
+  repairs?: EquipmentRepair[];
+  cableCategories?: CableCategory[];
   onSave: (estimate: any, items: any[], categoryOrder?: string[]) => void;
   onClose: () => void;
   onCreateEquipment?: (equipment: any) => Promise<{ error: any; data?: any }>;
@@ -57,10 +59,45 @@ export function EstimateBuilder({
   selectedTemplate,
   pdfSettings,
   equipmentCategories,
+  repairs,
+  cableCategories,
   onSave,
   onClose,
   onCreateEquipment,
 }: EstimateBuilderProps) {
+  // Проверка оборудования в ремонте по названию категории
+  const checkEquipmentInRepair = (equipmentName: string, equipmentCategory: string): { inRepair: boolean; repairInfo?: string } => {
+    if (!repairs || repairs.length === 0) return { inRepair: false };
+    
+    // Ищем ремонты по совпадению названия категории оборудования с названием категории кабеля
+    const inRepairItems = repairs.filter(r => {
+      if (r.status !== 'in_repair') return false;
+      
+      // Проверяем совпадение по названию категории
+      const cableCat = cableCategories?.find(c => c.id === r.category_id);
+      if (!cableCat) return false;
+      
+      // Если название категории оборудования содержит название кабельной категории или наоборот
+      const eqCatLower = equipmentCategory.toLowerCase();
+      const cableCatLower = cableCat.name.toLowerCase();
+      const eqNameLower = equipmentName.toLowerCase();
+      
+      return eqCatLower.includes(cableCatLower) || 
+             cableCatLower.includes(eqCatLower) ||
+             eqNameLower.includes(cableCatLower);
+    });
+    
+    if (inRepairItems.length > 0) {
+      const totalQty = inRepairItems.reduce((sum, r) => sum + r.quantity, 0);
+      const cableCat = cableCategories?.find(c => c.id === inRepairItems[0].category_id);
+      return { 
+        inRepair: true, 
+        repairInfo: `${cableCat?.name || 'Оборудование'} в ремонте: ${totalQty} шт (причина: ${inRepairItems[0].reason})` 
+      };
+    }
+    
+    return { inRepair: false };
+  };
   const [eventName, setEventName] = useState(estimate?.event_name || '');
   const [venue, setVenue] = useState(estimate?.venue || '');
   const [eventStartDate, setEventStartDate] = useState(estimate?.event_start_date || '');
@@ -220,6 +257,16 @@ export function EstimateBuilder({
 
   // Добавление позиции с проверкой доступного количества
   const handleAddItem = (equipment: Equipment) => {
+    // Проверяем, не в ремонте ли оборудование
+    const repairCheck = checkEquipmentInRepair(equipment.name, equipment.category);
+    if (repairCheck.inRepair) {
+      toast.warning('Внимание: оборудование в ремонте', {
+        description: repairCheck.repairInfo,
+        duration: 5000,
+      });
+      // Не блокируем добавление, только предупреждаем
+    }
+    
     const usedInCurrent = getUsedQuantity(equipment.id);
     const bookedInOthers = getBookedQuantity(equipment.id);
     const totalBooked = usedInCurrent + bookedInOthers;

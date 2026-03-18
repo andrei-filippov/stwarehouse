@@ -20,6 +20,8 @@ interface EstimateManagerProps {
   customers: any[];
   pdfSettings: PDFSettings;
   equipmentCategories?: string[];
+  repairs?: any[];
+  cableCategories?: any[];
   onCreate: (estimate: any, items: any[], categoryOrder?: string[]) => Promise<{ error: any; data?: any }>;
   onUpdate: (id: string, estimate: any, items: any[], categoryOrder?: string[]) => Promise<{ error: any }>;
   onDelete: (id: string) => Promise<{ error: any }>;
@@ -38,6 +40,8 @@ export const EstimateManager = memo(function EstimateManager({
   customers,
   pdfSettings,
   equipmentCategories,
+  repairs,
+  cableCategories,
   onCreate,
   onUpdate,
   onDelete,
@@ -226,6 +230,8 @@ export const EstimateManager = memo(function EstimateManager({
         selectedTemplate={selectedTemplate}
         pdfSettings={pdfSettings}
         equipmentCategories={categoriesList}
+        repairs={repairs}
+        cableCategories={cableCategories}
         onSave={handleSave}
         onClose={handleClose}
         onCreateEquipment={onCreateEquipment}

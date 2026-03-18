@@ -250,7 +250,7 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
   const { staff, loading: staffLoading, addStaff, updateStaff, deleteStaff } = useStaff(companyId);
   const { tasks, loading: goalsLoading, addTask, updateTask, deleteTask } = useGoals(companyId);
   const { customers, loading: customersLoading, error: customersError, addCustomer, updateCustomer, deleteCustomer } = useCustomers(companyId);
-  const { categories: cableCategories, inventory: cableInventory, movements: cableMovements, stats: cableStats, loading: cableLoading, addCategory: addCableCategory, updateCategory: updateCableCategory, deleteCategory: deleteCableCategory, upsertInventory: upsertCableInventory, updateInventoryQty: updateCableInventoryQty, deleteInventory: deleteCableInventory, issueCable, returnCable } = useCableInventory(companyId);
+  const { categories: cableCategories, inventory: cableInventory, movements: cableMovements, repairs: cableRepairs, stats: cableStats, loading: cableLoading, addCategory: addCableCategory, updateCategory: updateCableCategory, deleteCategory: deleteCableCategory, upsertInventory: upsertCableInventory, updateInventoryQty: updateCableInventoryQty, deleteInventory: deleteCableInventory, issueCable, returnCable, sendToRepair, updateRepairStatus, deleteRepair } = useCableInventory(companyId);
   const { expenses, loading: expensesLoading, addExpense, updateExpense, deleteExpense } = useExpenses(companyId);
   const { records: salaryRecords, addOrUpdateRecord: addOrUpdateSalary, deleteRecord: deleteSalary } = useSalary(companyId);
   const { contracts, templates: contractTemplates, loading: contractsLoading, createContract, updateContract, deleteContract, getNextContractNumber } = useContracts(companyId);
@@ -412,6 +412,8 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
                     : [...new Set(equipment?.map((e: any) => e.category).filter(Boolean) || [])].sort()
                   )
                 }
+                repairs={cableRepairs}
+                cableCategories={cableCategories}
                 onCreate={(estimate, items, categoryOrder) => createEstimate(estimate, items, user!.id, profile?.name, categoryOrder)}
                 onUpdate={(id, estimate, items, categoryOrder) => updateEstimate(id, estimate, items, user!.id, categoryOrder)}
                 onDelete={deleteEstimate}
@@ -502,6 +504,7 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
                 categories={cableCategories}
                 inventory={cableInventory}
                 movements={cableMovements}
+                repairs={cableRepairs}
                 stats={cableStats}
                 loading={cableLoading}
                 onAddCategory={addCableCategory}
@@ -512,6 +515,9 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
                 onDeleteInventory={deleteCableInventory}
                 onIssueCable={issueCable}
                 onReturnCable={returnCable}
+                onSendToRepair={sendToRepair}
+                onUpdateRepairStatus={updateRepairStatus}
+                onDeleteRepair={deleteRepair}
                 fabAction={fabAction}
               />
             </LazyComponent>
