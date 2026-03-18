@@ -192,7 +192,7 @@ export type Staff = {
 };
 
 // Re-export Task as Goal for Dashboard
-export type { Task as Goal } from './goals';
+export type { Task, Task as Goal } from './goals';
 
 // Cable management
 export type { CableCategory, CableInventory, CableMovement, CableMovementWithCategory } from './cable';

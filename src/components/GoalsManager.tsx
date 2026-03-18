@@ -38,7 +38,7 @@ interface GoalsManagerProps {
   fabAction?: number;
 }
 
-type FilterType = 'all' | 'today' | 'in_progress' | 'pending' | 'completed';
+type FilterType = 'all' | 'today' | 'in_progress' | 'pending' | 'completed' | 'overdue';
 
 export const GoalsManager = memo(function GoalsManager({ tasks, staff, onAdd, onUpdate, onDelete, loading, fabAction }: GoalsManagerProps) {
   // Открываем добавление задачи при нажатии FAB (пропускаем первый рендер)
@@ -90,8 +90,8 @@ export const GoalsManager = memo(function GoalsManager({ tasks, staff, onAdd, on
       pending: tasks.filter(t => t.status === 'pending').length,
       inProgress: tasks.filter(t => t.status === 'in_progress').length,
       completed: tasks.filter(t => t.status === 'completed').length,
-
       today: tasks.filter(t => t.due_date === today && t.status !== 'completed' && t.status !== 'cancelled').length,
+      overdue: tasks.filter(t => t.due_date < today && t.status !== 'completed' && t.status !== 'cancelled').length,
     };
   }, [tasks]);
 
@@ -110,7 +110,8 @@ export const GoalsManager = memo(function GoalsManager({ tasks, staff, onAdd, on
             return task.status === 'pending';
           case 'completed':
             return task.status === 'completed';
-
+          case 'overdue':
+            return task.due_date < today && task.status !== 'completed' && task.status !== 'cancelled';
           case 'all':
           default:
             return true;
@@ -303,7 +304,14 @@ export const GoalsManager = memo(function GoalsManager({ tasks, staff, onAdd, on
           isActive={activeFilter === 'completed'}
           onClick={() => setActiveFilter('completed')}
         />
-
+        <StatCard 
+          title="Просрочено" 
+          value={stats.overdue} 
+          icon={Clock} 
+          color="bg-red-50 text-red-600" 
+          isActive={activeFilter === 'overdue'}
+          onClick={() => setActiveFilter('overdue')}
+        />
       </div>
 
       {/* Активный фильтр и поиск */}
