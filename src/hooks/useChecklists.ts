@@ -518,6 +518,50 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
     fetchRules();
   }, [fetchChecklists, fetchRules]);
 
+  // Real-time подписки для синхронизации между пользователями
+  useEffect(() => {
+    if (!companyId) return;
+
+    // Подписка на изменения чек-листов
+    const checklistsChannel = supabase
+      .channel('checklists-changes')
+      .on('postgres_changes', 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'checklists',
+          filter: `company_id=eq.${companyId}`
+        },
+        () => {
+          console.log('[Realtime] Checklists changed, refreshing...');
+          fetchChecklists();
+        }
+      )
+      .subscribe();
+
+    // Подписка на изменения правил
+    const rulesChannel = supabase
+      .channel('checklist-rules-changes')
+      .on('postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'checklist_rules',
+          filter: `company_id=eq.${companyId}`
+        },
+        () => {
+          console.log('[Realtime] Rules changed, refreshing...');
+          fetchRules();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(checklistsChannel);
+      supabase.removeChannel(rulesChannel);
+    };
+  }, [companyId, fetchChecklists, fetchRules]);
+
   return {
     checklists,
     rules,
