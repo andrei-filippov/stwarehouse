@@ -4,6 +4,9 @@ import type { User } from '@supabase/supabase-js';
 import type { Profile } from '../types';
 import type { UserPermission } from '../lib/permissions';
 import { isOnline, getUserLocal, getProfileLocal, saveUserLocal, saveProfileLocal } from '../lib/offlineDB';
+import { createLogger } from '../lib/logger';
+
+const logger = createLogger('auth');
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
@@ -21,7 +24,7 @@ export function useAuth() {
     // Получаем текущую сессию
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (error) {
-        console.error('Auth session error:', error);
+        logger.error('Auth session error:', error);
         if (error.message?.includes('refresh_token') || error.message?.includes('Refresh Token')) {
           supabase.auth.signOut();
         }
@@ -97,7 +100,7 @@ export function useAuth() {
         .single();
       
       if (error) {
-        console.error('Profile fetch error:', error);
+        logger.error('Profile fetch error:', error);
       } else if (data) {
         setProfile(data as Profile);
         // Сохраняем для оффлайн
@@ -106,7 +109,7 @@ export function useAuth() {
         await fetchPermissions(userId);
       }
     } catch (err) {
-      console.error('Unexpected error fetching profile:', err);
+      logger.error('Unexpected error fetching profile:', err);
     } finally {
       profileLoadingRef.current = false;
       setLoading(false);
@@ -127,20 +130,20 @@ export function useAuth() {
         setPermissions(data as UserPermission[]);
       }
     } catch (err) {
-      console.error('Unexpected error fetching permissions:', err);
+      logger.error('Unexpected error fetching permissions:', err);
     }
   };
 
   const signIn = async (email: string, password: string) => {
     try {
-      console.log('Signing in with:', { email: email.trim(), passwordLength: password?.length });
+      logger.debug('Signing in with:', { email: email.trim(), passwordLength: password?.length });
       const { data, error } = await supabase.auth.signInWithPassword({ 
         email: email.trim(), 
         password 
       });
       
       if (error) {
-        console.error('Sign in error details:', error);
+        logger.error('Sign in error details:', error);
         // Provide user-friendly error messages
         let message = error.message;
         if (error.message.includes('Invalid login')) {
@@ -151,10 +154,10 @@ export function useAuth() {
         return { error: { ...error, message } };
       }
       
-      console.log('Sign in successful:', data.user?.id);
+      logger.info('Sign in successful:', data.user?.id);
       return { error: null };
     } catch (err) {
-      console.error('Sign in unexpected error:', err);
+      logger.error('Sign in unexpected error:', err);
       return { error: err as Error };
     }
   };
@@ -171,7 +174,7 @@ export function useAuth() {
       
       return { error };
     } catch (err) {
-      console.error('Sign up error:', err);
+      logger.error('Sign up error:', err);
       return { error: err as Error };
     }
   };
@@ -183,7 +186,7 @@ export function useAuth() {
       setProfile(null);
       setPermissions(null);
     } catch (err) {
-      console.error('Sign out error:', err);
+      logger.error('Sign out error:', err);
     }
   };
 

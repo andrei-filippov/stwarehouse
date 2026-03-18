@@ -3,6 +3,9 @@ import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
 import type { Equipment, Category } from '../types';
 import { isOnline, addToSyncQueue, saveEquipmentLocal, getEquipmentLocal, deleteEquipmentLocal } from '../lib/offlineDB';
+import { createLogger } from '../lib/logger';
+
+const logger = createLogger('equipment');
 
 export function useEquipment(companyId: string | undefined) {
   const [equipment, setEquipment] = useState<Equipment[]>([]);
@@ -15,7 +18,7 @@ export function useEquipment(companyId: string | undefined) {
 
     // Всегда загружаем локальное оборудование
     const localEquipment = await getEquipmentLocal(companyId);
-    console.log('[fetchEquipment] Local equipment:', localEquipment.length);
+    logger.debug('[fetchEquipment] Local equipment:', localEquipment.length);
 
     if (isOnline()) {
       // ОНЛАЙН: загружаем с сервера и мержим с локальными
@@ -46,8 +49,8 @@ export function useEquipment(companyId: string | undefined) {
           
           if (!isNewOffline && !existsOnServer) {
             // Запись была удалена на сервере - удаляем из локальной базы
-            console.log('[fetchEquipment] Removing locally cached equipment deleted on server:', e.id);
-            deleteEquipmentLocal(e.id).catch(console.error);
+            logger.debug('[fetchEquipment] Removing locally cached equipment deleted on server:', e.id);
+            deleteEquipmentLocal(e.id).catch(err => logger.error('Error deleting local equipment:', err));
             return false;
           }
           
@@ -62,21 +65,21 @@ export function useEquipment(companyId: string | undefined) {
         const uniqueLocal = newLocal.filter(local => {
           const name = local.name?.toLowerCase().trim();
           if (serverNames.has(name)) {
-            console.log('[fetchEquipment] Removing duplicate local equipment:', local.id);
-            deleteEquipmentLocal(local.id).catch(console.error);
+            logger.debug('[fetchEquipment] Removing duplicate local equipment:', local.id);
+            deleteEquipmentLocal(local.id).catch(err => logger.error('Error deleting local equipment:', err));
             return false;
           }
           return true;
         });
         
-        console.log('[fetchEquipment] Server items:', (data || []).length, 'Unique local:', uniqueLocal.length);
+        logger.info('[fetchEquipment] Server items:', (data || []).length, 'Unique local:', uniqueLocal.length);
         
         // Финальная защита: убираем дубликаты по ID
         const merged = [...uniqueLocal, ...(data || [])];
         const seenIds = new Set<string>();
         const deduplicated = merged.filter(e => {
           if (seenIds.has(e.id)) {
-            console.log('[fetchEquipment] Removing duplicate by ID:', e.id);
+            logger.debug('[fetchEquipment] Removing duplicate by ID:', e.id);
             return false;
           }
           seenIds.add(e.id);
@@ -86,7 +89,7 @@ export function useEquipment(companyId: string | undefined) {
         setEquipment(deduplicated);
       } catch (err) {
         // Ошибка сети - показываем только локальные
-        console.log('Network error, showing local data:', err);
+        logger.warn('Network error, showing local data:', err);
         setEquipment(localEquipment);
       }
     } else {
@@ -112,7 +115,7 @@ export function useEquipment(companyId: string | undefined) {
         setCategories(data || []);
       } catch (err) {
         // Ошибка сети - игнорируем, показываем что есть
-        console.log('Network error loading categories:', err);
+        logger.warn('Network error loading categories:', err);
       }
     }
   }, [companyId]);
@@ -135,7 +138,7 @@ export function useEquipment(companyId: string | undefined) {
           return { error: null };
         } catch (err) {
           // При ошибке сети (503) переходим в оффлайн-режим
-          console.log('Network error, switching to offline mode:', err);
+          logger.warn('Network error, switching to offline mode:', err);
         }
       }
       
@@ -185,7 +188,7 @@ export function useEquipment(companyId: string | undefined) {
           toast.success('Оборудование обновлено');
           return { error: null };
         } catch (err) {
-          console.log('Network error, switching to offline mode:', err);
+          logger.warn('Network error, switching to offline mode:', err);
         }
       }
       
@@ -233,7 +236,7 @@ export function useEquipment(companyId: string | undefined) {
           toast.success('Оборудование удалено');
           return { error: null };
         } catch (err) {
-          console.log('Network error, switching to offline mode:', err);
+          logger.warn('Network error, switching to offline mode:', err);
         }
       }
       

@@ -11,6 +11,9 @@ import {
   saveChecklistRulesCache,
   getChecklistRulesCache
 } from '../lib/offlineDB';
+import { createLogger } from '../lib/logger';
+
+const logger = createLogger('checklists');
 
 export function useChecklists(companyId: string | undefined, estimates: Estimate[]) {
   const [checklists, setChecklists] = useState<Checklist[]>([]);
@@ -47,7 +50,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
         setChecklists([...unsyncedLocal, ...(data || [])]);
       } catch (err) {
         // Ошибка сети - показываем только локальные
-        console.log('Network error, showing local data:', err);
+        logger.warn('Network error, showing local data:', err);
         setChecklists(localChecklists);
       }
     } else {
@@ -62,7 +65,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
     if (!companyId) return;
     
     if (isOnline()) {
-      console.log('[fetchRules] Fetching rules for companyId:', companyId);
+      logger.debug('[fetchRules] Fetching rules for companyId:', companyId);
       
       // Сначала загружаем правила
       const { data: rulesData, error: rulesError } = await supabase
@@ -76,7 +79,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
         return;
       }
       
-      console.log('[fetchRules] Loaded rules:', rulesData?.length);
+      logger.info('[fetchRules] Loaded rules:', rulesData?.length);
       
       // Затем загружаем items для каждого правила отдельно
       const rulesWithItems = await Promise.all((rulesData || []).map(async (rule) => {
@@ -89,13 +92,13 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
           console.error('[fetchRules] Error loading items for rule', rule.id, ':', itemsError);
         }
         
-        console.log('[fetchRules] Rule', rule.id, 'items:', itemsData?.length);
+        logger.debug('[fetchRules] Rule', rule.id, 'items:', itemsData?.length);
         return { ...rule, items: itemsData || [] };
       }));
       
-      console.log('[fetchRules] Rules with items:', rulesWithItems.length);
-      console.log('[fetchRules] First rule items check:', rulesWithItems[0]?.name, 'has', rulesWithItems[0]?.items?.length, 'items');
-      console.log('[fetchRules] All rules items:', rulesWithItems.map(r => `${r.name}: ${r.items?.length || 0}`).join(', '));
+      logger.info('[fetchRules] Rules with items:', rulesWithItems.length);
+      logger.debug('[fetchRules] First rule items check:', rulesWithItems[0]?.name, 'has', rulesWithItems[0]?.items?.length, 'items');
+      logger.debug('[fetchRules] All rules items:', rulesWithItems.map(r => `${r.name}: ${r.items?.length || 0}`).join(', '));
       setRules(rulesWithItems);
       
       // Кэшируем правила для офлайн-режима
@@ -106,7 +109,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
       // ОФФЛАЙН: загружаем из кэша
       const cached = await getChecklistRulesCache(companyId);
       if (cached) {
-        console.log('[fetchRules] Loaded rules from cache:', cached.length);
+        logger.info('[fetchRules] Loaded rules from cache:', cached.length);
         setRules(cached);
       }
     }
@@ -141,8 +144,8 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
 
       // 2. Создаём items отдельно (из параметра items или из rule.items для обратной совместимости)
       const ruleItems = items || rule.items || [];
-      console.log('[createRule] Rule items input:', ruleItems);
-      console.log('[createRule] Creating rule items:', ruleItems?.length, 'for rule:', ruleData?.id);
+      logger.debug('[createRule] Rule items input:', ruleItems);
+      logger.info('[createRule] Creating rule items:', ruleItems?.length, 'for rule:', ruleData?.id);
       
       if (ruleItems.length > 0 && ruleData) {
         const itemsToInsert = ruleItems.map((item, idx) => ({
@@ -152,7 +155,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
           category: item.category || 'other',
           is_required: item.is_required ?? true
         }));
-        console.log('[createRule] Items to insert:', JSON.stringify(itemsToInsert));
+        logger.debug('[createRule] Items to insert:', JSON.stringify(itemsToInsert));
 
         const { data: itemsData, error: itemsError } = await supabase
           .from('checklist_rule_items')
@@ -163,10 +166,10 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
           console.error('[createRule] Error creating rule items:', itemsError);
           toast.error('Ошибка при сохранении позиций правила', { description: itemsError.message });
         } else {
-          console.log('[createRule] Created items:', itemsData?.length, JSON.stringify(itemsData));
+        logger.info('[createRule] Created items:', itemsData?.length);
         }
       } else {
-        console.log('[createRule] No items to create - items empty or undefined');
+        logger.debug('[createRule] No items to create - items empty or undefined');
       }
 
       await fetchRules();
@@ -213,7 +216,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
     if (!estimate) return { error: new Error('Смета не найдена') };
 
     try {
-      console.log('[createChecklist] Starting, rules in state:', rules.length, 'companyId:', companyId);
+      logger.info('[createChecklist] Starting, rules in state:', rules.length, 'companyId:', companyId);
       
       // Генерируем локальный ID
       const localId = `local_checklist_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
@@ -237,7 +240,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
             return { ...rule, items: itemsData || [] };
           }));
           
-          console.log('[createChecklist] Loaded rules from server:', rulesToUse.length);
+          logger.info('[createChecklist] Loaded rules from server:', rulesToUse.length);
         } else {
           // Офлайн: пробуем загрузить из кэша
           const cached = await getChecklistRulesCache(companyId);
@@ -246,14 +249,14 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
           }
         }
       } else {
-        console.log('[createChecklist] Using cached rules:', rulesToUse.length);
-        console.log('[createChecklist] Rules with items:', rulesToUse.map(r => `${r.name}: ${r.items?.length || 0} items`).join(', '));
+        logger.info('[createChecklist] Using cached rules:', rulesToUse.length);
+        logger.debug('[createChecklist] Rules with items:', rulesToUse.map(r => `${r.name}: ${r.items?.length || 0} items`).join(', '));
       }
       
       // Генерируем чек-лист
       const items: any[] = [...customItems];
-      console.log('[createChecklist] Estimate items:', estimate.items?.length);
-      console.log('[createChecklist] Rules to apply:', rulesToUse.length);
+      logger.debug('[createChecklist] Estimate items:', estimate.items?.length);
+      logger.info('[createChecklist] Rules to apply:', rulesToUse.length);
       
       // Добавляем оборудование из сметы
       estimate.items?.forEach(item => {
@@ -272,15 +275,15 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
             const match = rule.condition_type === 'category' 
               ? item.category === rule.condition_value
               : item.name.toLowerCase().includes(rule.condition_value.toLowerCase());
-            console.log('[createChecklist] Checking rule:', rule.condition_type, rule.condition_value, 'against item:', item.name, item.category, 'match:', match);
+            logger.debug('[createChecklist] Checking rule:', rule.condition_type, rule.condition_value, 'against item:', item.name, item.category, 'match:', match);
             return match;
           });
           
-          console.log('[createChecklist] Matching rules for', item.name, ':', matchingRules.length);
+          logger.debug('[createChecklist] Matching rules for', item.name, ':', matchingRules.length);
           
           matchingRules.forEach(rule => {
             // Берем items напрямую из правила
-            console.log('[createChecklist] Rule:', rule.name, 'has items:', rule.items?.length);
+            logger.debug('[createChecklist] Rule:', rule.name, 'has items:', rule.items?.length);
             if (rule.items && rule.items.length > 0) {
               rule.items.forEach(ruleItem => {
                 items.push({
@@ -297,7 +300,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
         }
       });
       
-      console.log('[createChecklist] Total items generated:', items.length);
+      logger.info('[createChecklist] Total items generated:', items.length);
       
       // Проверяем применились ли правила
       const equipmentCount = estimate.items?.length || 0;
@@ -305,8 +308,9 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
       const rulesItemsCount = totalItemsCount - equipmentCount - customItems.length;
       
       if (rulesToUse.length > 0 && rulesItemsCount === 0) {
-        console.warn('[createChecklist] Rules exist but none matched! Rules:', rulesToUse.map(r => `${r.condition_type}:${r.condition_value}`).join(', '));
-        console.warn('[createChecklist] Equipment in estimate:', estimate.items?.map(i => `${i.name}(${i.category})`).join(', '));
+        logger.warn('[createChecklist] Rules exist but none matched!');
+        logger.debug('[createChecklist] Rules:', rulesToUse.map(r => `${r.condition_type}:${r.condition_value}`).join(', '));
+        logger.debug('[createChecklist] Equipment in estimate:', estimate.items?.map(i => `${i.name}(${i.category})`).join(', '));
         toast.info('Правила не применились', {
           description: 'Созданы правила для другого оборудования. Проверьте названия в правилах или используйте тип "Категория"'
         });
@@ -376,7 +380,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
           toast.success('Чек-лист создан');
           return { error: null, data: checklistData };
         } catch (err) {
-          console.log('Network error, switching to offline mode:', err);
+        logger.warn('Network error, switching to offline mode:', err);
         }
       }
       
@@ -465,7 +469,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
           toast.success('Чек-лист удалён');
           return { error: null };
         } catch (err) {
-          console.log('Network error, switching to offline mode:', err);
+        logger.warn('Network error, switching to offline mode:', err);
         }
       }
       
@@ -533,7 +537,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
           filter: `company_id=eq.${companyId}`
         },
         () => {
-          console.log('[Realtime] Checklists changed, refreshing...');
+        logger.info('[Realtime] Checklists changed, refreshing...');
           fetchChecklists();
         }
       )
@@ -550,7 +554,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
           filter: `company_id=eq.${companyId}`
         },
         () => {
-          console.log('[Realtime] Rules changed, refreshing...');
+        logger.info('[Realtime] Rules changed, refreshing...');
           fetchRules();
         }
       )

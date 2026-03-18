@@ -313,9 +313,7 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
 
   // Логирование для отладки
   useEffect(() => {
-    console.log('Permissions loaded:', permissions);
-    console.log('User role:', userRole);
-    console.log('Nav items:', navItems.map(i => i.id));
+    // Navigation debug info removed in production
   }, [permissions, userRole, navItems]);
 
   useEffect(() => {

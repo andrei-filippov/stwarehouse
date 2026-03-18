@@ -4,6 +4,9 @@ import { getSubdomain, generateSlug } from '../lib/subdomain';
 import { getSelectedCompany, saveSelectedCompany } from '../lib/companyUrl';
 import type { Company, CompanyMember, CompanyRole } from '../types/company';
 import { isOnline, getCompanyLocal, saveCompanyLocal, getUserLocal } from '../lib/offlineDB';
+import { createLogger } from '../lib/logger';
+
+const logger = createLogger('company');
 
 export function useCompany() {
   const [company, setCompany] = useState<Company | null>(null);
@@ -49,24 +52,24 @@ export function useCompany() {
       // Получаем текущего пользователя
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        console.log('No user found');
+        logger.debug('No user found');
         setLoading(false);
         isLoadingRef.current = false;
         return;
       }
       
-      console.log('Loading company for user:', user.id);
+      logger.info('Loading company for user:', user.id);
 
       // Проверяем и принимаем приглашения (только если есть компания)
       try {
         const { data: inviteData, error: inviteError } = await supabase.rpc('accept_company_invitation');
         if (inviteError) {
-          console.log('No pending invitations or error:', inviteError.message);
+        logger.debug('No pending invitations or error:', inviteError.message);
         } else if (inviteData?.found) {
-          console.log('Invitation accepted for company:', inviteData.company_id);
+        logger.info('Invitation accepted for company:', inviteData.company_id);
         }
       } catch (e) {
-        console.log('Invitation check error:', e);
+        logger.error('Invitation check error:', e);
       }
 
       // Проверяем поддомен или сохранённый выбор
@@ -115,10 +118,10 @@ export function useCompany() {
         .maybeSingle();
 
       if (memberError) {
-        console.log('Member error:', memberError);
+        logger.error('Member error:', memberError);
         if (memberError.code === 'PGRST116') {
           // Нет активной компании
-          console.log('No active company found for user');
+        logger.info('No active company found for user');
           setCompany(null);
           setMyMember(null);
           setLoading(false);
@@ -129,7 +132,7 @@ export function useCompany() {
       }
 
       if (memberData && memberData.company) {
-        console.log('Found company:', memberData.company?.name);
+        logger.info('Found company:', memberData.company?.name);
         setCompany(memberData.company);
         setMyMember(memberData);
         // Сохраняем для оффлайн
@@ -137,7 +140,7 @@ export function useCompany() {
         // Загружаем всех членов компании только если есть компания
         await loadMembers(memberData.company_id);
       } else {
-        console.log('No company membership found');
+        logger.info('No company membership found');
         setCompany(null);
         setMyMember(null);
         setLoading(false);
@@ -145,12 +148,12 @@ export function useCompany() {
         return;
       }
     } catch (err) {
-      console.error('Error in loadCompany:', err);
+      logger.error('Error in loadCompany:', err);
       setError(err instanceof Error ? err.message : 'Ошибка загрузки компании');
     } finally {
       setLoading(false);
       isLoadingRef.current = false;
-      console.log('loadCompany finished');
+      logger.info('loadCompany finished');
     }
   }, []);
 
@@ -173,7 +176,7 @@ export function useCompany() {
       const userCompanies = (data || []).map((m: any) => m.company).filter(Boolean);
       setCompanies(userCompanies);
     } catch (err) {
-      console.error('Error loading user companies:', err);
+      logger.error('Error loading user companies:', err);
     }
   }, []);
 
@@ -217,7 +220,7 @@ export function useCompany() {
 
       setMembers(formattedMembers);
     } catch (err) {
-      console.error('Error loading members:', err);
+      logger.error('Error loading members:', err);
     }
   }, []);
 
@@ -296,9 +299,9 @@ export function useCompany() {
             role
           }
         });
-        console.log('Invitation email sent successfully');
+        logger.info('Invitation email sent successfully');
       } catch (e) {
-        console.log('Email sending failed (non-critical):', e);
+        logger.warn('Email sending failed (non-critical):', e);
       }
 
       await loadMembers(company.id);
@@ -329,7 +332,7 @@ export function useCompany() {
 
   // Обновление роли сотрудника через RPC
   const updateMemberRole = useCallback(async (memberId: string, role: CompanyRole) => {
-    console.log('updateMemberRole called:', { memberId, role, companyId: company?.id });
+    logger.debug('updateMemberRole called:', { memberId, role, companyId: company?.id });
     try {
       if (!company) throw new Error('Компания не выбрана');
 
@@ -337,21 +340,21 @@ export function useCompany() {
         p_member_id: memberId,
         p_role: role
       });
-      console.log('RPC result:', { data, error });
+      logger.debug('RPC result:', { data, error });
 
       if (error) {
-        console.error('RPC error:', error);
+        logger.error('RPC error:', error);
         throw error;
       }
       if (data?.error) {
-        console.error('RPC returned error:', data.error);
+        logger.error('RPC returned error:', data.error);
         throw new Error(data.error);
       }
 
       await loadMembers(company.id);
       return { error: null };
     } catch (err) {
-      console.error('updateMemberRole catch:', err);
+      logger.error('updateMemberRole catch:', err);
       return { error: err instanceof Error ? err.message : 'Ошибка обновления роли' };
     }
   }, [company, loadMembers]);
