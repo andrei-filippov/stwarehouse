@@ -282,7 +282,7 @@ export const CableManager = memo(function CableManager({
   // Обработка массовой выдачи
   const handleBulkIssue = async () => {
     if (!bulkIssueForm.issued_to.trim()) {
-      toast.error('Укажите, кому выдается кабель');
+      toast.error('Укажите, кому выдаётся оборудование');
       return;
     }
 
@@ -290,7 +290,7 @@ export const CableManager = memo(function CableManager({
     
     for (const item of bulkIssueForm.items) {
       if (item.quantity <= 0 || item.quantity > item.available) {
-        toast.error(`Некорректное количество для ${item.length}м`);
+        toast.error(`Некорректное количество для позиции`);
         hasError = true;
         break;
       }
@@ -314,7 +314,7 @@ export const CableManager = memo(function CableManager({
     if (!hasError) {
       setIsBulkIssueDialogOpen(false);
       setSelectedItems([]);
-      toast.success('Кабель успешно выдан');
+      toast.success('Успешно выдано');
     }
   };
 

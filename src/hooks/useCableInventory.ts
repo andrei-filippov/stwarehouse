@@ -190,7 +190,7 @@ export function useCableInventory(companyId: string | undefined) {
 
       await fetchMovements();
       await fetchInventory();
-      toast.success('Кабель выдан');
+      toast.success('Выдано');
       return { error: null };
     } catch (err: any) {
       toast.error('Ошибка при выдаче', { description: err.message });
@@ -228,7 +228,7 @@ export function useCableInventory(companyId: string | undefined) {
 
       await fetchMovements();
       await fetchInventory();
-      toast.success('Кабель возвращён');
+      toast.success('Возвращено');
       return { error: null };
     } catch (err: any) {
       toast.error('Ошибка при возврате', { description: err.message });
