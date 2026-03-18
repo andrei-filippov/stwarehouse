@@ -434,36 +434,41 @@ export const CableManager = memo(function CableManager({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-4">
       {/* Заголовок */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <Cable className="w-7 h-7 text-blue-600" />
-          Учет оборудования
+        <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
+          <Cable className="w-6 h-6 sm:w-7 sm:h-7 text-blue-600" />
+          <span className="hidden sm:inline">Учет оборудования</span>
+          <span className="sm:hidden">Оборудование</span>
         </h1>
-        <Button onClick={() => {
-          setEditingCategory(null);
-          setCategoryForm({ name: '', description: '', color: '#3b82f6' });
-          setIsCategoryDialogOpen(true);
-        }}>
-          <Plus className="w-4 h-4 mr-2" />
-          Категория
+        <Button 
+          onClick={() => {
+            setEditingCategory(null);
+            setCategoryForm({ name: '', description: '', color: '#3b82f6' });
+            setIsCategoryDialogOpen(true);
+          }}
+          size="sm"
+          className="sm:size-default"
+        >
+          <Plus className="w-4 h-4 mr-0 sm:mr-2" />
+          <span className="hidden sm:inline">Категория</span>
         </Button>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="warehouse">На складе</TabsTrigger>
-          <TabsTrigger value="issued">
+        <TabsList className="grid w-full grid-cols-3 h-9 sm:h-10">
+          <TabsTrigger value="warehouse" className="text-xs sm:text-sm">Склад</TabsTrigger>
+          <TabsTrigger value="issued" className="text-xs sm:text-sm">
             Выдано
             {movements.filter(m => m.is_returned !== true).length > 0 && (
-              <Badge variant="secondary" className="ml-2">{movements.filter(m => m.is_returned !== true).length}</Badge>
+              <Badge variant="secondary" className="ml-1 sm:ml-2 text-xs">{movements.filter(m => m.is_returned !== true).length}</Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="repair">
-            В ремонте
+          <TabsTrigger value="repair" className="text-xs sm:text-sm">
+            Ремонт
             {repairs.filter(r => r.status === 'in_repair').length > 0 && (
-              <Badge variant="secondary" className="ml-2">{repairs.filter(r => r.status === 'in_repair').length}</Badge>
+              <Badge variant="secondary" className="ml-1 sm:ml-2 text-xs">{repairs.filter(r => r.status === 'in_repair').length}</Badge>
             )}
           </TabsTrigger>
         </TabsList>
@@ -501,27 +506,30 @@ export const CableManager = memo(function CableManager({
           
           {/* Плавающая панель выдачи */}
           {selectedItems.length > 0 && (
-            <div className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-50">
+            <div className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-sm">
               <Card className="bg-blue-600 text-white shadow-lg border-0">
-                <CardContent className="p-3 flex items-center gap-4">
-                  <span className="text-sm font-medium">
-                    Выбрано: {selectedItems.length} позиций
+                <CardContent className="p-2 sm:p-3 flex items-center justify-between gap-2">
+                  <span className="text-xs sm:text-sm font-medium truncate">
+                    Выбрано: {selectedItems.length}
                   </span>
-                  <Button 
-                    size="sm" 
-                    variant="secondary"
-                    onClick={openBulkIssueDialog}
-                  >
-                    Выдать
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="ghost"
-                    className="text-white hover:text-white/80"
-                    onClick={() => setSelectedItems([])}
-                  >
-                    Отмена
-                  </Button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button 
+                      size="sm" 
+                      variant="secondary"
+                      onClick={openBulkIssueDialog}
+                      className="h-7 sm:h-8 text-xs sm:text-sm"
+                    >
+                      Выдать
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="ghost"
+                      className="text-white hover:text-white/80 h-7 sm:h-8 text-xs sm:text-sm px-2"
+                      onClick={() => setSelectedItems([])}
+                    >
+                      Отмена
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -529,12 +537,13 @@ export const CableManager = memo(function CableManager({
         </TabsContent>
 
         {/* Вкладка Выдано */}
-        <TabsContent value="issued">
+        <TabsContent value="issued" className="space-y-3 sm:space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="w-5 h-5" />
-                Выданная коммутация
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <User className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="hidden sm:inline">Выданная коммутация</span>
+                <span className="sm:hidden">Выдано</span>
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -551,29 +560,36 @@ export const CableManager = memo(function CableManager({
                     return (
                       <div 
                         key={movement.id}
-                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                        className="flex flex-col sm:flex-row sm:items-center justify-between p-2 sm:p-3 bg-gray-50 rounded-lg gap-2"
                       >
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-start sm:items-center gap-2 sm:gap-3">
                           <Checkbox
                             checked={false}
                             onCheckedChange={() => onReturnCable(movement.id)}
-                            className="w-5 h-5"
+                            className="w-4 h-4 sm:w-5 sm:h-5 mt-0.5 sm:mt-0 shrink-0"
                           />
-                          <div>
-                            <div className="flex items-center gap-2">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-1 sm:gap-2 text-sm sm:text-base">
                               <div 
-                                className="w-3 h-3 rounded-full"
+                                className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full shrink-0"
                                 style={{ backgroundColor: category?.color || '#ccc' }}
                               />
                               <span className="font-medium">{category?.name || 'Неизвестно'}</span>
-                              <span className="text-gray-600">{movement.length} м</span>
-                              <span className="text-gray-600">× {movement.quantity} шт</span>
+                              <span className="text-gray-600 text-sm">{movement.length} м</span>
+                              <span className="text-gray-600 text-sm">× {movement.quantity} шт</span>
                             </div>
-                            <div className="text-sm text-gray-500 mt-1">
+                            <div className="text-xs sm:text-sm text-gray-500 mt-1">
                               <User className="w-3 h-3 inline mr-1" />
                               {movement.issued_to}
-                              {movement.contact && ` • ${movement.contact}`}
+                              {movement.contact && (
+                                <span className="hidden sm:inline"> • {movement.contact}</span>
+                              )}
                             </div>
+                            {movement.contact && (
+                              <div className="text-xs text-gray-400 sm:hidden">
+                                {movement.contact}
+                              </div>
+                            )}
                             <div className="text-xs text-gray-400">
                               {format(new Date(movement.created_at || ''), 'dd.MM.yyyy HH:mm', { locale: ru })}
                             </div>
@@ -589,19 +605,20 @@ export const CableManager = memo(function CableManager({
         </TabsContent>
 
         {/* Вкладка В ремонте */}
-        <TabsContent value="repair">
+        <TabsContent value="repair" className="space-y-3 sm:space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                🔧 Оборудование в ремонте
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                🔧 <span className="hidden sm:inline">Оборудование в ремонте</span>
+                <span className="sm:hidden">В ремонте</span>
               </CardTitle>
             </CardHeader>
             <CardContent>
               {repairs.filter(r => r.status === 'in_repair').length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
-                  <CheckCircle2 className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p>Всё исправно</p>
-                  <p className="text-sm">Нет оборудования в ремонте</p>
+                  <CheckCircle2 className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3 opacity-50" />
+                  <p className="text-sm sm:text-base">Всё исправно</p>
+                  <p className="text-xs sm:text-sm">Нет оборудования в ремонте</p>
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -610,56 +627,58 @@ export const CableManager = memo(function CableManager({
                     return (
                       <div 
                         key={repair.id}
-                        className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg border border-yellow-200"
+                        className="flex flex-col sm:flex-row sm:items-center justify-between p-2 sm:p-3 bg-yellow-50 rounded-lg border border-yellow-200 gap-2"
                       >
-                        <div className="flex items-center gap-3">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <div 
-                                className="w-3 h-3 rounded-full"
-                                style={{ backgroundColor: category?.color || '#ccc' }}
-                              />
-                              <span className="font-medium">{repair.equipment_name}</span>
-                              <span className="text-gray-600">× {repair.quantity} шт</span>
-                              <Badge className={getRepairStatusColor(repair.status)}>
-                                {getRepairStatusLabel(repair.status)}
-                              </Badge>
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-1 sm:gap-2 text-sm sm:text-base">
+                            <div 
+                              className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full shrink-0"
+                              style={{ backgroundColor: category?.color || '#ccc' }}
+                            />
+                            <span className="font-medium">{repair.equipment_name}</span>
+                            <span className="text-gray-600 text-sm">× {repair.quantity} шт</span>
+                            <Badge className={`${getRepairStatusColor(repair.status)} text-xs`}>
+                              {getRepairStatusLabel(repair.status)}
+                            </Badge>
+                          </div>
+                          <div className="text-xs sm:text-sm text-gray-600 mt-1">
+                            <span className="font-medium">Причина:</span> {repair.reason}
+                          </div>
+                          {repair.notes && (
+                            <div className="text-xs sm:text-sm text-gray-500">
+                              <span className="font-medium">Примечание:</span> {repair.notes}
                             </div>
-                            <div className="text-sm text-gray-600 mt-1">
-                              <span className="font-medium">Причина:</span> {repair.reason}
-                            </div>
-                            {repair.notes && (
-                              <div className="text-sm text-gray-500">
-                                <span className="font-medium">Примечание:</span> {repair.notes}
-                              </div>
-                            )}
-                            <div className="text-xs text-gray-400 mt-1">
-                              Отправлено: {format(new Date(repair.sent_date), 'dd.MM.yyyy')}
-                            </div>
+                          )}
+                          <div className="text-xs text-gray-400 mt-1">
+                            Отправлено: {format(new Date(repair.sent_date), 'dd.MM.yyyy')}
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1 sm:gap-2 shrink-0 pt-1 sm:pt-0">
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={() => onUpdateRepairStatus?.(repair.id, 'repaired', new Date().toISOString())}
+                            className="h-7 sm:h-8 px-2 text-xs sm:text-sm"
                           >
-                            ✅ Отремонтировано
+                            <span className="hidden sm:inline">✅ Отремонтировано</span>
+                            <span className="sm:hidden">✅ Готово</span>
                           </Button>
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={() => onUpdateRepairStatus?.(repair.id, 'written_off')}
-                            className="text-red-600"
+                            className="h-7 sm:h-8 px-2 text-xs sm:text-sm text-red-600"
                           >
-                            🗑️ Списать
+                            <span className="hidden sm:inline">🗑️ Списать</span>
+                            <span className="sm:hidden">🗑️</span>
                           </Button>
                           <Button
                             size="sm"
                             variant="ghost"
                             onClick={() => onDeleteRepair?.(repair.id)}
+                            className="h-7 w-7 sm:h-8 sm:w-8 p-0"
                           >
-                            <Trash2 className="w-4 h-4 text-red-500" />
+                            <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-500" />
                           </Button>
                         </div>
                       </div>
@@ -1093,28 +1112,32 @@ function CategoryList({
         const showLowStock = hasLowStock || hasChildrenLowStock;
 
         return (
-          <div key={category.id} style={{ marginLeft: level > 0 ? `${level * 24}px` : 0 }}>
+          <div key={category.id} className={level > 0 ? 'ml-4 sm:ml-6' : ''}>
             <Card className={showLowStock ? 'border-orange-300' : ''}>
               <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
+                <div 
+                  className="flex items-center justify-between cursor-pointer"
+                  onClick={() => onToggleCategory(category.id)}
+                >
+                  <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
                     <div 
-                      className="w-4 h-4 rounded-full"
+                      className="w-3 h-3 sm:w-4 sm:h-4 rounded-full shrink-0"
                       style={{ backgroundColor: category.color }}
                     />
-                    {level > 0 && <span className="text-gray-400">└</span>}
-                    <CardTitle className={`${level > 0 ? 'text-base' : 'text-lg'}`}>
+                    {level > 0 && <span className="text-gray-400 text-xs sm:text-sm">└</span>}
+                    <CardTitle className={`${level > 0 ? 'text-sm sm:text-base' : 'text-base sm:text-lg'} truncate`}>
                       {category.name}
                     </CardTitle>
                     {showLowStock && (
-                      <AlertCircle className="w-5 h-5 text-orange-500" />
+                      <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500 shrink-0" />
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-0 sm:gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
                     <Button 
                       variant="ghost" 
                       size="sm"
                       onClick={() => onAddInventory(category.id)}
+                      className="h-8 w-8 p-0"
                     >
                       <Plus className="w-4 h-4" />
                     </Button>
@@ -1122,6 +1145,7 @@ function CategoryList({
                       variant="ghost" 
                       size="sm"
                       onClick={() => onEditCategory(category)}
+                      className="h-8 w-8 p-0 hidden sm:flex"
                     >
                       <Edit2 className="w-4 h-4" />
                     </Button>
@@ -1129,6 +1153,7 @@ function CategoryList({
                       variant="ghost" 
                       size="sm"
                       onClick={() => onDeleteCategory(category.id)}
+                      className="h-8 w-8 p-0 hidden sm:flex"
                     >
                       <Trash2 className="w-4 h-4 text-red-500" />
                     </Button>
@@ -1136,6 +1161,7 @@ function CategoryList({
                       variant="ghost"
                       size="sm"
                       onClick={() => onToggleCategory(category.id)}
+                      className="h-8 w-8 p-0"
                     >
                       {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                     </Button>
@@ -1144,23 +1170,31 @@ function CategoryList({
                 {category.description && (
                   <p className="text-sm text-gray-500 mt-1">{category.description}</p>
                 )}
-                <div className="flex gap-4 mt-2 text-sm flex-wrap">
+                <div className="flex gap-2 sm:gap-4 mt-2 text-xs sm:text-sm flex-wrap">
                   {catStats.hasCables && (
                     <span className="text-gray-600">
-                      Общий метраж: <strong>{catStats.totalLength.toFixed(1)} м</strong>
+                      <span className="hidden sm:inline">Общий метраж: </span>
+                      <span className="sm:hidden">Метраж: </span>
+                      <strong>{catStats.totalLength.toFixed(1)} м</strong>
                     </span>
                   )}
                   <span className="text-gray-600">
-                    На складе: <strong>{catStats.totalQty} шт</strong>
+                    <span className="hidden sm:inline">На складе: </span>
+                    <span className="sm:hidden">Склад: </span>
+                    <strong>{catStats.totalQty} шт</strong>
                   </span>
                   {catStats.issuedQty > 0 && (
                     <span className="text-orange-600">
-                      Выдано: <strong>{catStats.issuedQty} шт</strong>
+                      <span className="hidden sm:inline">Выдано: </span>
+                      <span className="sm:hidden">Выд: </span>
+                      <strong>{catStats.issuedQty} шт</strong>
                     </span>
                   )}
                   {catStats.repairQty > 0 && (
                     <span className="text-yellow-600">
-                      В ремонте: <strong>{catStats.repairQty} шт</strong>
+                      <span className="hidden sm:inline">В ремонте: </span>
+                      <span className="sm:hidden">Рем: </span>
+                      <strong>{catStats.repairQty} шт</strong>
                     </span>
                   )}
                 </div>
@@ -1183,24 +1217,25 @@ function CategoryList({
                         return (
                           <div 
                             key={item.id}
-                            className={`flex items-center justify-between p-2 rounded ${
+                            className={`flex flex-col sm:flex-row sm:items-center justify-between p-2 rounded gap-2 ${
                               isSelected ? 'bg-blue-50 border border-blue-200' : 
                               isLow ? 'bg-orange-50' : 'bg-gray-50'
                             }`}
                           >
-                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
                               {/* Чекбокс выбора */}
                               <Checkbox
                                 checked={isSelected}
                                 onCheckedChange={() => actualQty > 0 && onToggleItem(item)}
                                 disabled={actualQty <= 0}
+                                className="shrink-0"
                               />
                               
                               {/* Название или длина */}
                               {item.name ? (
-                                <span className="font-medium truncate" title={item.name}>{item.name}</span>
+                                <span className="font-medium truncate text-sm sm:text-base" title={item.name}>{item.name}</span>
                               ) : (
-                                <span className="font-medium w-16">{item.length} м</span>
+                                <span className="font-medium w-14 sm:w-16 text-sm sm:text-base">{item.length} м</span>
                               )}
                               
                               <div className="flex items-center gap-1 shrink-0">
@@ -1213,7 +1248,7 @@ function CategoryList({
                                 >
                                   -
                                 </Button>
-                                <span className={`text-sm w-10 text-center ${isLow ? 'text-orange-600 font-medium' : 'text-gray-600'}`}>
+                                <span className={`text-sm w-8 sm:w-10 text-center ${isLow ? 'text-orange-600 font-medium' : 'text-gray-600'}`}>
                                   {actualQty}
                                 </span>
                                 <Button
@@ -1226,7 +1261,7 @@ function CategoryList({
                                 </Button>
                               </div>
                               {issuedQty > 0 && (
-                                <span className="text-xs text-orange-500 shrink-0">({item.quantity} всего)</span>
+                                <span className="text-xs text-orange-500 shrink-0 hidden sm:inline">({item.quantity} всего)</span>
                               )}
                               {repairQty > 0 && (
                                 <span className="text-xs text-yellow-600 shrink-0" title="В ремонте">
@@ -1234,40 +1269,47 @@ function CategoryList({
                                 </span>
                               )}
                               {isLow && (
-                                <AlertCircle className="w-4 h-4 text-orange-500 shrink-0" />
+                                <AlertCircle className="w-4 h-4 text-orange-500 shrink-0 hidden sm:block" />
                               )}
+                            </div>
+                            <div className="flex items-center justify-between sm:justify-end gap-1 pl-6 sm:pl-0">
+                              {/* На мобильном показываем заметку тут */}
                               {item.notes && (
-                                <span className="text-sm text-gray-500 truncate max-w-[250px]" title={item.notes}>
+                                <span className="text-xs text-gray-500 truncate flex-1 sm:hidden" title={item.notes}>
                                   {item.notes}
                                 </span>
                               )}
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => onSendToRepair?.(category.id, item, category.name)}
-                                disabled={actualQty <= 0}
-                                title="Отправить в ремонт"
-                              >
-                                🔧
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => onEditInventory(item, category.name)}
-                                title="Редактировать"
-                              >
-                                <Pencil className="w-4 h-4 text-blue-500" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => onDeleteInventory(item.id!)}
-                                title="Удалить"
-                              >
-                                <Trash2 className="w-4 h-4 text-red-500" />
-                              </Button>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => onSendToRepair?.(category.id, item, category.name)}
+                                  disabled={actualQty <= 0}
+                                  title="Отправить в ремонт"
+                                  className="h-7 w-7 sm:h-8 sm:w-auto sm:px-2 p-0"
+                                >
+                                  <span className="hidden sm:inline">🔧</span>
+                                  <span className="sm:hidden text-xs">🔧</span>
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => onEditInventory(item, category.name)}
+                                  title="Редактировать"
+                                  className="h-7 w-7 sm:h-8 p-0"
+                                >
+                                  <Pencil className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-500" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => onDeleteInventory(item.id!)}
+                                  title="Удалить"
+                                  className="h-7 w-7 sm:h-8 p-0"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-500" />
+                                </Button>
+                              </div>
                             </div>
                           </div>
                         );
