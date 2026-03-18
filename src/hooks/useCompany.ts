@@ -361,8 +361,17 @@ export function useCompany() {
 
   // Переключение компании (если у пользователя несколько)
   const switchCompany = useCallback(async (companyId: string) => {
-    // В будущем можно сохранять выбор в localStorage
-    localStorage.setItem('selected_company_id', companyId);
+    // Получаем slug компании перед переключением
+    const { data: companyData } = await supabase
+      .from('companies')
+      .select('slug')
+      .eq('id', companyId)
+      .single();
+    
+    if (companyData?.slug) {
+      saveSelectedCompany(companyData.slug);
+    }
+    
     await loadCompany();
   }, [loadCompany]);
 
