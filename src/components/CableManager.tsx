@@ -357,8 +357,8 @@ export const CableManager = memo(function CableManager({
           <TabsTrigger value="warehouse">На складе</TabsTrigger>
           <TabsTrigger value="issued">
             Выдано
-            {movements.length > 0 && (
-              <Badge variant="secondary" className="ml-2">{movements.length}</Badge>
+            {movements.filter(m => m.is_returned !== true).length > 0 && (
+              <Badge variant="secondary" className="ml-2">{movements.filter(m => m.is_returned !== true).length}</Badge>
             )}
           </TabsTrigger>
         </TabsList>
@@ -430,7 +430,7 @@ export const CableManager = memo(function CableManager({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {movements.filter(m => !m.is_returned).length === 0 ? (
+              {movements.filter(m => m.is_returned !== true).length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   <CheckCircle2 className="w-12 h-12 mx-auto mb-3 opacity-50" />
                   <p>Всё на складе</p>
@@ -438,7 +438,7 @@ export const CableManager = memo(function CableManager({
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {movements.filter(m => !m.is_returned).map(movement => {
+                  {movements.filter(m => m.is_returned !== true).map(movement => {
                     const category = categories.find(c => c.id === movement.category_id);
                     return (
                       <div 
