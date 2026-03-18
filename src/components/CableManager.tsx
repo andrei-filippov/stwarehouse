@@ -104,22 +104,14 @@ export const CableManager = memo(function CableManager({
   // Dialog states
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
   const [isInventoryDialogOpen, setIsInventoryDialogOpen] = useState(false);
-  const [isIssueDialogOpen, setIsIssueDialogOpen] = useState(false);
+  
   const [editingCategory, setEditingCategory] = useState<CableCategory | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
 
   // Form states
-  const [categoryForm, setCategoryForm] = useState({ name: '', description: '', color: '#3b82f6' });
+  const [categoryForm, setCategoryForm] = useState({ name: '', description: '', color: '#3b82f6', parent_id: '' as string | undefined });
   const [inventoryForm, setInventoryForm] = useState({ category_id: '', length: '', quantity: '', min_quantity: '0', notes: '' });
-  const [issueForm, setIssueForm] = useState({
-    category_id: '',
-    inventory_id: '',
-    length: 0,
-    availableQty: 0,
-    quantity: '',
-    issued_to: '',
-    contact: '',
-  });
+  
 
   const toggleCategory = (id: string) => {
     setExpandedCategories(prev => {
@@ -133,21 +125,25 @@ export const CableManager = memo(function CableManager({
   const handleAddCategory = async () => {
     const { error } = await onAddCategory({
       ...categoryForm,
+      parent_id: categoryForm.parent_id || undefined,
       sort_order: categories.length,
     });
     if (!error) {
       setIsCategoryDialogOpen(false);
-      setCategoryForm({ name: '', description: '', color: '#3b82f6' });
+      setCategoryForm({ name: '', description: '', color: '#3b82f6', parent_id: undefined });
     }
   };
 
   const handleUpdateCategory = async () => {
     if (!editingCategory) return;
-    const { error } = await onUpdateCategory(editingCategory.id, categoryForm);
+    const { error } = await onUpdateCategory(editingCategory.id, {
+      ...categoryForm,
+      parent_id: categoryForm.parent_id || undefined,
+    });
     if (!error) {
       setIsCategoryDialogOpen(false);
       setEditingCategory(null);
-      setCategoryForm({ name: '', description: '', color: '#3b82f6' });
+      setCategoryForm({ name: '', description: '', color: '#3b82f6', parent_id: undefined });
     }
   };
 
@@ -278,6 +274,7 @@ export const CableManager = memo(function CableManager({
       name: cat.name,
       description: cat.description || '',
       color: cat.color?.toLowerCase() || '#3b82f6',
+      parent_id: cat.parent_id || undefined,
     });
     setIsCategoryDialogOpen(true);
   };
@@ -286,6 +283,48 @@ export const CableManager = memo(function CableManager({
     setInventoryForm({ category_id: categoryId, length: '', quantity: '', min_quantity: '0', notes: '' });
     setIsInventoryDialogOpen(true);
   };
+
+  // Построение дерева категорий
+  const categoryTree = useMemo(() => {
+    const map = new Map<string, CableCategory & { children: CableCategory[]; level: number }>();
+    const roots: (CableCategory & { children: CableCategory[]; level: number })[] = [];
+    
+    // Сначала создаем все узлы
+    categories.forEach(cat => {
+      map.set(cat.id, { ...cat, children: [], level: 0 });
+    });
+    
+    // Затем строим иерархию
+    categories.forEach(cat => {
+      const node = map.get(cat.id)!;
+      if (cat.parent_id && map.has(cat.parent_id)) {
+        const parent = map.get(cat.parent_id)!;
+        node.level = parent.level + 1;
+        parent.children.push(node);
+      } else {
+        roots.push(node);
+      }
+    });
+    
+    return roots;
+  }, [categories]);
+
+  // Получение плоского списка для селекта (с отступами)
+  const flatCategoriesForSelect = useMemo(() => {
+    const result: { id: string; name: string; level: number }[] = [];
+    
+    const traverse = (cats: CableCategory[], level: number) => {
+      cats.forEach(cat => {
+        result.push({ id: cat.id, name: cat.name, level });
+        if (cat.children && cat.children.length > 0) {
+          traverse(cat.children, level + 1);
+        }
+      });
+    };
+    
+    traverse(categoryTree, 0);
+    return result;
+  }, [categoryTree]);
 
   if (loading) {
     return (
@@ -301,7 +340,7 @@ export const CableManager = memo(function CableManager({
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <Cable className="w-7 h-7 text-blue-600" />
-          Коммутация
+          Учет оборудования
         </h1>
         <Button onClick={() => {
           setEditingCategory(null);
@@ -315,7 +354,7 @@ export const CableManager = memo(function CableManager({
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="warehouse">Склад</TabsTrigger>
+          <TabsTrigger value="warehouse">На складе</TabsTrigger>
           <TabsTrigger value="issued">
             Выдано
             {movements.length > 0 && (
@@ -335,74 +374,21 @@ export const CableManager = memo(function CableManager({
               </CardContent>
             </Card>
           ) : (
-            categories.map(category => {
-              const catInventory = inventory.filter(i => i.category_id === category.id).sort((a, b) => a.length - b.length);
-              const catStats = stats[category.id] || { totalLength: 0, totalQty: 0, issuedQty: 0 };
-              const isExpanded = expandedCategories.has(category.id);
-              const hasLowStock = catInventory.some(i => (i.min_quantity ?? 0) > 0 && i.quantity < (i.min_quantity ?? 0));
-
-              return (
-                <Card key={category.id} className={hasLowStock ? 'border-orange-300' : ''}>
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div 
-                          className="w-4 h-4 rounded-full"
-                          style={{ backgroundColor: category.color }}
-                        />
-                        <CardTitle className="text-lg">{category.name}</CardTitle>
-                        {hasLowStock && (
-                          <AlertCircle className="w-5 h-5 text-orange-500" />
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => openInventoryAdd(category.id)}
-                        >
-                          <Plus className="w-4 h-4" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => openCategoryEdit(category)}
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => onDeleteCategory(category.id)}
-                        >
-                          <Trash2 className="w-4 h-4 text-red-500" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => toggleCategory(category.id)}
-                        >
-                          {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                        </Button>
-                      </div>
-                    </div>
-                    {category.description && (
-                      <p className="text-sm text-gray-500 mt-1">{category.description}</p>
-                    )}
-                    <div className="flex gap-4 mt-2 text-sm">
-                      <span className="text-gray-600">
-                        Общий метраж: <strong>{catStats.totalLength.toFixed(1)} м</strong>
-                      </span>
-                      <span className="text-gray-600">
-                        На складе: <strong>{catStats.totalQty} шт</strong>
-                      </span>
-                      {catStats.issuedQty > 0 && (
-                        <span className="text-orange-600">
-                          Выдано: <strong>{catStats.issuedQty} шт</strong>
-                        </span>
-                      )}
-                    </div>
-                  </CardHeader>
+            <CategoryList 
+              categories={categoryTree}
+              inventory={inventory}
+              stats={stats}
+              selectedItems={selectedItems}
+              expandedCategories={expandedCategories}
+              onToggleCategory={toggleCategory}
+              onToggleItem={toggleItemSelection}
+              onUpdateInventoryQty={handleUpdateInventoryQty}
+              onDeleteInventory={onDeleteInventory}
+              onAddInventory={openInventoryAdd}
+              onEditCategory={openCategoryEdit}
+              onDeleteCategory={onDeleteCategory}
+            />
+          )}
 
                   {isExpanded && (
                     <CardContent>
@@ -627,6 +613,29 @@ export const CableManager = memo(function CableManager({
                 </div>
               </div>
             </div>
+            
+            {/* Выбор родительской категории */}
+            <div>
+              <label className="text-sm font-medium">Родительская категория</label>
+              <select
+                value={categoryForm.parent_id || ''}
+                onChange={(e) => setCategoryForm({ ...categoryForm, parent_id: e.target.value || undefined })}
+                className="w-full border rounded-md p-2 mt-1"
+              >
+                <option value="">— Корневая категория —</option>
+                {flatCategoriesForSelect
+                  .filter(cat => !editingCategory || cat.id !== editingCategory.id) // Нельзя выбрать себя
+                  .map(cat => (
+                    <option key={cat.id} value={cat.id}>
+                      {'  '.repeat(cat.level)}{cat.level > 0 ? '└ ' : ''}{cat.name}
+                    </option>
+                  ))}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                Оставьте пустым для создания корневой категории
+              </p>
+            </div>
+            
             <div className="flex justify-end gap-2 pt-4">
               <Button variant="outline" onClick={() => setIsCategoryDialogOpen(false)}>
                 Отмена
@@ -703,58 +712,8 @@ export const CableManager = memo(function CableManager({
         </DialogContent>
       </Dialog>
 
-      {/* Диалог выдачи */}
-      <Dialog open={isIssueDialogOpen} onOpenChange={setIsIssueDialogOpen}>
-        <DialogContent className="max-w-lg w-[95%] rounded-xl p-4 sm:p-6" aria-describedby="issue-dialog-desc">
-          <DialogHeader>
-            <DialogTitle>Выдать кабель</DialogTitle>
-            <DialogDescription id="issue-dialog-desc">
-              Доступно: {issueForm.availableQty} шт × {issueForm.length} м
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium">Кому выдаётся *</label>
-              <Input
-                value={issueForm.issued_to}
-                onChange={(e) => setIssueForm({ ...issueForm, issued_to: e.target.value })}
-                placeholder="ФИО или название организации"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium">Контакт</label>
-              <Input
-                value={issueForm.contact}
-                onChange={(e) => setIssueForm({ ...issueForm, contact: e.target.value })}
-                placeholder="Телефон для связи"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium">Количество *</label>
-              <Input
-                type="number"
-                max={issueForm.availableQty}
-                value={issueForm.quantity}
-                onChange={(e) => setIssueForm({ ...issueForm, quantity: e.target.value })}
-                placeholder={`Максимум ${issueForm.availableQty}`}
-              />
-            </div>
-            <div className="flex justify-end gap-2 pt-4">
-              <Button variant="outline" onClick={() => setIsIssueDialogOpen(false)}>
-                Отмена
-              </Button>
-              <Button 
-                onClick={handleIssue}
-                disabled={!issueForm.issued_to.trim() || !issueForm.quantity || parseInt(issueForm.quantity) > issueForm.availableQty}
-              >
-                Выдать
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
-      {/* Диалог массовой выдачи */}
+      {/* ������ �������� ������ */}
       <Dialog open={isBulkIssueDialogOpen} onOpenChange={setIsBulkIssueDialogOpen}>
         <DialogContent className="max-w-lg w-[95%] rounded-xl p-4 sm:p-6 max-h-[90vh] overflow-y-auto" aria-describedby="bulk-issue-dialog-desc">
           <DialogHeader>
@@ -838,6 +797,216 @@ export const CableManager = memo(function CableManager({
     </div>
   );
 });
+
+// Рекурсивный компонент для отображения категорий с подкатегориями
+interface CategoryListProps {
+  categories: (CableCategory & { children?: CableCategory[]; level?: number })[];
+  inventory: CableInventory[];
+  stats: Record<string, { totalLength: number; totalQty: number; issuedQty: number }>;
+  selectedItems: SelectedItem[];
+  expandedCategories: Set<string>;
+  onToggleCategory: (id: string) => void;
+  onToggleItem: (item: CableInventory) => void;
+  onUpdateInventoryQty: (id: string, newQty: number, length: number) => void;
+  onDeleteInventory: (id: string) => Promise<{ error: any }>;
+  onAddInventory: (categoryId: string) => void;
+  onEditCategory: (cat: CableCategory) => void;
+  onDeleteCategory: (id: string) => Promise<{ error: any }>;
+  level?: number;
+}
+
+function CategoryList({
+  categories,
+  inventory,
+  stats,
+  selectedItems,
+  expandedCategories,
+  onToggleCategory,
+  onToggleItem,
+  onUpdateInventoryQty,
+  onDeleteInventory,
+  onAddInventory,
+  onEditCategory,
+  onDeleteCategory,
+  level = 0,
+}: CategoryListProps) {
+  return (
+    <>
+      {categories.map(category => {
+        const catInventory = inventory.filter(i => i.category_id === category.id).sort((a, b) => a.length - b.length);
+        const catStats = stats[category.id] || { totalLength: 0, totalQty: 0, issuedQty: 0 };
+        const isExpanded = expandedCategories.has(category.id);
+        const hasLowStock = catInventory.some(i => (i.min_quantity ?? 0) > 0 && i.quantity < (i.min_quantity ?? 0));
+        const hasChildren = category.children && category.children.length > 0;
+
+        return (
+          <div key={category.id} style={{ marginLeft: level > 0 ? `${level * 24}px` : 0 }}>
+            <Card className={hasLowStock ? 'border-orange-300' : ''}>
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div 
+                      className="w-4 h-4 rounded-full"
+                      style={{ backgroundColor: category.color }}
+                    />
+                    {level > 0 && <span className="text-gray-400">└</span>}
+                    <CardTitle className={`${level > 0 ? 'text-base' : 'text-lg'}`}>
+                      {category.name}
+                    </CardTitle>
+                    {hasLowStock && (
+                      <AlertCircle className="w-5 h-5 text-orange-500" />
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => onAddInventory(category.id)}
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => onEditCategory(category)}
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => onDeleteCategory(category.id)}
+                    >
+                      <Trash2 className="w-4 h-4 text-red-500" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onToggleCategory(category.id)}
+                    >
+                      {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    </Button>
+                  </div>
+                </div>
+                {category.description && (
+                  <p className="text-sm text-gray-500 mt-1">{category.description}</p>
+                )}
+                <div className="flex gap-4 mt-2 text-sm">
+                  <span className="text-gray-600">
+                    Общий метраж: <strong>{catStats.totalLength.toFixed(1)} м</strong>
+                  </span>
+                  <span className="text-gray-600">
+                    На складе: <strong>{catStats.totalQty} шт</strong>
+                  </span>
+                  {catStats.issuedQty > 0 && (
+                    <span className="text-orange-600">
+                      Выдано: <strong>{catStats.issuedQty} шт</strong>
+                    </span>
+                  )}
+                </div>
+              </CardHeader>
+
+              {isExpanded && (
+                <CardContent>
+                  {catInventory.length === 0 ? (
+                    <p className="text-sm text-gray-500">Нет позиций</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {catInventory.map(item => {
+                        const isSelected = selectedItems.some(i => i.inventory_id === item.id);
+                        const minQty = item.min_quantity ?? 0;
+                        const isLow = minQty > 0 && item.quantity < minQty;
+                        
+                        return (
+                          <div 
+                            key={item.id}
+                            className={`flex items-center justify-between p-2 rounded ${
+                              isSelected ? 'bg-blue-50 border border-blue-200' : 
+                              isLow ? 'bg-orange-50' : 'bg-gray-50'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              {/* Чекбокс выбора */}
+                              <Checkbox
+                                checked={isSelected}
+                                onCheckedChange={() => item.quantity > 0 && onToggleItem(item)}
+                                disabled={item.quantity <= 0}
+                              />
+                              
+                              <span className="font-medium w-16">{item.length} м</span>
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-6 w-6 p-0"
+                                  onClick={() => onUpdateInventoryQty(item.id!, item.quantity - 1, item.length)}
+                                  disabled={item.quantity <= 0}
+                                >
+                                  -
+                                </Button>
+                                <span className={`text-sm w-10 text-center ${isLow ? 'text-orange-600 font-medium' : 'text-gray-600'}`}>
+                                  {item.quantity}
+                                </span>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-6 w-6 p-0"
+                                  onClick={() => onUpdateInventoryQty(item.id!, item.quantity + 1, item.length)}
+                                >
+                                  +
+                                </Button>
+                              </div>
+                              {isLow && (
+                                <AlertCircle className="w-4 h-4 text-orange-500 shrink-0" />
+                              )}
+                              {item.notes && (
+                                <span className="text-sm text-gray-500 truncate max-w-[150px]" title={item.notes}>
+                                  {item.notes}
+                                </span>
+                              )}
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => onDeleteInventory(item.id!)}
+                            >
+                              <Trash2 className="w-4 h-4 text-red-500" />
+                            </Button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              )}
+            </Card>
+            
+            {/* Рекурсивный рендеринг подкатегорий */}
+            {hasChildren && isExpanded && (
+              <div className="mt-2 space-y-2">
+                <CategoryList
+                  categories={category.children!}
+                  inventory={inventory}
+                  stats={stats}
+                  selectedItems={selectedItems}
+                  expandedCategories={expandedCategories}
+                  onToggleCategory={onToggleCategory}
+                  onToggleItem={onToggleItem}
+                  onUpdateInventoryQty={onUpdateInventoryQty}
+                  onDeleteInventory={onDeleteInventory}
+                  onAddInventory={onAddInventory}
+                  onEditCategory={onEditCategory}
+                  onDeleteCategory={onDeleteCategory}
+                  level={level + 1}
+                />
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </>
+  );
+}
 
 export default CableManager;
 

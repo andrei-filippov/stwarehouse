@@ -1,12 +1,16 @@
 export type CableCategory = {
   id: string;
   company_id?: string;
+  parent_id?: string | null; // Для подкатегорий
   name: string;
   description?: string;
   color: string;
   sort_order: number;
   created_at?: string;
   updated_at?: string;
+  // Для иерархии в UI
+  children?: CableCategory[];
+  level?: number;
 };
 
 export type CableInventory = {

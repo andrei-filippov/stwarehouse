@@ -24,7 +24,7 @@ export const ALL_TABS: { id: TabId; label: string }[] = [
   { id: 'checklists', label: 'Чек-листы' },
   { id: 'staff', label: 'Персонал' },
   { id: 'goals', label: 'Задачи' },
-  { id: 'cables', label: 'Коммутация' },
+  { id: 'cables', label: 'Учёт оборудования' },
   { id: 'finance', label: 'Финансы' },
   { id: 'customers', label: 'Заказчики' },
   { id: 'contracts', label: 'Договоры' },

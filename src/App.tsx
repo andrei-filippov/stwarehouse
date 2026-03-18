@@ -301,7 +301,7 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
     { id: 'checklists' as Tab, label: 'Чек-листы', icon: ClipboardCheck },
     { id: 'staff' as Tab, label: 'Персонал', icon: Users },
     { id: 'goals' as Tab, label: 'Задачи', icon: Target },
-    { id: 'cables' as Tab, label: 'Коммутация', icon: Cable },
+    { id: 'cables' as Tab, label: 'Учёт оборудования', icon: Cable },
     { id: 'finance' as Tab, label: 'Финансы', icon: DollarSign },
     { id: 'customers' as Tab, label: 'Заказчики', icon: Building2 },
     { id: 'contracts' as Tab, label: 'Договоры', icon: FileSignature },
