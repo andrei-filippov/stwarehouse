@@ -57,8 +57,8 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
   
-  // 1. API запросы к Supabase — пропускаем
-  if (url.hostname.includes('supabase.co')) {
+  // 1. API запросы к Supabase и Google Fonts — пропускаем
+  if (url.hostname.includes('supabase.co') || url.hostname.includes('googleapis.com') || url.hostname.includes('gstatic.com')) {
     event.respondWith(
       fetch(request).catch(() => {
         return new Response(
