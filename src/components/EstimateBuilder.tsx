@@ -65,34 +65,32 @@ export function EstimateBuilder({
   onClose,
   onCreateEquipment,
 }: EstimateBuilderProps) {
-  // Проверка оборудования в ремонте по названию категории
+  // Проверка оборудования в ремонте по названию оборудования
   const checkEquipmentInRepair = (equipmentName: string, equipmentCategory: string): { inRepair: boolean; repairInfo?: string } => {
     if (!repairs || repairs.length === 0) return { inRepair: false };
     
-    // Ищем ремонты по совпадению названия категории оборудования с названием категории кабеля
+    const eqNameLower = equipmentName.toLowerCase().trim();
+    
+    // Ищем ремонты по совпадению названия оборудования
     const inRepairItems = repairs.filter(r => {
       if (r.status !== 'in_repair') return false;
       
-      // Проверяем совпадение по названию категории
-      const cableCat = cableCategories?.find(c => c.id === r.category_id);
-      if (!cableCat) return false;
+      // Проверяем точное или частичное совпадение по названию оборудования
+      const repairNameLower = r.equipment_name?.toLowerCase().trim() || '';
       
-      // Если название категории оборудования содержит название кабельной категории или наоборот
-      const eqCatLower = equipmentCategory.toLowerCase();
-      const cableCatLower = cableCat.name.toLowerCase();
-      const eqNameLower = equipmentName.toLowerCase();
+      // Точное совпадение
+      if (repairNameLower === eqNameLower) return true;
       
-      return eqCatLower.includes(cableCatLower) || 
-             cableCatLower.includes(eqCatLower) ||
-             eqNameLower.includes(cableCatLower);
+      // Частичное совпадение (если название ремонта содержит название оборудования или наоборот)
+      return repairNameLower.includes(eqNameLower) || eqNameLower.includes(repairNameLower);
     });
     
     if (inRepairItems.length > 0) {
       const totalQty = inRepairItems.reduce((sum, r) => sum + r.quantity, 0);
-      const cableCat = cableCategories?.find(c => c.id === inRepairItems[0].category_id);
+      const itemNames = [...new Set(inRepairItems.map(r => r.equipment_name))].join(', ');
       return { 
         inRepair: true, 
-        repairInfo: `${cableCat?.name || 'Оборудование'} в ремонте: ${totalQty} шт (причина: ${inRepairItems[0].reason})` 
+        repairInfo: `${itemNames} в ремонте: ${totalQty} шт (причина: ${inRepairItems[0].reason})` 
       };
     }
     
