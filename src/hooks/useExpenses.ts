@@ -2,6 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
 import type { Expense } from '../types';
+import { createLogger } from '../lib/logger';
+
+const logger = createLogger('expenses');
 
 export function useExpenses(companyId: string | undefined) {
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -36,7 +39,7 @@ export function useExpenses(companyId: string | undefined) {
       ...(expense.type ? { type: expense.type } : {})
     };
     
-    console.log('Adding expense:', dataToInsert);
+    logger.debug('Adding expense:', dataToInsert);
     
     try {
       const { error, data } = await supabase
@@ -45,16 +48,16 @@ export function useExpenses(companyId: string | undefined) {
         .select();
 
       if (error) {
-        console.error('Supabase error:', error);
+        logger.error('Supabase error:', error);
         throw error;
       }
 
-      console.log('Expense added:', data);
+      logger.info('Expense added:', data?.id);
       await fetchExpenses();
       toast.success('Расход добавлен');
       return { error: null, data };
     } catch (err: any) {
-      console.error('Add expense error:', err);
+      logger.error('Add expense error:', err);
       toast.error('Ошибка при добавлении', { description: err.message || err.details || 'Неизвестная ошибка' });
       return { error: err };
     }

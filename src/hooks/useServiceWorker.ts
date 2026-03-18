@@ -1,5 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { toast } from 'sonner';
+import { createLogger } from '../lib/logger';
+
+const logger = createLogger('sw');
 
 export function useServiceWorker() {
   const [swStatus, setSwStatus] = useState<'checking' | 'installed' | 'updated' | 'error'>('checking');
@@ -10,7 +13,7 @@ export function useServiceWorker() {
       // Принудительно обновляем Service Worker при каждой загрузке
       navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
         .then((registration) => {
-          console.log('SW registered:', registration);
+          logger.info('SW registered');
           
           // Принудительно проверяем обновления
           registration.update();
@@ -55,7 +58,7 @@ export function useServiceWorker() {
       
       // Принудительно перезагружаем страницу если контролирующий SW изменился
       navigator.serviceWorker.addEventListener('controllerchange', () => {
-        console.log('SW controller changed, reloading...');
+        logger.info('SW controller changed, reloading...');
         window.location.reload();
       });
     }
