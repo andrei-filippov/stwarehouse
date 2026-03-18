@@ -17,7 +17,8 @@ export type CableInventory = {
   id: string;
   company_id?: string;
   category_id: string;
-  length: number;
+  name?: string; // Название позиции (для оборудования, не кабелей)
+  length?: number; // Для кабелей - длина, для оборудования может быть null
   quantity: number;
   min_quantity: number;
   notes?: string;

@@ -119,7 +119,7 @@ export const CableManager = memo(function CableManager({
 
   // Form states
   const [categoryForm, setCategoryForm] = useState({ name: '', description: '', color: '#3b82f6', parent_id: '' as string | undefined });
-  const [inventoryForm, setInventoryForm] = useState({ category_id: '', length: '', quantity: '', min_quantity: '0', notes: '' });
+  const [inventoryForm, setInventoryForm] = useState({ category_id: '', name: '', length: '', quantity: '', min_quantity: '0', notes: '' });
   
   // Repair dialog states
   const [isRepairDialogOpen, setIsRepairDialogOpen] = useState(false);
@@ -171,14 +171,15 @@ export const CableManager = memo(function CableManager({
     const minQty = parseInt(inventoryForm.min_quantity);
     const { error } = await onUpsertInventory({
       category_id: inventoryForm.category_id,
-      length: parseFloat(inventoryForm.length),
+      name: inventoryForm.name || undefined,
+      length: inventoryForm.length ? parseFloat(inventoryForm.length) : undefined,
       quantity: parseInt(inventoryForm.quantity),
       min_quantity: isNaN(minQty) ? 0 : minQty,
       notes: inventoryForm.notes || undefined,
     });
     if (!error) {
       setIsInventoryDialogOpen(false);
-      setInventoryForm({ category_id: '', length: '', quantity: '', min_quantity: '0', notes: '' });
+      setInventoryForm({ category_id: '', name: '', length: '', quantity: '', min_quantity: '0', notes: '' });
     }
   };
 
@@ -293,8 +294,8 @@ export const CableManager = memo(function CableManager({
     setRepairForm({
       category_id: categoryId,
       inventory_id: item.id!,
-      equipment_name: `${categoryName} ${item.length}м`,
-      length: item.length,
+      equipment_name: item.name || `${categoryName} ${item.length}м`,
+      length: item.length || 0,
       quantity: 1,
       reason: '',
       notes: '',
@@ -340,7 +341,7 @@ export const CableManager = memo(function CableManager({
   };
 
   const openInventoryAdd = (categoryId: string) => {
-    setInventoryForm({ category_id: categoryId, length: '', quantity: '', min_quantity: '0', notes: '' });
+    setInventoryForm({ category_id: categoryId, name: '', length: '', quantity: '', min_quantity: '0', notes: '' });
     setIsInventoryDialogOpen(true);
   };
 
@@ -779,19 +780,29 @@ export const CableManager = memo(function CableManager({
           <DialogHeader>
             <DialogTitle>Добавить позицию</DialogTitle>
             <DialogDescription id="inventory-dialog-desc">
-              Укажите длину и количество
+              Укажите название (для оборудования) или длину (для кабелей) и количество
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <label className="text-sm font-medium">Длина (м) *</label>
+              <label className="text-sm font-medium">Название позиции</label>
+              <Input
+                value={inventoryForm.name}
+                onChange={(e) => setInventoryForm({ ...inventoryForm, name: e.target.value })}
+                placeholder="Например: Микрофон Shure SM58 (для оборудования)"
+              />
+              <p className="text-xs text-gray-500 mt-1">Для кабелей оставьте пустым, укажите только длину</p>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Длина (м)</label>
               <Input
                 type="number"
                 step="0.5"
                 value={inventoryForm.length}
                 onChange={(e) => setInventoryForm({ ...inventoryForm, length: e.target.value })}
-                placeholder="Например: 1.5"
+                placeholder="Например: 1.5 (для кабелей)"
               />
+              <p className="text-xs text-gray-500 mt-1">Для оборудования без длины оставьте пустым</p>
             </div>
             <div>
               <label className="text-sm font-medium">Количество *</label>
@@ -825,7 +836,7 @@ export const CableManager = memo(function CableManager({
               </Button>
               <Button 
                 onClick={handleAddInventory}
-                disabled={!inventoryForm.length || !inventoryForm.quantity}
+                disabled={(!inventoryForm.name && !inventoryForm.length) || !inventoryForm.quantity}
               >
                 Добавить
               </Button>
@@ -958,10 +969,15 @@ function CategoryList({
   categoryName = '',
   level = 0,
 }: CategoryListProps) {
-  // Подсчет выданного по конкретной позиции (по category_id и length)
-  const getIssuedQtyForItem = (categoryId: string, length: number) => {
+  // Подсчет выданного по конкретной позиции (по category_id и length или name)
+  const getIssuedQtyForItem = (categoryId: string, length: number, name?: string) => {
     return movements
-      .filter(m => !m.is_returned && m.category_id === categoryId && m.length === length)
+      .filter(m => {
+        if (m.is_returned || m.category_id !== categoryId) return false;
+        // Если есть name, ищем по name, иначе по length
+        if (name) return m.equipment_name?.includes(name);
+        return m.length === length;
+      })
       .reduce((sum, m) => sum + m.quantity, 0);
   };
   return (
