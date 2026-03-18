@@ -1070,7 +1070,7 @@ function CategoryList({
                       {catInventory.map(item => {
                         const isSelected = selectedItems.some(i => i.inventory_id === item.id);
                         const minQty = item.min_quantity ?? 0;
-                        const issuedQty = getIssuedQtyForItem(category.id, item.length);
+                        const issuedQty = getIssuedQtyForItem(category.id, item.length || 0, item.name);
                         const actualQty = item.quantity - issuedQty;
                         const isLow = minQty > 0 && actualQty < minQty;
                         
@@ -1082,7 +1082,7 @@ function CategoryList({
                               isLow ? 'bg-orange-50' : 'bg-gray-50'
                             }`}
                           >
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
                               {/* Чекбокс выбора */}
                               <Checkbox
                                 checked={isSelected}
@@ -1090,13 +1090,19 @@ function CategoryList({
                                 disabled={actualQty <= 0}
                               />
                               
-                              <span className="font-medium w-16">{item.length} м</span>
-                              <div className="flex items-center gap-1">
+                              {/* Название или длина */}
+                              {item.name ? (
+                                <span className="font-medium truncate" title={item.name}>{item.name}</span>
+                              ) : (
+                                <span className="font-medium w-16">{item.length} м</span>
+                              )}
+                              
+                              <div className="flex items-center gap-1 shrink-0">
                                 <Button
                                   variant="outline"
                                   size="sm"
                                   className="h-6 w-6 p-0"
-                                  onClick={() => onUpdateInventoryQty(item.id!, item.quantity - 1, item.length)}
+                                  onClick={() => onUpdateInventoryQty(item.id!, item.quantity - 1, item.length || 0)}
                                   disabled={item.quantity <= 0}
                                 >
                                   -
@@ -1108,19 +1114,19 @@ function CategoryList({
                                   variant="outline"
                                   size="sm"
                                   className="h-6 w-6 p-0"
-                                  onClick={() => onUpdateInventoryQty(item.id!, item.quantity + 1, item.length)}
+                                  onClick={() => onUpdateInventoryQty(item.id!, item.quantity + 1, item.length || 0)}
                                 >
                                   +
                                 </Button>
                               </div>
                               {issuedQty > 0 && (
-                                <span className="text-xs text-orange-500">({item.quantity} всего)</span>
+                                <span className="text-xs text-orange-500 shrink-0">({item.quantity} всего)</span>
                               )}
                               {isLow && (
                                 <AlertCircle className="w-4 h-4 text-orange-500 shrink-0" />
                               )}
                               {item.notes && (
-                                <span className="text-sm text-gray-500 truncate max-w-[150px]" title={item.notes}>
+                                <span className="text-sm text-gray-500 truncate max-w-[250px]" title={item.notes}>
                                   {item.notes}
                                 </span>
                               )}
