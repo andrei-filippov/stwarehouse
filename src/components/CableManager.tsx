@@ -455,6 +455,7 @@ export const CableManager = memo(function CableManager({
               onAddInventory={openInventoryAdd}
               onEditCategory={openCategoryEdit}
               onDeleteCategory={onDeleteCategory}
+              onSendToRepair={openRepairDialog}
             />
           )}
           
