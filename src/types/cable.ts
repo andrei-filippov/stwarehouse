@@ -1,6 +1,6 @@
 export type CableCategory = {
   id: string;
-  user_id?: string;
+  company_id?: string;
   name: string;
   description?: string;
   color: string;
@@ -11,6 +11,7 @@ export type CableCategory = {
 
 export type CableInventory = {
   id: string;
+  company_id?: string;
   category_id: string;
   length: number;
   quantity: number;
@@ -22,8 +23,9 @@ export type CableInventory = {
 
 export type CableMovement = {
   id: string;
+  company_id?: string;
   category_id: string;
-  inventory_id: string;
+  inventory_id?: string;
   type: 'issue' | 'return' | 'write_off';
   length: number;
   quantity: number;
@@ -31,9 +33,9 @@ export type CableMovement = {
   contact?: string;
   issued_by?: string;
   returned_at?: string;
-  returned_quantity: number;
+  returned_quantity?: number;
   notes?: string;
-  is_returned: boolean;
+  is_returned?: boolean;
   created_at?: string;
 };
 

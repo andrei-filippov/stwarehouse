@@ -178,7 +178,12 @@ export function useCableInventory(companyId: string | undefined) {
     try {
       const { error } = await supabase
         .from('cable_movements')
-        .insert({ ...movement, company_id: companyId });
+        .insert({ 
+          ...movement, 
+          company_id: companyId,
+          type: 'issue',
+          issued_by: (await supabase.auth.getUser()).data.user?.id
+        });
 
       if (error) throw error;
 
@@ -192,15 +197,27 @@ export function useCableInventory(companyId: string | undefined) {
     }
   }, [companyId, fetchMovements, fetchInventory]);
 
-  const returnCable = useCallback(async (movementId: string, returnedQty: number) => {
+  const returnCable = useCallback(async (movementId: string, returnedQty?: number) => {
     if (!companyId) return { error: new Error('No company selected') };
     
     try {
+      // Если количество не указано - получаем полное количество из движения
+      let qty = returnedQty;
+      if (qty === undefined) {
+        const { data: movement } = await supabase
+          .from('cable_movements')
+          .select('quantity')
+          .eq('id', movementId)
+          .eq('company_id', companyId)
+          .single();
+        qty = movement?.quantity || 0;
+      }
+      
       const { error } = await supabase
         .from('cable_movements')
         .update({ 
           is_returned: true, 
-          returned_quantity: returnedQty,
+          returned_quantity: qty,
           returned_at: new Date().toISOString()
         })
         .eq('id', movementId)
