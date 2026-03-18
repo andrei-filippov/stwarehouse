@@ -31,6 +31,7 @@ interface SelectedItem {
   inventory_id: string;
   category_id: string;
   length: number;
+  name?: string;
   available: number;
   quantity: number;
 }
@@ -51,7 +52,8 @@ interface CableManagerProps {
   onIssueCable: (data: {
     category_id: string;
     inventory_id: string;
-    length: number;
+    length?: number;
+    equipment_name?: string;
     quantity: number;
     issued_to: string;
     contact?: string;
@@ -260,6 +262,7 @@ export const CableManager = memo(function CableManager({
         inventory_id: item.id!,
         category_id: item.category_id,
         length: item.length,
+        name: item.name,
         available: item.quantity,
         quantity: 1, // По умолчанию 1
       }];
@@ -296,6 +299,7 @@ export const CableManager = memo(function CableManager({
         category_id: item.category_id,
         inventory_id: item.inventory_id,
         length: item.length,
+        equipment_name: item.name,
         quantity: item.quantity,
         issued_to: bulkIssueForm.issued_to,
         contact: bulkIssueForm.contact || undefined,
@@ -575,7 +579,11 @@ export const CableManager = memo(function CableManager({
                                 style={{ backgroundColor: category?.color || '#ccc' }}
                               />
                               <span className="font-medium">{category?.name || 'Неизвестно'}</span>
-                              <span className="text-gray-600 text-sm">{movement.length} м</span>
+                              {movement.equipment_name ? (
+                                <span className="text-gray-600 text-sm">{movement.equipment_name}</span>
+                              ) : (
+                                <span className="text-gray-600 text-sm">{movement.length} м</span>
+                              )}
                               <span className="text-gray-600 text-sm">× {movement.quantity} шт</span>
                             </div>
                             <div className="text-xs sm:text-sm text-gray-500 mt-1">

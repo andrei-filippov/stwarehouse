@@ -32,7 +32,8 @@ export type CableMovement = {
   category_id: string;
   inventory_id?: string;
   type: 'issue' | 'return' | 'write_off';
-  length: number;
+  length?: number;
+  equipment_name?: string;
   quantity: number;
   issued_to: string;
   contact?: string;
