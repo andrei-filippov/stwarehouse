@@ -136,13 +136,21 @@ export function EquipmentManager({
     [filteredEquipment]
   );
 
-  // Получаем все категории из БД + категории из оборудования
+  // Получаем категории только с оборудованием (сохраняем порядок из БД)
   const sortedCategories = useMemo(() => {
-    const allCategoryNames = new Set([
-      ...(categories || []).map(c => c.name),
-      ...Object.keys(groupedByCategory || {})
-    ]);
-    return Array.from(allCategoryNames).sort();
+    const equipmentCategories = Object.keys(groupedByCategory || {});
+    
+    // Сначала категории из БД в их порядке (только те, где есть оборудование)
+    const dbCategories = (categories || [])
+      .map(c => c.name)
+      .filter(name => equipmentCategories.includes(name));
+    
+    // Затем категории не из БД (новые) в алфавитном порядке
+    const otherCategories = equipmentCategories
+      .filter(name => !dbCategories.includes(name))
+      .sort();
+    
+    return [...dbCategories, ...otherCategories];
   }, [categories, groupedByCategory]);
 
   // Переключение разворачивания категории
@@ -416,8 +424,13 @@ export function EquipmentManager({
               placeholder="Поиск оборудования..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-10"
+              className="pl-10 pr-32"
             />
+            {debouncedSearch && (
+              <div className="absolute right-3 top-2.5 text-xs text-gray-500">
+                {sortedCategories.length} кат. / {filteredEquipment.length} поз.
+              </div>
+            )}
           </div>
 
           {/* Группировка по категориям */}
