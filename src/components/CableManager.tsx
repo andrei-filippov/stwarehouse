@@ -115,6 +115,7 @@ export const CableManager = memo(function CableManager({
   const [isInventoryDialogOpen, setIsInventoryDialogOpen] = useState(false);
   
   const [editingCategory, setEditingCategory] = useState<CableCategory | null>(null);
+  const [editingInventory, setEditingInventory] = useState<CableInventory | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
 
   // Form states
@@ -179,6 +180,41 @@ export const CableManager = memo(function CableManager({
     });
     if (!error) {
       setIsInventoryDialogOpen(false);
+      setInventoryForm({ category_id: '', name: '', length: '', quantity: '', min_quantity: '0', notes: '' });
+    }
+  };
+
+  // Редактирование позиции инвентаря
+  const openInventoryEdit = (item: CableInventory, categoryName: string) => {
+    setEditingInventory(item);
+    setSelectedCategoryId(item.category_id);
+    setInventoryForm({
+      category_id: item.category_id,
+      name: item.name || '',
+      length: item.length?.toString() || '',
+      quantity: item.quantity.toString(),
+      min_quantity: item.min_quantity?.toString() || '0',
+      notes: item.notes || '',
+    });
+    setIsInventoryDialogOpen(true);
+  };
+
+  const handleEditInventory = async () => {
+    if (!editingInventory) return;
+    
+    const minQty = parseInt(inventoryForm.min_quantity);
+    const { error } = await onUpsertInventory({
+      id: editingInventory.id,
+      category_id: inventoryForm.category_id,
+      name: inventoryForm.name || undefined,
+      length: inventoryForm.length ? parseFloat(inventoryForm.length) : undefined,
+      quantity: parseInt(inventoryForm.quantity),
+      min_quantity: isNaN(minQty) ? 0 : minQty,
+      notes: inventoryForm.notes || undefined,
+    });
+    if (!error) {
+      setIsInventoryDialogOpen(false);
+      setEditingInventory(null);
       setInventoryForm({ category_id: '', name: '', length: '', quantity: '', min_quantity: '0', notes: '' });
     }
   };
@@ -341,6 +377,7 @@ export const CableManager = memo(function CableManager({
   };
 
   const openInventoryAdd = (categoryId: string) => {
+    setEditingInventory(null);
     setInventoryForm({ category_id: categoryId, name: '', length: '', quantity: '', min_quantity: '0', notes: '' });
     setIsInventoryDialogOpen(true);
   };
@@ -445,6 +482,7 @@ export const CableManager = memo(function CableManager({
               categories={categoryTree}
               inventory={inventory}
               movements={movements}
+              repairs={repairs}
               stats={stats}
               selectedItems={selectedItems}
               expandedCategories={expandedCategories}
@@ -453,6 +491,7 @@ export const CableManager = memo(function CableManager({
               onUpdateInventoryQty={handleUpdateInventoryQty}
               onDeleteInventory={onDeleteInventory}
               onAddInventory={openInventoryAdd}
+              onEditInventory={openInventoryEdit}
               onEditCategory={openCategoryEdit}
               onDeleteCategory={onDeleteCategory}
               onSendToRepair={openRepairDialog}
@@ -775,13 +814,13 @@ export const CableManager = memo(function CableManager({
         </DialogContent>
       </Dialog>
 
-      {/* Диалог добавления позиции */}
+      {/* Диалог добавления/редактирования позиции */}
       <Dialog open={isInventoryDialogOpen} onOpenChange={setIsInventoryDialogOpen}>
         <DialogContent className="max-w-lg w-[95%] rounded-xl p-4 sm:p-6" aria-describedby="inventory-dialog-desc">
           <DialogHeader>
-            <DialogTitle>Добавить позицию</DialogTitle>
+            <DialogTitle>{editingInventory ? 'Редактировать позицию' : 'Добавить позицию'}</DialogTitle>
             <DialogDescription id="inventory-dialog-desc">
-              Укажите название (для оборудования) или длину (для кабелей) и количество
+              {editingInventory ? 'Измените данные позиции' : 'Укажите название (для оборудования) или длину (для кабелей) и количество'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -836,10 +875,13 @@ export const CableManager = memo(function CableManager({
                 Отмена
               </Button>
               <Button 
-                onClick={handleAddInventory}
-                disabled={(!inventoryForm.name && !inventoryForm.length) || !inventoryForm.quantity}
+                onClick={editingInventory ? handleEditInventory : handleAddInventory}
+                disabled={editingInventory 
+                  ? (!inventoryForm.name && !inventoryForm.length)
+                  : ((!inventoryForm.name && !inventoryForm.length) || !inventoryForm.quantity)
+                }
               >
-                Добавить
+                {editingInventory ? 'Сохранить' : 'Добавить'}
               </Button>
             </div>
           </div>
@@ -937,6 +979,7 @@ interface CategoryListProps {
   categories: (CableCategory & { children?: CableCategory[]; level?: number })[];
   inventory: CableInventory[];
   movements: CableMovement[];
+  repairs: EquipmentRepair[];
   stats: Record<string, { totalLength: number; totalQty: number; issuedQty: number; repairQty: number }>;
   selectedItems: SelectedItem[];
   expandedCategories: Set<string>;
@@ -945,6 +988,7 @@ interface CategoryListProps {
   onUpdateInventoryQty: (id: string, newQty: number, length: number) => void;
   onDeleteInventory: (id: string) => Promise<{ error: any }>;
   onAddInventory: (categoryId: string) => void;
+  onEditInventory: (item: CableInventory, categoryName: string) => void;
   onEditCategory: (cat: CableCategory) => void;
   onDeleteCategory: (id: string) => Promise<{ error: any }>;
   onSendToRepair?: (categoryId: string, item: CableInventory, categoryName: string) => void;
@@ -956,6 +1000,7 @@ function CategoryList({
   categories,
   inventory,
   movements,
+  repairs,
   stats,
   selectedItems,
   expandedCategories,
@@ -964,6 +1009,7 @@ function CategoryList({
   onUpdateInventoryQty,
   onDeleteInventory,
   onAddInventory,
+  onEditInventory,
   onEditCategory,
   onDeleteCategory,
   onSendToRepair,
@@ -981,18 +1027,73 @@ function CategoryList({
       })
       .reduce((sum, m) => sum + m.quantity, 0);
   };
+
+  // Подсчет в ремонте по конкретной позиции
+  const getRepairQtyForItem = (categoryId: string, length: number, name?: string) => {
+    return repairs
+      .filter(r => r.status === 'in_repair' && r.category_id === categoryId)
+      .filter(r => {
+        if (name) return r.equipment_name === name;
+        return r.length === length;
+      })
+      .reduce((sum, r) => sum + r.quantity, 0);
+  };
+
+  // Получить все ID категории включая дочерние (рекурсивно)
+  const getAllCategoryIds = (cat: CableCategory & { children?: CableCategory[] }): string[] => {
+    const ids = [cat.id];
+    if (cat.children) {
+      cat.children.forEach(child => {
+        ids.push(...getAllCategoryIds(child));
+      });
+    }
+    return ids;
+  };
+
+  // Подсчет статистики для категории включая дочерние
+  const getCategoryStatsWithChildren = (cat: CableCategory & { children?: CableCategory[] }) => {
+    const allIds = getAllCategoryIds(cat);
+    const catInventory = inventory.filter(i => allIds.includes(i.category_id));
+    
+    const totalLength = catInventory.reduce((sum, i) => sum + ((i.length || 0) * i.quantity), 0);
+    const totalQty = catInventory.reduce((sum, i) => sum + i.quantity, 0);
+    const hasCables = catInventory.some(i => i.length && i.length > 0);
+    const hasEquipment = catInventory.some(i => !i.length);
+    
+    // Выдано для всех подкатегорий
+    const issuedQty = movements
+      .filter(m => !m.is_returned && allIds.includes(m.category_id))
+      .reduce((sum, m) => sum + m.quantity, 0);
+    
+    // В ремонте для всех подкатегорий
+    const repairQty = repairs
+      .filter(r => r.status === 'in_repair' && allIds.includes(r.category_id))
+      .reduce((sum, r) => sum + r.quantity, 0);
+    
+    return { totalLength, totalQty, issuedQty, repairQty, hasCables, hasEquipment };
+  };
   return (
     <>
       {categories.map(category => {
         const catInventory = inventory.filter(i => i.category_id === category.id).sort((a, b) => a.length - b.length);
-        const catStats = stats[category.id] || { totalLength: 0, totalQty: 0, issuedQty: 0 };
+        const catStats = getCategoryStatsWithChildren(category);
         const isExpanded = expandedCategories.has(category.id);
         const hasLowStock = catInventory.some(i => (i.min_quantity ?? 0) > 0 && i.quantity < (i.min_quantity ?? 0));
         const hasChildren = category.children && category.children.length > 0;
+        // Проверяем дочерние категории на low stock
+        const checkChildrenLowStock = (cats: CableCategory[]): boolean => {
+          return cats.some(cat => {
+            const inv = inventory.filter(i => i.category_id === cat.id);
+            const hasLow = inv.some(i => (i.min_quantity ?? 0) > 0 && i.quantity < (i.min_quantity ?? 0));
+            return hasLow || (cat.children ? checkChildrenLowStock(cat.children) : false);
+          });
+        };
+        const hasChildrenLowStock = category.children ? checkChildrenLowStock(category.children) : false;
+        const showLowStock = hasLowStock || hasChildrenLowStock;
 
         return (
           <div key={category.id} style={{ marginLeft: level > 0 ? `${level * 24}px` : 0 }}>
-            <Card className={hasLowStock ? 'border-orange-300' : ''}>
+            <Card className={showLowStock ? 'border-orange-300' : ''}>
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -1004,7 +1105,7 @@ function CategoryList({
                     <CardTitle className={`${level > 0 ? 'text-base' : 'text-lg'}`}>
                       {category.name}
                     </CardTitle>
-                    {hasLowStock && (
+                    {showLowStock && (
                       <AlertCircle className="w-5 h-5 text-orange-500" />
                     )}
                   </div>
@@ -1042,10 +1143,12 @@ function CategoryList({
                 {category.description && (
                   <p className="text-sm text-gray-500 mt-1">{category.description}</p>
                 )}
-                <div className="flex gap-4 mt-2 text-sm">
-                  <span className="text-gray-600">
-                    Общий метраж: <strong>{catStats.totalLength.toFixed(1)} м</strong>
-                  </span>
+                <div className="flex gap-4 mt-2 text-sm flex-wrap">
+                  {catStats.hasCables && (
+                    <span className="text-gray-600">
+                      Общий метраж: <strong>{catStats.totalLength.toFixed(1)} м</strong>
+                    </span>
+                  )}
                   <span className="text-gray-600">
                     На складе: <strong>{catStats.totalQty} шт</strong>
                   </span>
@@ -1072,7 +1175,8 @@ function CategoryList({
                         const isSelected = selectedItems.some(i => i.inventory_id === item.id);
                         const minQty = item.min_quantity ?? 0;
                         const issuedQty = getIssuedQtyForItem(category.id, item.length || 0, item.name);
-                        const actualQty = item.quantity - issuedQty;
+                        const repairQty = getRepairQtyForItem(category.id, item.length || 0, item.name);
+                        const actualQty = item.quantity - issuedQty - repairQty;
                         const isLow = minQty > 0 && actualQty < minQty;
                         
                         return (
@@ -1123,6 +1227,11 @@ function CategoryList({
                               {issuedQty > 0 && (
                                 <span className="text-xs text-orange-500 shrink-0">({item.quantity} всего)</span>
                               )}
+                              {repairQty > 0 && (
+                                <span className="text-xs text-yellow-600 shrink-0" title="В ремонте">
+                                  🔧 {repairQty}
+                                </span>
+                              )}
                               {isLow && (
                                 <AlertCircle className="w-4 h-4 text-orange-500 shrink-0" />
                               )}
@@ -1145,7 +1254,16 @@ function CategoryList({
                               <Button
                                 size="sm"
                                 variant="ghost"
+                                onClick={() => onEditInventory(item, category.name)}
+                                title="Редактировать"
+                              >
+                                <Pencil className="w-4 h-4 text-blue-500" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
                                 onClick={() => onDeleteInventory(item.id!)}
+                                title="Удалить"
                               >
                                 <Trash2 className="w-4 h-4 text-red-500" />
                               </Button>
@@ -1166,6 +1284,7 @@ function CategoryList({
                   categories={category.children!}
                   inventory={inventory}
                   movements={movements}
+                  repairs={repairs}
                   stats={stats}
                   selectedItems={selectedItems}
                   expandedCategories={expandedCategories}
@@ -1174,6 +1293,7 @@ function CategoryList({
                   onUpdateInventoryQty={onUpdateInventoryQty}
                   onDeleteInventory={onDeleteInventory}
                   onAddInventory={onAddInventory}
+                  onEditInventory={onEditInventory}
                   onEditCategory={onEditCategory}
                   onDeleteCategory={onDeleteCategory}
                   onSendToRepair={onSendToRepair}
