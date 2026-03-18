@@ -11,6 +11,7 @@ import {
   Plus, 
   Trash2, 
   Edit2, 
+  Pencil,
   Package,
   User,
   CheckCircle2,
