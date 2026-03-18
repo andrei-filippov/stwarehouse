@@ -30,9 +30,15 @@ export function useGoals(companyId: string | undefined) {
     if (!companyId) return { error: new Error('No company selected') };
     
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
       const { error } = await supabase
         .from('goals')
-        .insert({ ...task, company_id: companyId });
+        .insert({ 
+          ...task, 
+          company_id: companyId,
+          user_id: user?.id
+        });
 
       if (error) throw error;
 
