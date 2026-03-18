@@ -377,6 +377,7 @@ export const CableManager = memo(function CableManager({
             <CategoryList 
               categories={categoryTree}
               inventory={inventory}
+              movements={movements}
               stats={stats}
               selectedItems={selectedItems}
               expandedCategories={expandedCategories}
@@ -429,7 +430,7 @@ export const CableManager = memo(function CableManager({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {movements.length === 0 ? (
+              {movements.filter(m => !m.is_returned).length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   <CheckCircle2 className="w-12 h-12 mx-auto mb-3 opacity-50" />
                   <p>Всё на складе</p>
@@ -437,7 +438,7 @@ export const CableManager = memo(function CableManager({
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {movements.map(movement => {
+                  {movements.filter(m => !m.is_returned).map(movement => {
                     const category = categories.find(c => c.id === movement.category_id);
                     return (
                       <div 
@@ -724,6 +725,7 @@ export const CableManager = memo(function CableManager({
 interface CategoryListProps {
   categories: (CableCategory & { children?: CableCategory[]; level?: number })[];
   inventory: CableInventory[];
+  movements: CableMovement[];
   stats: Record<string, { totalLength: number; totalQty: number; issuedQty: number }>;
   selectedItems: SelectedItem[];
   expandedCategories: Set<string>;
@@ -740,6 +742,7 @@ interface CategoryListProps {
 function CategoryList({
   categories,
   inventory,
+  movements,
   stats,
   selectedItems,
   expandedCategories,
@@ -752,6 +755,12 @@ function CategoryList({
   onDeleteCategory,
   level = 0,
 }: CategoryListProps) {
+  // Подсчет выданного по конкретной позиции (по category_id и length)
+  const getIssuedQtyForItem = (categoryId: string, length: number) => {
+    return movements
+      .filter(m => !m.is_returned && m.category_id === categoryId && m.length === length)
+      .reduce((sum, m) => sum + m.quantity, 0);
+  };
   return (
     <>
       {categories.map(category => {
@@ -837,7 +846,9 @@ function CategoryList({
                       {catInventory.map(item => {
                         const isSelected = selectedItems.some(i => i.inventory_id === item.id);
                         const minQty = item.min_quantity ?? 0;
-                        const isLow = minQty > 0 && item.quantity < minQty;
+                        const issuedQty = getIssuedQtyForItem(category.id, item.length);
+                        const actualQty = item.quantity - issuedQty;
+                        const isLow = minQty > 0 && actualQty < minQty;
                         
                         return (
                           <div 
@@ -851,8 +862,8 @@ function CategoryList({
                               {/* Чекбокс выбора */}
                               <Checkbox
                                 checked={isSelected}
-                                onCheckedChange={() => item.quantity > 0 && onToggleItem(item)}
-                                disabled={item.quantity <= 0}
+                                onCheckedChange={() => actualQty > 0 && onToggleItem(item)}
+                                disabled={actualQty <= 0}
                               />
                               
                               <span className="font-medium w-16">{item.length} м</span>
@@ -867,7 +878,7 @@ function CategoryList({
                                   -
                                 </Button>
                                 <span className={`text-sm w-10 text-center ${isLow ? 'text-orange-600 font-medium' : 'text-gray-600'}`}>
-                                  {item.quantity}
+                                  {actualQty}
                                 </span>
                                 <Button
                                   variant="outline"
@@ -878,6 +889,9 @@ function CategoryList({
                                   +
                                 </Button>
                               </div>
+                              {issuedQty > 0 && (
+                                <span className="text-xs text-orange-500">({item.quantity} всего)</span>
+                              )}
                               {isLow && (
                                 <AlertCircle className="w-4 h-4 text-orange-500 shrink-0" />
                               )}
@@ -909,6 +923,7 @@ function CategoryList({
                 <CategoryList
                   categories={category.children!}
                   inventory={inventory}
+                  movements={movements}
                   stats={stats}
                   selectedItems={selectedItems}
                   expandedCategories={expandedCategories}
