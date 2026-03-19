@@ -123,19 +123,17 @@ export function useCableInventory(companyId: string | undefined) {
     if (!companyId) return { error: new Error('No company selected') };
     
     try {
-      // Обновляем sort_order для каждой категории
-      const updates = categoryIds.map((id, index) => ({
-        id,
-        sort_order: index,
-        company_id: companyId
-      }));
+      // Обновляем sort_order для каждой категории отдельным запросом
+      // (не используем upsert, чтобы не передавать обязательные поля name/color)
+      for (let i = 0; i < categoryIds.length; i++) {
+        const { error } = await supabase
+          .from('cable_categories')
+          .update({ sort_order: i })
+          .eq('id', categoryIds[i])
+          .eq('company_id', companyId);
 
-      // Используем upsert для обновления всех категорий за один запрос
-      const { error } = await supabase
-        .from('cable_categories')
-        .upsert(updates, { onConflict: 'id' });
-
-      if (error) throw error;
+        if (error) throw error;
+      }
 
       // Обновляем локальное состояние без перезагрузки с сервера
       setCategories(prev => {
