@@ -47,6 +47,51 @@ interface StwarehouseDB extends DBSchema {
     };
     indexes: { 'by-company': string; 'by-synced': number };
   };
+  // Кабельный учёт
+  cableCategories: {
+    key: string;
+    value: {
+      id: string;
+      data: any;
+      synced: boolean;
+      updatedAt: number;
+      companyId: string;
+    };
+    indexes: { 'by-company': string; 'by-synced': number };
+  };
+  cableInventory: {
+    key: string;
+    value: {
+      id: string;
+      data: any;
+      synced: boolean;
+      updatedAt: number;
+      companyId: string;
+    };
+    indexes: { 'by-company': string; 'by-synced': number };
+  };
+  cableMovements: {
+    key: string;
+    value: {
+      id: string;
+      data: any;
+      synced: boolean;
+      updatedAt: number;
+      companyId: string;
+    };
+    indexes: { 'by-company': string; 'by-synced': number };
+  };
+  equipmentRepairs: {
+    key: string;
+    value: {
+      id: string;
+      data: any;
+      synced: boolean;
+      updatedAt: number;
+      companyId: string;
+    };
+    indexes: { 'by-company': string; 'by-synced': number };
+  };
   syncQueue: {
     key: number;
     value: {
@@ -65,7 +110,7 @@ interface StwarehouseDB extends DBSchema {
 }
 
 const DB_NAME = 'stwarehouse-offline';
-const DB_VERSION = 3; // Увеличиваем версию для добавления заказчиков
+const DB_VERSION = 4; // Увеличиваем версию для добавления кабельного учёта
 
 let db: IDBPDatabase<StwarehouseDB> | null = null;
 
@@ -140,6 +185,31 @@ export async function initOfflineDB(): Promise<IDBPDatabase<StwarehouseDB>> {
           const customersStore = database.createObjectStore('customers', { keyPath: 'id' });
           customersStore.createIndex('by-company', 'companyId');
           customersStore.createIndex('by-synced', 'synced');
+        }
+        
+        // Таблицы кабельного учёта (новые в версии 4)
+        if (!database.objectStoreNames.contains('cableCategories')) {
+          const cableCategoriesStore = database.createObjectStore('cableCategories', { keyPath: 'id' });
+          cableCategoriesStore.createIndex('by-company', 'companyId');
+          cableCategoriesStore.createIndex('by-synced', 'synced');
+        }
+        
+        if (!database.objectStoreNames.contains('cableInventory')) {
+          const cableInventoryStore = database.createObjectStore('cableInventory', { keyPath: 'id' });
+          cableInventoryStore.createIndex('by-company', 'companyId');
+          cableInventoryStore.createIndex('by-synced', 'synced');
+        }
+        
+        if (!database.objectStoreNames.contains('cableMovements')) {
+          const cableMovementsStore = database.createObjectStore('cableMovements', { keyPath: 'id' });
+          cableMovementsStore.createIndex('by-company', 'companyId');
+          cableMovementsStore.createIndex('by-synced', 'synced');
+        }
+        
+        if (!database.objectStoreNames.contains('equipmentRepairs')) {
+          const equipmentRepairsStore = database.createObjectStore('equipmentRepairs', { keyPath: 'id' });
+          equipmentRepairsStore.createIndex('by-company', 'companyId');
+          equipmentRepairsStore.createIndex('by-synced', 'synced');
         }
         
         // Очередь синхронизации
@@ -628,7 +698,7 @@ export async function clearAllLocalData() {
     try {
       const database = await initOfflineDB();
       // Очищаем все таблицы
-      const stores = ['estimates', 'equipment', 'checklists', 'syncQueue', 'settings'];
+      const stores = ['estimates', 'equipment', 'checklists', 'customers', 'cableCategories', 'cableInventory', 'cableMovements', 'equipmentRepairs', 'syncQueue', 'settings'];
       for (const storeName of stores) {
         if (database.objectStoreNames.contains(storeName)) {
           const tx = database.transaction(storeName, 'readwrite');
@@ -893,7 +963,7 @@ export async function cleanupOldRecords(companyId: string) {
       debugLog('[cleanup] Removed old estimates:', oldEstimates.length);
     }
     
-    // ������� ������ ������������
+    // Cleanup old equipment
     const equipment = await database.getAllFromIndex('equipment', 'by-company', companyId);
     const oldEquipment = equipment
       .filter(e => e.updatedAt < cutoff && e.synced)
@@ -905,6 +975,36 @@ export async function cleanupOldRecords(companyId: string) {
     }
     if (oldEquipment.length > 0) {
       debugLog('[cleanup] Removed old equipment:', oldEquipment.length);
+    }
+    
+    // Cleanup old cable inventory (limit to 2000 items)
+    const MAX_LOCAL_CABLE_INVENTORY = 2000;
+    const cableInventory = await database.getAllFromIndex('cableInventory', 'by-company', companyId);
+    const oldCableInventory = cableInventory
+      .filter(i => i.updatedAt < cutoff && i.synced)
+      .sort((a, b) => a.updatedAt - b.updatedAt)
+      .slice(0, Math.max(0, cableInventory.length - MAX_LOCAL_CABLE_INVENTORY));
+    
+    for (const item of oldCableInventory) {
+      await database.delete('cableInventory', item.id);
+    }
+    if (oldCableInventory.length > 0) {
+      debugLog('[cleanup] Removed old cable inventory:', oldCableInventory.length);
+    }
+    
+    // Cleanup old cable movements (limit to 5000 items)
+    const MAX_LOCAL_CABLE_MOVEMENTS = 5000;
+    const cableMovements = await database.getAllFromIndex('cableMovements', 'by-company', companyId);
+    const oldCableMovements = cableMovements
+      .filter(m => m.updatedAt < cutoff && m.synced)
+      .sort((a, b) => a.updatedAt - b.updatedAt)
+      .slice(0, Math.max(0, cableMovements.length - MAX_LOCAL_CABLE_MOVEMENTS));
+    
+    for (const item of oldCableMovements) {
+      await database.delete('cableMovements', item.id);
+    }
+    if (oldCableMovements.length > 0) {
+      debugLog('[cleanup] Removed old cable movements:', oldCableMovements.length);
     }
   } catch (e) {
     debugError('[cleanup] Error during cleanup:', e);
@@ -970,5 +1070,337 @@ export async function deleteCustomerLocal(id: string) {
     await database.delete('customers', id);
   } catch (e) {
     debugError('[deleteCustomerLocal] Error:', e);
+  }
+}
+
+// === Кабельный учёт (категории) ===
+export async function saveCableCategoryLocal(category: any, companyId: string, isSynced: boolean = false) {
+  debugLog('[saveCableCategoryLocal] Saving category:', category.id, 'synced:', isSynced);
+  if (useLocalStorageFallback) {
+    const categories = getFromStorage<Record<string, any>>('cableCategories', {});
+    categories[category.id] = {
+      id: category.id,
+      data: category,
+      synced: isSynced,
+      updatedAt: Date.now(),
+      companyId
+    };
+    setToStorage('cableCategories', categories);
+    return;
+  }
+  try {
+    const database = await initOfflineDB();
+    await database.put('cableCategories', {
+      id: category.id,
+      data: category,
+      synced: isSynced,
+      updatedAt: Date.now(),
+      companyId
+    });
+  } catch (e) {
+    debugError('[saveCableCategoryLocal] Error:', e);
+  }
+}
+
+export async function getCableCategoriesLocal(companyId: string) {
+  if (useLocalStorageFallback) {
+    const categories = getFromStorage<Record<string, any>>('cableCategories', {});
+    return Object.values(categories)
+      .filter((c: any) => c.companyId === companyId)
+      .map((c: any) => c.data);
+  }
+  try {
+    const database = await initOfflineDB();
+    const items = await database.getAllFromIndex('cableCategories', 'by-company', companyId);
+    return items.map(item => item.data);
+  } catch (e) {
+    return [];
+  }
+}
+
+export async function deleteCableCategoryLocal(id: string) {
+  if (useLocalStorageFallback) {
+    const categories = getFromStorage<Record<string, any>>('cableCategories', {});
+    delete categories[id];
+    setToStorage('cableCategories', categories);
+    return;
+  }
+  try {
+    const database = await initOfflineDB();
+    await database.delete('cableCategories', id);
+  } catch (e) {
+    debugError('[deleteCableCategoryLocal] Error:', e);
+  }
+}
+
+export async function clearCableCategoriesLocal(companyId: string) {
+  if (useLocalStorageFallback) {
+    const categories = getFromStorage<Record<string, any>>('cableCategories', {});
+    const filtered: Record<string, any> = {};
+    for (const [key, value] of Object.entries(categories)) {
+      if (value.companyId !== companyId) {
+        filtered[key] = value;
+      }
+    }
+    setToStorage('cableCategories', filtered);
+    return;
+  }
+  try {
+    const database = await initOfflineDB();
+    const items = await database.getAllFromIndex('cableCategories', 'by-company', companyId);
+    for (const item of items) {
+      await database.delete('cableCategories', item.id);
+    }
+  } catch (e) {
+    debugError('[clearCableCategoriesLocal] Error:', e);
+  }
+}
+
+// === Кабельный учёт (инвентарь) ===
+export async function saveCableInventoryLocal(item: any, companyId: string, isSynced: boolean = false) {
+  debugLog('[saveCableInventoryLocal] Saving inventory:', item.id, 'synced:', isSynced);
+  if (useLocalStorageFallback) {
+    const inventory = getFromStorage<Record<string, any>>('cableInventory', {});
+    inventory[item.id] = {
+      id: item.id,
+      data: item,
+      synced: isSynced,
+      updatedAt: Date.now(),
+      companyId
+    };
+    setToStorage('cableInventory', inventory);
+    return;
+  }
+  try {
+    const database = await initOfflineDB();
+    await database.put('cableInventory', {
+      id: item.id,
+      data: item,
+      synced: isSynced,
+      updatedAt: Date.now(),
+      companyId
+    });
+  } catch (e) {
+    debugError('[saveCableInventoryLocal] Error:', e);
+  }
+}
+
+export async function getCableInventoryLocal(companyId: string) {
+  if (useLocalStorageFallback) {
+    const inventory = getFromStorage<Record<string, any>>('cableInventory', {});
+    return Object.values(inventory)
+      .filter((i: any) => i.companyId === companyId)
+      .map((i: any) => i.data);
+  }
+  try {
+    const database = await initOfflineDB();
+    const items = await database.getAllFromIndex('cableInventory', 'by-company', companyId);
+    return items.map(item => item.data);
+  } catch (e) {
+    return [];
+  }
+}
+
+export async function deleteCableInventoryLocal(id: string) {
+  if (useLocalStorageFallback) {
+    const inventory = getFromStorage<Record<string, any>>('cableInventory', {});
+    delete inventory[id];
+    setToStorage('cableInventory', inventory);
+    return;
+  }
+  try {
+    const database = await initOfflineDB();
+    await database.delete('cableInventory', id);
+  } catch (e) {
+    debugError('[deleteCableInventoryLocal] Error:', e);
+  }
+}
+
+export async function clearCableInventoryLocal(companyId: string) {
+  if (useLocalStorageFallback) {
+    const inventory = getFromStorage<Record<string, any>>('cableInventory', {});
+    const filtered: Record<string, any> = {};
+    for (const [key, value] of Object.entries(inventory)) {
+      if (value.companyId !== companyId) {
+        filtered[key] = value;
+      }
+    }
+    setToStorage('cableInventory', filtered);
+    return;
+  }
+  try {
+    const database = await initOfflineDB();
+    const items = await database.getAllFromIndex('cableInventory', 'by-company', companyId);
+    for (const item of items) {
+      await database.delete('cableInventory', item.id);
+    }
+  } catch (e) {
+    debugError('[clearCableInventoryLocal] Error:', e);
+  }
+}
+
+// === Кабельный учёт (движения) ===
+export async function saveCableMovementLocal(movement: any, companyId: string, isSynced: boolean = false) {
+  debugLog('[saveCableMovementLocal] Saving movement:', movement.id, 'synced:', isSynced);
+  if (useLocalStorageFallback) {
+    const movements = getFromStorage<Record<string, any>>('cableMovements', {});
+    movements[movement.id] = {
+      id: movement.id,
+      data: movement,
+      synced: isSynced,
+      updatedAt: Date.now(),
+      companyId
+    };
+    setToStorage('cableMovements', movements);
+    return;
+  }
+  try {
+    const database = await initOfflineDB();
+    await database.put('cableMovements', {
+      id: movement.id,
+      data: movement,
+      synced: isSynced,
+      updatedAt: Date.now(),
+      companyId
+    });
+  } catch (e) {
+    debugError('[saveCableMovementLocal] Error:', e);
+  }
+}
+
+export async function getCableMovementsLocal(companyId: string) {
+  if (useLocalStorageFallback) {
+    const movements = getFromStorage<Record<string, any>>('cableMovements', {});
+    return Object.values(movements)
+      .filter((m: any) => m.companyId === companyId)
+      .map((m: any) => m.data);
+  }
+  try {
+    const database = await initOfflineDB();
+    const items = await database.getAllFromIndex('cableMovements', 'by-company', companyId);
+    return items.map(item => item.data);
+  } catch (e) {
+    return [];
+  }
+}
+
+export async function deleteCableMovementLocal(id: string) {
+  if (useLocalStorageFallback) {
+    const movements = getFromStorage<Record<string, any>>('cableMovements', {});
+    delete movements[id];
+    setToStorage('cableMovements', movements);
+    return;
+  }
+  try {
+    const database = await initOfflineDB();
+    await database.delete('cableMovements', id);
+  } catch (e) {
+    debugError('[deleteCableMovementLocal] Error:', e);
+  }
+}
+
+export async function clearCableMovementsLocal(companyId: string) {
+  if (useLocalStorageFallback) {
+    const movements = getFromStorage<Record<string, any>>('cableMovements', {});
+    const filtered: Record<string, any> = {};
+    for (const [key, value] of Object.entries(movements)) {
+      if (value.companyId !== companyId) {
+        filtered[key] = value;
+      }
+    }
+    setToStorage('cableMovements', filtered);
+    return;
+  }
+  try {
+    const database = await initOfflineDB();
+    const items = await database.getAllFromIndex('cableMovements', 'by-company', companyId);
+    for (const item of items) {
+      await database.delete('cableMovements', item.id);
+    }
+  } catch (e) {
+    debugError('[clearCableMovementsLocal] Error:', e);
+  }
+}
+
+// === Кабельный учёт (ремонты) ===
+export async function saveEquipmentRepairLocal(repair: any, companyId: string, isSynced: boolean = false) {
+  debugLog('[saveEquipmentRepairLocal] Saving repair:', repair.id, 'synced:', isSynced);
+  if (useLocalStorageFallback) {
+    const repairs = getFromStorage<Record<string, any>>('equipmentRepairs', {});
+    repairs[repair.id] = {
+      id: repair.id,
+      data: repair,
+      synced: isSynced,
+      updatedAt: Date.now(),
+      companyId
+    };
+    setToStorage('equipmentRepairs', repairs);
+    return;
+  }
+  try {
+    const database = await initOfflineDB();
+    await database.put('equipmentRepairs', {
+      id: repair.id,
+      data: repair,
+      synced: isSynced,
+      updatedAt: Date.now(),
+      companyId
+    });
+  } catch (e) {
+    debugError('[saveEquipmentRepairLocal] Error:', e);
+  }
+}
+
+export async function getEquipmentRepairsLocal(companyId: string) {
+  if (useLocalStorageFallback) {
+    const repairs = getFromStorage<Record<string, any>>('equipmentRepairs', {});
+    return Object.values(repairs)
+      .filter((r: any) => r.companyId === companyId)
+      .map((r: any) => r.data);
+  }
+  try {
+    const database = await initOfflineDB();
+    const items = await database.getAllFromIndex('equipmentRepairs', 'by-company', companyId);
+    return items.map(item => item.data);
+  } catch (e) {
+    return [];
+  }
+}
+
+export async function deleteEquipmentRepairLocal(id: string) {
+  if (useLocalStorageFallback) {
+    const repairs = getFromStorage<Record<string, any>>('equipmentRepairs', {});
+    delete repairs[id];
+    setToStorage('equipmentRepairs', repairs);
+    return;
+  }
+  try {
+    const database = await initOfflineDB();
+    await database.delete('equipmentRepairs', id);
+  } catch (e) {
+    debugError('[deleteEquipmentRepairLocal] Error:', e);
+  }
+}
+
+export async function clearEquipmentRepairsLocal(companyId: string) {
+  if (useLocalStorageFallback) {
+    const repairs = getFromStorage<Record<string, any>>('equipmentRepairs', {});
+    const filtered: Record<string, any> = {};
+    for (const [key, value] of Object.entries(repairs)) {
+      if (value.companyId !== companyId) {
+        filtered[key] = value;
+      }
+    }
+    setToStorage('equipmentRepairs', filtered);
+    return;
+  }
+  try {
+    const database = await initOfflineDB();
+    const items = await database.getAllFromIndex('equipmentRepairs', 'by-company', companyId);
+    for (const item of items) {
+      await database.delete('equipmentRepairs', item.id);
+    }
+  } catch (e) {
+    debugError('[clearEquipmentRepairsLocal] Error:', e);
   }
 }
