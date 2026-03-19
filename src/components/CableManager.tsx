@@ -65,6 +65,7 @@ interface CableManagerProps {
   onUpdateCategory: (id: string, updates: Partial<CableCategory>) => Promise<{ error: any }>;
   onDeleteCategory: (id: string) => Promise<{ error: any }>;
   onReorderCategories?: (categoryIds: string[]) => Promise<{ error: any }>;
+  onImportFromEquipment?: () => Promise<{ error: any }>;
   onUpsertInventory: (data: Omit<CableInventory, 'id' | 'created_at' | 'updated_at'>) => Promise<{ error: any }>;
   onUpdateInventoryQty?: (id: string, quantity: number) => Promise<{ error: any }>;
   onDeleteInventory: (id: string) => Promise<{ error: any }>;
@@ -95,6 +96,7 @@ export const CableManager = memo(function CableManager({
   onUpdateCategory,
   onDeleteCategory,
   onReorderCategories,
+  onImportFromEquipment,
   onUpsertInventory,
   onUpdateInventoryQty,
   onDeleteInventory,
@@ -504,7 +506,17 @@ export const CableManager = memo(function CableManager({
               <CardContent className="p-8 text-center text-gray-500">
                 <Package className="w-12 h-12 mx-auto mb-3 opacity-50" />
                 <p>Нет категорий</p>
-                <p className="text-sm">Добавьте первую категорию кабелей</p>
+                <p className="text-sm mb-4">Добавьте первую категорию кабелей</p>
+                {onImportFromEquipment && (
+                  <Button 
+                    variant="outline" 
+                    onClick={onImportFromEquipment}
+                    className="mt-2"
+                  >
+                    <Package className="w-4 h-4 mr-2" />
+                    Импортировать из Оборудования
+                  </Button>
+                )}
               </CardContent>
             </Card>
           ) : (

@@ -354,6 +354,44 @@ export function useCableInventory(companyId: string | undefined) {
     }
   }, [companyId, fetchRepairs]);
 
+  // Импорт категорий и оборудования из вкладки "Оборудование"
+  const importFromEquipment = useCallback(async () => {
+    if (!companyId) return { error: new Error('No company selected') };
+    
+    try {
+      // Вызываем RPC функцию для импорта (нужно создать в Supabase)
+      const { data, error } = await supabase.rpc('import_equipment_to_cable', {
+        p_company_id: companyId
+      });
+
+      if (error) {
+        // Если функции нет, показываем инструкцию
+        if (error.message.includes('function') || error.message.includes('rpc')) {
+          toast.error('Функция импорта не настроена', {
+            description: 'Выполните SQL скрипт supabase_copy_equipment_to_cable.sql в Supabase Dashboard'
+          });
+          return { error: new Error('RPC function not found') };
+        }
+        throw error;
+      }
+
+      await fetchCategories();
+      await fetchInventory();
+      
+      const importedCategories = data?.categories || 0;
+      const importedItems = data?.items || 0;
+      
+      toast.success('Импорт завершён', {
+        description: `Категорий: ${importedCategories}, позиций: ${importedItems}`
+      });
+      
+      return { error: null, data };
+    } catch (err: any) {
+      toast.error('Ошибка при импорте', { description: err.message });
+      return { error: err };
+    }
+  }, [companyId, fetchCategories, fetchInventory]);
+
   useEffect(() => {
     fetchCategories();
     fetchInventory();
@@ -418,6 +456,7 @@ export function useCableInventory(companyId: string | undefined) {
     sendToRepair,
     updateRepairStatus,
     deleteRepair,
+    importFromEquipment,
     refresh: () => {
       fetchCategories();
       fetchInventory();
