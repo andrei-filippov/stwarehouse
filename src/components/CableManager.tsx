@@ -1279,6 +1279,12 @@ function CategoryList({
                               {isLow && (
                                 <AlertCircle className="w-4 h-4 text-orange-500 shrink-0 hidden sm:block" />
                               )}
+                              {/* Комментарий на десктопе */}
+                              {item.notes && (
+                                <span className="hidden sm:inline text-xs text-gray-500 truncate max-w-[200px]" title={item.notes}>
+                                  {item.notes}
+                                </span>
+                              )}
                             </div>
                             <div className="flex items-center justify-between sm:justify-end gap-1 pl-6 sm:pl-0">
                               {/* На мобильном показываем заметку тут */}
