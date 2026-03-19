@@ -138,11 +138,18 @@ export function useCableInventory(companyId: string | undefined) {
       // Обновляем локальное состояние без перезагрузки с сервера
       setCategories(prev => {
         const categoryMap = new Map(prev.map(c => [c.id, c]));
-        const newOrder = categoryIds
-          .map(id => categoryMap.get(id))
-          .filter((c): c is CableCategory => c !== undefined)
-          .map((c, index) => ({ ...c, sort_order: index }));
-        return newOrder;
+        // Обновляем sort_order только для переданных категорий (корневых)
+        // Дочерние категории остаются без изменений
+        const updatedCategories = prev.map(cat => {
+          const newIndex = categoryIds.indexOf(cat.id);
+          if (newIndex !== -1) {
+            // Это корневая категория - обновляем sort_order
+            return { ...cat, sort_order: newIndex };
+          }
+          // Дочерняя категория - оставляем как есть
+          return cat;
+        });
+        return updatedCategories;
       });
 
       return { error: null };
