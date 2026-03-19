@@ -5,26 +5,17 @@
 -- 1. Копирование категорий
 -- ============================================
 
--- Создаем временную таблицу для сопоставления старых и новых ID категорий
-CREATE TEMP TABLE IF NOT EXISTS category_mapping (
-    old_id UUID,
-    new_id UUID,
-    company_id UUID
-);
-
--- Очищаем временную таблицу
-TRUNCATE category_mapping;
-
 -- Копируем категории (только те, которых еще нет в cable_categories)
 INSERT INTO cable_categories (company_id, name, description, color, sort_order)
 SELECT 
     c.company_id,
     c.name,
-    c.description,
+    NULL, -- description нет в исходной таблице
     '#3b82f6', -- Синий цвет по умолчанию
-    c.sort_order
+    0 -- sort_order по умолчанию
 FROM categories c
-WHERE NOT EXISTS (
+WHERE c.company_id IS NOT NULL
+AND NOT EXISTS (
     SELECT 1 FROM cable_categories cc 
     WHERE cc.company_id = c.company_id 
     AND cc.name = c.name
@@ -41,6 +32,7 @@ DECLARE
     equip_record RECORD;
     target_category_id UUID;
     company_uuid UUID;
+    imported_count INTEGER := 0;
 BEGIN
     -- Получаем список компаний
     FOR company_uuid IN 
@@ -50,9 +42,8 @@ BEGIN
         
         -- Для каждого оборудования в компании
         FOR equip_record IN 
-            SELECT e.*, c.name as category_name
+            SELECT e.*
             FROM equipment e
-            LEFT JOIN categories c ON e.category = c.name AND c.company_id = e.company_id
             WHERE e.company_id = company_uuid
             AND NOT EXISTS (
                 SELECT 1 FROM cable_inventory ci
@@ -61,36 +52,51 @@ BEGIN
                 AND ci.name = e.name
             )
         LOOP
-            -- Ищем или создаем категорию
+            -- Ищем категорию по имени (поле category в equipment - это текст)
             SELECT id INTO target_category_id
             FROM cable_categories
             WHERE company_id = company_uuid
-            AND name = COALESCE(equip_record.category_name, 'Оборудование')
+            AND name = equip_record.category
             LIMIT 1;
             
-            -- Если категория не найдена, создаем общую
+            -- Если категория не найдена, создаем общую "Оборудование"
             IF target_category_id IS NULL THEN
-                INSERT INTO cable_categories (company_id, name, color, sort_order)
-                VALUES (company_uuid, COALESCE(equip_record.category_name, 'Оборудование'), '#3b82f6', 0)
-                RETURNING id INTO target_category_id;
+                -- Проверяем существует ли уже такая категория
+                SELECT id INTO target_category_id
+                FROM cable_categories
+                WHERE company_id = company_uuid
+                AND name = COALESCE(NULLIF(equip_record.category, ''), 'Оборудование')
+                LIMIT 1;
                 
-                RAISE NOTICE 'Created category % for company %', COALESCE(equip_record.category_name, 'Оборудование'), company_uuid;
+                -- Если не существует - создаем
+                IF target_category_id IS NULL THEN
+                    INSERT INTO cable_categories (company_id, name, color, sort_order)
+                    VALUES (company_uuid, COALESCE(NULLIF(equip_record.category, ''), 'Оборудование'), '#3b82f6', 0)
+                    RETURNING id INTO target_category_id;
+                    
+                    RAISE NOTICE 'Created category % for company %', COALESCE(NULLIF(equip_record.category, ''), 'Оборудование'), company_uuid;
+                END IF;
             END IF;
             
             -- Добавляем оборудование в инвентарь (без длины - только name)
-            INSERT INTO cable_inventory (company_id, category_id, name, quantity, min_quantity, notes)
-            VALUES (
-                company_uuid,
-                target_category_id,
-                equip_record.name,
-                GREATEST(equip_record.quantity, 0),
-                0, -- min_quantity по умолчанию
-                equip_record.description
-            );
-            
-            RAISE NOTICE 'Copied equipment: % to category %', equip_record.name, target_category_id;
+            IF target_category_id IS NOT NULL THEN
+                INSERT INTO cable_inventory (company_id, category_id, name, quantity, min_quantity, notes)
+                VALUES (
+                    company_uuid,
+                    target_category_id,
+                    equip_record.name,
+                    GREATEST(equip_record.quantity, 0),
+                    0, -- min_quantity по умолчанию
+                    equip_record.description
+                );
+                
+                imported_count := imported_count + 1;
+                RAISE NOTICE 'Copied equipment: % to category %', equip_record.name, target_category_id;
+            END IF;
         END LOOP;
     END LOOP;
+    
+    RAISE NOTICE 'Total imported items: %', imported_count;
 END $$;
 
 -- ============================================
@@ -98,18 +104,9 @@ END $$;
 -- ============================================
 
 SELECT 
-    'Categories copied' as info,
+    'Categories in cable_categories' as info,
     COUNT(*) as count
-FROM cable_categories
-WHERE created_at > NOW() - INTERVAL '1 hour'
-
-UNION ALL
-
-SELECT 
-    'Equipment items copied' as info,
-    COUNT(*) as count
-FROM cable_inventory
-WHERE created_at > NOW() - INTERVAL '1 hour';
+FROM cable_categories;
 
 -- ============================================
 -- 4. Показать что получилось
@@ -120,8 +117,9 @@ SELECT
     ci.name as equipment_name,
     ci.quantity,
     ci.length,
+    ci.notes,
     cc.company_id
 FROM cable_inventory ci
 JOIN cable_categories cc ON ci.category_id = cc.id
-WHERE ci.created_at > NOW() - INTERVAL '1 hour'
-ORDER BY cc.name, ci.name;
+ORDER BY cc.name, ci.name
+LIMIT 50;

@@ -399,6 +399,16 @@ export function useCableInventory(companyId: string | undefined) {
     fetchRepairs();
   }, [fetchCategories, fetchInventory, fetchMovements, fetchRepairs]);
 
+  // Рекурсивно получаем все ID категорий включая дочерние
+  const getAllCategoryIds = useCallback((catId: string, cats: CableCategory[]): string[] => {
+    const ids = [catId];
+    const children = cats.filter(c => c.parent_id === catId);
+    children.forEach(child => {
+      ids.push(...getAllCategoryIds(child.id, cats));
+    });
+    return ids;
+  }, []);
+
   // Статистика по категориям для CableManager
   const stats = useMemo(() => {
     const result: Record<string, { totalLength: number; totalQty: number; issuedQty: number; repairQty: number }> = {};
@@ -408,34 +418,35 @@ export function useCableInventory(companyId: string | undefined) {
       result[cat.id] = { totalLength: 0, totalQty: 0, issuedQty: 0, repairQty: 0 };
     });
     
-    // Считаем инвентарь по категориям
-    inventory.forEach(item => {
-      if (result[item.category_id]) {
-        result[item.category_id].totalLength += item.length * item.quantity;
-        result[item.category_id].totalQty += item.quantity;
-      }
+    // Для каждой категории считаем статистику включая дочерние
+    categories.forEach(cat => {
+      const allIds = getAllCategoryIds(cat.id, categories);
+      
+      // Считаем инвентарь для всех категорий
+      inventory.forEach(item => {
+        if (allIds.includes(item.category_id)) {
+          result[cat.id].totalLength += (item.length || 0) * item.quantity;
+          result[cat.id].totalQty += item.quantity;
+        }
+      });
+      
+      // Считаем выданное для всех категорий
+      movements
+        .filter(m => m.is_returned !== true && allIds.includes(m.category_id))
+        .forEach(m => {
+          result[cat.id].issuedQty += m.quantity;
+        });
+      
+      // Считаем в ремонте для всех категорий
+      repairs
+        .filter(r => r.status === 'in_repair' && allIds.includes(r.category_id))
+        .forEach(r => {
+          result[cat.id].repairQty += r.quantity;
+        });
     });
     
-    // Считаем выданное по категориям
-    movements
-      .filter(m => m.is_returned !== true)
-      .forEach(m => {
-        if (result[m.category_id]) {
-          result[m.category_id].issuedQty += m.quantity;
-        }
-      });
-    
-    // Считаем в ремонте по категориям
-    repairs
-      .filter(r => r.status === 'in_repair')
-      .forEach(r => {
-        if (result[r.category_id]) {
-          result[r.category_id].repairQty += r.quantity;
-        }
-      });
-    
     return result;
-  }, [inventory, movements, repairs, categories]);
+  }, [inventory, movements, repairs, categories, getAllCategoryIds]);
 
   return {
     categories,
