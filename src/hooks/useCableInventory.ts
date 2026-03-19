@@ -118,6 +118,42 @@ export function useCableInventory(companyId: string | undefined) {
     }
   }, [companyId, fetchCategories]);
 
+  // Функция для изменения порядка категорий
+  const reorderCategories = useCallback(async (categoryIds: string[]) => {
+    if (!companyId) return { error: new Error('No company selected') };
+    
+    try {
+      // Обновляем sort_order для каждой категории
+      const updates = categoryIds.map((id, index) => ({
+        id,
+        sort_order: index,
+        company_id: companyId
+      }));
+
+      // Используем upsert для обновления всех категорий за один запрос
+      const { error } = await supabase
+        .from('cable_categories')
+        .upsert(updates, { onConflict: 'id' });
+
+      if (error) throw error;
+
+      // Обновляем локальное состояние без перезагрузки с сервера
+      setCategories(prev => {
+        const categoryMap = new Map(prev.map(c => [c.id, c]));
+        const newOrder = categoryIds
+          .map(id => categoryMap.get(id))
+          .filter((c): c is CableCategory => c !== undefined)
+          .map((c, index) => ({ ...c, sort_order: index }));
+        return newOrder;
+      });
+
+      return { error: null };
+    } catch (err: any) {
+      toast.error('Ошибка при изменении порядка', { description: err.message });
+      return { error: err };
+    }
+  }, [companyId]);
+
   const upsertInventory = useCallback(async (item: Partial<CableInventory>) => {
     if (!companyId) return { error: new Error('No company selected') };
     
@@ -373,6 +409,7 @@ export function useCableInventory(companyId: string | undefined) {
     addCategory,
     updateCategory,
     deleteCategory,
+    reorderCategories,
     upsertInventory,
     updateInventoryQty,
     deleteInventory,

@@ -18,7 +18,8 @@ import {
   AlertCircle,
   ChevronDown,
   ChevronUp,
-  Cable
+  Cable,
+  GripVertical
 } from 'lucide-react';
 import type { CableCategory, CableInventory, CableMovement, EquipmentRepair } from '../types';
 import { REPAIR_STATUSES, getRepairStatusLabel, getRepairStatusColor } from '../types';
@@ -26,6 +27,23 @@ import { CABLE_COLORS } from '../types/cable';
 import { Spinner } from './ui/spinner';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface SelectedItem {
   inventory_id: string;
@@ -46,6 +64,7 @@ interface CableManagerProps {
   onAddCategory: (data: Omit<CableCategory, 'id' | 'created_at' | 'updated_at' | 'user_id'>) => Promise<{ error: any }>;
   onUpdateCategory: (id: string, updates: Partial<CableCategory>) => Promise<{ error: any }>;
   onDeleteCategory: (id: string) => Promise<{ error: any }>;
+  onReorderCategories?: (categoryIds: string[]) => Promise<{ error: any }>;
   onUpsertInventory: (data: Omit<CableInventory, 'id' | 'created_at' | 'updated_at'>) => Promise<{ error: any }>;
   onUpdateInventoryQty?: (id: string, quantity: number) => Promise<{ error: any }>;
   onDeleteInventory: (id: string) => Promise<{ error: any }>;
@@ -75,6 +94,7 @@ export const CableManager = memo(function CableManager({
   onAddCategory,
   onUpdateCategory,
   onDeleteCategory,
+  onReorderCategories,
   onUpsertInventory,
   onUpdateInventoryQty,
   onDeleteInventory,
@@ -1002,7 +1022,419 @@ export const CableManager = memo(function CableManager({
   );
 });
 
-// Рекурсивный компонент для отображения категорий с подкатегориями
+// Компонент для сортируемой категории (drag-and-drop)
+interface SortableCategoryItemProps {
+  category: CableCategory & { children?: CableCategory[] };
+  inventory: CableInventory[];
+  movements: CableMovement[];
+  repairs: EquipmentRepair[];
+  stats: Record<string, { totalLength: number; totalQty: number; issuedQty: number; repairQty: number }>;
+  selectedItems: SelectedItem[];
+  expandedCategories: Set<string>;
+  onToggleCategory: (id: string) => void;
+  onToggleItem: (item: CableInventory) => void;
+  onUpdateInventoryQty: (id: string, newQty: number, length: number) => void;
+  onDeleteInventory: (id: string) => Promise<{ error: any }>;
+  onAddInventory: (categoryId: string) => void;
+  onEditInventory: (item: CableInventory, categoryName: string) => void;
+  onEditCategory: (cat: CableCategory) => void;
+  onDeleteCategory: (id: string) => Promise<{ error: any }>;
+  onSendToRepair?: (categoryId: string, item: CableInventory, categoryName: string) => void;
+  categoryName?: string;
+  level?: number;
+  isSortable?: boolean;
+}
+
+function SortableCategoryItem({
+  category,
+  inventory,
+  movements,
+  repairs,
+  stats,
+  selectedItems,
+  expandedCategories,
+  onToggleCategory,
+  onToggleItem,
+  onUpdateInventoryQty,
+  onDeleteInventory,
+  onAddInventory,
+  onEditInventory,
+  onEditCategory,
+  onDeleteCategory,
+  onSendToRepair,
+  categoryName = '',
+  level = 0,
+  isSortable = false,
+}: SortableCategoryItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: category.id, disabled: !isSortable });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  // Рендерим категорию через CategoryItem (вынесем в отдельный компонент)
+  return (
+    <div ref={setNodeRef} style={style} className={level > 0 ? 'ml-4 sm:ml-6' : ''}>
+      <CategoryItem
+        category={category}
+        inventory={inventory}
+        movements={movements}
+        repairs={repairs}
+        stats={stats}
+        selectedItems={selectedItems}
+        expandedCategories={expandedCategories}
+        onToggleCategory={onToggleCategory}
+        onToggleItem={onToggleItem}
+        onUpdateInventoryQty={onUpdateInventoryQty}
+        onDeleteInventory={onDeleteInventory}
+        onAddInventory={onAddInventory}
+        onEditInventory={onEditInventory}
+        onEditCategory={onEditCategory}
+        onDeleteCategory={onDeleteCategory}
+        onSendToRepair={onSendToRepair}
+        categoryName={categoryName}
+        level={level}
+        dragHandleProps={isSortable ? { ...attributes, ...listeners } : undefined}
+      />
+    </div>
+  );
+}
+
+// Компонент для отображения одной категории (без drag-and-drop логики)
+interface CategoryItemProps {
+  category: CableCategory & { children?: CableCategory[] };
+  inventory: CableInventory[];
+  movements: CableMovement[];
+  repairs: EquipmentRepair[];
+  stats: Record<string, { totalLength: number; totalQty: number; issuedQty: number; repairQty: number }>;
+  selectedItems: SelectedItem[];
+  expandedCategories: Set<string>;
+  onToggleCategory: (id: string) => void;
+  onToggleItem: (item: CableInventory) => void;
+  onUpdateInventoryQty: (id: string, newQty: number, length: number) => void;
+  onDeleteInventory: (id: string) => Promise<{ error: any }>;
+  onAddInventory: (categoryId: string) => void;
+  onEditInventory: (item: CableInventory, categoryName: string) => void;
+  onEditCategory: (cat: CableCategory) => void;
+  onDeleteCategory: (id: string) => Promise<{ error: any }>;
+  onSendToRepair?: (categoryId: string, item: CableInventory, categoryName: string) => void;
+  categoryName?: string;
+  level?: number;
+  dragHandleProps?: any;
+}
+
+function CategoryItem({
+  category,
+  inventory,
+  movements,
+  repairs,
+  stats,
+  selectedItems,
+  expandedCategories,
+  onToggleCategory,
+  onToggleItem,
+  onUpdateInventoryQty,
+  onDeleteInventory,
+  onAddInventory,
+  onEditInventory,
+  onEditCategory,
+  onDeleteCategory,
+  onSendToRepair,
+  categoryName = '',
+  level = 0,
+  dragHandleProps,
+}: CategoryItemProps) {
+  const catInventory = inventory.filter(i => i.category_id === category.id).sort((a, b) => (a.length || 0) - (b.length || 0));
+  const catStats = stats[category.id] || { totalLength: 0, totalQty: 0, issuedQty: 0, repairQty: 0 };
+  const isExpanded = expandedCategories.has(category.id);
+  const hasLowStock = catInventory.some(i => (i.min_quantity ?? 0) > 0 && i.quantity < (i.min_quantity ?? 0));
+  const hasChildren = category.children && category.children.length > 0;
+  
+  // Подсчет выданного и в ремонте
+  const getIssuedQtyForItem = (categoryId: string, length: number, name?: string) => {
+    return movements
+      .filter(m => !m.is_returned && m.category_id === categoryId)
+      .filter(m => name ? m.equipment_name === name : m.length === length)
+      .reduce((sum, m) => sum + m.quantity, 0);
+  };
+
+  const getRepairQtyForItem = (categoryId: string, length: number, name?: string) => {
+    return repairs
+      .filter(r => r.status === 'in_repair' && r.category_id === categoryId)
+      .filter(r => name ? r.equipment_name === name : r.length === length)
+      .reduce((sum, r) => sum + r.quantity, 0);
+  };
+
+  // Проверяем дочерние категории на low stock
+  const checkChildrenLowStock = (cats: CableCategory[]): boolean => {
+    return cats.some(cat => {
+      const inv = inventory.filter(i => i.category_id === cat.id);
+      const hasLow = inv.some(i => (i.min_quantity ?? 0) > 0 && i.quantity < (i.min_quantity ?? 0));
+      return hasLow || (cat.children ? checkChildrenLowStock(cat.children) : false);
+    });
+  };
+  const hasChildrenLowStock = category.children ? checkChildrenLowStock(category.children) : false;
+  const showLowStock = hasLowStock || hasChildrenLowStock;
+
+  return (
+    <Card className={showLowStock ? 'border-orange-300' : ''}>
+      <CardHeader className="pb-2">
+        <div 
+          className="flex items-center justify-between cursor-pointer"
+          onClick={() => onToggleCategory(category.id)}
+        >
+          <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+            {/* Drag handle */}
+            {dragHandleProps && (
+              <button
+                {...dragHandleProps}
+                className="p-1 hover:bg-gray-200 rounded cursor-grab active:cursor-grabbing shrink-0"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <GripVertical className="w-4 h-4 text-gray-500" />
+              </button>
+            )}
+            <div 
+              className="w-3 h-3 sm:w-4 sm:h-4 rounded-full shrink-0"
+              style={{ backgroundColor: category.color }}
+            />
+            {level > 0 && <span className="text-gray-400 text-xs sm:text-sm">└</span>}
+            <CardTitle className={`${level > 0 ? 'text-sm sm:text-base' : 'text-base sm:text-lg'} truncate`}>
+              {category.name}
+            </CardTitle>
+            {showLowStock && (
+              <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500 shrink-0" />
+            )}
+          </div>
+          <div className="flex items-center gap-0 sm:gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => onAddInventory(category.id)}
+              className="h-8 w-8 p-0"
+            >
+              <Plus className="w-4 h-4" />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => onEditCategory(category)}
+              className="h-8 w-8 p-0 hidden sm:flex"
+            >
+              <Edit2 className="w-4 h-4" />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => onDeleteCategory(category.id)}
+              className="h-8 w-8 p-0 hidden sm:flex"
+            >
+              <Trash2 className="w-4 h-4 text-red-500" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onToggleCategory(category.id)}
+              className="h-8 w-8 p-0"
+            >
+              {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </Button>
+          </div>
+        </div>
+        {category.description && (
+          <p className="text-sm text-gray-500 mt-1">{category.description}</p>
+        )}
+        <div className="flex gap-2 sm:gap-4 mt-2 text-xs sm:text-sm flex-wrap">
+          {catStats.totalLength > 0 && (
+            <span className="text-gray-600">
+              <span className="hidden sm:inline">Общий метраж: </span>
+              <span className="sm:hidden">Метраж: </span>
+              <strong>{catStats.totalLength.toFixed(1)} м</strong>
+            </span>
+          )}
+          <span className="text-gray-600">
+            <span className="hidden sm:inline">На складе: </span>
+            <span className="sm:hidden">Склад: </span>
+            <strong>{catStats.totalQty} шт</strong>
+          </span>
+          {catStats.issuedQty > 0 && (
+            <span className="text-orange-600">
+              <span className="hidden sm:inline">Выдано: </span>
+              <span className="sm:hidden">Выд: </span>
+              <strong>{catStats.issuedQty} шт</strong>
+            </span>
+          )}
+          {catStats.repairQty > 0 && (
+            <span className="text-yellow-600">
+              <span className="hidden sm:inline">В ремонте: </span>
+              <span className="sm:hidden">Рем: </span>
+              <strong>{catStats.repairQty} шт</strong>
+            </span>
+          )}
+        </div>
+      </CardHeader>
+
+      {isExpanded && (
+        <CardContent>
+          {catInventory.length === 0 ? (
+            <p className="text-sm text-gray-500">Нет позиций</p>
+          ) : (
+            <div className="space-y-2">
+              {catInventory.map(item => {
+                const isSelected = selectedItems.some(i => i.inventory_id === item.id);
+                const minQty = item.min_quantity ?? 0;
+                const issuedQty = getIssuedQtyForItem(category.id, item.length || 0, item.name);
+                const repairQty = getRepairQtyForItem(category.id, item.length || 0, item.name);
+                const actualQty = item.quantity - issuedQty - repairQty;
+                const isLow = minQty > 0 && actualQty < minQty;
+                
+                return (
+                  <div 
+                    key={item.id}
+                    className={`flex flex-col sm:flex-row sm:items-center justify-between p-2 rounded gap-2 ${
+                      isSelected ? 'bg-blue-50 border border-blue-200' : 
+                      isLow ? 'bg-orange-50' : 'bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => actualQty > 0 && onToggleItem(item)}
+                        disabled={actualQty <= 0}
+                        className="shrink-0"
+                      />
+                      {item.name ? (
+                        <span className="font-medium truncate text-sm sm:text-base" title={item.name}>{item.name}</span>
+                      ) : (
+                        <span className="font-medium w-14 sm:w-16 text-sm sm:text-base">{item.length} м</span>
+                      )}
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={() => onUpdateInventoryQty(item.id!, item.quantity - 1, item.length || 0)}
+                          disabled={item.quantity <= 0}
+                        >
+                          -
+                        </Button>
+                        <span className={`text-sm w-8 sm:w-10 text-center ${isLow ? 'text-orange-600 font-medium' : 'text-gray-600'}`}>
+                          {actualQty}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={() => onUpdateInventoryQty(item.id!, item.quantity + 1, item.length || 0)}
+                        >
+                          +
+                        </Button>
+                      </div>
+                      {issuedQty > 0 && (
+                        <span className="text-xs text-orange-500 shrink-0 hidden sm:inline">({item.quantity} всего)</span>
+                      )}
+                      {repairQty > 0 && (
+                        <span className="text-xs text-yellow-600 shrink-0" title="В ремонте">
+                          🔧 {repairQty}
+                        </span>
+                      )}
+                      {isLow && (
+                        <AlertCircle className="w-4 h-4 text-orange-500 shrink-0 hidden sm:block" />
+                      )}
+                      {item.notes && (
+                        <span className="hidden sm:inline text-xs text-gray-500 truncate max-w-[200px]" title={item.notes}>
+                          {item.notes}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between sm:justify-end gap-1 pl-6 sm:pl-0">
+                      {item.notes && (
+                        <span className="text-xs text-gray-500 truncate flex-1 sm:hidden" title={item.notes}>
+                          {item.notes}
+                        </span>
+                      )}
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => onSendToRepair?.(category.id, item, category.name)}
+                          disabled={actualQty <= 0}
+                          title="Отправить в ремонт"
+                          className="h-7 w-7 sm:h-8 sm:w-auto sm:px-2 p-0"
+                        >
+                          <span className="hidden sm:inline">🔧</span>
+                          <span className="sm:hidden text-xs">🔧</span>
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => onEditInventory(item, category.name)}
+                          title="Редактировать"
+                          className="h-7 w-7 sm:h-8 p-0"
+                        >
+                          <Pencil className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-500" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => onDeleteInventory(item.id!)}
+                          title="Удалить"
+                          className="h-7 w-7 sm:h-8 p-0"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-500" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      )}
+      
+      {/* Рекурсивный рендеринг подкатегорий */}
+      {hasChildren && isExpanded && (
+        <div className="mt-2 space-y-2">
+          {category.children!.map(child => (
+            <CategoryItem
+              key={child.id}
+              category={child}
+              inventory={inventory}
+              movements={movements}
+              repairs={repairs}
+              stats={stats}
+              selectedItems={selectedItems}
+              expandedCategories={expandedCategories}
+              onToggleCategory={onToggleCategory}
+              onToggleItem={onToggleItem}
+              onUpdateInventoryQty={onUpdateInventoryQty}
+              onDeleteInventory={onDeleteInventory}
+              onAddInventory={onAddInventory}
+              onEditInventory={onEditInventory}
+              onEditCategory={onEditCategory}
+              onDeleteCategory={onDeleteCategory}
+              onSendToRepair={onSendToRepair}
+              categoryName={category.name}
+              level={level + 1}
+            />
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+// Компонент для отображения списка категорий с поддержкой drag-and-drop
 interface CategoryListProps {
   categories: (CableCategory & { children?: CableCategory[]; level?: number })[];
   inventory: CableInventory[];
@@ -1020,6 +1452,7 @@ interface CategoryListProps {
   onEditCategory: (cat: CableCategory) => void;
   onDeleteCategory: (id: string) => Promise<{ error: any }>;
   onSendToRepair?: (categoryId: string, item: CableInventory, categoryName: string) => void;
+  onReorderCategories?: (categoryIds: string[]) => Promise<{ error: any }>;
   categoryName?: string;
   level?: number;
 }
@@ -1041,330 +1474,152 @@ function CategoryList({
   onEditCategory,
   onDeleteCategory,
   onSendToRepair,
+  onReorderCategories,
   categoryName = '',
   level = 0,
 }: CategoryListProps) {
-  // Подсчет выданного по конкретной позиции (по category_id и length или name)
-  const getIssuedQtyForItem = (categoryId: string, length: number, name?: string) => {
-    return movements
-      .filter(m => {
-        if (m.is_returned || m.category_id !== categoryId) return false;
-        // Если есть name, ищем по name, иначе по length
-        if (name) return m.equipment_name?.includes(name);
-        return m.length === length;
-      })
-      .reduce((sum, m) => sum + m.quantity, 0);
-  };
+  // Для корневого уровня используем DndContext если есть onReorderCategories
+  const isRootLevel = level === 0;
+  const canSort = isRootLevel && !!onReorderCategories && categories.length > 1;
+  
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
-  // Подсчет в ремонте по конкретной позиции
-  const getRepairQtyForItem = (categoryId: string, length: number, name?: string) => {
-    return repairs
-      .filter(r => r.status === 'in_repair' && r.category_id === categoryId)
-      .filter(r => {
-        if (name) return r.equipment_name === name;
-        return r.length === length;
-      })
-      .reduce((sum, r) => sum + r.quantity, 0);
-  };
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
 
-  // Получить все ID категории включая дочерние (рекурсивно)
-  const getAllCategoryIds = (cat: CableCategory & { children?: CableCategory[] }): string[] => {
-    const ids = [cat.id];
-    if (cat.children) {
-      cat.children.forEach(child => {
-        ids.push(...getAllCategoryIds(child));
-      });
+    if (over && active.id !== over.id && onReorderCategories) {
+      const oldIndex = categories.findIndex(c => c.id === active.id);
+      const newIndex = categories.findIndex(c => c.id === over.id);
+
+      if (oldIndex === -1 || newIndex === -1) return;
+
+      const newCategories = arrayMove(categories, oldIndex, newIndex);
+      const newCategoryIds = newCategories.map(c => c.id);
+      
+      // Вызываем callback для обновления порядка
+      onReorderCategories(newCategoryIds);
     }
-    return ids;
   };
 
-  // Подсчет статистики для категории включая дочерние
-  const getCategoryStatsWithChildren = (cat: CableCategory & { children?: CableCategory[] }) => {
-    const allIds = getAllCategoryIds(cat);
-    const catInventory = inventory.filter(i => allIds.includes(i.category_id));
+  // Рендерим категорию
+  const renderCategory = (category: CableCategory & { children?: CableCategory[] }) => {
+    if (canSort) {
+      return (
+        <SortableCategoryItem
+          key={category.id}
+          category={category}
+          inventory={inventory}
+          movements={movements}
+          repairs={repairs}
+          stats={stats}
+          selectedItems={selectedItems}
+          expandedCategories={expandedCategories}
+          onToggleCategory={onToggleCategory}
+          onToggleItem={onToggleItem}
+          onUpdateInventoryQty={onUpdateInventoryQty}
+          onDeleteInventory={onDeleteInventory}
+          onAddInventory={onAddInventory}
+          onEditInventory={onEditInventory}
+          onEditCategory={onEditCategory}
+          onDeleteCategory={onDeleteCategory}
+          onSendToRepair={onSendToRepair}
+          categoryName={categoryName}
+          level={level}
+          isSortable={true}
+        />
+      );
+    }
     
-    const totalLength = catInventory.reduce((sum, i) => sum + ((i.length || 0) * i.quantity), 0);
-    const totalQty = catInventory.reduce((sum, i) => sum + i.quantity, 0);
-    const hasCables = catInventory.some(i => i.length && i.length > 0);
-    const hasEquipment = catInventory.some(i => !i.length);
-    
-    // Выдано для всех подкатегорий
-    const issuedQty = movements
-      .filter(m => !m.is_returned && allIds.includes(m.category_id))
-      .reduce((sum, m) => sum + m.quantity, 0);
-    
-    // В ремонте для всех подкатегорий
-    const repairQty = repairs
-      .filter(r => r.status === 'in_repair' && allIds.includes(r.category_id))
-      .reduce((sum, r) => sum + r.quantity, 0);
-    
-    return { totalLength, totalQty, issuedQty, repairQty, hasCables, hasEquipment };
+    return (
+      <CategoryItem
+        key={category.id}
+        category={category}
+        inventory={inventory}
+        movements={movements}
+        repairs={repairs}
+        stats={stats}
+        selectedItems={selectedItems}
+        expandedCategories={expandedCategories}
+        onToggleCategory={onToggleCategory}
+        onToggleItem={onToggleItem}
+        onUpdateInventoryQty={onUpdateInventoryQty}
+        onDeleteInventory={onDeleteInventory}
+        onAddInventory={onAddInventory}
+        onEditInventory={onEditInventory}
+        onEditCategory={onEditCategory}
+        onDeleteCategory={onDeleteCategory}
+        onSendToRepair={onSendToRepair}
+        categoryName={categoryName}
+        level={level}
+      />
+    );
   };
+
+  if (canSort) {
+    return (
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext 
+          items={categories.map(c => c.id)} 
+          strategy={verticalListSortingStrategy}
+        >
+          <div className="space-y-2">
+            {categories.map(renderCategory)}
+          </div>
+        </SortableContext>
+      </DndContext>
+    );
+  }
+
   return (
     <>
-      {categories.map(category => {
-        const catInventory = inventory.filter(i => i.category_id === category.id).sort((a, b) => a.length - b.length);
-        const catStats = getCategoryStatsWithChildren(category);
-        const isExpanded = expandedCategories.has(category.id);
-        const hasLowStock = catInventory.some(i => (i.min_quantity ?? 0) > 0 && i.quantity < (i.min_quantity ?? 0));
-        const hasChildren = category.children && category.children.length > 0;
-        // Проверяем дочерние категории на low stock
-        const checkChildrenLowStock = (cats: CableCategory[]): boolean => {
-          return cats.some(cat => {
-            const inv = inventory.filter(i => i.category_id === cat.id);
-            const hasLow = inv.some(i => (i.min_quantity ?? 0) > 0 && i.quantity < (i.min_quantity ?? 0));
-            return hasLow || (cat.children ? checkChildrenLowStock(cat.children) : false);
-          });
-        };
-        const hasChildrenLowStock = category.children ? checkChildrenLowStock(category.children) : false;
-        const showLowStock = hasLowStock || hasChildrenLowStock;
-
-        return (
-          <div key={category.id} className={level > 0 ? 'ml-4 sm:ml-6' : ''}>
-            <Card className={showLowStock ? 'border-orange-300' : ''}>
-              <CardHeader className="pb-2">
-                <div 
-                  className="flex items-center justify-between cursor-pointer"
-                  onClick={() => onToggleCategory(category.id)}
-                >
-                  <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
-                    <div 
-                      className="w-3 h-3 sm:w-4 sm:h-4 rounded-full shrink-0"
-                      style={{ backgroundColor: category.color }}
-                    />
-                    {level > 0 && <span className="text-gray-400 text-xs sm:text-sm">└</span>}
-                    <CardTitle className={`${level > 0 ? 'text-sm sm:text-base' : 'text-base sm:text-lg'} truncate`}>
-                      {category.name}
-                    </CardTitle>
-                    {showLowStock && (
-                      <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500 shrink-0" />
-                    )}
-                  </div>
-                  <div className="flex items-center gap-0 sm:gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => onAddInventory(category.id)}
-                      className="h-8 w-8 p-0"
-                    >
-                      <Plus className="w-4 h-4" />
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => onEditCategory(category)}
-                      className="h-8 w-8 p-0 hidden sm:flex"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => onDeleteCategory(category.id)}
-                      className="h-8 w-8 p-0 hidden sm:flex"
-                    >
-                      <Trash2 className="w-4 h-4 text-red-500" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onToggleCategory(category.id)}
-                      className="h-8 w-8 p-0"
-                    >
-                      {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                    </Button>
-                  </div>
-                </div>
-                {category.description && (
-                  <p className="text-sm text-gray-500 mt-1">{category.description}</p>
-                )}
-                <div className="flex gap-2 sm:gap-4 mt-2 text-xs sm:text-sm flex-wrap">
-                  {catStats.hasCables && (
-                    <span className="text-gray-600">
-                      <span className="hidden sm:inline">Общий метраж: </span>
-                      <span className="sm:hidden">Метраж: </span>
-                      <strong>{catStats.totalLength.toFixed(1)} м</strong>
-                    </span>
-                  )}
-                  <span className="text-gray-600">
-                    <span className="hidden sm:inline">На складе: </span>
-                    <span className="sm:hidden">Склад: </span>
-                    <strong>{catStats.totalQty} шт</strong>
-                  </span>
-                  {catStats.issuedQty > 0 && (
-                    <span className="text-orange-600">
-                      <span className="hidden sm:inline">Выдано: </span>
-                      <span className="sm:hidden">Выд: </span>
-                      <strong>{catStats.issuedQty} шт</strong>
-                    </span>
-                  )}
-                  {catStats.repairQty > 0 && (
-                    <span className="text-yellow-600">
-                      <span className="hidden sm:inline">В ремонте: </span>
-                      <span className="sm:hidden">Рем: </span>
-                      <strong>{catStats.repairQty} шт</strong>
-                    </span>
-                  )}
-                </div>
-              </CardHeader>
-
-              {isExpanded && (
-                <CardContent>
-                  {catInventory.length === 0 ? (
-                    <p className="text-sm text-gray-500">Нет позиций</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {catInventory.map(item => {
-                        const isSelected = selectedItems.some(i => i.inventory_id === item.id);
-                        const minQty = item.min_quantity ?? 0;
-                        const issuedQty = getIssuedQtyForItem(category.id, item.length || 0, item.name);
-                        const repairQty = getRepairQtyForItem(category.id, item.length || 0, item.name);
-                        const actualQty = item.quantity - issuedQty - repairQty;
-                        const isLow = minQty > 0 && actualQty < minQty;
-                        
-                        return (
-                          <div 
-                            key={item.id}
-                            className={`flex flex-col sm:flex-row sm:items-center justify-between p-2 rounded gap-2 ${
-                              isSelected ? 'bg-blue-50 border border-blue-200' : 
-                              isLow ? 'bg-orange-50' : 'bg-gray-50'
-                            }`}
-                          >
-                            <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
-                              {/* Чекбокс выбора */}
-                              <Checkbox
-                                checked={isSelected}
-                                onCheckedChange={() => actualQty > 0 && onToggleItem(item)}
-                                disabled={actualQty <= 0}
-                                className="shrink-0"
-                              />
-                              
-                              {/* Название или длина */}
-                              {item.name ? (
-                                <span className="font-medium truncate text-sm sm:text-base" title={item.name}>{item.name}</span>
-                              ) : (
-                                <span className="font-medium w-14 sm:w-16 text-sm sm:text-base">{item.length} м</span>
-                              )}
-                              
-                              <div className="flex items-center gap-1 shrink-0">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-6 w-6 p-0"
-                                  onClick={() => onUpdateInventoryQty(item.id!, item.quantity - 1, item.length || 0)}
-                                  disabled={item.quantity <= 0}
-                                >
-                                  -
-                                </Button>
-                                <span className={`text-sm w-8 sm:w-10 text-center ${isLow ? 'text-orange-600 font-medium' : 'text-gray-600'}`}>
-                                  {actualQty}
-                                </span>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-6 w-6 p-0"
-                                  onClick={() => onUpdateInventoryQty(item.id!, item.quantity + 1, item.length || 0)}
-                                >
-                                  +
-                                </Button>
-                              </div>
-                              {issuedQty > 0 && (
-                                <span className="text-xs text-orange-500 shrink-0 hidden sm:inline">({item.quantity} всего)</span>
-                              )}
-                              {repairQty > 0 && (
-                                <span className="text-xs text-yellow-600 shrink-0" title="В ремонте">
-                                  🔧 {repairQty}
-                                </span>
-                              )}
-                              {isLow && (
-                                <AlertCircle className="w-4 h-4 text-orange-500 shrink-0 hidden sm:block" />
-                              )}
-                              {/* Комментарий на десктопе */}
-                              {item.notes && (
-                                <span className="hidden sm:inline text-xs text-gray-500 truncate max-w-[200px]" title={item.notes}>
-                                  {item.notes}
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex items-center justify-between sm:justify-end gap-1 pl-6 sm:pl-0">
-                              {/* На мобильном показываем заметку тут */}
-                              {item.notes && (
-                                <span className="text-xs text-gray-500 truncate flex-1 sm:hidden" title={item.notes}>
-                                  {item.notes}
-                                </span>
-                              )}
-                              <div className="flex items-center gap-1 shrink-0">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => onSendToRepair?.(category.id, item, category.name)}
-                                  disabled={actualQty <= 0}
-                                  title="Отправить в ремонт"
-                                  className="h-7 w-7 sm:h-8 sm:w-auto sm:px-2 p-0"
-                                >
-                                  <span className="hidden sm:inline">🔧</span>
-                                  <span className="sm:hidden text-xs">🔧</span>
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => onEditInventory(item, category.name)}
-                                  title="Редактировать"
-                                  className="h-7 w-7 sm:h-8 p-0"
-                                >
-                                  <Pencil className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-500" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => onDeleteInventory(item.id!)}
-                                  title="Удалить"
-                                  className="h-7 w-7 sm:h-8 p-0"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-500" />
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </CardContent>
-              )}
-            </Card>
-            
-            {/* Рекурсивный рендеринг подкатегорий */}
-            {hasChildren && isExpanded && (
-              <div className="mt-2 space-y-2">
-                <CategoryList
-                  categories={category.children!}
-                  inventory={inventory}
-                  movements={movements}
-                  repairs={repairs}
-                  stats={stats}
-                  selectedItems={selectedItems}
-                  expandedCategories={expandedCategories}
-                  onToggleCategory={onToggleCategory}
-                  onToggleItem={onToggleItem}
-                  onUpdateInventoryQty={onUpdateInventoryQty}
-                  onDeleteInventory={onDeleteInventory}
-                  onAddInventory={onAddInventory}
-                  onEditInventory={onEditInventory}
-                  onEditCategory={onEditCategory}
-                  onDeleteCategory={onDeleteCategory}
-                  onSendToRepair={onSendToRepair}
-                  categoryName={category.name}
-                  level={level + 1}
-                />
-              </div>
-            )}
-          </div>
-        );
-      })}
+      {categories.map(renderCategory)}
     </>
   );
 }
 
-export default CableManager;
+// Вспомогательная функция для подсчета статистики категории
+function getCategoryStatsWithChildren(
+  cat: CableCategory & { children?: CableCategory[] },
+  inventory: CableInventory[],
+  movements: CableMovement[],
+  repairs: EquipmentRepair[]
+) {
+  const allIds = getAllCategoryIds(cat);
+  const catInventory = inventory.filter(i => allIds.includes(i.category_id));
+  
+  const totalLength = catInventory.reduce((sum, i) => sum + ((i.length || 0) * i.quantity), 0);
+  const totalQty = catInventory.reduce((sum, i) => sum + i.quantity, 0);
+  const hasCables = catInventory.some(i => i.length && i.length > 0);
+  const hasEquipment = catInventory.some(i => !i.length);
+  
+  const issuedQty = movements
+    .filter(m => !m.is_returned && allIds.includes(m.category_id))
+    .reduce((sum, m) => sum + m.quantity, 0);
+  
+  const repairQty = repairs
+    .filter(r => r.status === 'in_repair' && allIds.includes(r.category_id))
+    .reduce((sum, r) => sum + r.quantity, 0);
+  
+  return { totalLength, totalQty, issuedQty, repairQty, hasCables, hasEquipment };
+}
 
+function getAllCategoryIds(cat: CableCategory & { children?: CableCategory[] }): string[] {
+  const ids = [cat.id];
+  if (cat.children) {
+    cat.children.forEach(child => {
+      ids.push(...getAllCategoryIds(child));
+    });
+  }
+  return ids;
+}
+
+export default CableManager;
