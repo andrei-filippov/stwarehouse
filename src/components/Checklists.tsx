@@ -672,21 +672,21 @@ function ChecklistView({
 }) {
   // Локальное состояние для мгновенного обновления UI
   const [localItems, setLocalItems] = useState<Record<string, boolean>>({});
-  const pendingUpdates = useRef<Set<string>>(new Set());
+  const [lastUpdated, setLastUpdated] = useState<number>(Date.now());
   
   // QR-сканирование
   const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
   const [scanMode, setScanMode] = useState<'load' | 'unload'>('load');
 
-  // Инициализация локального состояния
+  // Синхронизация с пропсами ТОЛЬКО при изменении ID чек-листа
   useEffect(() => {
     const initial: Record<string, boolean> = {};
     checklist.items?.forEach(item => {
       if (item.id) initial[item.id] = item.is_checked;
     });
     setLocalItems(initial);
-    pendingUpdates.current.clear();
-  }, [checklist.id]); // Только при смене чек-листа
+    setLastUpdated(Date.now());
+  }, [checklist.id]);
 
   const handleToggle = useCallback(async (item: ChecklistItem) => {
     if (!item.id) {
@@ -697,11 +697,10 @@ function ChecklistView({
     // Мгновенно обновляем локальное состояние
     const newValue = !localItems[item.id];
     setLocalItems(prev => ({ ...prev, [item.id]: newValue }));
-    pendingUpdates.current.add(item.id);
+    setLastUpdated(Date.now());
     
-    // Отправляем на сервер
-    await onUpdateItem(checklist.id, item.id, { is_checked: newValue });
-    pendingUpdates.current.delete(item.id);
+    // Отправляем на сервер (но НЕ ждем и НЕ обновляем localItems после)
+    onUpdateItem(checklist.id, item.id, { is_checked: newValue });
   }, [localItems, checklist.id, onUpdateItem]);
 
   // Обработка QR-сканирования
@@ -723,8 +722,11 @@ function ChecklistView({
       if (isAlreadyChecked) {
         toast.info('Уже отмечено', { description: item.name });
       } else {
+        // Обновляем локальное состояние
         setLocalItems(prev => ({ ...prev, [item.id!]: true }));
-        await onUpdateItem(checklist.id, item.id, { is_checked: true });
+        setLastUpdated(Date.now());
+        // Отправляем на сервер (не ждем ответ)
+        onUpdateItem(checklist.id, item.id, { is_checked: true });
         toast.success('Отмечено', { description: item.name });
       }
     }
@@ -734,10 +736,10 @@ function ChecklistView({
   // Используем локальное состояние (приоритет) или пропсы
   const isChecked = useCallback((item: ChecklistItem) => {
     if (!item.id) return item.is_checked;
-    // Если есть локальное состояние - используем его
-    if (item.id in localItems) return localItems[item.id];
-    return item.is_checked;
-  }, [localItems]);
+    // Всегда используем локальное состояние если оно есть
+    return localItems[item.id] ?? item.is_checked;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [localItems, lastUpdated]); // Добавляем lastUpdated чтобы пересчитывалось
 
   const grouped = checklist.items?.reduce((acc, item) => {
     if (!acc[item.category]) acc[item.category] = [];
@@ -773,7 +775,15 @@ function ChecklistView({
     other: 'Другое'
   };
 
-  const progress = checklist.items?.filter(i => isChecked(i)).length || 0;
+  // Прогресс вычисляем через локальное состояние
+  const progress = useMemo(() => {
+    return checklist.items?.filter(i => {
+      if (!i.id) return i.is_checked;
+      return localItems[i.id] ?? i.is_checked;
+    }).length || 0;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checklist.items, localItems, lastUpdated]);
+  
   const total = checklist.items?.length || 0;
 
   return (
