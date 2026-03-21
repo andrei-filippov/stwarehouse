@@ -37,6 +37,7 @@ import { useServiceWorker } from './hooks/useServiceWorker';
 import { useOfflineSync } from './hooks/useOfflineSync';
 import { useTemplates } from './hooks/useTemplates';
 import { useChecklists } from './hooks/useChecklists';
+import { useChecklistsV2 } from './hooks/useChecklistsV2';
 import { useStaff } from './hooks/useStaff';
 import { useGoals } from './hooks/useGoals';
 import { useCustomers } from './hooks/useCustomers';
@@ -229,6 +230,7 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
   const { estimates, loading: estimatesLoading, createEstimate, updateEstimate, deleteEstimate, updateEstimateStatus, startEditing, stopEditing, refresh: refreshEstimates } = useEstimates(companyId);
   const { templates, loading: templatesLoading, createTemplate, updateTemplate, deleteTemplate } = useTemplates(companyId);
   const { checklists, rules, loading: checklistsLoading, createRule, deleteRule, createChecklist, updateChecklistItem, deleteChecklist, refresh: refreshChecklists } = useChecklists(companyId, estimates);
+  const { checklists: checklistsV2, kits, createChecklistFromEstimate, createKit, deleteKit } = useChecklistsV2(companyId);
   
   // Offline sync - автоматическая синхронизация при возврате онлайн
   const { syncing: isSyncing, syncData: syncNow } = useOfflineSync(companyId);
