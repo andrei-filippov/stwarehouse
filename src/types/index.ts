@@ -194,6 +194,17 @@ export type Staff = {
 // Re-export Task as Goal for Dashboard
 export type { Task, Task as Goal } from './goals';
 
+// Checklists v2 (QR integration)
+export type { 
+  ChecklistV2, 
+  ChecklistItemV2, 
+  ChecklistItemStatus,
+  EquipmentKit, 
+  KitItem,
+  ChecklistStats,
+  ChecklistScanMode
+} from './checklist';
+
 // Cable management
 export type { CableCategory, CableInventory, CableMovement, CableMovementWithCategory } from './cable';
 export type { EquipmentRepair } from './repair';
