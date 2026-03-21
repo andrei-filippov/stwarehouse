@@ -1,6 +1,15 @@
 -- Интеграция чек-листов с QR-сканированием и двойной проверкой
 -- Погрузка (loaded) + Разгрузка (unloaded)
 
+-- Добавляем company_id в checklists если нет
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'checklists' AND column_name = 'company_id') THEN
+        ALTER TABLE checklists ADD COLUMN company_id UUID REFERENCES companies(id) ON DELETE CASCADE;
+    END IF;
+END $$;
+
 -- Расширяем ChecklistItem для двойной проверки
 ALTER TABLE checklist_items ADD COLUMN IF NOT EXISTS inventory_id UUID; -- Связь с cable_inventory
 ALTER TABLE checklist_items ADD COLUMN IF NOT EXISTS qr_code TEXT; -- QR-код для сканирования
@@ -68,6 +77,25 @@ CREATE POLICY "Users can manage kit items"
     ON kit_items FOR ALL 
     USING (kit_id IN (SELECT id FROM equipment_kits WHERE company_id IN (SELECT company_id FROM company_members WHERE user_id = auth.uid())));
 
+-- Политики для checklists
+ALTER TABLE checklists ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view checklists in their company" 
+    ON checklists FOR SELECT 
+    USING (company_id IN (SELECT company_id FROM company_members WHERE user_id = auth.uid()));
+
+CREATE POLICY "Users can create checklists in their company" 
+    ON checklists FOR INSERT 
+    WITH CHECK (company_id IN (SELECT company_id FROM company_members WHERE user_id = auth.uid()));
+
+CREATE POLICY "Users can update checklists in their company" 
+    ON checklists FOR UPDATE 
+    USING (company_id IN (SELECT company_id FROM company_members WHERE user_id = auth.uid()));
+
+CREATE POLICY "Users can delete checklists in their company" 
+    ON checklists FOR DELETE 
+    USING (company_id IN (SELECT company_id FROM company_members WHERE user_id = auth.uid()));
+
 -- Функция для создания чек-листа из сметы с QR-кодами
 CREATE OR REPLACE FUNCTION create_checklist_from_estimate_v2(
     p_estimate_id UUID,
@@ -85,9 +113,9 @@ BEGIN
         RAISE EXCEPTION 'Estimate not found';
     END IF;
 
-    -- Создаем чек-лист
-    INSERT INTO checklists (estimate_id, user_id, event_name, event_date, notes)
-    VALUES (p_estimate_id, auth.uid(), v_estimate.event_name, v_estimate.event_date, 'Автоматически создан из сметы')
+    -- Создаем чек-лист с company_id
+    INSERT INTO checklists (estimate_id, user_id, event_name, event_date, notes, company_id)
+    VALUES (p_estimate_id, auth.uid(), v_estimate.event_name, v_estimate.event_date, 'Автоматически создан из сметы', p_company_id)
     RETURNING id INTO v_checklist_id;
 
     -- Добавляем позиции из сметы со связью на cable_inventory через QR

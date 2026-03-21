@@ -15,35 +15,36 @@ export function useChecklistsV2(companyId: string | undefined) {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase
+      // Сначала загружаем чек-листы
+      const { data: checklistsData, error: checklistsError } = await supabase
         .from('checklists')
-        .select(`
-          *,
-          items:checklist_items(
-            *,
-            kit:equipment_kits(name)
-          )
-        `)
+        .select('*')
         .eq('company_id', companyId)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (checklistsError) throw checklistsError;
 
-      // Трансформируем данные
-      const transformed: ChecklistV2[] = (data || []).map((c: any) => ({
-        ...c,
-        items: (c.items || []).map((i: any) => ({
-          ...i,
-          kit_name: i.kit?.name
-        })),
-        loaded_count: (c.items || []).filter((i: any) => i.loaded).length,
-        unloaded_count: (c.items || []).filter((i: any) => i.unloaded).length,
-        total_count: (c.items || []).length
+      // Затем загружаем items для каждого чек-листа
+      const transformed: ChecklistV2[] = await Promise.all((checklistsData || []).map(async (c: any) => {
+        const { data: itemsData } = await supabase
+          .from('checklist_items')
+          .select('*')
+          .eq('checklist_id', c.id);
+        
+        return {
+          ...c,
+          items: (itemsData || []),
+          loaded_count: (itemsData || []).filter((i: any) => i.loaded).length,
+          unloaded_count: (itemsData || []).filter((i: any) => i.unloaded).length,
+          total_count: (itemsData || []).length
+        };
       }));
 
       setChecklists(transformed);
     } catch (err: any) {
-      toast.error('Ошибка при загрузке чек-листов', { description: err.message });
+      // Пока таблицы не созданы - просто пустой массив
+      console.log('Checklists v2 not loaded (tables may not exist):', err.message);
+      setChecklists([]);
     } finally {
       setLoading(false);
     }
@@ -54,31 +55,33 @@ export function useChecklistsV2(companyId: string | undefined) {
     if (!companyId) return;
 
     try {
-      const { data, error } = await supabase
+      // Сначала загружаем kits
+      const { data: kitsData, error: kitsError } = await supabase
         .from('equipment_kits')
-        .select(`
-          *,
-          items:kit_items(
-            *,
-            inventory:cable_inventory(name)
-          )
-        `)
+        .select('*')
         .eq('company_id', companyId)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (kitsError) throw kitsError;
 
-      const transformed: EquipmentKit[] = (data || []).map((k: any) => ({
-        ...k,
-        items: (k.items || []).map((i: any) => ({
-          ...i,
-          inventory_name: i.inventory?.name
-        }))
+      // Затем загружаем items для каждого kit
+      const transformed: EquipmentKit[] = await Promise.all((kitsData || []).map(async (k: any) => {
+        const { data: itemsData } = await supabase
+          .from('kit_items')
+          .select('*')
+          .eq('kit_id', k.id);
+        
+        return {
+          ...k,
+          items: (itemsData || [])
+        };
       }));
 
       setKits(transformed);
     } catch (err: any) {
-      toast.error('Ошибка при загрузке комплектов', { description: err.message });
+      // Пока таблицы не созданы - просто пустой массив
+      console.log('Kits not loaded (tables may not exist):', err.message);
+      setKits([]);
     }
   }, [companyId]);
 
