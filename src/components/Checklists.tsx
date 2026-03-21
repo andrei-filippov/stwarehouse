@@ -670,23 +670,28 @@ function ChecklistView({
   checklist: Checklist; 
   onUpdateItem: (checklistId: string, itemId: string, updates: Partial<ChecklistItem>) => Promise<{ error: any }>;
 }) {
+  // Сохраняем начальное состояние чек-листа в ref, чтобы не реагировать на внешние обновления
+  const checklistRef = useRef(checklist);
+  const isInitialized = useRef(false);
+  
   // Локальное состояние для мгновенного обновления UI
   const [localItems, setLocalItems] = useState<Record<string, boolean>>({});
-  const [lastUpdated, setLastUpdated] = useState<number>(Date.now());
   
   // QR-сканирование
   const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
   const [scanMode, setScanMode] = useState<'load' | 'unload'>('load');
 
-  // Синхронизация с пропсами ТОЛЬКО при изменении ID чек-листа
+  // Инициализация ТОЛЬКО один раз при монтировании
   useEffect(() => {
+    if (isInitialized.current) return;
+    
     const initial: Record<string, boolean> = {};
     checklist.items?.forEach(item => {
       if (item.id) initial[item.id] = item.is_checked;
     });
     setLocalItems(initial);
-    setLastUpdated(Date.now());
-  }, [checklist.id]);
+    isInitialized.current = true;
+  }, []); // Пустой массив - только при монтировании
 
   const handleToggle = useCallback(async (item: ChecklistItem) => {
     if (!item.id) {
@@ -697,16 +702,15 @@ function ChecklistView({
     // Мгновенно обновляем локальное состояние
     const newValue = !localItems[item.id];
     setLocalItems(prev => ({ ...prev, [item.id]: newValue }));
-    setLastUpdated(Date.now());
     
-    // Отправляем на сервер (но НЕ ждем и НЕ обновляем localItems после)
-    onUpdateItem(checklist.id, item.id, { is_checked: newValue });
-  }, [localItems, checklist.id, onUpdateItem]);
+    // Отправляем на сервер (не ждем ответ)
+    onUpdateItem(checklistRef.current.id, item.id, { is_checked: newValue });
+  }, [localItems, onUpdateItem]);
 
   // Обработка QR-сканирования
   const handleQRScan = useCallback(async (qrCode: string) => {
-    // Ищем позицию по QR-коду
-    const item = checklist.items?.find(i => 
+    // Ищем позицию по QR-коду в сохраненном чек-листе
+    const item = checklistRef.current.items?.find(i => 
       i.qr_code?.toUpperCase() === qrCode.toUpperCase()
     );
     
@@ -724,40 +728,37 @@ function ChecklistView({
       } else {
         // Обновляем локальное состояние
         setLocalItems(prev => ({ ...prev, [item.id!]: true }));
-        setLastUpdated(Date.now());
         // Отправляем на сервер (не ждем ответ)
-        onUpdateItem(checklist.id, item.id, { is_checked: true });
+        onUpdateItem(checklistRef.current.id, item.id, { is_checked: true });
         toast.success('Отмечено', { description: item.name });
       }
     }
     // Можно добавить режим 'unload' для двойной проверки позже
-  }, [checklist.items, checklist.id, localItems, onUpdateItem, scanMode]);
+  }, [localItems, onUpdateItem, scanMode]);
 
-  // Используем локальное состояние (приоритет) или пропсы
+  // Используем только локальное состояние (игнорируем внешние обновления)
   const isChecked = useCallback((item: ChecklistItem) => {
     if (!item.id) return item.is_checked;
-    // Всегда используем локальное состояние если оно есть
     return localItems[item.id] ?? item.is_checked;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [localItems, lastUpdated]); // Добавляем lastUpdated чтобы пересчитывалось
+  }, [localItems]);
 
-  const grouped = checklist.items?.reduce((acc, item) => {
+  // Используем сохраненный чек-лист из ref для группировки
+  const grouped = checklistRef.current.items?.reduce((acc, item) => {
     if (!acc[item.category]) acc[item.category] = [];
     acc[item.category].push(item);
     return acc;
   }, {} as Record<string, ChecklistItem[]>);
 
-  // Сортируем категории по category_order из сметы
+  // Сортируем категории по category_order из сохраненного чек-листа
   const sortedCategories = useMemo(() => {
     if (!grouped) return [];
     const categories = Object.keys(grouped);
+    const categoryOrder = checklistRef.current.category_order;
     
-    if (checklist.category_order && checklist.category_order.length > 0) {
-      // Сортируем по заданному порядку
+    if (categoryOrder && categoryOrder.length > 0) {
       return categories.sort((a, b) => {
-        const indexA = checklist.category_order!.indexOf(a);
-        const indexB = checklist.category_order!.indexOf(b);
-        // Если категория не найдена в order, ставим её в конец
+        const indexA = categoryOrder.indexOf(a);
+        const indexB = categoryOrder.indexOf(b);
         if (indexA === -1) return 1;
         if (indexB === -1) return -1;
         return indexA - indexB;
@@ -775,29 +776,28 @@ function ChecklistView({
     other: 'Другое'
   };
 
-  // Прогресс вычисляем через локальное состояние
+  // Прогресс вычисляем через локальное состояние (используем сохраненный чек-лист)
   const progress = useMemo(() => {
-    return checklist.items?.filter(i => {
+    return checklistRef.current.items?.filter(i => {
       if (!i.id) return i.is_checked;
       return localItems[i.id] ?? i.is_checked;
     }).length || 0;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [checklist.items, localItems, lastUpdated]);
+  }, [localItems]);
   
-  const total = checklist.items?.length || 0;
+  const total = checklistRef.current.items?.length || 0;
 
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center bg-gray-50 p-3 rounded">
         <div>
-          <p className="text-sm text-gray-500">Дата: {new Date(checklist.event_date).toLocaleDateString('ru-RU')}</p>
+          <p className="text-sm text-gray-500">Дата: {new Date(checklistRef.current.event_date).toLocaleDateString('ru-RU')}</p>
           <p className="text-sm font-medium">Готово: {progress} / {total}</p>
         </div>
       </div>
 
-      {checklist.notes && (
+      {checklistRef.current.notes && (
         <div className="bg-yellow-50 p-3 rounded text-sm">
-          <strong>Примечания:</strong> {checklist.notes}
+          <strong>Примечания:</strong> {checklistRef.current.notes}
         </div>
       )}
 
@@ -824,9 +824,9 @@ function ChecklistView({
             variant="outline"
             onClick={async () => {
               // Сброс всех отметок
-              for (const item of checklist.items || []) {
+              for (const item of checklistRef.current.items || []) {
                 if (item.id && localItems[item.id]) {
-                  await onUpdateItem(checklist.id, item.id, { is_checked: false });
+                  await onUpdateItem(checklistRef.current.id, item.id, { is_checked: false });
                 }
               }
               setLocalItems({});
