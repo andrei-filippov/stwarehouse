@@ -53,6 +53,14 @@ CREATE INDEX IF NOT EXISTS idx_kit_items_kit ON kit_items(kit_id);
 ALTER TABLE equipment_kits ENABLE ROW LEVEL SECURITY;
 ALTER TABLE kit_items ENABLE ROW LEVEL SECURITY;
 
+-- Удаляем старые политики если есть (чтобы избежать конфликтов)
+DROP POLICY IF EXISTS "Users can view kits in their company" ON equipment_kits;
+DROP POLICY IF EXISTS "Users can create kits in their company" ON equipment_kits;
+DROP POLICY IF EXISTS "Users can update kits in their company" ON equipment_kits;
+DROP POLICY IF EXISTS "Users can delete kits in their company" ON equipment_kits;
+DROP POLICY IF EXISTS "Users can view kit items" ON kit_items;
+DROP POLICY IF EXISTS "Users can manage kit items" ON kit_items;
+
 CREATE POLICY "Users can view kits in their company" 
     ON equipment_kits FOR SELECT 
     USING (company_id IN (SELECT company_id FROM company_members WHERE user_id = auth.uid()));
@@ -79,6 +87,12 @@ CREATE POLICY "Users can manage kit items"
 
 -- Политики для checklists
 ALTER TABLE checklists ENABLE ROW LEVEL SECURITY;
+
+-- Удаляем старые политики если есть
+DROP POLICY IF EXISTS "Users can view checklists in their company" ON checklists;
+DROP POLICY IF EXISTS "Users can create checklists in their company" ON checklists;
+DROP POLICY IF EXISTS "Users can update checklists in their company" ON checklists;
+DROP POLICY IF EXISTS "Users can delete checklists in their company" ON checklists;
 
 CREATE POLICY "Users can view checklists in their company" 
     ON checklists FOR SELECT 
