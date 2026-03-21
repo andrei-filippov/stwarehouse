@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -38,14 +38,19 @@ export function TransferToInventoryDialog({
   existingInventory,
   onTransfer
 }: TransferToInventoryDialogProps) {
-  const [items, setItems] = useState<TransferItem[]>(() => 
-    equipment.map(eq => ({
-      equipment: eq,
-      price: 0,
-      selected: true
-    }))
-  );
+  const [items, setItems] = useState<TransferItem[]>([]);
   const [isTransferring, setIsTransferring] = useState(false);
+
+  // Обновляем items когда меняется equipment или открывается диалог
+  useEffect(() => {
+    if (open) {
+      setItems(equipment.map(eq => ({
+        equipment: eq,
+        price: eq.price || 0,
+        selected: true
+      })));
+    }
+  }, [open, equipment]);
 
   // Проверка на дубли (по названию + категории)
   const duplicates = useMemo(() => {
