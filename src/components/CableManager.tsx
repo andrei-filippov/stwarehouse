@@ -29,6 +29,7 @@ import { CABLE_COLORS } from '../types/cable';
 import { Spinner } from './ui/spinner';
 import { TransferToInventoryDialog } from './TransferToInventoryDialog';
 import { format } from 'date-fns';
+import * as XLSX from 'xlsx';
 import { ru } from 'date-fns/locale';
 import {
   DndContext,
@@ -183,6 +184,12 @@ export const CableManager = memo(function CableManager({
     reason: '',
     notes: '',
   });
+
+  // Import/Export states
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [importData, setImportData] = useState<any[]>([]);
+  const [importPreview, setImportPreview] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const toggleCategory = (id: string) => {
     setExpandedCategories(prev => {
@@ -481,6 +488,113 @@ export const CableManager = memo(function CableManager({
     setIsInventoryDialogOpen(true);
   };
 
+  // Экспорт в Excel
+  const exportToExcel = () => {
+    const data = inventory.map(item => {
+      const category = categories.find(c => c.id === item.category_id);
+      return {
+        'Категория': category?.name || '',
+        'Название': item.name || '',
+        'Длина (м)': item.length || '',
+        'Количество': item.quantity,
+        'Мин. остаток': item.min_quantity || 0,
+        'Мощность (Вт)': item.watts || '',
+        'Комментарий': item.notes || '',
+      };
+    });
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Оборудование');
+    XLSX.writeFile(wb, `оборудование_склад_${format(new Date(), 'dd.MM.yyyy')}.xlsx`);
+  };
+
+  // Обработка загрузки файла
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = event.target?.result;
+        const workbook = XLSX.read(data, { type: 'binary' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        
+        setImportData(jsonData);
+        setImportPreview(true);
+      } catch (err) {
+        toast.error('Ошибка чтения файла');
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  // Импорт данных
+  const handleImport = async () => {
+    if (importData.length === 0) return;
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const row of importData) {
+      // Получаем или создаем категорию
+      const categoryName = row['Категория'] || row['category'] || 'Общее';
+      let categoryId = categories.find(c => c.name === categoryName)?.id;
+      
+      if (!categoryId) {
+        // Создаем новую категорию
+        const { data, error } = await onAddCategory({
+          name: categoryName,
+          color: '#3b82f6',
+          sort_order: categories.length,
+        });
+        if (error) {
+          errorCount++;
+          continue;
+        }
+        categoryId = data?.id;
+      }
+
+      if (!categoryId) {
+        errorCount++;
+        continue;
+      }
+
+      const { error } = await onUpsertInventory({
+        category_id: categoryId,
+        name: row['Название'] || row['name'] || undefined,
+        length: row['Длина (м)'] || row['length'] ? parseFloat(row['Длина (м)'] || row['length']) : undefined,
+        quantity: parseInt(row['Количество'] || row['quantity']) || 0,
+        min_quantity: parseInt(row['Мин. остаток'] || row['min_quantity']) || 0,
+        watts: row['Мощность (Вт)'] || row['watts'] ? parseInt(row['Мощность (Вт)'] || row['watts']) : undefined,
+        notes: row['Комментарий'] || row['notes'] || undefined,
+      });
+
+      if (error) {
+        errorCount++;
+      } else {
+        successCount++;
+      }
+    }
+
+    if (successCount > 0) {
+      toast.success(`Импортировано ${successCount} позиций`);
+    }
+    if (errorCount > 0) {
+      toast.error(`Ошибка импорта ${errorCount} позиций`);
+    }
+
+    setIsImportDialogOpen(false);
+    setImportPreview(false);
+    setImportData([]);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   // Построение дерева категорий
   const categoryTree = useMemo(() => {
     const map = new Map<string, CableCategory & { children: CableCategory[]; level: number }>();
@@ -604,6 +718,28 @@ export const CableManager = memo(function CableManager({
           >
             <Plus className="w-4 h-4 mr-0 sm:mr-2" />
             <span className="hidden sm:inline">Категория</span>
+          </Button>
+          <Button 
+            variant="outline"
+            size="sm"
+            onClick={exportToExcel}
+            title="Экспорт в Excel"
+          >
+            <svg className="w-4 h-4 mr-0 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span className="hidden sm:inline">Excel</span>
+          </Button>
+          <Button 
+            variant="outline"
+            size="sm"
+            onClick={() => setIsImportDialogOpen(true)}
+            title="Импорт из Excel"
+          >
+            <svg className="w-4 h-4 mr-0 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+            </svg>
+            <span className="hidden sm:inline">Импорт</span>
           </Button>
         </div>
       </div>
@@ -1193,6 +1329,102 @@ export const CableManager = memo(function CableManager({
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Диалог импорта из Excel */}
+      <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+        <DialogContent className="max-w-3xl w-[95%] max-h-[90vh] overflow-y-auto rounded-xl p-4 sm:p-6" aria-describedby="import-dialog-desc">
+          <DialogHeader>
+            <DialogTitle>Импорт из Excel</DialogTitle>
+            <DialogDescription id="import-dialog-desc">
+              Загрузите Excel файл с колонками: Категория, Название, Длина (м), Количество, Мин. остаток, Мощность (Вт), Комментарий
+            </DialogDescription>
+          </DialogHeader>
+          
+          {!importPreview ? (
+            <div className="space-y-4">
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                <Package className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                <p className="text-sm text-gray-600 mb-4">
+                  Перетащите файл Excel или нажмите для выбора
+                </p>
+                <input
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  onChange={handleFileUpload}
+                  ref={fileInputRef}
+                  className="block w-full text-sm text-gray-500
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded-full file:border-0
+                    file:text-sm file:font-semibold
+                    file:bg-blue-50 file:text-blue-700
+                    hover:file:bg-blue-100"
+                />
+              </div>
+              <div className="bg-gray-50 p-4 rounded-lg text-sm text-gray-600">
+                <p className="font-medium mb-2">Формат файла:</p>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>Категория - название категории (создастся автоматически если нет)</li>
+                  <li>Название - название оборудования (для кабелей можно оставить пустым)</li>
+                  <li>Длина (м) - для кабелей, для оборудования оставьте пустым</li>
+                  <li>Количество - количество на складе</li>
+                  <li>Мин. остаток - при каком количестве предупреждать</li>
+                  <li>Мощность (Вт) - для расчёта нагрузки (опционально)</li>
+                  <li>Комментарий - дополнительная информация</li>
+                </ul>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-sm">Найдено записей: <strong>{importData.length}</strong></p>
+              
+              <div className="overflow-auto border rounded-lg max-h-[40vh]">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 sticky top-0">
+                    <tr>
+                      <th className="px-3 py-2 text-left">Категория</th>
+                      <th className="px-3 py-2 text-left">Название</th>
+                      <th className="px-3 py-2 text-right">Длина</th>
+                      <th className="px-3 py-2 text-right">Кол-во</th>
+                      <th className="px-3 py-2 text-right">Мин.</th>
+                      <th className="px-3 py-2 text-right">Вт</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {importData.slice(0, 10).map((row, idx) => (
+                      <tr key={idx}>
+                        <td className="px-3 py-2">{row['Категория'] || row['category'] || '-'}</td>
+                        <td className="px-3 py-2">{row['Название'] || row['name'] || '-'}</td>
+                        <td className="px-3 py-2 text-right">{row['Длина (м)'] || row['length'] || '-'}</td>
+                        <td className="px-3 py-2 text-right">{row['Количество'] || row['quantity'] || '0'}</td>
+                        <td className="px-3 py-2 text-right">{row['Мин. остаток'] || row['min_quantity'] || '0'}</td>
+                        <td className="px-3 py-2 text-right">{row['Мощность (Вт)'] || row['watts'] || '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {importData.length > 10 && (
+                  <p className="text-center text-xs text-gray-500 py-2">
+                    ... и ещё {importData.length - 10} записей
+                  </p>
+                )}
+              </div>
+              
+              <div className="flex justify-end gap-2 pt-4">
+                <Button variant="outline" onClick={() => {
+                  setImportPreview(false);
+                  setImportData([]);
+                  if (fileInputRef.current) fileInputRef.current.value = '';
+                }}>
+                  Отмена
+                </Button>
+                <Button onClick={handleImport}>
+                  Импортировать {importData.length} позиций
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
