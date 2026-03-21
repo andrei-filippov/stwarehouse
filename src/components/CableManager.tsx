@@ -643,6 +643,10 @@ export const CableManager = memo(function CableManager({
               onDeleteCategory={onDeleteCategory}
               onSendToRepair={openRepairDialog}
               onReorderCategories={onReorderCategories}
+              selectionMode={selectionMode}
+              selectedInventoryIds={selectedInventoryIds}
+              onSelectInventory={selectInventory}
+              onSelectAllInCategory={selectAllInCategory}
             />
           )}
           
@@ -1657,6 +1661,11 @@ interface CategoryListProps {
   onReorderCategories?: (categoryIds: string[]) => Promise<{ error: any }>;
   categoryName?: string;
   level?: number;
+  // Для выбора оборудования
+  selectionMode?: boolean;
+  selectedInventoryIds?: Set<string>;
+  onSelectInventory?: (id: string, selected: boolean) => void;
+  onSelectAllInCategory?: (categoryId: string, selected: boolean) => void;
 }
 
 function CategoryList({
@@ -1679,6 +1688,10 @@ function CategoryList({
   onReorderCategories,
   categoryName = '',
   level = 0,
+  selectionMode,
+  selectedInventoryIds,
+  onSelectInventory,
+  onSelectAllInCategory,
 }: CategoryListProps) {
   // Для корневого уровня используем DndContext если есть onReorderCategories
   const isRootLevel = level === 0;
