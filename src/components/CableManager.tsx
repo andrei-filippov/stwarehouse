@@ -359,14 +359,19 @@ export const CableManager = memo(function CableManager({
     setIsQRActionDialogOpen(true);
   };
 
+  // Показать QR-код для позиции
+  const handleShowQRCode = (item: CableInventory) => {
+    setSelectedQRItem(item);
+    setIsQRDialogOpen(true);
+  };
+
   // Действия с отсканированным оборудованием
   const handleQRAction = (action: 'info' | 'issue' | 'return') => {
     if (!scannedQRItem) return;
     
     switch (action) {
       case 'info':
-        setSelectedQRItem(scannedQRItem);
-        setIsQRDialogOpen(true);
+        handleShowQRCode(scannedQRItem);
         break;
       case 'issue':
         // Добавляем в выдачу
@@ -1560,8 +1565,8 @@ export const CableManager = memo(function CableManager({
           setIsQRDialogOpen(false);
           setSelectedQRItem(null);
         }}
-        value={selectedQRItem?.qr_code || ''}
-        equipmentName={selectedQRItem?.name || ''}
+        value={selectedQRItem?.qr_code ?? ''}
+        equipmentName={selectedQRItem?.name ?? ''}
       />
 
       {/* Диалог действий после сканирования QR */}
@@ -1984,10 +1989,7 @@ function CategoryItem({
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => {
-                              setSelectedQRItem(item);
-                              setIsQRDialogOpen(true);
-                            }}
+                            onClick={() => handleShowQRCode(item)}
                             title="Показать QR-код"
                             className="h-7 w-7 sm:h-8 sm:w-auto sm:px-2 p-0"
                           >
