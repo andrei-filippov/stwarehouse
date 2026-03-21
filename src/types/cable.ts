@@ -21,6 +21,8 @@ export type CableInventory = {
   length?: number; // Для кабелей - длина, для оборудования может быть null
   quantity: number;
   min_quantity: number;
+  price?: number; // Цена аренды (для оборудования)
+  unit?: string; // Единица измерения (шт, комплект, услуга)
   notes?: string;
   created_at?: string;
   updated_at?: string;

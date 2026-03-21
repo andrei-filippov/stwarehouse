@@ -6,9 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './ui/dialog';
 import { Badge } from './ui/badge';
-import { Plus, Upload, Download, Trash2, Edit, Search, FolderPlus, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { Plus, Upload, Download, Trash2, Edit, Search, FolderPlus, ChevronDown, ChevronUp, X, Package, CheckSquare } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Equipment } from '../types';
+import { TransferToInventoryDialog } from './TransferToInventoryDialog';
 import { useDebounce } from '../hooks/useDebounce';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
@@ -18,11 +19,31 @@ interface EquipmentRowProps {
   item: Equipment;
   onEdit: (item: Equipment) => void;
   onDelete: (item: Equipment) => void;
+  selectable?: boolean;
+  selected?: boolean;
+  onSelect?: (id: string, selected: boolean) => void;
 }
 
-const EquipmentRow = memo(function EquipmentRow({ item, onEdit, onDelete }: EquipmentRowProps) {
+const EquipmentRow = memo(function EquipmentRow({ 
+  item, 
+  onEdit, 
+  onDelete, 
+  selectable, 
+  selected, 
+  onSelect 
+}: EquipmentRowProps) {
   return (
-    <TableRow>
+    <TableRow className={selected ? 'bg-blue-50/50' : undefined}>
+      {selectable && (
+        <TableCell className="w-10">
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={(e) => onSelect?.(item.id, e.target.checked)}
+            className="w-4 h-4 rounded border-gray-300"
+          />
+        </TableCell>
+      )}
       <TableCell>
         <div>
           <p className="font-medium">{item.name}</p>
@@ -68,6 +89,17 @@ interface EquipmentManagerProps {
   onBulkInsert: (items: (Omit<Equipment, 'id' | 'created_at' | 'updated_at'> & { user_id: string })[]) => Promise<{ error: any; count?: number }>;
   onAddCategory: (name: string) => Promise<{ error: any; data?: any }>;
   onDeleteCategory?: (id: string) => Promise<{ error: any }>;
+  // Для переноса во вкладку "Оборудование"
+  targetInventoryCategories?: { id: string; name: string }[];
+  targetInventory?: { name: string; category_id: string }[];
+  onTransferToInventory?: (items: { 
+    name: string; 
+    description: string; 
+    quantity: number; 
+    category_id: string;
+    price: number;
+    unit: string;
+  }[]) => Promise<{ error: any }>;
   loading?: boolean;
   fabAction?: number;
 }
@@ -82,6 +114,9 @@ export function EquipmentManager({
   onBulkInsert,
   onAddCategory,
   onDeleteCategory,
+  targetInventoryCategories,
+  targetInventory,
+  onTransferToInventory,
   loading,
   fabAction
 }: EquipmentManagerProps) {
@@ -108,11 +143,18 @@ export function EquipmentManager({
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Состояние для выбора оборудования (для переноса)
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedEquipmentIds, setSelectedEquipmentIds] = useState<Set<string>>(new Set());
+
   // Состояние для подтверждения удаления
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteItem, setDeleteItem] = useState<Equipment | null>(null);
   const [deleteCategoryConfirmOpen, setDeleteCategoryConfirmOpen] = useState(false);
   const [deleteCategory, setDeleteCategory] = useState<{ id: string; name: string } | null>(null);
+
+  // Состояние для переноса во вкладку "Оборудование"
+  const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
 
   // Фильтрация оборудования (мемоизировано + debounce)
   const filteredEquipment = useMemo(() =>
@@ -173,6 +215,53 @@ export function EquipmentManager({
   const collapseAll = () => {
     setExpandedCategories(new Set());
   };
+
+  // Функции для выбора оборудования
+  const toggleSelectionMode = () => {
+    setSelectionMode(prev => !prev);
+    setSelectedEquipmentIds(new Set()); // Сбрасываем выбор при переключении режима
+  };
+
+  const selectEquipment = (id: string, selected: boolean) => {
+    setSelectedEquipmentIds(prev => {
+      const newSet = new Set(prev);
+      if (selected) {
+        newSet.add(id);
+      } else {
+        newSet.delete(id);
+      }
+      return newSet;
+    });
+  };
+
+  const selectAllInCategory = (category: string, selected: boolean) => {
+    const items = groupedByCategory[category] || [];
+    setSelectedEquipmentIds(prev => {
+      const newSet = new Set(prev);
+      items.forEach(item => {
+        if (selected) {
+          newSet.add(item.id);
+        } else {
+          newSet.delete(item.id);
+        }
+      });
+      return newSet;
+    });
+  };
+
+  const openTransferDialog = () => {
+    if (selectedEquipmentIds.size === 0) {
+      toast.error('Выберите оборудование для переноса');
+      return;
+    }
+    setIsTransferDialogOpen(true);
+  };
+
+  // Получаем выбранное оборудование
+  const selectedEquipment = useMemo(() => 
+    equipment.filter(item => selectedEquipmentIds.has(item.id)),
+    [equipment, selectedEquipmentIds]
+  );
 
   // Обработчики подтверждения удаления
   const handleDeleteClick = (item: Equipment) => {
@@ -410,6 +499,46 @@ export function EquipmentManager({
                 <Download className="w-4 h-4 md:mr-2" />
                 <span className="hidden md:inline">Excel</span>
               </Button>
+              {onTransferToInventory && targetInventoryCategories && (
+                selectionMode ? (
+                  <>
+                    <Button 
+                      variant="secondary" 
+                      size="sm" 
+                      onClick={toggleSelectionMode}
+                      className="px-2 md:px-3"
+                    >
+                      <X className="w-4 h-4 md:mr-2" />
+                      <span className="hidden md:inline">Отмена</span>
+                    </Button>
+                    <Button 
+                      variant="default" 
+                      size="sm" 
+                      onClick={openTransferDialog}
+                      disabled={selectedEquipmentIds.size === 0}
+                      className="px-2 md:px-3"
+                    >
+                      <Package className="w-4 h-4 md:mr-2" />
+                      <span className="hidden md:inline">Перенести</span>
+                      {selectedEquipmentIds.size > 0 && (
+                        <span className="ml-1 bg-white/20 px-1.5 py-0.5 rounded text-xs">
+                          {selectedEquipmentIds.size}
+                        </span>
+                      )}
+                    </Button>
+                  </>
+                ) : (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={toggleSelectionMode}
+                    className="px-2 md:px-3"
+                  >
+                    <CheckSquare className="w-4 h-4 md:mr-2" />
+                    <span className="hidden md:inline">Выбрать</span>
+                  </Button>
+                )
+              )}
               <Button size="sm" onClick={() => setIsAddDialogOpen(true)} className="px-2 md:px-3">
                 <Plus className="w-4 h-4 md:mr-2" />
                 <span className="hidden md:inline">Добавить</span>
@@ -429,6 +558,11 @@ export function EquipmentManager({
             {debouncedSearch && (
               <div className="absolute right-3 top-2.5 text-xs text-gray-500">
                 {sortedCategories.length} кат. / {filteredEquipment.length} поз.
+              </div>
+            )}
+            {selectionMode && selectedEquipmentIds.size > 0 && (
+              <div className="absolute right-3 top-2.5 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                Выбрано: {selectedEquipmentIds.size}
               </div>
             )}
           </div>
@@ -482,6 +616,16 @@ export function EquipmentManager({
                           <Table>
                             <TableHeader>
                               <TableRow>
+                                {selectionMode && (
+                                  <TableHead className="w-10">
+                                    <input
+                                      type="checkbox"
+                                      checked={items.length > 0 && items.every(item => selectedEquipmentIds.has(item.id))}
+                                      onChange={(e) => selectAllInCategory(category, e.target.checked)}
+                                      className="w-4 h-4 rounded border-gray-300"
+                                    />
+                                  </TableHead>
+                                )}
                                 <TableHead>Название</TableHead>
                                 <TableHead>Описание</TableHead>
                                 <TableHead className="w-24">Кол-во</TableHead>
@@ -497,6 +641,9 @@ export function EquipmentManager({
                                   item={item}
                                   onEdit={setEditingItem}
                                   onDelete={handleDeleteClick}
+                                  selectable={selectionMode}
+                                  selected={selectedEquipmentIds.has(item.id)}
+                                  onSelect={selectEquipment}
                                 />
                               ))}
                             </TableBody>
@@ -506,30 +653,49 @@ export function EquipmentManager({
                         {/* Mobile Cards */}
                         <div className="md:hidden space-y-2 p-2">
                           {items.map((item) => (
-                            <Card key={item.id} className="p-3">
+                            <Card 
+                              key={item.id} 
+                              className={`p-3 ${selectionMode && selectedEquipmentIds.has(item.id) ? 'bg-blue-50/50 border-blue-200' : ''}`}
+                              onClick={() => selectionMode && selectEquipment(item.id, !selectedEquipmentIds.has(item.id))}
+                            >
                               <div className="flex justify-between items-start mb-2">
-                                <div className="flex-1 min-w-0">
-                                  <p className="font-medium text-sm truncate">{item.name}</p>
-                                  <p className="text-xs text-gray-500 mt-0.5">{item.description || '—'}</p>
+                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                  {selectionMode && (
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedEquipmentIds.has(item.id)}
+                                      onChange={(e) => {
+                                        e.stopPropagation();
+                                        selectEquipment(item.id, e.target.checked);
+                                      }}
+                                      className="w-4 h-4 rounded border-gray-300 shrink-0"
+                                    />
+                                  )}
+                                  <div className="min-w-0">
+                                    <p className="font-medium text-sm truncate">{item.name}</p>
+                                    <p className="text-xs text-gray-500 mt-0.5">{item.description || '—'}</p>
+                                  </div>
                                 </div>
-                                <div className="flex gap-1 ml-2">
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm"
-                                    className="h-8 w-8 p-0"
-                                    onClick={() => setEditingItem(item)}
-                                  >
-                                    <Edit className="w-4 h-4" />
-                                  </Button>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm"
-                                    className="h-8 w-8 p-0"
-                                    onClick={() => handleDeleteClick(item)}
-                                  >
-                                    <Trash2 className="w-4 h-4 text-red-500" />
-                                  </Button>
-                                </div>
+                                {!selectionMode && (
+                                  <div className="flex gap-1 ml-2">
+                                    <Button 
+                                      variant="ghost" 
+                                      size="sm"
+                                      className="h-8 w-8 p-0"
+                                      onClick={() => setEditingItem(item)}
+                                    >
+                                      <Edit className="w-4 h-4" />
+                                    </Button>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="sm"
+                                      className="h-8 w-8 p-0"
+                                      onClick={() => handleDeleteClick(item)}
+                                    >
+                                      <Trash2 className="w-4 h-4 text-red-500" />
+                                    </Button>
+                                  </div>
+                                )}
                               </div>
                               <div className="flex justify-between items-center text-sm">
                                 <div className="flex gap-3 text-gray-600">
@@ -803,6 +969,33 @@ export function EquipmentManager({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Диалог переноса во вкладку "Оборудование" */}
+      {onTransferToInventory && targetInventoryCategories && (
+        <TransferToInventoryDialog
+          open={isTransferDialogOpen}
+          onOpenChange={(open) => {
+            setIsTransferDialogOpen(open);
+            if (!open) {
+              // Сбрасываем выбор после закрытия диалога
+              setSelectedEquipmentIds(new Set());
+              setSelectionMode(false);
+            }
+          }}
+          equipment={selectedEquipment}
+          targetCategories={targetInventoryCategories}
+          existingInventory={targetInventory || []}
+          onTransfer={async (items) => {
+            const result = await onTransferToInventory(items);
+            if (!result.error) {
+              // Успешно перенесено - сбрасываем выбор
+              setSelectedEquipmentIds(new Set());
+              setSelectionMode(false);
+            }
+            return result;
+          }}
+        />
+      )}
     </div>
   );
 }

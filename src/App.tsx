@@ -280,6 +280,29 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
     setFabAction(prev => prev + 1);
   }, []);
 
+  // Перенос оборудования из "Учёт оборудования" во вкладку "Оборудование"
+  const handleTransferToInventory = useCallback(async (items: { 
+    name: string; 
+    description: string; 
+    quantity: number; 
+    category_id: string;
+    price: number;
+    unit: string;
+  }[]) => {
+    const results = await Promise.all(
+      items.map(item => upsertCableInventory(item))
+    );
+    
+    const errors = results.filter(r => r.error);
+    if (errors.length > 0) {
+      toast.error(`Ошибка при переносе ${errors.length} позиций`);
+      return { error: errors[0].error };
+    }
+    
+    toast.success(`Успешно перенесено ${items.length} позиций`);
+    return { error: null };
+  }, [upsertCableInventory]);
+
   const savePdfSettings = (settings: PDFSettingsType) => {
     setPdfSettings(settings);
     localStorage.setItem('pdfSettings', JSON.stringify(settings));
@@ -395,6 +418,9 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
                 onDeleteCategory={deleteCategory}
                 loading={equipmentLoading}
                 fabAction={fabAction}
+                onTransferToInventory={handleTransferToInventory}
+                targetInventoryCategories={cableCategories}
+                targetInventory={cableInventory.filter((i): i is typeof i & { name: string } => !!i.name)}
               />
             </LazyComponent>
           )}
