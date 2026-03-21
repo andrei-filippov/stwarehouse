@@ -10,9 +10,10 @@ interface QRScannerProps {
   onClose: () => void;
   onScan: (qrCode: string) => void;
   title?: string;
+  subtitle?: string;
 }
 
-export function QRScanner({ isOpen, onClose, onScan, title = 'Сканировать QR-код' }: QRScannerProps) {
+export function QRScanner({ isOpen, onClose, onScan, title = 'Сканировать QR-код', subtitle }: QRScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [manualCode, setManualCode] = useState('');
   const [useCamera, setUseCamera] = useState(true);
@@ -94,6 +95,9 @@ export function QRScanner({ isOpen, onClose, onScan, title = 'Сканирова
             {useCamera ? <Camera className="w-5 h-5" /> : <Keyboard className="w-5 h-5" />}
             {title}
           </DialogTitle>
+          {subtitle && (
+            <p className="text-sm text-blue-600 font-medium">{subtitle}</p>
+          )}
         </DialogHeader>
 
         <div className="space-y-4">
@@ -176,6 +180,19 @@ export function QRScanner({ isOpen, onClose, onScan, title = 'Сканирова
                 className="w-full"
               >
                 Подтвердить
+              </Button>
+            </div>
+          )}
+          
+          {/* Кнопка завершения для режима batch */}
+          {subtitle && (
+            <div className="pt-2 border-t">
+              <Button 
+                variant="outline" 
+                onClick={handleClose}
+                className="w-full"
+              >
+                ✓ Завершить сканирование
               </Button>
             </div>
           )}

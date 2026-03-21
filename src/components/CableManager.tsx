@@ -199,6 +199,7 @@ export const CableManager = memo(function CableManager({
   const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
   const [scannedQRItem, setScannedQRItem] = useState<CableInventory | null>(null);
   const [isQRActionDialogOpen, setIsQRActionDialogOpen] = useState(false);
+  const [qrScanMode, setQrScanMode] = useState<'single' | 'batch'>('single'); // batch = режим выдачи
 
   const toggleCategory = (id: string) => {
     setExpandedCategories(prev => {
@@ -355,6 +356,30 @@ export const CableManager = memo(function CableManager({
       toast.error('Оборудование не найдено', { description: `QR-код ${qrCode} не найден в базе` });
       return;
     }
+    
+    // В режиме batch (выдача) - сразу добавляем в выдачу без диалога
+    if (qrScanMode === 'batch') {
+      const alreadySelected = selectedItems.find(si => si.inventory_id === item.id);
+      if (alreadySelected) {
+        toast.info('Уже в выдаче', { description: `${item.name} - ${alreadySelected.quantity} шт.` });
+      } else {
+        onToggleItem?.({
+          inventory_id: item.id,
+          category_id: item.category_id,
+          length: item.length || 0,
+          name: item.name,
+          available: item.quantity,
+          quantity: 1,
+        } as SelectedItem);
+        toast.success('Добавлено в выдачу', { 
+          description: `${item.name} - 1 шт. Всего: ${selectedItems.length + 1}` 
+        });
+      }
+      // Не закрываем сканер - можно сканировать следующую позицию
+      return;
+    }
+    
+    // Обычный режим - показываем диалог действий
     setScannedQRItem(item);
     setIsQRActionDialogOpen(true);
   };
@@ -792,16 +817,38 @@ export const CableManager = memo(function CableManager({
             <span className="hidden sm:inline">Категория</span>
           </Button>
           <Button 
-            variant="outline"
+            variant={qrScanMode === 'batch' ? 'default' : 'outline'}
             size="sm"
-            onClick={() => setIsQRScannerOpen(true)}
-            title="Сканировать QR-код"
+            onClick={() => {
+              if (qrScanMode === 'single') {
+                setQrScanMode('batch');
+                toast.info('Режим выдачи включен', { 
+                  description: 'QR-коды будут сразу добавляться в выдачу' 
+                });
+              }
+              setIsQRScannerOpen(true);
+            }}
+            title={qrScanMode === 'batch' ? 'Режим выдачи активен' : 'Сканировать QR-код'}
           >
             <svg className="w-4 h-4 mr-0 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
             </svg>
-            <span className="hidden sm:inline">QR</span>
+            <span className="hidden sm:inline">{qrScanMode === 'batch' ? 'Выдача' : 'QR'}</span>
           </Button>
+          {qrScanMode === 'batch' && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setQrScanMode('single');
+                toast.info('Обычный режим QR');
+              }}
+              title="Отключить режим выдачи"
+              className="px-2"
+            >
+              ✕
+            </Button>
+          )}
           <Button 
             variant="outline"
             size="sm"
@@ -1557,6 +1604,7 @@ export const CableManager = memo(function CableManager({
         onClose={() => setIsQRScannerOpen(false)}
         onScan={handleQRScan}
         title="Сканировать оборудование"
+        subtitle={qrScanMode === 'batch' ? `Режим выдачи: ${selectedItems.length} позиций` : undefined}
       />
 
       {/* Диалог с QR-кодом оборудования */}
