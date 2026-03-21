@@ -20,6 +20,21 @@ export function QRScanner({ isOpen, onClose, onScan, title = 'Сканирова
   const codeReaderRef = useRef<BrowserQRCodeReader | null>(null);
   const controlsRef = useRef<any>(null);
 
+  // Остановка камеры
+  const stopScanning = () => {
+    if (controlsRef.current) {
+      controlsRef.current.stop();
+      controlsRef.current = null;
+    }
+    // Останавливаем все video tracks для полного освобождения камеры
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream.getTracks().forEach(track => track.stop());
+      videoRef.current.srcObject = null;
+    }
+    codeReaderRef.current = null;
+  };
+
   useEffect(() => {
     if (!isOpen || !useCamera) return;
 
@@ -55,14 +70,6 @@ export function QRScanner({ isOpen, onClose, onScan, title = 'Сканирова
       stopScanning();
     };
   }, [isOpen, useCamera]);
-
-  const stopScanning = () => {
-    if (controlsRef.current) {
-      controlsRef.current.stop();
-      controlsRef.current = null;
-    }
-    codeReaderRef.current = null;
-  };
 
   const handleManualSubmit = () => {
     if (manualCode.trim()) {

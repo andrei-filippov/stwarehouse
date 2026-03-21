@@ -15,6 +15,10 @@ export function QRCodeDisplay({ value, title, size = 200, showText = true }: QRC
   const [dataUrl, setDataUrl] = useState<string>('');
 
   useEffect(() => {
+    if (!value || value.trim() === '') {
+      setDataUrl('');
+      return;
+    }
     QRCode.toDataURL(value, { 
       width: size,
       margin: 2,
