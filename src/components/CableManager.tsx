@@ -1748,8 +1748,8 @@ function CategoryList({
           isSortable={true}
           selectionMode={selectionMode}
           selectedInventoryIds={selectedInventoryIds}
-          onSelectInventory={selectInventory}
-          onSelectAllInCategory={selectAllInCategory}
+          onSelectInventory={onSelectInventory}
+          onSelectAllInCategory={onSelectAllInCategory}
         />
       );
     }
@@ -1777,8 +1777,8 @@ function CategoryList({
         level={level}
         selectionMode={selectionMode}
         selectedInventoryIds={selectedInventoryIds}
-        onSelectInventory={selectInventory}
-        onSelectAllInCategory={selectAllInCategory}
+        onSelectInventory={onSelectInventory}
+        onSelectAllInCategory={onSelectAllInCategory}
       />
     );
   };
