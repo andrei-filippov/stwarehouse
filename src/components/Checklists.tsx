@@ -669,22 +669,18 @@ function ChecklistView({
   onUpdateItem: (checklistId: string, itemId: string, updates: Partial<ChecklistItem>) => Promise<{ error: any }>;
 }) {
   // Локальное состояние для мгновенного обновления UI
-  const [localItems, setLocalItems] = useState<Record<string, boolean>>(() => {
+  const [localItems, setLocalItems] = useState<Record<string, boolean>>({});
+  const pendingUpdates = useRef<Set<string>>(new Set());
+
+  // Инициализация локального состояния
+  useEffect(() => {
     const initial: Record<string, boolean> = {};
     checklist.items?.forEach(item => {
       if (item.id) initial[item.id] = item.is_checked;
     });
-    return initial;
-  });
-
-  // Синхронизируем локальное состояние с пропсами
-  useEffect(() => {
-    const updated: Record<string, boolean> = {};
-    checklist.items?.forEach(item => {
-      if (item.id) updated[item.id] = item.is_checked;
-    });
-    setLocalItems(updated);
-  }, [checklist.items]);
+    setLocalItems(initial);
+    pendingUpdates.current.clear();
+  }, [checklist.id]); // Только при смене чек-листа
 
   const handleToggle = useCallback(async (item: ChecklistItem) => {
     if (!item.id) {
@@ -695,15 +691,19 @@ function ChecklistView({
     // Мгновенно обновляем локальное состояние
     const newValue = !localItems[item.id];
     setLocalItems(prev => ({ ...prev, [item.id]: newValue }));
+    pendingUpdates.current.add(item.id);
     
     // Отправляем на сервер
     await onUpdateItem(checklist.id, item.id, { is_checked: newValue });
+    pendingUpdates.current.delete(item.id);
   }, [localItems, checklist.id, onUpdateItem]);
 
-  // Используем локальное состояние или пропсы
+  // Используем локальное состояние (приоритет) или пропсы
   const isChecked = useCallback((item: ChecklistItem) => {
     if (!item.id) return item.is_checked;
-    return localItems[item.id] ?? item.is_checked;
+    // Если есть локальное состояние - используем его
+    if (item.id in localItems) return localItems[item.id];
+    return item.is_checked;
   }, [localItems]);
 
   const grouped = checklist.items?.reduce((acc, item) => {
@@ -765,11 +765,12 @@ function ChecklistView({
               {categoryNames[category] || category}
             </h4>
             <div className="space-y-1">
-              {grouped[category].map((item, idx) => {
+              {grouped[category].map((item) => {
                 const checked = isChecked(item);
+                const itemKey = item.id || `${item.name}-${item.category}`;
                 return (
                   <div 
-                    key={idx}
+                    key={itemKey}
                     className={`flex items-center gap-3 p-2 rounded cursor-pointer transition-colors ${
                       checked ? 'bg-green-50' : 'bg-gray-50'
                     }`}
