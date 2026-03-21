@@ -363,16 +363,17 @@ export const CableManager = memo(function CableManager({
       if (alreadySelected) {
         toast.info('Уже в выдаче', { description: `${item.name} - ${alreadySelected.quantity} шт.` });
       } else {
-        onToggleItem?.({
-          inventory_id: item.id,
+        // Напрямую обновляем selectedItems
+        setSelectedItems(prev => [...prev, {
+          inventory_id: item.id!,
           category_id: item.category_id,
           length: item.length || 0,
           name: item.name,
           available: item.quantity,
           quantity: 1,
-        } as SelectedItem);
+        }]);
         toast.success('Добавлено в выдачу', { 
-          description: `${item.name} - 1 шт. Всего: ${selectedItems.length + 1}` 
+          description: `${item.name} - 1 шт.` 
         });
       }
       // Не закрываем сканер - можно сканировать следующую позицию
@@ -399,15 +400,15 @@ export const CableManager = memo(function CableManager({
         handleShowQRCode(scannedQRItem);
         break;
       case 'issue':
-        // Добавляем в выдачу
-        onToggleItem?.({
-          inventory_id: scannedQRItem.id,
+        // Добавляем в выдачу напрямую
+        setSelectedItems(prev => [...prev, {
+          inventory_id: scannedQRItem.id!,
           category_id: scannedQRItem.category_id,
           length: scannedQRItem.length || 0,
           name: scannedQRItem.name,
           available: scannedQRItem.quantity,
           quantity: 1,
-        } as SelectedItem);
+        }]);
         toast.success('Добавлено в выдачу', { description: scannedQRItem.name || 'Позиция' });
         break;
       case 'return':
@@ -1605,6 +1606,7 @@ export const CableManager = memo(function CableManager({
         onScan={handleQRScan}
         title="Сканировать оборудование"
         subtitle={qrScanMode === 'batch' ? `Режим выдачи: ${selectedItems.length} позиций` : undefined}
+        keepOpen={qrScanMode === 'batch'}
       />
 
       {/* Диалог с QR-кодом оборудования */}

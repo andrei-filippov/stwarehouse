@@ -11,20 +11,27 @@ interface QRScannerProps {
   onScan: (qrCode: string) => void;
   title?: string;
   subtitle?: string;
+  keepOpen?: boolean; // Не закрывать после сканирования (для batch режима)
 }
 
-export function QRScanner({ isOpen, onClose, onScan, title = 'Сканировать QR-код', subtitle }: QRScannerProps) {
+export function QRScanner({ isOpen, onClose, onScan, title = 'Сканировать QR-код', subtitle, keepOpen }: QRScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [manualCode, setManualCode] = useState('');
   const [useCamera, setUseCamera] = useState(true);
   const [error, setError] = useState<string>('');
+  const [scanKey, setScanKey] = useState(0); // Для перезапуска сканера в batch режиме
   const codeReaderRef = useRef<BrowserQRCodeReader | null>(null);
   const controlsRef = useRef<any>(null);
+  const isProcessingRef = useRef(false); // Защита от двойного срабатывания
 
   // Остановка камеры
   const stopScanning = () => {
     if (controlsRef.current) {
-      controlsRef.current.stop();
+      try {
+        controlsRef.current.stop();
+      } catch (e) {
+        // Игнорируем ошибки при остановке
+      }
       controlsRef.current = null;
     }
     // Останавливаем все video tracks для полного освобождения камеры
@@ -34,25 +41,44 @@ export function QRScanner({ isOpen, onClose, onScan, title = 'Сканирова
       videoRef.current.srcObject = null;
     }
     codeReaderRef.current = null;
+    isProcessingRef.current = false;
   };
 
   useEffect(() => {
     if (!isOpen || !useCamera) return;
 
     const startScanning = async () => {
+      // Защита от повторного запуска
+      if (isProcessingRef.current) return;
+      
+      // Проверяем что video элемент готов
+      if (!videoRef.current) {
+        console.log('Video element not ready');
+        return;
+      }
+
       try {
         setError('');
+        isProcessingRef.current = true;
         codeReaderRef.current = new BrowserQRCodeReader();
         
         const result = await codeReaderRef.current.decodeFromVideoDevice(
           undefined,
-          videoRef.current!,
+          videoRef.current,
           (result, error) => {
-            if (result) {
+            if (result && isProcessingRef.current) {
               const text = result.getText();
-              onScan(text);
-              stopScanning();
-              onClose();
+              
+              if (keepOpen) {
+                // В batch режиме сначала останавливаем, потом вызываем onScan и перезапускаем
+                stopScanning();
+                onScan(text);
+                setScanKey(k => k + 1); // Триггер для перезапуска useEffect
+              } else {
+                stopScanning();
+                onScan(text);
+                onClose();
+              }
             }
           }
         );
@@ -62,15 +88,20 @@ export function QRScanner({ isOpen, onClose, onScan, title = 'Сканирова
         console.error('Camera error:', err);
         setError('Не удалось получить доступ к камере. Проверьте разрешения.');
         setUseCamera(false);
+        isProcessingRef.current = false;
       }
     };
 
-    startScanning();
+    // Небольшая задержка для инициализации video элемента
+    const timeoutId = setTimeout(() => {
+      startScanning();
+    }, 300);
 
     return () => {
+      clearTimeout(timeoutId);
       stopScanning();
     };
-  }, [isOpen, useCamera]);
+  }, [isOpen, useCamera, scanKey]); // scanKey для перезапуска в batch режиме
 
   const handleManualSubmit = () => {
     if (manualCode.trim()) {
