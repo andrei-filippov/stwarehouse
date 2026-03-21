@@ -24,7 +24,7 @@ interface TransferToInventoryDialogProps {
     name: string; 
     description: string; 
     quantity: number; 
-    category_id: string;
+    category: string;
     price: number;
     unit: string;
   }[]) => Promise<{ error: any }>;
@@ -112,12 +112,12 @@ export function TransferToInventoryDialog({
 
     // Формируем данные для переноса
     const transferData = selectedItems.map(item => {
-      const category = targetCategories.find(c => c.name === item.equipment.category);
+      // Передаем название категории, а не ID (для таблицы equipment)
       return {
         name: item.equipment.name,
         description: item.equipment.description,
         quantity: item.equipment.quantity,
-        category_id: category?.id || '',
+        category: item.equipment.category,
         price: item.price,
         unit: item.equipment.unit || 'шт'
       };

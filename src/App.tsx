@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
 import { Package, User } from 'lucide-react';
+import { toast } from 'sonner';
 import { useAuth } from './hooks/useAuth';
 import { CompanyProvider, useCompanyContext } from './contexts/CompanyContext';
 import { getSlugFromPath, saveSelectedCompany } from './lib/companyUrl';
