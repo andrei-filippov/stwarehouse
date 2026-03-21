@@ -906,6 +906,7 @@ export const CableManager = memo(function CableManager({
               onEditCategory={openCategoryEdit}
               onDeleteCategory={onDeleteCategory}
               onSendToRepair={openRepairDialog}
+              onShowQRCode={handleShowQRCode}
               onReorderCategories={onReorderCategories}
               selectionMode={selectionMode}
               selectedInventoryIds={selectedInventoryIds}
@@ -1613,6 +1614,7 @@ interface SortableCategoryItemProps {
   onEditCategory: (cat: CableCategory) => void;
   onDeleteCategory: (id: string) => Promise<{ error: any }>;
   onSendToRepair?: (categoryId: string, item: CableInventory, categoryName: string) => void;
+  onShowQRCode?: (item: CableInventory) => void;
   categoryName?: string;
   level?: number;
   isSortable?: boolean;
@@ -1640,6 +1642,7 @@ function SortableCategoryItem({
   onEditCategory,
   onDeleteCategory,
   onSendToRepair,
+  onShowQRCode,
   categoryName = '',
   level = 0,
   isSortable = false,
@@ -1683,6 +1686,7 @@ function SortableCategoryItem({
         onEditCategory={onEditCategory}
         onDeleteCategory={onDeleteCategory}
         onSendToRepair={onSendToRepair}
+        onShowQRCode={onShowQRCode}
         categoryName={categoryName}
         level={level}
         dragHandleProps={isSortable ? { ...attributes, ...listeners } : undefined}
@@ -1713,6 +1717,7 @@ interface CategoryItemProps {
   onEditCategory: (cat: CableCategory) => void;
   onDeleteCategory: (id: string) => Promise<{ error: any }>;
   onSendToRepair?: (categoryId: string, item: CableInventory, categoryName: string) => void;
+  onShowQRCode?: (item: CableInventory) => void;
   categoryName?: string;
   level?: number;
   dragHandleProps?: any;
@@ -1740,6 +1745,7 @@ function CategoryItem({
   onEditCategory,
   onDeleteCategory,
   onSendToRepair,
+  onShowQRCode,
   categoryName = '',
   level = 0,
   dragHandleProps,
@@ -1985,11 +1991,11 @@ function CategoryItem({
                         </span>
                       )}
                       <div className="flex items-center gap-1 shrink-0">
-                        {item.qr_code && (
+                        {item.qr_code && onShowQRCode && (
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleShowQRCode(item)}
+                            onClick={() => onShowQRCode(item)}
                             title="Показать QR-код"
                             className="h-7 w-7 sm:h-8 sm:w-auto sm:px-2 p-0"
                           >
@@ -2058,6 +2064,7 @@ function CategoryItem({
               onEditCategory={onEditCategory}
               onDeleteCategory={onDeleteCategory}
               onSendToRepair={onSendToRepair}
+              onShowQRCode={onShowQRCode}
               categoryName={category.name}
               level={level + 1}
               selectionMode={selectionMode}
@@ -2090,6 +2097,7 @@ interface CategoryListProps {
   onEditCategory: (cat: CableCategory) => void;
   onDeleteCategory: (id: string) => Promise<{ error: any }>;
   onSendToRepair?: (categoryId: string, item: CableInventory, categoryName: string) => void;
+  onShowQRCode?: (item: CableInventory) => void;
   onReorderCategories?: (categoryIds: string[]) => Promise<{ error: any }>;
   categoryName?: string;
   level?: number;
@@ -2117,6 +2125,7 @@ function CategoryList({
   onEditCategory,
   onDeleteCategory,
   onSendToRepair,
+  onShowQRCode,
   onReorderCategories,
   categoryName = '',
   level = 0,
@@ -2175,6 +2184,7 @@ function CategoryList({
           onEditCategory={onEditCategory}
           onDeleteCategory={onDeleteCategory}
           onSendToRepair={onSendToRepair}
+          onShowQRCode={onShowQRCode}
           categoryName={categoryName}
           level={level}
           isSortable={true}
@@ -2205,6 +2215,7 @@ function CategoryList({
         onEditCategory={onEditCategory}
         onDeleteCategory={onDeleteCategory}
         onSendToRepair={onSendToRepair}
+        onShowQRCode={onShowQRCode}
         categoryName={categoryName}
         level={level}
         selectionMode={selectionMode}
