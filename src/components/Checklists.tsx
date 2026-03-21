@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, memo, useRef, useMemo } from 'react';
+import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -8,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Checkbox } from './ui/checkbox';
 import { Badge } from './ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { QRScanner } from './QRScanner';
 import { 
   Plus, 
   Trash2, 
@@ -671,6 +673,10 @@ function ChecklistView({
   // Локальное состояние для мгновенного обновления UI
   const [localItems, setLocalItems] = useState<Record<string, boolean>>({});
   const pendingUpdates = useRef<Set<string>>(new Set());
+  
+  // QR-сканирование
+  const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
+  const [scanMode, setScanMode] = useState<'load' | 'unload'>('load');
 
   // Инициализация локального состояния
   useEffect(() => {
@@ -697,6 +703,33 @@ function ChecklistView({
     await onUpdateItem(checklist.id, item.id, { is_checked: newValue });
     pendingUpdates.current.delete(item.id);
   }, [localItems, checklist.id, onUpdateItem]);
+
+  // Обработка QR-сканирования
+  const handleQRScan = useCallback(async (qrCode: string) => {
+    // Ищем позицию по QR-коду
+    const item = checklist.items?.find(i => 
+      i.qr_code?.toUpperCase() === qrCode.toUpperCase()
+    );
+    
+    if (!item || !item.id) {
+      toast.error('Позиция не найдена', { description: `QR-код ${qrCode} не найден в чек-листе` });
+      return;
+    }
+    
+    const isAlreadyChecked = localItems[item.id] ?? item.is_checked;
+    
+    if (scanMode === 'load') {
+      // Режим погрузки - отмечаем is_checked
+      if (isAlreadyChecked) {
+        toast.info('Уже отмечено', { description: item.name });
+      } else {
+        setLocalItems(prev => ({ ...prev, [item.id!]: true }));
+        await onUpdateItem(checklist.id, item.id, { is_checked: true });
+        toast.success('Отмечено', { description: item.name });
+      }
+    }
+    // Можно добавить режим 'unload' для двойной проверки позже
+  }, [checklist.items, checklist.id, localItems, onUpdateItem, scanMode]);
 
   // Используем локальное состояние (приоритет) или пропсы
   const isChecked = useCallback((item: ChecklistItem) => {
@@ -758,6 +791,43 @@ function ChecklistView({
         </div>
       )}
 
+      {/* Кнопки QR-сканирования */}
+      <div className="flex gap-2 flex-wrap">
+        <Button
+          variant={progress < total ? 'default' : 'outline'}
+          onClick={() => {
+            setScanMode('load');
+            setIsQRScannerOpen(true);
+          }}
+          disabled={progress === total}
+          className="flex-1 sm:flex-none"
+        >
+          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+          </svg>
+          Сканировать QR
+          {progress < total && <span className="ml-1">({total - progress})</span>}
+        </Button>
+        
+        {progress > 0 && (
+          <Button
+            variant="outline"
+            onClick={async () => {
+              // Сброс всех отметок
+              for (const item of checklist.items || []) {
+                if (item.id && localItems[item.id]) {
+                  await onUpdateItem(checklist.id, item.id, { is_checked: false });
+                }
+              }
+              setLocalItems({});
+              toast.success('Все отметки сброшены');
+            }}
+          >
+            Сбросить
+          </Button>
+        )}
+      </div>
+
       <div className="space-y-4">
         {grouped && sortedCategories.map((category) => (
           <div key={category}>
@@ -785,6 +855,7 @@ function ChecklistView({
                       {item.name}
                       <span className="text-gray-500 ml-2">× {item.quantity}</span>
                       {item.is_required && <span className="text-red-500 ml-1">*</span>}
+                      {item.qr_code && <span className="text-xs text-blue-500 ml-2">📱 {item.qr_code}</span>}
                     </span>
                   </div>
                 );
@@ -793,6 +864,16 @@ function ChecklistView({
           </div>
         ))}
       </div>
+
+      {/* QR Scanner */}
+      <QRScanner
+        isOpen={isQRScannerOpen}
+        onClose={() => setIsQRScannerOpen(false)}
+        onScan={handleQRScan}
+        title="Сканировать оборудование"
+        subtitle={`Найдено: ${progress} / ${total}`}
+        keepOpen={true}
+      />
     </div>
   );
 }

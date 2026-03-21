@@ -147,6 +147,7 @@ export type ChecklistItem = {
   is_checked: boolean; // отмечено ли
   source_rule_id?: string; // откуда пришло (из какого правила)
   notes?: string;
+  qr_code?: string; // QR-код для сканирования
 };
 
 // Заказчик
