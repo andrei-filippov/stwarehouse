@@ -435,10 +435,10 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
                 customers={customers}
                 pdfSettings={pdfSettings}
                 equipmentCategories={
-                  (categories?.length > 0 
-                    ? categories.map((c: any) => c.name)
-                    : [...new Set(equipment?.map((e: any) => e.category).filter(Boolean) || [])].sort()
-                  )
+                  [...new Set([
+                    ...(categories?.map((c: any) => c.name) || []),
+                    ...(equipment?.map((e: any) => e.category).filter(Boolean) || [])
+                  ])].sort()
                 }
                 repairs={cableRepairs}
                 cableCategories={cableCategories}

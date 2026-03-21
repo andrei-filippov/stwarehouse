@@ -1152,18 +1152,21 @@ export const CableManager = memo(function CableManager({
               setSelectionMode(false);
             }
           }}
-          equipment={selectedInventory.map(item => ({
-            id: item.id,
-            name: item.name || '',
-            category: categories.find(c => c.id === item.category_id)?.name || '',
-            description: item.notes || '',
-            quantity: item.quantity,
-            price: item.price || 0,
-            unit: item.unit || 'шт',
-            user_id: '',
-            created_at: item.created_at || '',
-            updated_at: item.updated_at || ''
-          }))}
+          equipment={selectedInventory.map(item => {
+            const cableCategory = categories.find(c => c.id === item.category_id);
+            return {
+              id: item.id,
+              name: item.name || '',
+              category: cableCategory?.name || 'Общее',
+              description: item.notes || '',
+              quantity: item.quantity,
+              price: item.price || 0,
+              unit: item.unit || 'шт',
+              user_id: '',
+              created_at: item.created_at || '',
+              updated_at: item.updated_at || ''
+            };
+          })}
           targetCategories={targetEquipmentCategories}
           existingInventory={existingEquipment?.map(e => ({ name: e.name, category_id: e.category })) || []}
           onTransfer={async (items) => {
