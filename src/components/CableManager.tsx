@@ -28,6 +28,8 @@ import { REPAIR_STATUSES, getRepairStatusLabel, getRepairStatusColor } from '../
 import { CABLE_COLORS } from '../types/cable';
 import { Spinner } from './ui/spinner';
 import { TransferToInventoryDialog } from './TransferToInventoryDialog';
+import { QRCodeDialog, QRCodeBatchPrint, QRCodeDisplay } from './QRCodeDisplay';
+import { QRScanner } from './QRScanner';
 import { format } from 'date-fns';
 import * as XLSX from 'xlsx';
 import { ru } from 'date-fns/locale';
@@ -191,6 +193,13 @@ export const CableManager = memo(function CableManager({
   const [importPreview, setImportPreview] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // QR Code states
+  const [selectedQRItem, setSelectedQRItem] = useState<CableInventory | null>(null);
+  const [isQRDialogOpen, setIsQRDialogOpen] = useState(false);
+  const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
+  const [scannedQRItem, setScannedQRItem] = useState<CableInventory | null>(null);
+  const [isQRActionDialogOpen, setIsQRActionDialogOpen] = useState(false);
+
   const toggleCategory = (id: string) => {
     setExpandedCategories(prev => {
       const next = new Set(prev);
@@ -267,6 +276,21 @@ export const CableManager = memo(function CableManager({
     }
   };
 
+  // Генерация уникального QR-кода
+  const generateQRCode = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let result = 'EQ-';
+    for (let i = 0; i < 8; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    // Проверяем уникальность
+    const existing = inventory.find(item => item.qr_code === result);
+    if (existing) {
+      return generateQRCode(); // Рекурсивно генерируем новый
+    }
+    return result;
+  };
+
   const handleAddInventory = async () => {
     const minQty = parseInt(inventoryForm.min_quantity);
     const watts = parseInt(inventoryForm.watts);
@@ -278,6 +302,7 @@ export const CableManager = memo(function CableManager({
       min_quantity: isNaN(minQty) ? 0 : minQty,
       watts: inventoryForm.watts ? (isNaN(watts) ? undefined : watts) : undefined,
       notes: inventoryForm.notes || undefined,
+      qr_code: generateQRCode(),
     });
     if (!error) {
       setIsInventoryDialogOpen(false);
@@ -319,8 +344,50 @@ export const CableManager = memo(function CableManager({
     if (!error) {
       setIsInventoryDialogOpen(false);
       setEditingInventory(null);
-      setInventoryForm({ category_id: '', name: '', length: '', quantity: '', min_quantity: '0', notes: '' });
+      setInventoryForm({ category_id: '', name: '', length: '', quantity: '', min_quantity: '0', watts: '', notes: '' });
     }
+  };
+
+  // Обработка сканирования QR-кода
+  const handleQRScan = (qrCode: string) => {
+    const item = inventory.find(i => i.qr_code === qrCode);
+    if (!item) {
+      toast.error('Оборудование не найдено', { description: `QR-код ${qrCode} не найден в базе` });
+      return;
+    }
+    setScannedQRItem(item);
+    setIsQRActionDialogOpen(true);
+  };
+
+  // Действия с отсканированным оборудованием
+  const handleQRAction = (action: 'info' | 'issue' | 'return') => {
+    if (!scannedQRItem) return;
+    
+    switch (action) {
+      case 'info':
+        setSelectedQRItem(scannedQRItem);
+        setIsQRDialogOpen(true);
+        break;
+      case 'issue':
+        // Добавляем в выдачу
+        onToggleItem?.({
+          inventory_id: scannedQRItem.id,
+          category_id: scannedQRItem.category_id,
+          length: scannedQRItem.length || 0,
+          name: scannedQRItem.name,
+          available: scannedQRItem.quantity,
+          quantity: 1,
+        } as SelectedItem);
+        toast.success('Добавлено в выдачу', { description: scannedQRItem.name || 'Позиция' });
+        break;
+      case 'return':
+        // Переходим на вкладку "Выдано"
+        setActiveTab('issued');
+        toast.info('Найдите позицию в списке выданных для возврата');
+        break;
+    }
+    setIsQRActionDialogOpen(false);
+    setScannedQRItem(null);
   };
 
   // Обновление количества напрямую
@@ -718,6 +785,17 @@ export const CableManager = memo(function CableManager({
           >
             <Plus className="w-4 h-4 mr-0 sm:mr-2" />
             <span className="hidden sm:inline">Категория</span>
+          </Button>
+          <Button 
+            variant="outline"
+            size="sm"
+            onClick={() => setIsQRScannerOpen(true)}
+            title="Сканировать QR-код"
+          >
+            <svg className="w-4 h-4 mr-0 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+            </svg>
+            <span className="hidden sm:inline">QR</span>
           </Button>
           <Button 
             variant="outline"
@@ -1466,6 +1544,48 @@ export const CableManager = memo(function CableManager({
           }}
         />
       )}
+
+      {/* QR Scanner */}
+      <QRScanner
+        isOpen={isQRScannerOpen}
+        onClose={() => setIsQRScannerOpen(false)}
+        onScan={handleQRScan}
+        title="Сканировать оборудование"
+      />
+
+      {/* Диалог с QR-кодом оборудования */}
+      <QRCodeDialog
+        isOpen={isQRDialogOpen}
+        onClose={() => {
+          setIsQRDialogOpen(false);
+          setSelectedQRItem(null);
+        }}
+        value={selectedQRItem?.qr_code || ''}
+        equipmentName={selectedQRItem?.name || ''}
+      />
+
+      {/* Диалог действий после сканирования QR */}
+      <Dialog open={isQRActionDialogOpen} onOpenChange={setIsQRActionDialogOpen}>
+        <DialogContent className="max-w-sm w-[95%] rounded-xl p-4 sm:p-6">
+          <DialogHeader>
+            <DialogTitle>Отсканировано оборудование</DialogTitle>
+            <DialogDescription>
+              {scannedQRItem?.name || 'Позиция'} ({scannedQRItem?.qr_code})
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-1 gap-3 py-4">
+            <Button onClick={() => handleQRAction('info')} variant="outline">
+              ℹ️ Информация и QR-код
+            </Button>
+            <Button onClick={() => handleQRAction('issue')}>
+              📦 Добавить в выдачу
+            </Button>
+            <Button onClick={() => handleQRAction('return')} variant="secondary">
+              ↩️ Вернуть на склад
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 });
@@ -1860,6 +1980,21 @@ function CategoryItem({
                         </span>
                       )}
                       <div className="flex items-center gap-1 shrink-0">
+                        {item.qr_code && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedQRItem(item);
+                              setIsQRDialogOpen(true);
+                            }}
+                            title="Показать QR-код"
+                            className="h-7 w-7 sm:h-8 sm:w-auto sm:px-2 p-0"
+                          >
+                            <span className="hidden sm:inline">📱</span>
+                            <span className="sm:hidden text-xs">📱</span>
+                          </Button>
+                        )}
                         <Button
                           size="sm"
                           variant="outline"
