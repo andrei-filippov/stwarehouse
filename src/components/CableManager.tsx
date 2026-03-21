@@ -157,6 +157,9 @@ export const CableManager = memo(function CableManager({
   }, [fabAction]);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   
+  // Состояние для поиска
+  const [searchQuery, setSearchQuery] = useState('');
+  
   // Dialog states
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
   const [isInventoryDialogOpen, setIsInventoryDialogOpen] = useState(false);
@@ -167,7 +170,7 @@ export const CableManager = memo(function CableManager({
 
   // Form states
   const [categoryForm, setCategoryForm] = useState({ name: '', description: '', color: '#3b82f6', parent_id: '' as string | undefined });
-  const [inventoryForm, setInventoryForm] = useState({ category_id: '', name: '', length: '', quantity: '', min_quantity: '0', notes: '' });
+  const [inventoryForm, setInventoryForm] = useState({ category_id: '', name: '', length: '', quantity: '', min_quantity: '0', watts: '', notes: '' });
   
   // Repair dialog states
   const [isRepairDialogOpen, setIsRepairDialogOpen] = useState(false);
@@ -259,17 +262,19 @@ export const CableManager = memo(function CableManager({
 
   const handleAddInventory = async () => {
     const minQty = parseInt(inventoryForm.min_quantity);
+    const watts = parseInt(inventoryForm.watts);
     const { error } = await onUpsertInventory({
       category_id: inventoryForm.category_id,
       name: inventoryForm.name || undefined,
       length: inventoryForm.length ? parseFloat(inventoryForm.length) : undefined,
       quantity: parseInt(inventoryForm.quantity),
       min_quantity: isNaN(minQty) ? 0 : minQty,
+      watts: inventoryForm.watts ? (isNaN(watts) ? undefined : watts) : undefined,
       notes: inventoryForm.notes || undefined,
     });
     if (!error) {
       setIsInventoryDialogOpen(false);
-      setInventoryForm({ category_id: '', name: '', length: '', quantity: '', min_quantity: '0', notes: '' });
+      setInventoryForm({ category_id: '', name: '', length: '', quantity: '', min_quantity: '0', watts: '', notes: '' });
     }
   };
 
@@ -283,6 +288,7 @@ export const CableManager = memo(function CableManager({
       length: item.length?.toString() || '',
       quantity: item.quantity.toString(),
       min_quantity: item.min_quantity?.toString() || '0',
+      watts: item.watts?.toString() || '',
       notes: item.notes || '',
     });
     setIsInventoryDialogOpen(true);
@@ -292,6 +298,7 @@ export const CableManager = memo(function CableManager({
     if (!editingInventory) return;
     
     const minQty = parseInt(inventoryForm.min_quantity);
+    const watts = parseInt(inventoryForm.watts);
     const { error } = await onUpsertInventory({
       id: editingInventory.id,
       category_id: inventoryForm.category_id,
@@ -299,6 +306,7 @@ export const CableManager = memo(function CableManager({
       length: inventoryForm.length ? parseFloat(inventoryForm.length) : undefined,
       quantity: parseInt(inventoryForm.quantity),
       min_quantity: isNaN(minQty) ? 0 : minQty,
+      watts: inventoryForm.watts ? (isNaN(watts) ? undefined : watts) : undefined,
       notes: inventoryForm.notes || undefined,
     });
     if (!error) {
@@ -498,6 +506,19 @@ export const CableManager = memo(function CableManager({
     return roots;
   }, [categories]);
 
+  // Фильтрация инвентаря по поисковому запросу
+  const filteredInventory = useMemo(() => {
+    if (!searchQuery.trim()) return inventory;
+    
+    const query = searchQuery.toLowerCase().trim();
+    return inventory.filter(item => {
+      const nameMatch = item.name?.toLowerCase().includes(query);
+      const notesMatch = item.notes?.toLowerCase().includes(query);
+      const categoryMatch = categories.find(c => c.id === item.category_id)?.name.toLowerCase().includes(query);
+      return nameMatch || notesMatch || categoryMatch;
+    });
+  }, [inventory, searchQuery, categories]);
+
   // Получение плоского списка для селекта (с отступами)
   const flatCategoriesForSelect = useMemo(() => {
     const result: { id: string; name: string; level: number }[] = [];
@@ -606,6 +627,30 @@ export const CableManager = memo(function CableManager({
 
         {/* Вкладка Склад */}
         <TabsContent value="warehouse" className="space-y-4">
+          {/* Поиск */}
+          {categories.length > 0 && (
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Поиск оборудования..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full px-4 py-2 pl-10 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <svg className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+          )}
+          
           {categories.length === 0 ? (
             <Card>
               <CardContent className="p-8 text-center text-gray-500">
@@ -627,7 +672,7 @@ export const CableManager = memo(function CableManager({
           ) : (
             <CategoryList 
               categories={categoryTree}
-              inventory={inventory}
+              inventory={filteredInventory}
               movements={movements}
               repairs={repairs}
               stats={stats}
@@ -1031,6 +1076,16 @@ export const CableManager = memo(function CableManager({
                 onChange={(e) => setInventoryForm({ ...inventoryForm, min_quantity: e.target.value })}
                 placeholder="При каком количестве предупреждать"
               />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Мощность (Вт)</label>
+              <Input
+                type="number"
+                value={inventoryForm.watts}
+                onChange={(e) => setInventoryForm({ ...inventoryForm, watts: e.target.value })}
+                placeholder="Например: 1500 (для расчёта нагрузки)"
+              />
+              <p className="text-xs text-gray-500 mt-1">Укажите мощность для расчёта общей нагрузки</p>
             </div>
             <div>
               <label className="text-sm font-medium">Комментарий</label>
@@ -1550,6 +1605,11 @@ function CategoryItem({
                       {repairQty > 0 && (
                         <span className="text-xs text-yellow-600 shrink-0" title="В ремонте">
                           🔧 {repairQty}
+                        </span>
+                      )}
+                      {item.watts && item.watts > 0 && (
+                        <span className="text-xs text-blue-600 shrink-0" title={`Мощность: ${item.watts} Вт`}>
+                          ⚡ {item.watts}Вт
                         </span>
                       )}
                       {isLow && (

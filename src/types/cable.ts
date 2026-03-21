@@ -23,6 +23,7 @@ export type CableInventory = {
   min_quantity: number;
   price?: number; // Цена аренды (для оборудования)
   unit?: string; // Единица измерения (шт, комплект, услуга)
+  watts?: number; // Мощность в ваттах (для расчёта нагрузки)
   notes?: string;
   created_at?: string;
   updated_at?: string;
