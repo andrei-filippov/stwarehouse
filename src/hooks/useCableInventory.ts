@@ -403,6 +403,88 @@ export function useCableInventory(companyId: string | undefined) {
     fetchRepairs();
   }, [fetchCategories, fetchInventory, fetchMovements, fetchRepairs]);
 
+  // Realtime подписки для обновления у всех пользователей
+  useEffect(() => {
+    if (!companyId) return;
+
+    // Подписка на изменения в cable_inventory (количество, QR-коды)
+    const inventoryChannel = supabase
+      .channel('cable_inventory_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'cable_inventory',
+          filter: `company_id=eq.${companyId}`,
+        },
+        () => {
+          fetchInventory();
+        }
+      )
+      .subscribe();
+
+    // Подписка на изменения в cable_movements (выдача/возврат)
+    const movementsChannel = supabase
+      .channel('cable_movements_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'cable_movements',
+          filter: `company_id=eq.${companyId}`,
+        },
+        () => {
+          fetchMovements();
+          fetchInventory(); // Обновляем остатки
+        }
+      )
+      .subscribe();
+
+    // Подписка на изменения в equipment_repairs
+    const repairsChannel = supabase
+      .channel('equipment_repairs_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'equipment_repairs',
+          filter: `company_id=eq.${companyId}`,
+        },
+        () => {
+          fetchRepairs();
+          fetchInventory();
+        }
+      )
+      .subscribe();
+
+    // Подписка на изменения в cable_categories
+    const categoriesChannel = supabase
+      .channel('cable_categories_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'cable_categories',
+          filter: `company_id=eq.${companyId}`,
+        },
+        () => {
+          fetchCategories();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      inventoryChannel.unsubscribe();
+      movementsChannel.unsubscribe();
+      repairsChannel.unsubscribe();
+      categoriesChannel.unsubscribe();
+    };
+  }, [companyId, fetchCategories, fetchInventory, fetchMovements, fetchRepairs]);
+
   // Рекурсивно получаем все ID категорий включая дочерние
   const getAllCategoryIds = useCallback((catId: string, cats: CableCategory[]): string[] => {
     const ids = [catId];
