@@ -19,12 +19,15 @@ import {
   ChevronDown,
   ChevronUp,
   Cable,
-  GripVertical
+  GripVertical,
+  CheckSquare,
+  X
 } from 'lucide-react';
 import type { CableCategory, CableInventory, CableMovement, EquipmentRepair } from '../types';
 import { REPAIR_STATUSES, getRepairStatusLabel, getRepairStatusColor } from '../types';
 import { CABLE_COLORS } from '../types/cable';
 import { Spinner } from './ui/spinner';
+import { TransferToInventoryDialog } from './TransferToInventoryDialog';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import {
@@ -83,6 +86,17 @@ interface CableManagerProps {
   onUpdateRepairStatus?: (repairId: string, status: EquipmentRepair['status'], returnedDate?: string) => Promise<{ error: any }>;
   onDeleteRepair?: (repairId: string) => Promise<{ error: any }>;
   fabAction?: number;
+  // Для переноса во вкладку "Оборудование"
+  onTransferToEquipment?: (items: { 
+    name: string; 
+    description: string; 
+    quantity: number; 
+    category: string;
+    price: number;
+    unit: string;
+  }[]) => Promise<{ error: any }>;
+  targetEquipmentCategories?: { id: string; name: string }[];
+  existingEquipment?: { name: string; category: string }[];
 }
 
 export const CableManager = memo(function CableManager({
@@ -106,8 +120,16 @@ export const CableManager = memo(function CableManager({
   onUpdateRepairStatus,
   onDeleteRepair,
   fabAction,
+  onTransferToEquipment,
+  targetEquipmentCategories,
+  existingEquipment,
 }: CableManagerProps) {
   const [activeTab, setActiveTab] = useState('warehouse');
+  
+  // Режим выбора оборудования для переноса во вкладку "Оборудование"
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedInventoryIds, setSelectedInventoryIds] = useState<Set<string>>(new Set());
+  const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
   
   // Выбранные позиции для массовой выдачи
   const [selectedItems, setSelectedItems] = useState<SelectedItem[]>([]);
@@ -167,6 +189,48 @@ export const CableManager = memo(function CableManager({
       return next;
     });
   };
+
+  // Функции для выбора оборудования
+  const selectInventory = (id: string, selected: boolean) => {
+    setSelectedInventoryIds(prev => {
+      const newSet = new Set(prev);
+      if (selected) {
+        newSet.add(id);
+      } else {
+        newSet.delete(id);
+      }
+      return newSet;
+    });
+  };
+
+  const selectAllInCategory = (categoryId: string, selected: boolean) => {
+    const items = inventory.filter(i => i.category_id === categoryId && i.name); // только оборудование с названием
+    setSelectedInventoryIds(prev => {
+      const newSet = new Set(prev);
+      items.forEach(item => {
+        if (selected) {
+          newSet.add(item.id);
+        } else {
+          newSet.delete(item.id);
+        }
+      });
+      return newSet;
+    });
+  };
+
+  const openTransferDialog = () => {
+    if (selectedInventoryIds.size === 0) {
+      toast.error('Выберите оборудование для переноса');
+      return;
+    }
+    setIsTransferDialogOpen(true);
+  };
+
+  // Получаем выбранное оборудование для переноса
+  const selectedInventory = useMemo(() => 
+    inventory.filter(item => selectedInventoryIds.has(item.id)),
+    [inventory, selectedInventoryIds]
+  );
 
   const handleAddCategory = async () => {
     const { error } = await onAddCategory({
@@ -468,18 +532,59 @@ export const CableManager = memo(function CableManager({
           <span className="hidden sm:inline">Учет оборудования</span>
           <span className="sm:hidden">Оборудование</span>
         </h1>
-        <Button 
-          onClick={() => {
-            setEditingCategory(null);
-            setCategoryForm({ name: '', description: '', color: '#3b82f6' });
-            setIsCategoryDialogOpen(true);
-          }}
-          size="sm"
-          className="sm:size-default"
-        >
-          <Plus className="w-4 h-4 mr-0 sm:mr-2" />
-          <span className="hidden sm:inline">Категория</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          {onTransferToEquipment && targetEquipmentCategories && (
+            selectionMode ? (
+              <>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => {
+                    setSelectionMode(false);
+                    setSelectedInventoryIds(new Set());
+                  }}
+                >
+                  <X className="w-4 h-4 mr-0 sm:mr-2" />
+                  <span className="hidden sm:inline">Отмена</span>
+                </Button>
+                <Button 
+                  onClick={openTransferDialog}
+                  disabled={selectedInventoryIds.size === 0}
+                  size="sm"
+                >
+                  <Package className="w-4 h-4 mr-0 sm:mr-2" />
+                  <span className="hidden sm:inline">В оборудование</span>
+                  {selectedInventoryIds.size > 0 && (
+                    <span className="ml-1 bg-white/20 px-1.5 py-0.5 rounded text-xs">
+                      {selectedInventoryIds.size}
+                    </span>
+                  )}
+                </Button>
+              </>
+            ) : (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setSelectionMode(true)}
+              >
+                <CheckSquare className="w-4 h-4 mr-0 sm:mr-2" />
+                <span className="hidden sm:inline">Выбрать</span>
+              </Button>
+            )
+          )}
+          <Button 
+            onClick={() => {
+              setEditingCategory(null);
+              setCategoryForm({ name: '', description: '', color: '#3b82f6' });
+              setIsCategoryDialogOpen(true);
+            }}
+            size="sm"
+            className="sm:size-default"
+          >
+            <Plus className="w-4 h-4 mr-0 sm:mr-2" />
+            <span className="hidden sm:inline">Категория</span>
+          </Button>
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -1031,6 +1136,42 @@ export const CableManager = memo(function CableManager({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Диалог переноса во вкладку "Оборудование" */}
+      {onTransferToEquipment && targetEquipmentCategories && (
+        <TransferToInventoryDialog
+          open={isTransferDialogOpen}
+          onOpenChange={(open) => {
+            setIsTransferDialogOpen(open);
+            if (!open) {
+              setSelectedInventoryIds(new Set());
+              setSelectionMode(false);
+            }
+          }}
+          equipment={selectedInventory.map(item => ({
+            id: item.id,
+            name: item.name || '',
+            category: categories.find(c => c.id === item.category_id)?.name || '',
+            description: item.notes || '',
+            quantity: item.quantity,
+            price: item.price || 0,
+            unit: item.unit || 'шт',
+            user_id: '',
+            created_at: item.created_at || '',
+            updated_at: item.updated_at || ''
+          }))}
+          targetCategories={targetEquipmentCategories}
+          existingInventory={existingEquipment?.map(e => ({ name: e.name, category_id: e.category })) || []}
+          onTransfer={async (items) => {
+            const result = await onTransferToEquipment(items);
+            if (!result.error) {
+              setSelectedInventoryIds(new Set());
+              setSelectionMode(false);
+            }
+            return result;
+          }}
+        />
+      )}
     </div>
   );
 });
@@ -1056,6 +1197,11 @@ interface SortableCategoryItemProps {
   categoryName?: string;
   level?: number;
   isSortable?: boolean;
+  // Для выбора оборудования
+  selectionMode?: boolean;
+  selectedInventoryIds?: Set<string>;
+  onSelectInventory?: (id: string, selected: boolean) => void;
+  onSelectAllInCategory?: (categoryId: string, selected: boolean) => void;
 }
 
 function SortableCategoryItem({
@@ -1078,6 +1224,10 @@ function SortableCategoryItem({
   categoryName = '',
   level = 0,
   isSortable = false,
+  selectionMode,
+  selectedInventoryIds,
+  onSelectInventory,
+  onSelectAllInCategory,
 }: SortableCategoryItemProps) {
   const {
     attributes,
@@ -1117,6 +1267,10 @@ function SortableCategoryItem({
         categoryName={categoryName}
         level={level}
         dragHandleProps={isSortable ? { ...attributes, ...listeners } : undefined}
+        selectionMode={selectionMode}
+        selectedInventoryIds={selectedInventoryIds}
+        onSelectInventory={onSelectInventory}
+        onSelectAllInCategory={onSelectAllInCategory}
       />
     </div>
   );
@@ -1143,6 +1297,11 @@ interface CategoryItemProps {
   categoryName?: string;
   level?: number;
   dragHandleProps?: any;
+  // Для выбора оборудования
+  selectionMode?: boolean;
+  selectedInventoryIds?: Set<string>;
+  onSelectInventory?: (id: string, selected: boolean) => void;
+  onSelectAllInCategory?: (categoryId: string, selected: boolean) => void;
 }
 
 function CategoryItem({
@@ -1165,6 +1324,10 @@ function CategoryItem({
   categoryName = '',
   level = 0,
   dragHandleProps,
+  selectionMode,
+  selectedInventoryIds,
+  onSelectInventory,
+  onSelectAllInCategory,
 }: CategoryItemProps) {
   const catInventory = inventory.filter(i => i.category_id === category.id).sort((a, b) => (a.length || 0) - (b.length || 0));
   const catStats = stats[category.id] || { totalLength: 0, totalQty: 0, issuedQty: 0, repairQty: 0 };
@@ -1215,6 +1378,18 @@ function CategoryItem({
               >
                 <GripVertical className="w-4 h-4 text-gray-500" />
               </button>
+            )}
+            {/* Чекбокс выбора всех в категории */}
+            {selectionMode && onSelectAllInCategory && (
+              <input
+                type="checkbox"
+                checked={catInventory.length > 0 && catInventory.every(i => selectedInventoryIds?.has(i.id))}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  onSelectAllInCategory(category.id, e.target.checked);
+                }}
+                className="w-4 h-4 rounded border-gray-300 shrink-0"
+              />
             )}
             <div 
               className="w-3 h-3 sm:w-4 sm:h-4 rounded-full shrink-0"
@@ -1315,16 +1490,26 @@ function CategoryItem({
                     key={item.id}
                     className={`flex flex-col sm:flex-row sm:items-center justify-between p-2 rounded gap-2 ${
                       isSelected ? 'bg-blue-50 border border-blue-200' : 
+                      selectionMode && selectedInventoryIds?.has(item.id) ? 'bg-green-50 border border-green-200' :
                       isLow ? 'bg-orange-50' : 'bg-gray-50'
                     }`}
                   >
                     <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
-                      <Checkbox
-                        checked={isSelected}
-                        onCheckedChange={() => actualQty > 0 && onToggleItem(item)}
-                        disabled={actualQty <= 0}
-                        className="shrink-0"
-                      />
+                      {selectionMode ? (
+                        <input
+                          type="checkbox"
+                          checked={selectedInventoryIds?.has(item.id) || false}
+                          onChange={(e) => onSelectInventory?.(item.id, e.target.checked)}
+                          className="w-4 h-4 rounded border-gray-300 shrink-0"
+                        />
+                      ) : (
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => actualQty > 0 && onToggleItem(item)}
+                          disabled={actualQty <= 0}
+                          className="shrink-0"
+                        />
+                      )}
                       {item.name ? (
                         <span className="font-medium truncate text-sm sm:text-base" title={item.name}>{item.name}</span>
                       ) : (
@@ -1439,6 +1624,10 @@ function CategoryItem({
               onSendToRepair={onSendToRepair}
               categoryName={category.name}
               level={level + 1}
+              selectionMode={selectionMode}
+              selectedInventoryIds={selectedInventoryIds}
+              onSelectInventory={onSelectInventory}
+              onSelectAllInCategory={onSelectAllInCategory}
             />
           ))}
         </div>
@@ -1544,6 +1733,10 @@ function CategoryList({
           categoryName={categoryName}
           level={level}
           isSortable={true}
+          selectionMode={selectionMode}
+          selectedInventoryIds={selectedInventoryIds}
+          onSelectInventory={selectInventory}
+          onSelectAllInCategory={selectAllInCategory}
         />
       );
     }
@@ -1569,6 +1762,10 @@ function CategoryList({
         onSendToRepair={onSendToRepair}
         categoryName={categoryName}
         level={level}
+        selectionMode={selectionMode}
+        selectedInventoryIds={selectedInventoryIds}
+        onSelectInventory={selectInventory}
+        onSelectAllInCategory={selectAllInCategory}
       />
     );
   };

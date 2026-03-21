@@ -280,17 +280,20 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
     setFabAction(prev => prev + 1);
   }, []);
 
-  // Перенос оборудования из "Учёт оборудования" во вкладку "Оборудование"
-  const handleTransferToInventory = useCallback(async (items: { 
+  // Перенос оборудования из "Учёт оборудования" (cable_inventory) во вкладку "Оборудование" (equipment)
+  const handleTransferToEquipment = useCallback(async (items: { 
     name: string; 
     description: string; 
     quantity: number; 
-    category_id: string;
+    category: string;
     price: number;
     unit: string;
   }[]) => {
     const results = await Promise.all(
-      items.map(item => upsertCableInventory(item))
+      items.map(item => addEquipment({
+        ...item,
+        user_id: user?.id
+      }))
     );
     
     const errors = results.filter(r => r.error);
@@ -301,7 +304,7 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
     
     toast.success(`Успешно перенесено ${items.length} позиций`);
     return { error: null };
-  }, [upsertCableInventory]);
+  }, [addEquipment, user?.id]);
 
   const savePdfSettings = (settings: PDFSettingsType) => {
     setPdfSettings(settings);
@@ -418,9 +421,6 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
                 onDeleteCategory={deleteCategory}
                 loading={equipmentLoading}
                 fabAction={fabAction}
-                onTransferToInventory={handleTransferToInventory}
-                targetInventoryCategories={cableCategories}
-                targetInventory={cableInventory.filter((i): i is typeof i & { name: string } => !!i.name)}
               />
             </LazyComponent>
           )}
@@ -548,6 +548,9 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
                 onUpdateRepairStatus={updateRepairStatus}
                 onDeleteRepair={deleteRepair}
                 fabAction={fabAction}
+                onTransferToEquipment={handleTransferToEquipment}
+                targetEquipmentCategories={categories}
+                existingEquipment={equipment}
               />
             </LazyComponent>
           )}
