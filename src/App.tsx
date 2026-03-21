@@ -252,7 +252,7 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
   const { tasks, loading: goalsLoading, addTask, updateTask, deleteTask } = useGoals(companyId);
   const { customers, loading: customersLoading, error: customersError, addCustomer, updateCustomer, deleteCustomer } = useCustomers(companyId);
   const { categories: cableCategories, inventory: cableInventory, movements: cableMovements, repairs: cableRepairs, stats: cableStats, loading: cableLoading, addCategory: addCableCategory, updateCategory: updateCableCategory, deleteCategory: deleteCableCategory, reorderCategories: reorderCableCategories,
-importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInventory, updateInventoryQty: updateCableInventoryQty, deleteInventory: deleteCableInventory, issueCable, returnCable, sendToRepair, updateRepairStatus, deleteRepair } = useCableInventory(companyId);
+importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInventory, updateInventoryQty: updateCableInventoryQty, deleteInventory: deleteCableInventory, issueCable, returnCable, sendToRepair, updateRepairStatus, deleteRepair, refresh: refreshCableInventory } = useCableInventory(companyId);
   const { expenses, loading: expensesLoading, addExpense, updateExpense, deleteExpense } = useExpenses(companyId);
   const { records: salaryRecords, addOrUpdateRecord: addOrUpdateSalary, deleteRecord: deleteSalary } = useSalary(companyId);
   const { contracts, templates: contractTemplates, loading: contractsLoading, createContract, updateContract, deleteContract, getNextContractNumber } = useContracts(companyId);
@@ -562,6 +562,7 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
                 onSendToRepair={sendToRepair}
                 onUpdateRepairStatus={updateRepairStatus}
                 onDeleteRepair={deleteRepair}
+                onRefresh={refreshCableInventory}
                 fabAction={fabAction}
                 onTransferToEquipment={handleTransferToEquipment}
                 targetEquipmentCategories={categories}

@@ -88,6 +88,7 @@ interface CableManagerProps {
   onSendToRepair?: (repair: Partial<EquipmentRepair>) => Promise<{ error: any }>;
   onUpdateRepairStatus?: (repairId: string, status: EquipmentRepair['status'], returnedDate?: string) => Promise<{ error: any }>;
   onDeleteRepair?: (repairId: string) => Promise<{ error: any }>;
+  onRefresh?: () => void; // Обновление данных после операций
   fabAction?: number;
   // Для переноса во вкладку "Оборудование"
   onTransferToEquipment?: (items: { 
@@ -122,6 +123,7 @@ export const CableManager = memo(function CableManager({
   onSendToRepair,
   onUpdateRepairStatus,
   onDeleteRepair,
+  onRefresh,
   fabAction,
   onTransferToEquipment,
   targetEquipmentCategories,
@@ -514,6 +516,8 @@ export const CableManager = memo(function CableManager({
       setIsBulkIssueDialogOpen(false);
       setSelectedItems([]);
       toast.success('Успешно выдано');
+      // Обновляем данные в реальном времени
+      onRefresh?.();
     }
   };
 
@@ -1024,7 +1028,12 @@ export const CableManager = memo(function CableManager({
                         <div className="flex items-start sm:items-center gap-2 sm:gap-3">
                           <Checkbox
                             checked={false}
-                            onCheckedChange={() => onReturnCable(movement.id)}
+                            onCheckedChange={async () => {
+                              const { error } = await onReturnCable(movement.id);
+                              if (!error) {
+                                onRefresh?.();
+                              }
+                            }}
                             className="w-4 h-4 sm:w-5 sm:h-5 mt-0.5 sm:mt-0 shrink-0"
                           />
                           <div className="min-w-0">
