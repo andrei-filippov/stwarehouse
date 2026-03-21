@@ -290,6 +290,20 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
     price: number;
     unit: string;
   }[]) => {
+    // Получаем уникальные категории из переносимого оборудования
+    const uniqueCategories = [...new Set(items.map(item => item.category))];
+    
+    // Создаем категории, которых еще нет
+    const existingCategoryNames = new Set(categories.map((c: any) => c.name));
+    const categoriesToCreate = uniqueCategories.filter(cat => !existingCategoryNames.has(cat));
+    
+    if (categoriesToCreate.length > 0) {
+      await Promise.all(
+        categoriesToCreate.map(catName => addCategory(catName))
+      );
+    }
+    
+    // Переносим оборудование
     const results = await Promise.all(
       items.map(item => addEquipment({
         ...item,
@@ -305,7 +319,7 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
     
     toast.success(`Успешно перенесено ${items.length} позиций`);
     return { error: null };
-  }, [addEquipment, user?.id]);
+  }, [addEquipment, addCategory, categories, user?.id]);
 
   const savePdfSettings = (settings: PDFSettingsType) => {
     setPdfSettings(settings);
