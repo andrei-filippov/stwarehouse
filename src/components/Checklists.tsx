@@ -21,7 +21,11 @@ import {
   Square,
   ListPlus,
   Edit,
-  QrCode
+  QrCode,
+  Truck,
+  RotateCcw,
+  ToggleLeft,
+  ToggleRight
 } from 'lucide-react';
 import type { Checklist, ChecklistRule, ChecklistItem, Estimate } from '../types';
 
@@ -682,8 +686,11 @@ function ChecklistView({
   checklist: Checklist; 
   onUpdateItem: (checklistId: string, itemId: string, updates: Partial<ChecklistItem>) => Promise<{ error: any }>;
 }) {
+  // Режим проверки: 'simple' - один чекбокс, 'double' - погрузка + разгрузка
+  const [checkMode, setCheckMode] = useState<'simple' | 'double'>('simple');
+  
   // Оптимистичные обновления для мгновенного отклика UI
-  const [optimisticUpdates, setOptimisticUpdates] = useState<Record<string, boolean>>({});
+  const [optimisticUpdates, setOptimisticUpdates] = useState<Record<string, { is_checked?: boolean; loaded?: boolean; unloaded?: boolean }>>({});
   
   // QR-сканирование
   const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
@@ -703,11 +710,25 @@ function ChecklistView({
     console.log('[ChecklistView] Items with QR:', itemsWithQr.map(i => ({ name: i.name, qr: i.qr_code })));
   }, [checklist.id]);
 
+  // Получаем статус item (с учетом режима)
+  const getItemStatus = (item: ChecklistItem) => {
+    const optimistic = item.id ? optimisticUpdates[item.id] : undefined;
+    return {
+      isChecked: optimistic?.is_checked ?? item.is_checked,
+      loaded: optimistic?.loaded ?? (item as any).loaded ?? false,
+      unloaded: optimistic?.unloaded ?? (item as any).unloaded ?? false
+    };
+  };
+
   // Проверяем состояние чекбокса (оптимистичное или из пропсов)
   const isChecked = useCallback((item: ChecklistItem): boolean => {
-    if (!item.id) return item.is_checked;
-    return optimisticUpdates[item.id] ?? item.is_checked;
-  }, [optimisticUpdates]);
+    const status = getItemStatus(item);
+    if (checkMode === 'double') {
+      // В двойном режиме считаем отмеченным только если разгружено
+      return status.unloaded;
+    }
+    return status.isChecked;
+  }, [checkMode, optimisticUpdates]);
 
   const handleToggle = useCallback(async (item: ChecklistItem) => {
     if (!item.id) {
@@ -715,13 +736,31 @@ function ChecklistView({
       return;
     }
     
-    const newValue = !isChecked(item);
-    // Оптимистично обновляем UI
-    setOptimisticUpdates(prev => ({ ...prev, [item.id]: newValue }));
-    
-    // Отправляем на сервер
-    onUpdateItem(checklist.id, item.id, { is_checked: newValue });
-  }, [checklist.id, onUpdateItem, isChecked]);
+    if (checkMode === 'double') {
+      // Двойной режим: циклически переключаем unloaded -> loaded -> none
+      const status = getItemStatus(item);
+      let updates: any = {};
+      
+      if (!status.loaded && !status.unloaded) {
+        // Первый клик - погрузка
+        updates = { loaded: true, unloaded: false };
+      } else if (status.loaded && !status.unloaded) {
+        // Второй клик - разгрузка
+        updates = { loaded: true, unloaded: true };
+      } else {
+        // Третий клик - сброс
+        updates = { loaded: false, unloaded: false };
+      }
+      
+      setOptimisticUpdates(prev => ({ ...prev, [item.id]: updates }));
+      onUpdateItem(checklist.id, item.id, updates);
+    } else {
+      // Простой режим - стандартный чекбокс
+      const newValue = !isChecked(item);
+      setOptimisticUpdates(prev => ({ ...prev, [item.id]: { is_checked: newValue } }));
+      onUpdateItem(checklist.id, item.id, { is_checked: newValue });
+    }
+  }, [checklist.id, onUpdateItem, isChecked, checkMode]);
 
   // Обработка QR-сканирования - ищем в актуальном чек-листе
   const handleQRScan = useCallback(async (qrCode: string) => {
@@ -746,15 +785,28 @@ function ChecklistView({
     const alreadyChecked = optimisticUpdates[item.id] ?? item.is_checked;
     
     if (scanMode === 'load') {
-      if (alreadyChecked) {
-        toast.info('Уже отмечено', { description: item.name });
+      if (checkMode === 'double') {
+        // В двойном режиме отмечаем погрузку
+        const status = getItemStatus(item);
+        if (status.loaded) {
+          toast.info('Уже погружено', { description: item.name });
+        } else {
+          setOptimisticUpdates(prev => ({ ...prev, [item.id]: { loaded: true } }));
+          onUpdateItem(checklist.id, item.id, { loaded: true });
+          toast.success('Погружено', { description: item.name });
+        }
       } else {
-        setOptimisticUpdates(prev => ({ ...prev, [item.id]: true }));
-        onUpdateItem(checklist.id, item.id, { is_checked: true });
-        toast.success('Отмечено', { description: item.name });
+        // Простой режим
+        if (alreadyChecked) {
+          toast.info('Уже отмечено', { description: item.name });
+        } else {
+          setOptimisticUpdates(prev => ({ ...prev, [item.id]: { is_checked: true } }));
+          onUpdateItem(checklist.id, item.id, { is_checked: true });
+          toast.success('Отмечено', { description: item.name });
+        }
       }
     }
-  }, [checklist.id, checklist.items, onUpdateItem, scanMode, optimisticUpdates]);
+  }, [checklist.id, checklist.items, onUpdateItem, scanMode, optimisticUpdates, checkMode]);
 
   // Сохранение QR-кода
   const handleSaveQrCode = useCallback(async () => {
@@ -827,41 +879,100 @@ function ChecklistView({
         </div>
       )}
 
-      {/* Кнопки QR-сканирования */}
-      <div className="flex gap-2 flex-wrap">
-        <Button
-          variant={progress < total ? 'default' : 'outline'}
-          onClick={() => {
-            setScanMode('load');
-            setIsQRScannerOpen(true);
-          }}
-          disabled={progress === total}
-          className="flex-1 sm:flex-none"
-        >
-          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-          </svg>
-          Сканировать QR
-          {progress < total && <span className="ml-1">({total - progress})</span>}
-        </Button>
-        
-        {progress > 0 && (
+      {/* Переключатель режима и кнопки */}
+      <div className="flex flex-col gap-3">
+        {/* Переключатель режима */}
+        <div className="flex items-center justify-between bg-gray-50 p-3 rounded">
+          <span className="text-sm text-gray-600">Режим проверки:</span>
           <Button
-            variant="outline"
-            onClick={async () => {
-              // Сброс всех отметок
-              for (const item of checklist.items || []) {
-                if (item.id && isChecked(item)) {
-                  await onUpdateItem(checklist.id, item.id, { is_checked: false });
-                }
-              }
-              setOptimisticUpdates({});
-              toast.success('Все отметки сброшены');
-            }}
+            variant="ghost"
+            size="sm"
+            onClick={() => setCheckMode(checkMode === 'simple' ? 'double' : 'simple')}
+            className="flex items-center gap-2"
           >
-            Сбросить
+            {checkMode === 'simple' ? (
+              <>
+                <ToggleLeft className="w-5 h-5 text-gray-400" />
+                <span>Простой</span>
+              </>
+            ) : (
+              <>
+                <ToggleRight className="w-5 h-5 text-blue-500" />
+                <span>Двойной (погрузка+разгрузка)</span>
+              </>
+            )}
           </Button>
+        </div>
+
+        {/* Прогресс для двойного режима */}
+        {checkMode === 'double' && (
+          <div className="grid grid-cols-2 gap-2">
+            <div className="bg-blue-50 p-2 rounded text-center">
+              <div className="text-xs text-gray-500 mb-1">Погружено</div>
+              <div className="font-semibold text-blue-600">
+                {checklist.items?.filter(i => getItemStatus(i).loaded).length || 0} / {total}
+              </div>
+            </div>
+            <div className="bg-green-50 p-2 rounded text-center">
+              <div className="text-xs text-gray-500 mb-1">Разгружено</div>
+              <div className="font-semibold text-green-600">
+                {checklist.items?.filter(i => getItemStatus(i).unloaded).length || 0} / {total}
+              </div>
+            </div>
+          </div>
         )}
+
+        {/* Кнопки QR-сканирования */}
+        <div className="flex gap-2 flex-wrap">
+          <Button
+            variant={progress < total ? 'default' : 'outline'}
+            onClick={() => {
+              setScanMode('load');
+              setIsQRScannerOpen(true);
+            }}
+            disabled={checkMode === 'simple' && progress === total}
+            className="flex-1 sm:flex-none"
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+            </svg>
+            {checkMode === 'double' ? 'Сканировать погрузку' : 'Сканировать QR'}
+            {progress < total && checkMode === 'simple' && <span className="ml-1">({total - progress})</span>}
+          </Button>
+          
+          {checkMode === 'double' && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                setScanMode('unload');
+                setIsQRScannerOpen(true);
+              }}
+            >
+              <RotateCcw className="w-4 h-4 mr-2" />
+              Сканировать разгрузку
+            </Button>
+          )}
+          
+          {progress > 0 && (
+            <Button
+              variant="outline"
+              onClick={async () => {
+                // Сброс всех отметок
+                for (const item of checklist.items || []) {
+                  if (item.id && isChecked(item)) {
+                    await onUpdateItem(checklist.id, item.id, checkMode === 'double' 
+                      ? { loaded: false, unloaded: false } 
+                      : { is_checked: false });
+                  }
+                }
+                setOptimisticUpdates({});
+                toast.success('Все отметки сброшены');
+              }}
+            >
+              Сбросить
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="space-y-4">
@@ -872,8 +983,57 @@ function ChecklistView({
             </h4>
             <div className="space-y-1">
               {grouped[category].map((item) => {
+                const status = getItemStatus(item);
                 const checked = isChecked(item);
                 const itemKey = item.id || `${item.name}-${item.category}`;
+                
+                if (checkMode === 'double') {
+                  // Двойной режим - показываем два статуса
+                  return (
+                    <div 
+                      key={itemKey}
+                      className={`flex items-center gap-3 p-2 rounded cursor-pointer transition-colors ${
+                        status.unloaded ? 'bg-green-50' : status.loaded ? 'bg-blue-50' : 'bg-gray-50'
+                      }`}
+                      onClick={() => handleToggle(item)}
+                    >
+                      {/* Иконки погрузки/разгрузки */}
+                      <div className="flex flex-col gap-1">
+                        <div className={`w-3 h-3 rounded-full border-2 ${status.loaded ? 'bg-blue-500 border-blue-500' : 'border-gray-300'}`} title="Погрузка" />
+                        <div className={`w-3 h-3 rounded-full border-2 ${status.unloaded ? 'bg-green-500 border-green-500' : 'border-gray-300'}`} title="Разгрузка" />
+                      </div>
+                      
+                      <span className={`flex-1 ${status.unloaded ? 'line-through text-gray-500' : ''}`}>
+                        {item.name}
+                        <span className="text-gray-500 ml-2">× {item.quantity}</span>
+                        {item.is_required && <span className="text-red-500 ml-1">*</span>}
+                        {item.qr_code && <span className="text-xs text-blue-500 ml-2">📱 {item.qr_code}</span>}
+                        <span className="text-xs ml-2">
+                          {status.unloaded ? '(разгружено)' : status.loaded ? '(погружено)' : ''}
+                        </span>
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 ml-2"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingItemId(item.id || null);
+                          setEditingQrCode(item.qr_code || '');
+                        }}
+                        title={item.qr_code ? 'Изменить QR-код' : 'Добавить QR-код'}
+                      >
+                        {item.qr_code ? (
+                          <Edit className="w-3 h-3 text-gray-400" />
+                        ) : (
+                          <QrCode className="w-3 h-3 text-gray-300" />
+                        )}
+                      </Button>
+                    </div>
+                  );
+                }
+                
+                // Простой режим
                 return (
                   <div 
                     key={itemKey}
