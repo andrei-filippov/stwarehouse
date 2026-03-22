@@ -713,36 +713,35 @@ function ChecklistView({
   }, [checklist.id]);
 
   // Синхронизация с realtime обновлениями от других пользователей
-  useEffect(() => {
-    // Проверяем, изменились ли данные на сервере по сравнению с нашими optimistic updates
-    setOptimisticUpdates(prev => {
-      const newOptimistic = { ...prev };
-      let hasChanges = false;
-      
-      checklist.items?.forEach(item => {
-        if (!item.id) return;
-        
-        const optimistic = prev[item.id];
-        if (!optimistic) return;
-        
-        // Если данные на сервере совпадают с optimistic - убираем optimistic
-        const serverLoaded = (item as any).loaded ?? false;
-        const serverUnloaded = (item as any).unloaded ?? false;
-        const serverChecked = item.is_checked;
-        
-        if (
-          (optimistic.loaded !== undefined && optimistic.loaded === serverLoaded) &&
-          (optimistic.unloaded !== undefined && optimistic.unloaded === serverUnloaded) &&
-          (optimistic.is_checked !== undefined && optimistic.is_checked === serverChecked)
-        ) {
-          delete newOptimistic[item.id];
-          hasChanges = true;
-        }
-      });
-      
-      return hasChanges ? newOptimistic : prev;
-    });
-  }, [checklist.items]);
+  // ОТКЛЮЧЕНО: вызывает проблемы с обновлением UI после сканирования
+  // useEffect(() => {
+  //   setOptimisticUpdates(prev => {
+  //     const newOptimistic = { ...prev };
+  //     let hasChanges = false;
+  //     
+  //     checklist.items?.forEach(item => {
+  //       if (!item.id) return;
+  //       
+  //       const optimistic = prev[item.id];
+  //       if (!optimistic) return;
+  //       
+  //       const serverLoaded = (item as any).loaded ?? false;
+  //       const serverUnloaded = (item as any).unloaded ?? false;
+  //       const serverChecked = item.is_checked;
+  //       
+  //       if (
+  //         (optimistic.loaded !== undefined && optimistic.loaded === serverLoaded) &&
+  //         (optimistic.unloaded !== undefined && optimistic.unloaded === serverUnloaded) &&
+  //         (optimistic.is_checked !== undefined && optimistic.is_checked === serverChecked)
+  //       ) {
+  //         delete newOptimistic[item.id];
+  //         hasChanges = true;
+  //       }
+  //     });
+  //     
+  //     return hasChanges ? newOptimistic : prev;
+  //   });
+  // }, [checklist.items]);
 
   // Получаем статус item (с учетом режима)
   const getItemStatus = (item: ChecklistItem) => {
@@ -913,12 +912,27 @@ function ChecklistView({
         console.log(`[Kit Scan] Checking: ${item.name}, kit_id_match=${matchByKitId}, name_match=${matchByName}`);
         
         if ((matchByKitId || matchByName) && !getItemStatus(item).loaded) {
-          console.log(`[Kit Scan] Marking as loaded: ${item.name}`);
-          await onUpdateItem(checklist.id, item.id!, { loaded: true });
+          console.log(`[Kit Scan] Marking as loaded: ${item.name}, item.id=${item.id}`);
+          // Сначала optimistic update для мгновенного отклика UI
           setOptimisticUpdates(prev => ({ ...prev, [item.id!]: { loaded: true } }));
-          updatedCount++;
+          // Потом отправка на сервер
+          const result = await onUpdateItem(checklist.id, item.id!, { loaded: true });
+          console.log(`[Kit Scan] Update result for ${item.name}:`, result);
+          if (result.error) {
+            console.error(`[Kit Scan] Failed to update ${item.name}:`, result.error);
+            // Откатываем optimistic update при ошибке
+            setOptimisticUpdates(prev => {
+              const next = { ...prev };
+              delete next[item.id!];
+              return next;
+            });
+          } else {
+            updatedCount++;
+          }
         }
       }
+      
+      console.log(`[Kit Scan] Total updated: ${updatedCount}`);
       
       if (updatedCount > 0) {
         toast.success(`Комплект "${kitData.name}" отмечен`, { description: `Отмечено ${updatedCount} позиций` });
