@@ -136,6 +136,19 @@ export const CableManager = memo(function CableManager({
 }: CableManagerProps) {
   const [activeTab, setActiveTab] = useState('warehouse');
   
+  // Подвкладки склада: оборудование (с name) vs коммутация (без name)
+  const [warehouseSubTab, setWarehouseSubTab] = useState<'equipment' | 'cabling'>('equipment');
+  
+  // Фильтрация инвентаря
+  const equipmentItems = useMemo(() => 
+    inventory.filter(item => item.name && item.name.trim()), 
+    [inventory]
+  );
+  const cablingItems = useMemo(() => 
+    inventory.filter(item => !item.name || !item.name.trim()), 
+    [inventory]
+  );
+  
   // Режим выбора оборудования для переноса во вкладку "Оборудование"
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedInventoryIds, setSelectedInventoryIds] = useState<Set<string>>(new Set());
@@ -801,16 +814,22 @@ export const CableManager = memo(function CableManager({
 
   // Фильтрация инвентаря по поисковому запросу
   const filteredInventory = useMemo(() => {
-    if (!searchQuery.trim()) return inventory;
+    // Сначала фильтруем по подвкладке (оборудование vs коммутация)
+    const baseItems = warehouseSubTab === 'equipment' 
+      ? equipmentItems 
+      : cablingItems;
+    
+    // Затем применяем поиск если есть
+    if (!searchQuery.trim()) return baseItems;
     
     const query = searchQuery.toLowerCase().trim();
-    return inventory.filter(item => {
+    return baseItems.filter(item => {
       const nameMatch = item.name?.toLowerCase().includes(query);
       const notesMatch = item.notes?.toLowerCase().includes(query);
       const categoryMatch = categories.find(c => c.id === item.category_id)?.name.toLowerCase().includes(query);
       return nameMatch || notesMatch || categoryMatch;
     });
-  }, [inventory, searchQuery, categories]);
+  }, [inventory, searchQuery, categories, warehouseSubTab, equipmentItems, cablingItems]);
 
   // Получение плоского списка для селекта (с отступами)
   const flatCategoriesForSelect = useMemo(() => {
@@ -1017,12 +1036,38 @@ export const CableManager = memo(function CableManager({
 
         {/* Вкладка Склад */}
         <TabsContent value="warehouse" className="space-y-4">
+          {/* Подвкладки: Оборудование vs Коммутация */}
+          <div className="flex gap-2 p-1 bg-gray-100 rounded-lg">
+            <button
+              onClick={() => setWarehouseSubTab('equipment')}
+              className={`flex-1 py-1.5 px-3 rounded-md text-sm font-medium transition-all ${
+                warehouseSubTab === 'equipment' 
+                  ? 'bg-white text-blue-600 shadow-sm' 
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Оборудование
+              <span className="ml-1.5 text-xs opacity-70">({equipmentItems.length})</span>
+            </button>
+            <button
+              onClick={() => setWarehouseSubTab('cabling')}
+              className={`flex-1 py-1.5 px-3 rounded-md text-sm font-medium transition-all ${
+                warehouseSubTab === 'cabling' 
+                  ? 'bg-white text-blue-600 shadow-sm' 
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Коммутация
+              <span className="ml-1.5 text-xs opacity-70">({cablingItems.length})</span>
+            </button>
+          </div>
+
           {/* Поиск */}
           {categories.length > 0 && (
             <div className="relative">
               <input
                 type="text"
-                placeholder="Поиск оборудования..."
+                placeholder={warehouseSubTab === 'equipment' ? "Поиск оборудования..." : "Поиск кабелей..."}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full px-4 py-2 pl-10 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -1557,7 +1602,7 @@ export const CableManager = memo(function CableManager({
       <Dialog open={isBulkIssueDialogOpen} onOpenChange={setIsBulkIssueDialogOpen}>
         <DialogContent className="max-w-lg w-[95%] rounded-xl p-4 sm:p-6 max-h-[90vh] overflow-y-auto" aria-describedby="bulk-issue-dialog-desc">
           <DialogHeader>
-            <DialogTitle>Выдать кабель</DialogTitle>
+            <DialogTitle>Выдать оборудование</DialogTitle>
             <DialogDescription id="bulk-issue-dialog-desc">
               Выбрано позиций: {bulkIssueForm.items.length}
             </DialogDescription>
@@ -1586,34 +1631,38 @@ export const CableManager = memo(function CableManager({
               {bulkIssueForm.items.map((item) => {
                 const category = categories.find(c => c.id === item.category_id);
                 return (
-                  <div key={item.inventory_id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                    <div className="flex items-center gap-2">
+                  <div key={item.inventory_id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-start gap-2 min-w-0 flex-1">
                       <div 
-                        className="w-3 h-3 rounded-full" 
+                        className="w-3 h-3 rounded-full mt-1 shrink-0" 
                         style={{ backgroundColor: category?.color || '#ccc' }} 
                       />
-                      <span className="text-sm">{category?.name}</span>
-                      <span className="text-sm text-gray-500">{item.length} м</span>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-sm font-medium truncate">{item.name || 'Без названия'}</span>
+                        <span className="text-xs text-gray-500">
+                          {category?.name} {item.length > 0 && `• ${item.length} м`}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 shrink-0 ml-2">
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-7 w-7 p-0"
+                        className="h-8 w-8 p-0"
                         onClick={() => updateBulkItemQuantity(item.inventory_id, item.quantity - 1)}
                       >
                         -
                       </Button>
-                      <span className="text-sm w-8 text-center">{item.quantity}</span>
+                      <span className="text-sm w-6 text-center font-medium">{item.quantity}</span>
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-7 w-7 p-0"
+                        className="h-8 w-8 p-0"
                         onClick={() => updateBulkItemQuantity(item.inventory_id, item.quantity + 1)}
                       >
                         +
                       </Button>
-                      <span className="text-xs text-gray-400 ml-1">/ {item.available}</span>
+                      <span className="text-xs text-gray-400 ml-1 w-6 text-right">/ {item.available}</span>
                     </div>
                   </div>
                 );
