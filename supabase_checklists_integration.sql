@@ -20,6 +20,7 @@ ALTER TABLE checklist_items ADD COLUMN IF NOT EXISTS unloaded BOOLEAN DEFAULT FA
 ALTER TABLE checklist_items ADD COLUMN IF NOT EXISTS unloaded_at TIMESTAMPTZ; -- Когда разгружено
 ALTER TABLE checklist_items ADD COLUMN IF NOT EXISTS unloaded_by TEXT; -- Кто разгрузил
 ALTER TABLE checklist_items ADD COLUMN IF NOT EXISTS kit_id UUID; -- ID комплекта/кофра (если в кофре)
+ALTER TABLE checklist_items ADD COLUMN IF NOT EXISTS kit_name TEXT; -- Название комплекта для отображения
 
 -- Таблица комплектов/кофров (Kit/Case)
 CREATE TABLE IF NOT EXISTS equipment_kits (

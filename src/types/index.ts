@@ -148,6 +148,11 @@ export type ChecklistItem = {
   source_rule_id?: string; // откуда пришло (из какого правила)
   notes?: string;
   qr_code?: string; // QR-код для сканирования
+  // Поля для двойной проверки и комплектов
+  loaded?: boolean;
+  unloaded?: boolean;
+  kit_id?: string; // ID комплекта/кофра
+  kit_name?: string; // Название комплекта
 };
 
 // Заказчик

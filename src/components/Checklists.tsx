@@ -860,6 +860,8 @@ function ChecklistView({
   // Обработка сканирования комплекта (кита)
   const handleKitScan = useCallback(async (qrCode: string) => {
     try {
+      console.log('[Kit Scan] Scanning QR:', qrCode);
+      
       // Ищем кит по QR-коду
       const { data: kitData, error: kitError } = await supabase
         .from('equipment_kits')
@@ -868,14 +870,24 @@ function ChecklistView({
         .single();
       
       if (kitError || !kitData) {
+        console.log('[Kit Scan] Kit not found for QR:', qrCode);
         toast.error('Комплект не найден', { description: `QR-код ${qrCode} не найден` });
         return;
       }
       
+      console.log('[Kit Scan] Found kit:', kitData.id, kitData.name);
+      console.log('[Kit Scan] Checklist items with kit_id:', checklist.items?.map(i => ({ name: i.name, kit_id: i.kit_id })));
+      
       // Отмечаем все items этого кита как погруженные
       let updatedCount = 0;
+      const kitIdStr = String(kitData.id);
+      
       for (const item of checklist.items || []) {
-        if (item.kit_id === kitData.id && !getItemStatus(item).loaded) {
+        const itemKitId = item.kit_id ? String(item.kit_id) : null;
+        console.log(`[Kit Scan] Checking: ${item.name}, item.kit_id=${itemKitId}, kitData.id=${kitIdStr}, match=${itemKitId === kitIdStr}`);
+        
+        if (itemKitId === kitIdStr && !getItemStatus(item).loaded) {
+          console.log(`[Kit Scan] Marking as loaded: ${item.name}`);
           await onUpdateItem(checklist.id, item.id!, { loaded: true });
           setOptimisticUpdates(prev => ({ ...prev, [item.id!]: { loaded: true } }));
           updatedCount++;
@@ -885,12 +897,13 @@ function ChecklistView({
       if (updatedCount > 0) {
         toast.success(`Комплект "${kitData.name}" отмечен`, { description: `Отмечено ${updatedCount} позиций` });
       } else {
-        toast.info(`Комплект "${kitData.name}" уже отмечен`);
+        toast.info(`Комплект "${kitData.name}" уже отмечен или оборудование не найдено в чек-листе`);
       }
     } catch (err: any) {
+      console.error('[Kit Scan] Error:', err);
       toast.error('Ошибка сканирования комплекта', { description: err.message });
     }
-  }, [checklist.id, checklist.items, onUpdateItem]);
+  }, [checklist.id, checklist.items, onUpdateItem, getItemStatus]);
 
   // Сохранение QR-кода
   const handleSaveQrCode = useCallback(async () => {
