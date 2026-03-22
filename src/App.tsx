@@ -23,7 +23,7 @@ const FinanceManager = lazy(() => import('./components/FinanceManager'));
 const CustomersManager = lazy(() => import('./components/CustomersManager'));
 const ContractManager = lazy(() => import('./components/ContractManager'));
 const AdminPanel = lazy(() => import('./components/AdminPanel'));
-const EquipmentKits = lazy(() => import('./components/EquipmentKits'));
+const EquipmentKits = lazy(() => import('./components/EquipmentKits').then(m => ({ default: m.EquipmentKits })));
 
 import { AccessDenied } from './components/AccessDenied';
 import { BottomNav } from './components/BottomNav';
