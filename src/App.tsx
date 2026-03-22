@@ -231,7 +231,7 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
   const { estimates, loading: estimatesLoading, createEstimate, updateEstimate, deleteEstimate, updateEstimateStatus, startEditing, stopEditing, refresh: refreshEstimates } = useEstimates(companyId);
   const { templates, loading: templatesLoading, createTemplate, updateTemplate, deleteTemplate } = useTemplates(companyId);
   const { checklists, rules, loading: checklistsLoading, createRule, deleteRule, createChecklist, updateChecklistItem, deleteChecklist, refresh: refreshChecklists } = useChecklists(companyId, estimates);
-  const { checklists: checklistsV2, kits, createChecklistFromEstimate, createKit, deleteKit } = useChecklistsV2(companyId);
+  const { checklists: checklistsV2, kits, createChecklistFromEstimate, createKit, updateKit, deleteKit } = useChecklistsV2(companyId);
   
   // Offline sync - автоматическая синхронизация при возврате онлайн
   const { syncing: isSyncing, syncData: syncNow } = useOfflineSync(companyId);
@@ -524,6 +524,7 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
                 inventory={cableInventory}
                 categories={cableCategories}
                 onCreateKit={createKit}
+                onUpdateKit={updateKit}
                 onDeleteKit={deleteKit}
                 companyId={companyId}
               />

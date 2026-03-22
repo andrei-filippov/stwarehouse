@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { QRCodeDisplay } from './QRCodeDisplay';
 import { toast } from 'sonner';
-import { Package, Plus, Trash2, QrCode, Edit2 } from 'lucide-react';
+import { Package, Plus, Trash2, QrCode, Edit2, Download, Printer } from 'lucide-react';
 import type { EquipmentKit, CableInventory, CableCategory } from '../types';
 
 interface EquipmentKitsProps {
@@ -13,12 +13,15 @@ interface EquipmentKitsProps {
   inventory: CableInventory[];
   categories: CableCategory[];
   onCreateKit: (kit: Partial<EquipmentKit>, itemIds: string[]) => Promise<{ error: any }>;
+  onUpdateKit: (id: string, kit: Partial<EquipmentKit>, itemIds?: string[]) => Promise<{ error: any }>;
   onDeleteKit: (id: string) => Promise<{ error: any }>;
   companyId?: string;
 }
 
-export function EquipmentKits({ kits, inventory, categories, onCreateKit, onDeleteKit, companyId }: EquipmentKitsProps) {
+export function EquipmentKits({ kits, inventory, categories, onCreateKit, onUpdateKit, onDeleteKit, companyId }: EquipmentKitsProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingKitId, setEditingKitId] = useState<string | null>(null);
   const [kitName, setKitName] = useState('');
   const [kitDescription, setKitDescription] = useState('');
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
@@ -41,11 +44,137 @@ export function EquipmentKits({ kits, inventory, categories, onCreateKit, onDele
 
     if (!result.error) {
       toast.success('Комплект создан');
-      setIsDialogOpen(false);
-      setKitName('');
-      setKitDescription('');
-      setSelectedItems(new Set());
+      closeDialog();
     }
+  };
+
+  const handleUpdate = async () => {
+    if (!editingKitId) return;
+    if (!kitName.trim()) {
+      toast.error('Введите название комплекта');
+      return;
+    }
+
+    const result = await onUpdateKit(
+      editingKitId,
+      { name: kitName, description: kitDescription },
+      Array.from(selectedItems)
+    );
+
+    if (!result.error) {
+      toast.success('Комплект обновлен');
+      closeDialog();
+    }
+  };
+
+  const openEditDialog = (kit: EquipmentKit) => {
+    setIsEditMode(true);
+    setEditingKitId(kit.id);
+    setKitName(kit.name);
+    setKitDescription(kit.description || '');
+    // Устанавливаем выбранные items из kit.items
+    const kitItemIds = new Set(kit.items?.map(i => i.inventory_id) || []);
+    setSelectedItems(kitItemIds);
+    setIsDialogOpen(true);
+  };
+
+  const openCreateDialog = () => {
+    setIsEditMode(false);
+    setEditingKitId(null);
+    setKitName('');
+    setKitDescription('');
+    setSelectedItems(new Set());
+    setIsDialogOpen(true);
+  };
+
+  const closeDialog = () => {
+    setIsDialogOpen(false);
+    setIsEditMode(false);
+    setEditingKitId(null);
+    setKitName('');
+    setKitDescription('');
+    setSelectedItems(new Set());
+  };
+
+  // Скачивание QR-кода
+  const downloadQR = (kit: EquipmentKit) => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    canvas.width = 400;
+    canvas.height = 500;
+
+    // Белый фон
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Рисуем QR-код (используем существующий компонент для генерации)
+    const qrCanvas = document.querySelector(`[data-kit-qr="${kit.id}""] canvas`) as HTMLCanvasElement;
+    if (qrCanvas) {
+      ctx.drawImage(qrCanvas, 50, 50, 300, 300);
+    }
+
+    // Добавляем текст
+    ctx.fillStyle = 'black';
+    ctx.font = 'bold 20px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(kit.name, 200, 380);
+    
+    if (kit.qr_code) {
+      ctx.font = '16px monospace';
+      ctx.fillText(kit.qr_code, 200, 410);
+    }
+
+    // Скачиваем
+    const link = document.createElement('a');
+    link.download = `qr-${kit.name.replace(/\s+/g, '-').toLowerCase()}.png`;
+    link.href = canvas.toDataURL();
+    link.click();
+  };
+
+  // Печать QR-кода
+  const printQR = (kit: EquipmentKit) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>QR-код ${kit.name}</title>
+        <style>
+          body { 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            min-height: 100vh; 
+            margin: 0;
+            font-family: Arial, sans-serif;
+          }
+          .qr-container { text-align: center; }
+          .kit-name { font-size: 24px; font-weight: bold; margin-bottom: 10px; }
+          .kit-code { font-size: 14px; color: #666; font-family: monospace; }
+          @media print {
+            body { min-height: auto; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="qr-container">
+          <div class="kit-name">${kit.name}</div>
+          <img src="${document.querySelector(`[data-kit-qr="${kit.id}""] img`)?.getAttribute('src') || ''}" width="300" height="300" />
+          ${kit.qr_code ? `<div class="kit-code">${kit.qr_code}</div>` : ''}
+        </div>
+        <script>window.onload = () => { setTimeout(() => window.print(), 500); };</script>
+      </body>
+      </html>
+    `;
+    
+    printWindow.document.write(html);
+    printWindow.document.close();
   };
 
   const toggleItem = (id: string) => {
@@ -87,7 +216,7 @@ export function EquipmentKits({ kits, inventory, categories, onCreateKit, onDele
             Создайте кофры для быстрой погрузки. Один QR-код = всё содержимое.
           </p>
         </div>
-        <Button onClick={() => setIsDialogOpen(true)}>
+        <Button onClick={openCreateDialog}>
           <Plus className="w-4 h-4 mr-2" />
           Новый комплект
         </Button>
@@ -104,21 +233,56 @@ export function EquipmentKits({ kits, inventory, categories, onCreateKit, onDele
                   <CardTitle className="text-base">{kit.name}</CardTitle>
                 </div>
                 <div className="flex gap-1">
+                  {/* Редактировать */}
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-8 w-8 p-0"
+                    onClick={() => openEditDialog(kit)}
+                    title="Редактировать"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </Button>
                   {kit.qr_code && (
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="h-8 w-8 p-0"
-                      onClick={() => setShowQR(kit)}
-                    >
-                      <QrCode className="w-4 h-4" />
-                    </Button>
+                    <>
+                      {/* Показать QR */}
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-8 w-8 p-0"
+                        onClick={() => setShowQR(kit)}
+                        title="Показать QR-код"
+                      >
+                        <QrCode className="w-4 h-4" />
+                      </Button>
+                      {/* Скачать QR */}
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-8 w-8 p-0"
+                        onClick={() => downloadQR(kit)}
+                        title="Скачать QR-код"
+                      >
+                        <Download className="w-4 h-4" />
+                      </Button>
+                      {/* Печать QR */}
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-8 w-8 p-0"
+                        onClick={() => printQR(kit)}
+                        title="Печать QR-кода"
+                      >
+                        <Printer className="w-4 h-4" />
+                      </Button>
+                    </>
                   )}
                   <Button 
                     variant="ghost" 
                     size="sm" 
                     className="h-8 w-8 p-0 text-red-500"
                     onClick={() => onDeleteKit(kit.id)}
+                    title="Удалить"
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>
@@ -130,21 +294,32 @@ export function EquipmentKits({ kits, inventory, categories, onCreateKit, onDele
                 <p className="text-sm text-gray-500 mb-2">{kit.description}</p>
               )}
               {kit.qr_code && (
-                <p className="text-xs font-mono text-gray-400">{kit.qr_code}</p>
+                <>
+                  <p className="text-xs font-mono text-gray-400">{kit.qr_code}</p>
+                  {/* Скрытый элемент для получения QR-кода */}
+                  <div data-kit-qr={kit.id} className="hidden">
+                    <QRCodeDisplay value={kit.qr_code} size={300} />
+                  </div>
+                </>
               )}
               <p className="text-sm text-gray-600 mt-2">
-                {kit.items?.length || 0} позиций
+                {kit.items?.length || 0} наименований
+                {kit.items && kit.items.length > 0 && (
+                  <span className="text-gray-400">
+                    {' '}({kit.items.reduce((sum, i) => sum + (i.quantity || 1), 0)} единиц)
+                  </span>
+                )}
               </p>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Диалог создания */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      {/* Диалог создания/редактирования */}
+      <Dialog open={isDialogOpen} onOpenChange={closeDialog}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Создать комплект</DialogTitle>
+            <DialogTitle>{isEditMode ? 'Редактировать комплект' : 'Создать комплект'}</DialogTitle>
           </DialogHeader>
           
           <div className="space-y-4">
@@ -202,12 +377,18 @@ export function EquipmentKits({ kits, inventory, categories, onCreateKit, onDele
             </div>
 
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+              <Button variant="outline" onClick={closeDialog}>
                 Отмена
               </Button>
-              <Button onClick={handleCreate} disabled={!kitName || selectedItems.size === 0}>
-                Создать комплект
-              </Button>
+              {isEditMode ? (
+                <Button onClick={handleUpdate} disabled={!kitName || selectedItems.size === 0}>
+                  Сохранить изменения
+                </Button>
+              ) : (
+                <Button onClick={handleCreate} disabled={!kitName || selectedItems.size === 0}>
+                  Создать комплект
+                </Button>
+              )}
             </div>
           </div>
         </DialogContent>

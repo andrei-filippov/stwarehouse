@@ -150,6 +150,60 @@ export function useChecklistsV2(companyId: string | undefined) {
     }
   }, [companyId, fetchKits]);
 
+  // Обновление комплекта
+  const updateKit = useCallback(async (
+    id: string,
+    kit: Partial<EquipmentKit>,
+    itemIds?: string[]
+  ) => {
+    try {
+      // 1. Обновляем основную информацию о комплекте
+      const { error: kitError } = await supabase
+        .from('equipment_kits')
+        .update({
+          name: kit.name,
+          description: kit.description,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id);
+
+      if (kitError) throw kitError;
+
+      // 2. Если переданы itemIds - обновляем состав комплекта
+      if (itemIds) {
+        // Удаляем старые связи
+        const { error: deleteError } = await supabase
+          .from('kit_items')
+          .delete()
+          .eq('kit_id', id);
+
+        if (deleteError) throw deleteError;
+
+        // Добавляем новые связи
+        if (itemIds.length > 0) {
+          const kitItems = itemIds.map(inventoryId => ({
+            kit_id: id,
+            inventory_id: inventoryId,
+            quantity: 1
+          }));
+
+          const { error: insertError } = await supabase
+            .from('kit_items')
+            .insert(kitItems);
+
+          if (insertError) throw insertError;
+        }
+      }
+
+      toast.success('Комплект обновлен');
+      await fetchKits();
+      return { error: null };
+    } catch (err: any) {
+      toast.error('Ошибка обновления', { description: err.message });
+      return { error: err };
+    }
+  }, [companyId, fetchKits]);
+
   // Удаление комплекта
   const deleteKit = useCallback(async (id: string) => {
     try {
@@ -202,6 +256,7 @@ export function useChecklistsV2(companyId: string | undefined) {
     fetchChecklists,
     createChecklistFromEstimate,
     createKit,
+    updateKit,
     deleteKit
   };
 }
