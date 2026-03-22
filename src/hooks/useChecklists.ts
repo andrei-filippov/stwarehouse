@@ -258,15 +258,35 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
       logger.debug('[createChecklist] Estimate items:', estimate.items?.length);
       logger.info('[createChecklist] Rules to apply:', rulesToUse.length);
       
+      // Загружаем QR-коды из cable_inventory для сопоставления
+      let inventoryMap: Map<string, string> = new Map();
+      if (isOnline()) {
+        try {
+          const { data: inventory } = await supabase
+            .from('cable_inventory')
+            .select('name, qr_code')
+            .eq('company_id', companyId);
+          
+          inventoryMap = new Map(
+            inventory?.map(i => [i.name.toLowerCase().trim(), i.qr_code]).filter(([, qr]) => qr) || []
+          );
+          logger.debug('[createChecklist] Loaded inventory QR codes:', inventoryMap.size);
+        } catch (e) {
+          logger.warn('[createChecklist] Failed to load inventory QR codes:', e);
+        }
+      }
+      
       // Добавляем оборудование из сметы
       estimate.items?.forEach(item => {
+        const qrCode = inventoryMap.get(item.name.toLowerCase().trim()) || null;
         items.push({
           id: `local_item_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
           name: item.name,
           quantity: item.quantity,
           category: item.category || 'equipment',
           is_required: true,
-          is_checked: false
+          is_checked: false,
+          qr_code: qrCode
         });
         
         // Правила (только если они загружены)
@@ -364,7 +384,8 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
               quantity: item.quantity,
               category: item.category,
               is_required: item.is_required ?? true,
-              is_checked: item.is_checked ?? false
+              is_checked: item.is_checked ?? false,
+              qr_code: item.qr_code || null
             }));
 
             const { error: itemsError } = await supabase
