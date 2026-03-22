@@ -3,14 +3,14 @@ import { supabase } from './supabase';
 // Система прав доступа (RBAC) с поддержкой кастомных разрешений
 
 export type UserRole = 'owner' | 'admin' | 'manager' | 'warehouse' | 'accountant' | 'viewer';
-export type TabId = 'dashboard' | 'equipment' | 'estimates' | 'templates' | 'calendar' | 'checklists' | 'staff' | 'goals' | 'cables' | 'finance' | 'customers' | 'contracts' | 'settings' | 'admin';
+export type TabId = 'dashboard' | 'equipment' | 'estimates' | 'templates' | 'calendar' | 'checklists' | 'kits' | 'staff' | 'goals' | 'cables' | 'finance' | 'customers' | 'contracts' | 'settings' | 'admin';
 
 // Разрешения по умолчанию для каждой роли
 export const ROLE_TABS: Record<UserRole, TabId[]> = {
-  owner: ['dashboard', 'equipment', 'estimates', 'templates', 'calendar', 'checklists', 'staff', 'goals', 'cables', 'finance', 'customers', 'contracts', 'settings', 'admin'],
-  admin: ['dashboard', 'equipment', 'estimates', 'templates', 'calendar', 'checklists', 'staff', 'goals', 'cables', 'finance', 'customers', 'contracts', 'settings', 'admin'],
-  manager: ['dashboard', 'equipment', 'estimates', 'templates', 'calendar', 'checklists', 'goals', 'cables', 'finance', 'customers'],
-  warehouse: ['dashboard', 'equipment', 'checklists', 'calendar', 'cables'],
+  owner: ['dashboard', 'equipment', 'estimates', 'templates', 'calendar', 'checklists', 'kits', 'staff', 'goals', 'cables', 'finance', 'customers', 'contracts', 'settings', 'admin'],
+  admin: ['dashboard', 'equipment', 'estimates', 'templates', 'calendar', 'checklists', 'kits', 'staff', 'goals', 'cables', 'finance', 'customers', 'contracts', 'settings', 'admin'],
+  manager: ['dashboard', 'equipment', 'estimates', 'templates', 'calendar', 'checklists', 'kits', 'goals', 'cables', 'finance', 'customers'],
+  warehouse: ['dashboard', 'equipment', 'checklists', 'kits', 'calendar', 'cables'],
   accountant: ['dashboard', 'estimates', 'finance', 'customers', 'calendar'],
   viewer: [], // Наблюдатель - нет доступа по умолчанию, только кастомные разрешения
 };
@@ -22,6 +22,7 @@ export const ALL_TABS: { id: TabId; label: string }[] = [
   { id: 'templates', label: 'Шаблоны' },
   { id: 'calendar', label: 'Календарь' },
   { id: 'checklists', label: 'Чек-листы' },
+  { id: 'kits', label: 'Комплекты' },
   { id: 'staff', label: 'Персонал' },
   { id: 'goals', label: 'Задачи' },
   { id: 'cables', label: 'Учёт оборудования' },

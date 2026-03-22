@@ -23,6 +23,7 @@ const FinanceManager = lazy(() => import('./components/FinanceManager'));
 const CustomersManager = lazy(() => import('./components/CustomersManager'));
 const ContractManager = lazy(() => import('./components/ContractManager'));
 const AdminPanel = lazy(() => import('./components/AdminPanel'));
+const EquipmentKits = lazy(() => import('./components/EquipmentKits'));
 
 import { AccessDenied } from './components/AccessDenied';
 import { BottomNav } from './components/BottomNav';
@@ -343,6 +344,7 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
     { id: 'templates' as Tab, label: 'Шаблоны', icon: Layout },
     { id: 'calendar' as Tab, label: 'Календарь', icon: Calendar },
     { id: 'checklists' as Tab, label: 'Чек-листы', icon: ClipboardCheck },
+    { id: 'kits' as Tab, label: 'Комплекты', icon: Package },
     { id: 'staff' as Tab, label: 'Персонал', icon: Users },
     { id: 'goals' as Tab, label: 'Задачи', icon: Target },
     { id: 'cables' as Tab, label: 'Учёт оборудования', icon: Cable },
@@ -511,6 +513,18 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
                 onDeleteChecklist={deleteChecklist}
                 loading={checklistsLoading}
                 fabAction={fabAction}
+              />
+            </LazyComponent>
+          )}
+
+          {activeTab === 'kits' && (
+            <LazyComponent>
+              <EquipmentKits
+                kits={kits}
+                inventory={cableInventory}
+                onCreateKit={createKit}
+                onDeleteKit={deleteKit}
+                companyId={companyId}
               />
             </LazyComponent>
           )}
