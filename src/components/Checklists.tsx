@@ -805,6 +805,18 @@ function ChecklistView({
           toast.success('Отмечено', { description: item.name });
         }
       }
+    } else if (scanMode === 'unload') {
+      // Режим разгрузки (только для двойного режима)
+      const status = getItemStatus(item);
+      if (!status.loaded) {
+        toast.error('Сначала нужно погрузить', { description: item.name });
+      } else if (status.unloaded) {
+        toast.info('Уже разгружено', { description: item.name });
+      } else {
+        setOptimisticUpdates(prev => ({ ...prev, [item.id]: { loaded: true, unloaded: true } }));
+        onUpdateItem(checklist.id, item.id, { loaded: true, unloaded: true });
+        toast.success('Разгружено', { description: item.name });
+      }
     }
   }, [checklist.id, checklist.items, onUpdateItem, scanMode, optimisticUpdates, checkMode]);
 
