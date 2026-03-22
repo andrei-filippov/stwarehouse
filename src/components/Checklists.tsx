@@ -690,6 +690,11 @@ function ChecklistView({
   // При смене чек-листа сбрасываем оптимистичные обновления
   useEffect(() => {
     setOptimisticUpdates({});
+    
+    // Отладка: показываем что пришло в чек-листе
+    const itemsWithQr = checklist.items?.filter(i => i.qr_code) || [];
+    console.log(`[ChecklistView] Loaded checklist: ${checklist.event_name}, items: ${checklist.items?.length}, with QR: ${itemsWithQr.length}`);
+    console.log('[ChecklistView] Items with QR:', itemsWithQr.map(i => ({ name: i.name, qr: i.qr_code })));
   }, [checklist.id]);
 
   // Проверяем состояние чекбокса (оптимистичное или из пропсов)
@@ -716,10 +721,16 @@ function ChecklistView({
   const handleQRScan = useCallback(async (qrCode: string) => {
     const searchCode = qrCode.toUpperCase();
     
+    // Отладка: показываем все QR-коды в чек-листе
+    console.log('[QR Scan] Searching for:', searchCode);
+    console.log('[QR Scan] Available items with QR:', checklist.items?.filter(i => i.qr_code).map(i => ({ name: i.name, qr: i.qr_code })));
+    
     // Ищем позицию по QR-коду в актуальном чек-листе
-    const item = checklist.items?.find(i => 
-      i.qr_code?.toUpperCase() === searchCode
-    );
+    const item = checklist.items?.find(i => {
+      const itemQr = i.qr_code?.toUpperCase();
+      console.log(`[QR Scan] Checking: ${i.name}, QR: ${itemQr}, match: ${itemQr === searchCode}`);
+      return itemQr === searchCode;
+    });
     
     if (!item || !item.id) {
       toast.error('Позиция не найдена', { description: `QR-код ${qrCode} не найден в чек-листе` });

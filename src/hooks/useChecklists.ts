@@ -43,6 +43,13 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
         if (error) {
           throw error;
         }
+        
+        // Отладка: проверяем что QR-коды загружаются
+        data?.forEach((c: any) => {
+          const itemsWithQr = c.items?.filter((i: any) => i.qr_code) || [];
+          logger.debug(`[fetchChecklists] Checklist ${c.event_name}: ${itemsWithQr.length}/${c.items?.length} items with QR`);
+        });
+        
         // Мержим: серверные + локальные которых нет на сервере
         const serverIds = new Set((data || []).map(c => c.id));
         const unsyncedLocal = localChecklists.filter(c => !serverIds.has(c.id));
@@ -259,26 +266,56 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
       logger.info('[createChecklist] Rules to apply:', rulesToUse.length);
       
       // Загружаем QR-коды из cable_inventory для сопоставления
-      let inventoryMap: Map<string, string> = new Map();
+      // Создаем Map: имя оборудования -> массив QR-кодов (для случая когда несколько единиц)
+      let inventoryMap: Map<string, string[]> = new Map();
       if (isOnline()) {
         try {
-          const { data: inventory } = await supabase
+          const { data: inventory, error: invError } = await supabase
             .from('cable_inventory')
             .select('name, qr_code')
             .eq('company_id', companyId);
           
-          inventoryMap = new Map(
-            inventory?.map(i => [i.name.toLowerCase().trim(), i.qr_code]).filter(([, qr]) => qr) || []
-          );
-          logger.debug('[createChecklist] Loaded inventory QR codes:', inventoryMap.size);
+          if (invError) {
+            logger.warn('[createChecklist] Error loading inventory:', invError);
+          } else {
+            // Группируем QR-коды по имени оборудования
+            inventory?.forEach(i => {
+              if (!i.qr_code) return;
+              const key = i.name?.toLowerCase().trim();
+              if (!key) return;
+              
+              if (!inventoryMap.has(key)) {
+                inventoryMap.set(key, []);
+              }
+              inventoryMap.get(key)!.push(i.qr_code);
+            });
+            
+            logger.info('[createChecklist] Loaded inventory items:', inventory?.length);
+            logger.debug('[createChecklist] Inventory QR codes map:', Array.from(inventoryMap.entries()).map(([k, v]) => `${k}: ${v.length} QR`));
+          }
         } catch (e) {
           logger.warn('[createChecklist] Failed to load inventory QR codes:', e);
         }
       }
       
       // Добавляем оборудование из сметы
-      estimate.items?.forEach(item => {
-        const qrCode = inventoryMap.get(item.name.toLowerCase().trim()) || null;
+      estimate.items?.forEach((item, index) => {
+        const itemNameLower = item.name.toLowerCase().trim();
+        const qrCodes = inventoryMap.get(itemNameLower);
+        
+        // Если в инвентаре несколько единиц с таким именем - берем QR по индексу, иначе первый
+        let qrCode: string | null = null;
+        if (qrCodes && qrCodes.length > 0) {
+          if (item.quantity > 1 && qrCodes.length >= item.quantity) {
+            // Для нескольких единиц берем QR по порядку (первый для первой позиции)
+            qrCode = qrCodes[0];
+          } else {
+            qrCode = qrCodes[0];
+          }
+        }
+        
+        logger.debug(`[createChecklist] Item ${item.name}: found ${qrCodes?.length || 0} QR codes, using: ${qrCode || 'none'}`);
+        
         items.push({
           id: `local_item_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
           name: item.name,
@@ -387,6 +424,11 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
               is_checked: item.is_checked ?? false,
               qr_code: item.qr_code || null
             }));
+
+            // Отладка: показываем что отправляем
+            const itemsWithQr = itemsWithChecklistId.filter(i => i.qr_code);
+            logger.info(`[createChecklist] Inserting ${itemsWithChecklistId.length} items, ${itemsWithQr.length} with QR codes`);
+            logger.debug('[createChecklist] Items with QR:', itemsWithQr.map(i => ({ name: i.name, qr: i.qr_code })));
 
             const { error: itemsError } = await supabase
               .from('checklist_items')
