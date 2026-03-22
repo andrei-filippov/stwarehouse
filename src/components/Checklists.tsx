@@ -121,26 +121,22 @@ export const ChecklistsManager = memo(function ChecklistsManager({
   }, []);
 
   // Обновляем selectedChecklist при изменении checklists (синхронизация с сервером)
+  // Используем ref для отслеживания предыдущего значения, чтобы избежать лишних обновлений
+  const prevChecklistsRef = useRef(checklists);
   useEffect(() => {
-    if (selectedChecklist) {
+    if (selectedChecklist && checklists !== prevChecklistsRef.current) {
       const updated = checklists.find(c => c.id === selectedChecklist.id);
-      if (updated) {
+      // Обновляем только если данные реально изменились
+      if (updated && JSON.stringify(updated.items) !== JSON.stringify(selectedChecklist.items)) {
         setSelectedChecklist(updated);
       }
+      prevChecklistsRef.current = checklists;
     }
   }, [checklists, selectedChecklist]);
 
   const handleDeselectChecklist = useCallback(() => {
     setSelectedChecklist(null);
   }, []);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Spinner className="w-8 h-8" />
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-4">
@@ -169,7 +165,11 @@ export const ChecklistsManager = memo(function ChecklistsManager({
               </div>
             </CardHeader>
             <CardContent>
-              {checklists.length === 0 ? (
+              {loading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Spinner className="w-6 h-6" />
+                </div>
+              ) : checklists.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   <p className="mb-2">Нет созданных чек-листов</p>
                   <p className="text-sm">Создайте чек-лист на основе сметы</p>
@@ -692,6 +692,12 @@ function ChecklistView({
     setOptimisticUpdates({});
   }, [checklist.id]);
 
+  // Проверяем состояние чекбокса (оптимистичное или из пропсов)
+  const isChecked = useCallback((item: ChecklistItem): boolean => {
+    if (!item.id) return item.is_checked;
+    return optimisticUpdates[item.id] ?? item.is_checked;
+  }, [optimisticUpdates]);
+
   const handleToggle = useCallback(async (item: ChecklistItem) => {
     if (!item.id) {
       console.error('Item has no id:', item);
@@ -704,7 +710,7 @@ function ChecklistView({
     
     // Отправляем на сервер
     onUpdateItem(checklist.id, item.id, { is_checked: newValue });
-  }, [checklist.id, onUpdateItem, checklist.items, optimisticUpdates]);
+  }, [checklist.id, onUpdateItem, isChecked]);
 
   // Обработка QR-сканирования - ищем в актуальном чек-листе
   const handleQRScan = useCallback(async (qrCode: string) => {
@@ -732,12 +738,6 @@ function ChecklistView({
       }
     }
   }, [checklist.id, checklist.items, onUpdateItem, scanMode, optimisticUpdates]);
-
-  // Проверяем состояние чекбокса (оптимистичное или из пропсов)
-  const isChecked = (item: ChecklistItem): boolean => {
-    if (!item.id) return item.is_checked;
-    return optimisticUpdates[item.id] ?? item.is_checked;
-  };
 
   // Группировка по категориям использует актуальный чек-лист
   const grouped = useMemo(() => {
