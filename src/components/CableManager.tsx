@@ -21,9 +21,11 @@ import {
   Cable,
   GripVertical,
   CheckSquare,
-  X
+  X,
+  Boxes
 } from 'lucide-react';
 import type { CableCategory, CableInventory, CableMovement, EquipmentRepair } from '../types';
+import type { EquipmentKit } from '../types/checklist';
 import { REPAIR_STATUSES, getRepairStatusLabel, getRepairStatusColor } from '../types';
 import { CABLE_COLORS } from '../types/cable';
 import { Spinner } from './ui/spinner';
@@ -101,6 +103,8 @@ interface CableManagerProps {
   }[]) => Promise<{ error: any }>;
   targetEquipmentCategories?: { id: string; name: string }[];
   existingEquipment?: { name: string; category: string }[];
+  // Комплекты для QR-сканирования
+  kits?: EquipmentKit[];
 }
 
 export const CableManager = memo(function CableManager({
@@ -128,6 +132,7 @@ export const CableManager = memo(function CableManager({
   onTransferToEquipment,
   targetEquipmentCategories,
   existingEquipment,
+  kits = [],
 }: CableManagerProps) {
   const [activeTab, setActiveTab] = useState('warehouse');
   
@@ -351,8 +356,22 @@ export const CableManager = memo(function CableManager({
     }
   };
 
-  // Обработка сканирования QR-кода
+  // Обработка сканирования QR-кода (оборудование или комплект)
   const handleQRScan = (qrCode: string) => {
+    // 1. Проверяем - это QR код комплекта?
+    const kit = kits.find(k => k.qr_code === qrCode);
+    if (kit) {
+      // Это комплект - добавляем все его позиции в выдачу
+      if (qrScanMode === 'batch') {
+        handleKitScanForIssue(kit);
+      } else {
+        // В обычном режиме показываем диалог с информацией о комплекте
+        handleKitScanForInfo(kit);
+      }
+      return;
+    }
+
+    // 2. Ищем как обычное оборудование
     const item = inventory.find(i => i.qr_code === qrCode);
     if (!item) {
       toast.error('Оборудование не найдено', { description: `QR-код ${qrCode} не найден в базе` });
@@ -385,6 +404,64 @@ export const CableManager = memo(function CableManager({
     // Обычный режим - показываем диалог действий
     setScannedQRItem(item);
     setIsQRActionDialogOpen(true);
+  };
+
+  // Сканирование комплекта для выдачи (batch mode)
+  const handleKitScanForIssue = (kit: EquipmentKit) => {
+    if (!kit.items || kit.items.length === 0) {
+      toast.error('Комплект пуст', { description: `${kit.name} не содержит оборудования` });
+      return;
+    }
+
+    let addedCount = 0;
+    let skippedCount = 0;
+
+    kit.items.forEach(kitItem => {
+      // Находим инвентарь по inventory_id
+      const inventoryItem = inventory.find(i => i.id === kitItem.inventory_id);
+      if (!inventoryItem) {
+        skippedCount++;
+        return;
+      }
+
+      // Проверяем не добавлен ли уже
+      const alreadySelected = selectedItems.find(si => si.inventory_id === inventoryItem.id);
+      if (alreadySelected) {
+        skippedCount++;
+        return;
+      }
+
+      // Добавляем с учетом quantity из комплекта
+      const qty = kitItem.quantity || 1;
+      setSelectedItems(prev => [...prev, {
+        inventory_id: inventoryItem.id!,
+        category_id: inventoryItem.category_id,
+        length: inventoryItem.length || 0,
+        name: inventoryItem.name,
+        available: inventoryItem.quantity,
+        quantity: Math.min(qty, inventoryItem.quantity), // Не больше чем есть на складе
+      }]);
+      addedCount++;
+    });
+
+    if (addedCount > 0) {
+      toast.success(`Комплект «${kit.name}» добавлен`, { 
+        description: `Добавлено ${addedCount} позиций` 
+      });
+    }
+    if (skippedCount > 0) {
+      toast.info('Некоторые позиции пропущены', { 
+        description: `${skippedCount} уже в выдаче или не найдены` 
+      });
+    }
+  };
+
+  // Сканирование комплекта для информации (single mode)
+  const handleKitScanForInfo = (kit: EquipmentKit) => {
+    const itemsCount = kit.items?.length || 0;
+    toast.info(`Комплект: ${kit.name}`, { 
+      description: `Содержит ${itemsCount} позиций. Переключитесь в режим выдачи чтобы добавить.` 
+    });
   };
 
   // Показать QR-код для позиции
@@ -827,13 +904,16 @@ export const CableManager = memo(function CableManager({
             onClick={() => {
               if (qrScanMode === 'single') {
                 setQrScanMode('batch');
+                const kitCount = kits.length;
                 toast.info('Режим выдачи включен', { 
-                  description: 'QR-коды будут сразу добавляться в выдачу' 
+                  description: kitCount > 0 
+                    ? `Сканируйте QR оборудования (EQ-*) или комплектов (KIT-*) — доступно ${kitCount} комплектов`
+                    : 'QR-коды будут сразу добавляться в выдачу'
                 });
               }
               setIsQRScannerOpen(true);
             }}
-            title={qrScanMode === 'batch' ? 'Режим выдачи активен' : 'Сканировать QR-код'}
+            title={qrScanMode === 'batch' ? `Режим выдачи активен. Можно сканировать комплекты (${kits.length})` : 'Сканировать QR-код оборудования или комплекта'}
           >
             <svg className="w-4 h-4 mr-0 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
@@ -1614,7 +1694,10 @@ export const CableManager = memo(function CableManager({
         onClose={() => setIsQRScannerOpen(false)}
         onScan={handleQRScan}
         title="Сканировать оборудование"
-        subtitle={qrScanMode === 'batch' ? `Режим выдачи: ${selectedItems.length} позиций` : undefined}
+        subtitle={qrScanMode === 'batch' 
+          ? `Режим выдачи: ${selectedItems.length} позиций • Можно сканировать комплекты (${kits.length})` 
+          : `Можно сканировать QR оборудования (EQ-*) или комплектов (KIT-*)`
+        }
         keepOpen={qrScanMode === 'batch'}
       />
 

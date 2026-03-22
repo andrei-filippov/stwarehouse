@@ -585,6 +585,7 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
                 onTransferToEquipment={handleTransferToEquipment}
                 targetEquipmentCategories={categories}
                 existingEquipment={equipment}
+                kits={kits}
               />
             </LazyComponent>
           )}

@@ -696,7 +696,7 @@ function ChecklistView({
   
   // QR-сканирование
   const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
-  const [scanMode, setScanMode] = useState<'load' | 'unload' | 'kit'>('load');
+  const [scanMode, setScanMode] = useState<'load' | 'unload'>('load');
   
   // Редактирование QR-кода
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -795,18 +795,29 @@ function ChecklistView({
     }
   }, [checklist.id, onUpdateItem, isChecked, checkMode]);
 
-  // Обработка QR-сканирования - ищем в актуальном чек-листе
+  // Универсальная обработка QR-сканирования (оборудование или комплект)
   const handleQRScan = useCallback(async (qrCode: string) => {
     const searchCode = qrCode.toUpperCase();
     
-    // Отладка: показываем все QR-коды в чек-листе
-    console.log('[QR Scan] Searching for:', searchCode);
-    console.log('[QR Scan] Available items with QR:', checklist.items?.filter(i => i.qr_code).map(i => ({ name: i.name, qr: i.qr_code })));
+    console.log('[QR Scan] Scanning:', searchCode);
     
-    // Ищем позицию по QR-коду в актуальном чек-листе
+    // 1. Проверяем - это QR код комплекта?
+    const { data: kitData, error: kitError } = await supabase
+      .from('equipment_kits')
+      .select('id, name')
+      .eq('qr_code', searchCode)
+      .single();
+    
+    if (kitData && !kitError) {
+      // Это комплект - обрабатываем все его позиции
+      console.log('[QR Scan] Found kit:', kitData.name);
+      await handleKitScan(kitData);
+      return;
+    }
+    
+    // 2. Ищем как обычное оборудование по QR-коду
     const item = checklist.items?.find(i => {
       const itemQr = i.qr_code?.toUpperCase();
-      console.log(`[QR Scan] Checking: ${i.name}, QR: ${itemQr}, match: ${itemQr === searchCode}`);
       return itemQr === searchCode;
     });
     
@@ -815,68 +826,55 @@ function ChecklistView({
       return;
     }
     
+    // 3. Обрабатываем как оборудование
+    await handleEquipmentScan(item);
+  }, [checklist.id, checklist.items, onUpdateItem, scanMode, optimisticUpdates, checkMode]);
+  
+  // Обработка сканирования оборудования (одна позиция)
+  const handleEquipmentScan = useCallback(async (item: ChecklistItem) => {
+    if (!item.id) return;
+    
     const alreadyChecked = optimisticUpdates[item.id] ?? item.is_checked;
     
     if (scanMode === 'load') {
       if (checkMode === 'double') {
-        // В двойном режиме отмечаем погрузку
         const status = getItemStatus(item);
         if (status.loaded) {
           toast.info('Уже погружено', { description: item.name });
         } else {
-          setOptimisticUpdates(prev => ({ ...prev, [item.id]: { loaded: true } }));
+          setOptimisticUpdates(prev => ({ ...prev, [item.id!]: { loaded: true } }));
           onUpdateItem(checklist.id, item.id, { loaded: true });
           toast.success('Погружено', { description: item.name });
         }
       } else {
-        // Простой режим
         if (alreadyChecked) {
           toast.info('Уже отмечено', { description: item.name });
         } else {
-          setOptimisticUpdates(prev => ({ ...prev, [item.id]: { is_checked: true } }));
+          setOptimisticUpdates(prev => ({ ...prev, [item.id!]: { is_checked: true } }));
           onUpdateItem(checklist.id, item.id, { is_checked: true });
           toast.success('Отмечено', { description: item.name });
         }
       }
     } else if (scanMode === 'unload') {
-      // Режим разгрузки (только для двойного режима)
       const status = getItemStatus(item);
       if (!status.loaded) {
         toast.error('Сначала нужно погрузить', { description: item.name });
       } else if (status.unloaded) {
         toast.info('Уже разгружено', { description: item.name });
       } else {
-        setOptimisticUpdates(prev => ({ ...prev, [item.id]: { loaded: true, unloaded: true } }));
+        setOptimisticUpdates(prev => ({ ...prev, [item.id!]: { loaded: true, unloaded: true } }));
         onUpdateItem(checklist.id, item.id, { loaded: true, unloaded: true });
         toast.success('Разгружено', { description: item.name });
       }
-    } else if (scanMode === 'kit') {
-      // Режим сканирования комплекта - не должен сюда попадать, обрабатывается отдельно
-      toast.error('Неверный режим сканирования');
     }
-  }, [checklist.id, checklist.items, onUpdateItem, scanMode, optimisticUpdates, checkMode]);
+  }, [checklist.id, onUpdateItem, scanMode, optimisticUpdates, checkMode, getItemStatus]);
 
-  // Обработка сканирования комплекта (кита)
-  const handleKitScan = useCallback(async (qrCode: string) => {
+  // Обработка сканирования комплекта - отмечает все позиции комплекта
+  const handleKitScan = useCallback(async (kitData: { id: string; name: string }) => {
     try {
-      console.log('[Kit Scan] Scanning QR:', qrCode);
+      console.log('[Kit Scan] Processing kit:', kitData.id, kitData.name);
       
-      // Ищем кит по QR-коду
-      const { data: kitData, error: kitError } = await supabase
-        .from('equipment_kits')
-        .select('id, name')
-        .eq('qr_code', qrCode)
-        .single();
-      
-      if (kitError || !kitData) {
-        console.log('[Kit Scan] Kit not found for QR:', qrCode);
-        toast.error('Комплект не найден', { description: `QR-код ${qrCode} не найден` });
-        return;
-      }
-      
-      console.log('[Kit Scan] Found kit:', kitData.id, kitData.name);
-      
-      // Загружаем содержимое комплекта (имена оборудования)
+      // Загружаем содержимое комплекта
       const { data: kitItemsData, error: kitItemsError } = await supabase
         .from('kit_items')
         .select(`
@@ -895,34 +893,43 @@ function ChecklistView({
       );
       
       console.log('[Kit Scan] Equipment in kit:', Array.from(kitEquipmentNames));
-      console.log('[Kit Scan] Checklist items:', checklist.items?.map(i => ({ name: i.name, kit_id: i.kit_id })));
       
-      // Отмечаем все items этого кита как погруженные
+      // Отмечаем все items этого кита
       let updatedCount = 0;
+      const skippedCount = 0;
       const kitIdStr = String(kitData.id);
       
       for (const item of checklist.items || []) {
         const itemKitId = item.kit_id ? String(item.kit_id) : null;
         const itemNameLower = item.name.toLowerCase().trim();
         
-        // Проверяем по kit_id или по имени оборудования из комплекта
         const matchByKitId = itemKitId === kitIdStr;
         const matchByName = kitEquipmentNames.has(itemNameLower);
         
-        console.log(`[Kit Scan] Checking: ${item.name}, kit_id_match=${matchByKitId}, name_match=${matchByName}`);
-        
-        if ((matchByKitId || matchByName) && !isChecked(item)) {
-          console.log(`[Kit Scan] Marking as completed: ${item.name}, item.id=${item.id}`);
-          // В зависимости от режима устанавливаем нужное поле
-          const updates = checkMode === 'simple' 
-            ? { is_checked: true }
-            : { loaded: true, unloaded: true };
+        if (matchByKitId || matchByName) {
+          if (isChecked(item)) {
+            continue; // Уже отмечено
+          }
+          
+          // В зависимости от режима сканирования устанавливаем статус
+          let updates: any;
+          if (scanMode === 'load') {
+            updates = checkMode === 'simple' 
+              ? { is_checked: true }
+              : { loaded: true, unloaded: false }; // При погрузке только loaded
+          } else if (scanMode === 'unload') {
+            updates = { loaded: true, unloaded: true }; // При разгрузке оба
+          } else {
+            updates = checkMode === 'simple' 
+              ? { is_checked: true }
+              : { loaded: true, unloaded: true };
+          }
+          
           setOptimisticUpdates(prev => ({ ...prev, [item.id!]: updates }));
           const result = await onUpdateItem(checklist.id, item.id!, updates);
-          console.log(`[Kit Scan] Update result for ${item.name}:`, result);
+          
           if (result.error) {
             console.error(`[Kit Scan] Failed to update ${item.name}:`, result.error);
-            // Откатываем optimistic update при ошибке
             setOptimisticUpdates(prev => {
               const next = { ...prev };
               delete next[item.id!];
@@ -937,7 +944,8 @@ function ChecklistView({
       console.log(`[Kit Scan] Total updated: ${updatedCount}`);
       
       if (updatedCount > 0) {
-        toast.success(`Комплект "${kitData.name}" отмечен`, { description: `Отмечено ${updatedCount} позиций` });
+        const modeText = scanMode === 'unload' ? 'разгружен' : 'отмечен';
+        toast.success(`Комплект "${kitData.name}" ${modeText}`, { description: `Обработано ${updatedCount} позиций` });
       } else {
         toast.info(`Комплект "${kitData.name}" уже отмечен или оборудование не найдено в чек-листе`);
       }
@@ -945,7 +953,7 @@ function ChecklistView({
       console.error('[Kit Scan] Error:', err);
       toast.error('Ошибка сканирования комплекта', { description: err.message });
     }
-  }, [checklist.id, checklist.items, onUpdateItem, getItemStatus, isChecked, checkMode]);
+  }, [checklist.id, checklist.items, onUpdateItem, getItemStatus, isChecked, checkMode, scanMode]);
 
   // Сохранение QR-кода
   const handleSaveQrCode = useCallback(async () => {
@@ -1099,17 +1107,11 @@ function ChecklistView({
             </Button>
           )}
           
-          {/* Кнопка сканирования комплекта */}
-          <Button
-            variant="outline"
-            onClick={() => {
-              setScanMode('kit');
-              setIsQRScannerOpen(true);
-            }}
-          >
-            <Package className="w-4 h-4 mr-2" />
-            Сканировать комплект
-          </Button>
+          {/* Подсказка о сканировании комплектов */}
+          <div className="text-xs text-gray-500 flex items-center gap-1">
+            <Package className="w-3 h-3" />
+            Можно сканировать QR комплектов (KIT-*) и оборудования (EQ-*)
+          </div>
           
           {progress > 0 && (
             <Button
@@ -1242,9 +1244,9 @@ function ChecklistView({
       <QRScanner
         isOpen={isQRScannerOpen}
         onClose={() => setIsQRScannerOpen(false)}
-        onScan={scanMode === 'kit' ? handleKitScan : handleQRScan}
-        title={scanMode === 'kit' ? 'Сканировать комплект' : scanMode === 'unload' ? 'Сканировать разгрузку' : 'Сканировать оборудование'}
-        subtitle={scanMode === 'kit' ? 'Наведите на QR-код кофра/комплекта' : `Найдено: ${progress} / ${total}`}
+        onScan={handleQRScan}
+        title={scanMode === 'unload' ? 'Сканировать разгрузку' : 'Сканировать оборудование'}
+        subtitle={scanMode === 'unload' ? `Разгрузка: ${progress} / ${total}` : `Погрузка: ${progress} / ${total} • Можно сканировать комплекты (KIT-*)`}
         keepOpen={true}
       />
 
