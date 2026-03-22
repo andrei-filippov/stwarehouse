@@ -19,7 +19,9 @@ import {
   Download,
   CheckSquare,
   Square,
-  ListPlus
+  ListPlus,
+  Edit,
+  QrCode
 } from 'lucide-react';
 import type { Checklist, ChecklistRule, ChecklistItem, Estimate } from '../types';
 
@@ -686,6 +688,10 @@ function ChecklistView({
   // QR-сканирование
   const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
   const [scanMode, setScanMode] = useState<'load' | 'unload'>('load');
+  
+  // Редактирование QR-кода
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [editingQrCode, setEditingQrCode] = useState('');
 
   // При смене чек-листа сбрасываем оптимистичные обновления
   useEffect(() => {
@@ -749,6 +755,19 @@ function ChecklistView({
       }
     }
   }, [checklist.id, checklist.items, onUpdateItem, scanMode, optimisticUpdates]);
+
+  // Сохранение QR-кода
+  const handleSaveQrCode = useCallback(async () => {
+    if (!editingItemId) return;
+    
+    const item = checklist.items?.find(i => i.id === editingItemId);
+    if (!item) return;
+    
+    await onUpdateItem(checklist.id, editingItemId, { qr_code: editingQrCode.trim() || null });
+    setEditingItemId(null);
+    setEditingQrCode('');
+    toast.success('QR-код обновлён');
+  }, [checklist.id, checklist.items, editingItemId, editingQrCode, onUpdateItem]);
 
   // Группировка по категориям использует актуальный чек-лист
   const grouped = useMemo(() => {
@@ -874,6 +893,23 @@ function ChecklistView({
                       {item.is_required && <span className="text-red-500 ml-1">*</span>}
                       {item.qr_code && <span className="text-xs text-blue-500 ml-2">📱 {item.qr_code}</span>}
                     </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0 ml-2"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingItemId(item.id || null);
+                        setEditingQrCode(item.qr_code || '');
+                      }}
+                      title={item.qr_code ? 'Изменить QR-код' : 'Добавить QR-код'}
+                    >
+                      {item.qr_code ? (
+                        <Edit className="w-3 h-3 text-gray-400" />
+                      ) : (
+                        <QrCode className="w-3 h-3 text-gray-300" />
+                      )}
+                    </Button>
                   </div>
                 );
               })}
@@ -891,6 +927,29 @@ function ChecklistView({
         subtitle={`Найдено: ${progress} / ${total}`}
         keepOpen={true}
       />
+
+      {/* Диалог редактирования QR-кода */}
+      <Dialog open={!!editingItemId} onOpenChange={() => setEditingItemId(null)}>
+        <DialogContent className="max-w-sm" aria-describedby="qr-edit-desc">
+          <DialogHeader>
+            <DialogTitle>QR-код оборудования</DialogTitle>
+            <DialogDescription id="qr-edit-desc">
+              {checklist.items?.find(i => i.id === editingItemId)?.name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Input
+              placeholder="Введите QR-код (например: EQ-CB29XMDL)"
+              value={editingQrCode}
+              onChange={(e) => setEditingQrCode(e.target.value)}
+            />
+            <div className="flex gap-2">
+              <Button onClick={handleSaveQrCode} className="flex-1">Сохранить</Button>
+              <Button variant="outline" onClick={() => setEditingItemId(null)}>Отмена</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

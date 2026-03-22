@@ -298,23 +298,54 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
         }
       }
       
-      // Добавляем оборудование из сметы
-      estimate.items?.forEach((item, index) => {
-        const itemNameLower = item.name.toLowerCase().trim();
-        const qrCodes = inventoryMap.get(itemNameLower);
+      // Функция нормализации имени - убирает скобки, "copy" и лишние пробелы
+      const normalizeName = (name: string): string => {
+        return name
+          .toLowerCase()
+          .trim()
+          // Убираем текст в круглых скобках (включая скобки)
+          .replace(/\s*\([^)]*\)\s*/g, ' ')
+          // Убираем текст в квадратных скобках
+          .replace(/\s*\[[^\]]*\]\s*/g, ' ')
+          // Убираем слова copy, копия и их вариации
+          .replace(/\b(copy|копия|copy of)\b/gi, ' ')
+          // Убираем лишние пробелы
+          .replace(/\s+/g, ' ')
+          .trim();
+      };
+      
+      // Создаем нормализованную Map для поиска
+      const normalizedInventoryMap: Map<string, string[]> = new Map();
+      for (const [invName, qrCodes] of inventoryMap.entries()) {
+        const normalized = normalizeName(invName);
+        if (!normalizedInventoryMap.has(normalized)) {
+          normalizedInventoryMap.set(normalized, []);
+        }
+        normalizedInventoryMap.get(normalized)!.push(...qrCodes);
+      }
+      
+      logger.debug('[createChecklist] Normalized inventory names:', Array.from(normalizedInventoryMap.keys()));
+      
+      // Функция для поиска QR-кода по имени (только точное совпадение по нормализованному имени)
+      const findQrCodeForItem = (itemName: string): string | null => {
+        const normalizedItemName = normalizeName(itemName);
         
-        // Если в инвентаре несколько единиц с таким именем - берем QR по индексу, иначе первый
-        let qrCode: string | null = null;
+        // Точное совпадение по нормализованному имени
+        const qrCodes = normalizedInventoryMap.get(normalizedItemName);
         if (qrCodes && qrCodes.length > 0) {
-          if (item.quantity > 1 && qrCodes.length >= item.quantity) {
-            // Для нескольких единиц берем QR по порядку (первый для первой позиции)
-            qrCode = qrCodes[0];
-          } else {
-            qrCode = qrCodes[0];
-          }
+          logger.debug(`[createChecklist] Exact match: "${itemName}" -> "${normalizedItemName}"`);
+          return qrCodes[0];
         }
         
-        logger.debug(`[createChecklist] Item ${item.name}: found ${qrCodes?.length || 0} QR codes, using: ${qrCode || 'none'}`);
+        logger.debug(`[createChecklist] No match for: "${itemName}" (normalized: "${normalizedItemName}")`);
+        return null;
+      };
+      
+      // Добавляем оборудование из сметы
+      estimate.items?.forEach((item, index) => {
+        const qrCode = findQrCodeForItem(item.name);
+        
+        logger.debug(`[createChecklist] Item "${item.name}": normalized="${normalizeName(item.name)}", QR=${qrCode || 'none'}`);
         
         items.push({
           id: `local_item_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
