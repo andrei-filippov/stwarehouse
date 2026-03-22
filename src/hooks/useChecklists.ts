@@ -283,6 +283,13 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
           if (invError) {
             logger.warn('[createChecklist] Error loading inventory:', invError);
           } else {
+            // Отладка: показываем сырые данные
+            logger.debug('[createChecklist] Raw inventory data:', inventory?.map(i => ({ 
+              name: i.name, 
+              qr: i.qr_code, 
+              kit_items: (i as any).kit_items 
+            })));
+            
             // Группируем данные по имени оборудования
             inventory?.forEach(i => {
               const key = i.name?.toLowerCase().trim();
@@ -290,6 +297,8 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
               
               // Получаем kit_id и kit_name из связи (если есть)
               const kitData = (i as any).kit_items?.[0];
+              
+              logger.debug(`[createChecklist] Item ${i.name}: kitData=`, kitData);
               
               if (!inventoryMap.has(key)) {
                 inventoryMap.set(key, []);
@@ -302,7 +311,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
             });
             
             logger.info('[createChecklist] Loaded inventory items:', inventory?.length);
-            logger.debug('[createChecklist] Inventory map:', Array.from(inventoryMap.entries()).map(([k, v]) => `${k}: ${v.length} items`));
+            logger.debug('[createChecklist] Inventory map with kits:', Array.from(inventoryMap.entries()).map(([k, v]) => `${k}: ${JSON.stringify(v)}`));
           }
         } catch (e) {
           logger.warn('[createChecklist] Failed to load inventory QR codes:', e);
