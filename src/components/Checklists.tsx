@@ -710,6 +710,38 @@ function ChecklistView({
     console.log('[ChecklistView] Items with QR:', itemsWithQr.map(i => ({ name: i.name, qr: i.qr_code })));
   }, [checklist.id]);
 
+  // Синхронизация с realtime обновлениями от других пользователей
+  useEffect(() => {
+    // Проверяем, изменились ли данные на сервере по сравнению с нашими optimistic updates
+    setOptimisticUpdates(prev => {
+      const newOptimistic = { ...prev };
+      let hasChanges = false;
+      
+      checklist.items?.forEach(item => {
+        if (!item.id) return;
+        
+        const optimistic = prev[item.id];
+        if (!optimistic) return;
+        
+        // Если данные на сервере совпадают с optimistic - убираем optimistic
+        const serverLoaded = (item as any).loaded ?? false;
+        const serverUnloaded = (item as any).unloaded ?? false;
+        const serverChecked = item.is_checked;
+        
+        if (
+          (optimistic.loaded !== undefined && optimistic.loaded === serverLoaded) &&
+          (optimistic.unloaded !== undefined && optimistic.unloaded === serverUnloaded) &&
+          (optimistic.is_checked !== undefined && optimistic.is_checked === serverChecked)
+        ) {
+          delete newOptimistic[item.id];
+          hasChanges = true;
+        }
+      });
+      
+      return hasChanges ? newOptimistic : prev;
+    });
+  }, [checklist.items]);
+
   // Получаем статус item (с учетом режима)
   const getItemStatus = (item: ChecklistItem) => {
     const optimistic = item.id ? optimisticUpdates[item.id] : undefined;
@@ -882,6 +914,13 @@ function ChecklistView({
         <div>
           <p className="text-sm text-gray-500">Дата: {new Date(checklist.event_date).toLocaleDateString('ru-RU')}</p>
           <p className="text-sm font-medium">Готово: {progress} / {total}</p>
+        </div>
+        <div className="flex items-center gap-1 text-xs text-green-600">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+          </span>
+          <span>Live</span>
         </div>
       </div>
 

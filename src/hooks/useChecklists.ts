@@ -630,8 +630,37 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
           table: 'checklists',
           filter: `company_id=eq.${companyId}`
         },
-        () => {
-        logger.info('[Realtime] Checklists changed, refreshing...');
+        (payload) => {
+          logger.info('[Realtime] Checklist changed:', payload.eventType, payload.new?.id || payload.old?.id);
+          fetchChecklists();
+        }
+      )
+      .subscribe();
+
+    // Подписка на изменения items чек-листов (статусы loaded/unloaded/is_checked)
+    let lastUpdate = Date.now();
+    const itemsChannel = supabase
+      .channel('checklist-items-changes')
+      .on('postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'checklist_items'
+        },
+        (payload) => {
+          const now = Date.now();
+          // Показываем уведомление не чаще раз в 3 секунды
+          if (now - lastUpdate > 3000) {
+            lastUpdate = now;
+            const newData = payload.new as any;
+            if (newData?.loaded || newData?.unloaded || newData?.is_checked) {
+              toast.info('Чек-лист обновлён', { 
+                description: 'Другой пользователь отметил оборудование' 
+              });
+            }
+          }
+          logger.info('[Realtime] Checklist item changed:', payload.eventType, payload.new?.id || payload.old?.id);
+          // При изменении item обновляем чек-листы
           fetchChecklists();
         }
       )
@@ -648,7 +677,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
           filter: `company_id=eq.${companyId}`
         },
         () => {
-        logger.info('[Realtime] Rules changed, refreshing...');
+          logger.info('[Realtime] Rules changed, refreshing...');
           fetchRules();
         }
       )
@@ -656,6 +685,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
 
     return () => {
       supabase.removeChannel(checklistsChannel);
+      supabase.removeChannel(itemsChannel);
       supabase.removeChannel(rulesChannel);
     };
   }, [companyId, fetchChecklists, fetchRules]);
