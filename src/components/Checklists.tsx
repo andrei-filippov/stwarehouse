@@ -876,7 +876,27 @@ function ChecklistView({
       }
       
       console.log('[Kit Scan] Found kit:', kitData.id, kitData.name);
-      console.log('[Kit Scan] Checklist items with kit_id:', checklist.items?.map(i => ({ name: i.name, kit_id: i.kit_id })));
+      
+      // Загружаем содержимое комплекта (имена оборудования)
+      const { data: kitItemsData, error: kitItemsError } = await supabase
+        .from('kit_items')
+        .select(`
+          inventory_id,
+          cable_inventory(name)
+        `)
+        .eq('kit_id', kitData.id);
+      
+      if (kitItemsError) {
+        console.error('[Kit Scan] Error loading kit items:', kitItemsError);
+      }
+      
+      // Получаем имена оборудования из комплекта
+      const kitEquipmentNames = new Set(
+        kitItemsData?.map((item: any) => (item.cable_inventory as any)?.name?.toLowerCase().trim()).filter(Boolean) || []
+      );
+      
+      console.log('[Kit Scan] Equipment in kit:', Array.from(kitEquipmentNames));
+      console.log('[Kit Scan] Checklist items:', checklist.items?.map(i => ({ name: i.name, kit_id: i.kit_id })));
       
       // Отмечаем все items этого кита как погруженные
       let updatedCount = 0;
@@ -884,9 +904,15 @@ function ChecklistView({
       
       for (const item of checklist.items || []) {
         const itemKitId = item.kit_id ? String(item.kit_id) : null;
-        console.log(`[Kit Scan] Checking: ${item.name}, item.kit_id=${itemKitId}, kitData.id=${kitIdStr}, match=${itemKitId === kitIdStr}`);
+        const itemNameLower = item.name.toLowerCase().trim();
         
-        if (itemKitId === kitIdStr && !getItemStatus(item).loaded) {
+        // Проверяем по kit_id или по имени оборудования из комплекта
+        const matchByKitId = itemKitId === kitIdStr;
+        const matchByName = kitEquipmentNames.has(itemNameLower);
+        
+        console.log(`[Kit Scan] Checking: ${item.name}, kit_id_match=${matchByKitId}, name_match=${matchByName}`);
+        
+        if ((matchByKitId || matchByName) && !getItemStatus(item).loaded) {
           console.log(`[Kit Scan] Marking as loaded: ${item.name}`);
           await onUpdateItem(checklist.id, item.id!, { loaded: true });
           setOptimisticUpdates(prev => ({ ...prev, [item.id!]: { loaded: true } }));

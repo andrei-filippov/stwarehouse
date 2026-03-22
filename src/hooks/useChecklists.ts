@@ -347,23 +347,29 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
       logger.debug('[createChecklist] Normalized inventory names:', Array.from(normalizedInventoryMap.keys()));
       
       // Функция для поиска данных оборудования по имени
-      const findInventoryData = (itemName: string): { qr_code?: string; kit_id?: string; kit_name?: string } | null => {
+      // Возвращает массив для случая когда несколько единиц с таким именем
+      const findInventoryData = (itemName: string): { qr_code?: string; kit_id?: string; kit_name?: string }[] => {
         const normalizedItemName = normalizeName(itemName);
         
         // Точное совпадение по нормализованному имени
         const data = normalizedInventoryMap.get(normalizedItemName);
         if (data && data.length > 0) {
-          logger.debug(`[createChecklist] Exact match: "${itemName}" -> "${normalizedItemName}"`);
-          return data[0];
+          logger.debug(`[createChecklist] Exact match: "${itemName}" -> "${normalizedItemName}", found ${data.length} items`);
+          return data;
         }
         
         logger.debug(`[createChecklist] No match for: "${itemName}" (normalized: "${normalizedItemName}")`);
-        return null;
+        return [];
       };
       
       // Добавляем оборудование из сметы
       estimate.items?.forEach((item, index) => {
-        const invData = findInventoryData(item.name);
+        const invDataList = findInventoryData(item.name);
+        
+        // Если в инвентаре есть записи с kit_id - используем их
+        // Иначе берем первую запись без kit_id
+        const invDataWithKit = invDataList.find(d => d.kit_id);
+        const invData = invDataWithKit || invDataList[0];
         
         logger.debug(`[createChecklist] Item "${item.name}": normalized="${normalizeName(item.name)}", QR=${invData?.qr_code || 'none'}, Kit=${invData?.kit_name || 'none'}`);
         
