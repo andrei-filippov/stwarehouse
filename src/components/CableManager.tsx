@@ -990,14 +990,14 @@ export const CableManager = memo(function CableManager({
           </Button>
           </div>
         </div>
-        
-        {/* Подсказка о возможностях */}
-        <p className="text-xs text-gray-500 hidden sm:block">
-          QR-сканер поддерживает оборудование (EQ-*) и комплекты (KIT-*). 
-          <span className="text-blue-600 cursor-pointer hover:underline ml-1" onClick={() => setIsQRScannerOpen(true)}>Открыть сканер</span>
-        </p>
       </div>
-
+        
+      {/* Подсказка о возможностях */}
+      <p className="text-xs text-gray-500 hidden sm:block">
+        QR-сканер поддерживает оборудование (EQ-*) и комплекты (KIT-*). 
+        <span className="text-blue-600 cursor-pointer hover:underline ml-1" onClick={() => setIsQRScannerOpen(true)}>Открыть сканер</span>
+      </p>
+      
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-3 h-9 sm:h-10">
           <TabsTrigger value="warehouse" className="text-xs sm:text-sm">Склад</TabsTrigger>
@@ -1323,6 +1323,7 @@ export const CableManager = memo(function CableManager({
           </Card>
         </TabsContent>
       </Tabs>
+    </div>
 
       {/* Диалог отправки в ремонт */}
       <Dialog open={isRepairDialogOpen} onOpenChange={setIsRepairDialogOpen}>
