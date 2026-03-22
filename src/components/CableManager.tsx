@@ -812,6 +812,36 @@ export const CableManager = memo(function CableManager({
     return roots;
   }, [categories]);
 
+  // Фильтрация дерева категорий на основе подвкладки (только категории с нужными items)
+  const filteredCategoryTree = useMemo(() => {
+    // Получаем ID категорий, которые имеют items для текущей подвкладки
+    const relevantCategoryIds = new Set(
+      (warehouseSubTab === 'equipment' ? equipmentItems : cablingItems)
+        .map(item => item.category_id)
+    );
+    
+    // Функция для фильтрации дерева
+    const filterTree = (nodes: (CableCategory & { children: any[] })[]): (CableCategory & { children: any[] })[] => {
+      return nodes.map(node => {
+        // Фильтруем детей рекурсивно
+        const filteredChildren = filterTree(node.children || []);
+        
+        // Категория показывается если:
+        // 1. В ней есть нужные items ИЛИ
+        // 2. У неё есть дети с нужными items
+        const hasItems = relevantCategoryIds.has(node.id);
+        const hasChildrenWithItems = filteredChildren.length > 0;
+        
+        if (hasItems || hasChildrenWithItems) {
+          return { ...node, children: filteredChildren };
+        }
+        return null;
+      }).filter(Boolean) as (CableCategory & { children: any[] })[];
+    };
+    
+    return filterTree(categoryTree);
+  }, [categoryTree, warehouseSubTab, equipmentItems, cablingItems]);
+
   // Фильтрация инвентаря по поисковому запросу
   const filteredInventory = useMemo(() => {
     // Сначала фильтруем по подвкладке (оборудование vs коммутация)
@@ -1106,7 +1136,7 @@ export const CableManager = memo(function CableManager({
             </Card>
           ) : (
             <CategoryList 
-              categories={categoryTree}
+              categories={filteredCategoryTree}
               inventory={filteredInventory}
               movements={movements}
               repairs={repairs}
