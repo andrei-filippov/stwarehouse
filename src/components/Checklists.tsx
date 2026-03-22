@@ -25,9 +25,11 @@ import {
   Truck,
   RotateCcw,
   ToggleLeft,
-  ToggleRight
+  ToggleRight,
+  Package
 } from 'lucide-react';
 import type { Checklist, ChecklistRule, ChecklistItem, Estimate } from '../types';
+import { supabase } from '../lib/supabase';
 
 import { Spinner } from './ui/spinner';
 
@@ -694,7 +696,7 @@ function ChecklistView({
   
   // QR-сканирование
   const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
-  const [scanMode, setScanMode] = useState<'load' | 'unload'>('load');
+  const [scanMode, setScanMode] = useState<'load' | 'unload' | 'kit'>('load');
   
   // Редактирование QR-кода
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -849,8 +851,46 @@ function ChecklistView({
         onUpdateItem(checklist.id, item.id, { loaded: true, unloaded: true });
         toast.success('Разгружено', { description: item.name });
       }
+    } else if (scanMode === 'kit') {
+      // Режим сканирования комплекта - не должен сюда попадать, обрабатывается отдельно
+      toast.error('Неверный режим сканирования');
     }
   }, [checklist.id, checklist.items, onUpdateItem, scanMode, optimisticUpdates, checkMode]);
+
+  // Обработка сканирования комплекта (кита)
+  const handleKitScan = useCallback(async (qrCode: string) => {
+    try {
+      // Ищем кит по QR-коду
+      const { data: kitData, error: kitError } = await supabase
+        .from('equipment_kits')
+        .select('id, name')
+        .eq('qr_code', qrCode)
+        .single();
+      
+      if (kitError || !kitData) {
+        toast.error('Комплект не найден', { description: `QR-код ${qrCode} не найден` });
+        return;
+      }
+      
+      // Отмечаем все items этого кита как погруженные
+      let updatedCount = 0;
+      for (const item of checklist.items || []) {
+        if (item.kit_id === kitData.id && !getItemStatus(item).loaded) {
+          await onUpdateItem(checklist.id, item.id!, { loaded: true });
+          setOptimisticUpdates(prev => ({ ...prev, [item.id!]: { loaded: true } }));
+          updatedCount++;
+        }
+      }
+      
+      if (updatedCount > 0) {
+        toast.success(`Комплект "${kitData.name}" отмечен`, { description: `Отмечено ${updatedCount} позиций` });
+      } else {
+        toast.info(`Комплект "${kitData.name}" уже отмечен`);
+      }
+    } catch (err: any) {
+      toast.error('Ошибка сканирования комплекта', { description: err.message });
+    }
+  }, [checklist.id, checklist.items, onUpdateItem]);
 
   // Сохранение QR-кода
   const handleSaveQrCode = useCallback(async () => {
@@ -1004,6 +1044,18 @@ function ChecklistView({
             </Button>
           )}
           
+          {/* Кнопка сканирования комплекта */}
+          <Button
+            variant="outline"
+            onClick={() => {
+              setScanMode('kit');
+              setIsQRScannerOpen(true);
+            }}
+          >
+            <Package className="w-4 h-4 mr-2" />
+            Сканировать комплект
+          </Button>
+          
           {progress > 0 && (
             <Button
               variant="outline"
@@ -1058,6 +1110,7 @@ function ChecklistView({
                         {item.name}
                         <span className="text-gray-500 ml-2">× {item.quantity}</span>
                         {item.is_required && <span className="text-red-500 ml-1">*</span>}
+                        {(item as any).kit_name && <span className="text-xs text-purple-500 ml-2">📦 {(item as any).kit_name}</span>}
                         {item.qr_code && <span className="text-xs text-blue-500 ml-2">📱 {item.qr_code}</span>}
                         <span className="text-xs ml-2">
                           {status.unloaded ? '(разгружено)' : status.loaded ? '(погружено)' : ''}
@@ -1102,6 +1155,7 @@ function ChecklistView({
                       {item.name}
                       <span className="text-gray-500 ml-2">× {item.quantity}</span>
                       {item.is_required && <span className="text-red-500 ml-1">*</span>}
+                      {(item as any).kit_name && <span className="text-xs text-purple-500 ml-2">📦 {(item as any).kit_name}</span>}
                       {item.qr_code && <span className="text-xs text-blue-500 ml-2">📱 {item.qr_code}</span>}
                     </span>
                     <Button
@@ -1133,9 +1187,9 @@ function ChecklistView({
       <QRScanner
         isOpen={isQRScannerOpen}
         onClose={() => setIsQRScannerOpen(false)}
-        onScan={handleQRScan}
-        title="Сканировать оборудование"
-        subtitle={`Найдено: ${progress} / ${total}`}
+        onScan={scanMode === 'kit' ? handleKitScan : handleQRScan}
+        title={scanMode === 'kit' ? 'Сканировать комплект' : scanMode === 'unload' ? 'Сканировать разгрузку' : 'Сканировать оборудование'}
+        subtitle={scanMode === 'kit' ? 'Наведите на QR-код кофра/комплекта' : `Найдено: ${progress} / ${total}`}
         keepOpen={true}
       />
 

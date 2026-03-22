@@ -267,31 +267,42 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
       
       // Загружаем QR-коды из cable_inventory для сопоставления
       // Создаем Map: имя оборудования -> массив QR-кодов (для случая когда несколько единиц)
-      let inventoryMap: Map<string, string[]> = new Map();
+      let inventoryMap: Map<string, { qr_code?: string; kit_id?: string; kit_name?: string }[]> = new Map();
       if (isOnline()) {
         try {
+          // Загружаем инвентарь с информацией о китах
           const { data: inventory, error: invError } = await supabase
             .from('cable_inventory')
-            .select('name, qr_code')
+            .select(`
+              name, 
+              qr_code,
+              kit_items:kit_items(kit_id, equipment_kits(id, name))
+            `)
             .eq('company_id', companyId);
           
           if (invError) {
             logger.warn('[createChecklist] Error loading inventory:', invError);
           } else {
-            // Группируем QR-коды по имени оборудования
+            // Группируем данные по имени оборудования
             inventory?.forEach(i => {
-              if (!i.qr_code) return;
               const key = i.name?.toLowerCase().trim();
               if (!key) return;
+              
+              // Получаем kit_id и kit_name из связи (если есть)
+              const kitData = (i as any).kit_items?.[0];
               
               if (!inventoryMap.has(key)) {
                 inventoryMap.set(key, []);
               }
-              inventoryMap.get(key)!.push(i.qr_code);
+              inventoryMap.get(key)!.push({
+                qr_code: i.qr_code,
+                kit_id: kitData?.kit_id,
+                kit_name: kitData?.equipment_kits?.name
+              });
             });
             
             logger.info('[createChecklist] Loaded inventory items:', inventory?.length);
-            logger.debug('[createChecklist] Inventory QR codes map:', Array.from(inventoryMap.entries()).map(([k, v]) => `${k}: ${v.length} QR`));
+            logger.debug('[createChecklist] Inventory map:', Array.from(inventoryMap.entries()).map(([k, v]) => `${k}: ${v.length} items`));
           }
         } catch (e) {
           logger.warn('[createChecklist] Failed to load inventory QR codes:', e);
@@ -314,27 +325,27 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
           .trim();
       };
       
-      // Создаем нормализованную Map для поиска
-      const normalizedInventoryMap: Map<string, string[]> = new Map();
-      for (const [invName, qrCodes] of inventoryMap.entries()) {
+      // Создаем нормализованную Map для поиска (с полной информацией)
+      const normalizedInventoryMap: Map<string, { qr_code?: string; kit_id?: string; kit_name?: string }[]> = new Map();
+      for (const [invName, data] of inventoryMap.entries()) {
         const normalized = normalizeName(invName);
         if (!normalizedInventoryMap.has(normalized)) {
           normalizedInventoryMap.set(normalized, []);
         }
-        normalizedInventoryMap.get(normalized)!.push(...qrCodes);
+        normalizedInventoryMap.get(normalized)!.push(...data);
       }
       
       logger.debug('[createChecklist] Normalized inventory names:', Array.from(normalizedInventoryMap.keys()));
       
-      // Функция для поиска QR-кода по имени (только точное совпадение по нормализованному имени)
-      const findQrCodeForItem = (itemName: string): string | null => {
+      // Функция для поиска данных оборудования по имени
+      const findInventoryData = (itemName: string): { qr_code?: string; kit_id?: string; kit_name?: string } | null => {
         const normalizedItemName = normalizeName(itemName);
         
         // Точное совпадение по нормализованному имени
-        const qrCodes = normalizedInventoryMap.get(normalizedItemName);
-        if (qrCodes && qrCodes.length > 0) {
+        const data = normalizedInventoryMap.get(normalizedItemName);
+        if (data && data.length > 0) {
           logger.debug(`[createChecklist] Exact match: "${itemName}" -> "${normalizedItemName}"`);
-          return qrCodes[0];
+          return data[0];
         }
         
         logger.debug(`[createChecklist] No match for: "${itemName}" (normalized: "${normalizedItemName}")`);
@@ -343,9 +354,9 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
       
       // Добавляем оборудование из сметы
       estimate.items?.forEach((item, index) => {
-        const qrCode = findQrCodeForItem(item.name);
+        const invData = findInventoryData(item.name);
         
-        logger.debug(`[createChecklist] Item "${item.name}": normalized="${normalizeName(item.name)}", QR=${qrCode || 'none'}`);
+        logger.debug(`[createChecklist] Item "${item.name}": normalized="${normalizeName(item.name)}", QR=${invData?.qr_code || 'none'}, Kit=${invData?.kit_name || 'none'}`);
         
         items.push({
           id: `local_item_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
@@ -354,7 +365,9 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
           category: item.category || 'equipment',
           is_required: true,
           is_checked: false,
-          qr_code: qrCode
+          qr_code: invData?.qr_code || null,
+          kit_id: invData?.kit_id || null,
+          kit_name: invData?.kit_name || null
         });
         
         // Правила (только если они загружены)
@@ -453,13 +466,17 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
               category: item.category,
               is_required: item.is_required ?? true,
               is_checked: item.is_checked ?? false,
-              qr_code: item.qr_code || null
+              qr_code: item.qr_code || null,
+              kit_id: item.kit_id || null,
+              kit_name: item.kit_name || null
             }));
 
             // Отладка: показываем что отправляем
             const itemsWithQr = itemsWithChecklistId.filter(i => i.qr_code);
-            logger.info(`[createChecklist] Inserting ${itemsWithChecklistId.length} items, ${itemsWithQr.length} with QR codes`);
+            const itemsWithKit = itemsWithChecklistId.filter(i => i.kit_id);
+            logger.info(`[createChecklist] Inserting ${itemsWithChecklistId.length} items, ${itemsWithQr.length} with QR codes, ${itemsWithKit.length} with kits`);
             logger.debug('[createChecklist] Items with QR:', itemsWithQr.map(i => ({ name: i.name, qr: i.qr_code })));
+            logger.debug('[createChecklist] Items with kits:', itemsWithKit.map(i => ({ name: i.name, kit: i.kit_name })));
 
             const { error: itemsError } = await supabase
               .from('checklist_items')
