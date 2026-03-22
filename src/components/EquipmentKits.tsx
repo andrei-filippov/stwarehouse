@@ -24,7 +24,8 @@ export function EquipmentKits({ kits, inventory, categories, onCreateKit, onUpda
   const [editingKitId, setEditingKitId] = useState<string | null>(null);
   const [kitName, setKitName] = useState('');
   const [kitDescription, setKitDescription] = useState('');
-  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  // Map: inventory_id -> quantity (количество единиц в комплекте)
+  const [selectedItems, setSelectedItems] = useState<Map<string, number>>(new Map());
   const [showQR, setShowQR] = useState<EquipmentKit | null>(null);
 
   const handleCreate = async () => {
@@ -37,9 +38,17 @@ export function EquipmentKits({ kits, inventory, categories, onCreateKit, onUpda
       return;
     }
 
+    // Преобразуем Map в массив с повторениями для сохранения в БД
+    const itemIdsWithQuantity: string[] = [];
+    selectedItems.forEach((quantity, inventoryId) => {
+      for (let i = 0; i < quantity; i++) {
+        itemIdsWithQuantity.push(inventoryId);
+      }
+    });
+
     const result = await onCreateKit(
       { name: kitName, description: kitDescription },
-      Array.from(selectedItems)
+      itemIdsWithQuantity
     );
 
     if (!result.error) {
@@ -55,10 +64,18 @@ export function EquipmentKits({ kits, inventory, categories, onCreateKit, onUpda
       return;
     }
 
+    // Преобразуем Map в массив с повторениями для сохранения в БД
+    const itemIdsWithQuantity: string[] = [];
+    selectedItems.forEach((quantity, inventoryId) => {
+      for (let i = 0; i < quantity; i++) {
+        itemIdsWithQuantity.push(inventoryId);
+      }
+    });
+
     const result = await onUpdateKit(
       editingKitId,
       { name: kitName, description: kitDescription },
-      Array.from(selectedItems)
+      itemIdsWithQuantity
     );
 
     if (!result.error) {
@@ -72,9 +89,13 @@ export function EquipmentKits({ kits, inventory, categories, onCreateKit, onUpda
     setEditingKitId(kit.id);
     setKitName(kit.name);
     setKitDescription(kit.description || '');
-    // Устанавливаем выбранные items из kit.items
-    const kitItemIds = new Set(kit.items?.map(i => i.inventory_id) || []);
-    setSelectedItems(kitItemIds);
+    // Устанавливаем выбранные items с количеством
+    const kitItemsMap = new Map<string, number>();
+    kit.items?.forEach(item => {
+      const current = kitItemsMap.get(item.inventory_id) || 0;
+      kitItemsMap.set(item.inventory_id, current + 1);
+    });
+    setSelectedItems(kitItemsMap);
     setIsDialogOpen(true);
   };
 
@@ -83,7 +104,7 @@ export function EquipmentKits({ kits, inventory, categories, onCreateKit, onUpda
     setEditingKitId(null);
     setKitName('');
     setKitDescription('');
-    setSelectedItems(new Set());
+    setSelectedItems(new Map());
     setIsDialogOpen(true);
   };
 
@@ -93,7 +114,7 @@ export function EquipmentKits({ kits, inventory, categories, onCreateKit, onUpda
     setEditingKitId(null);
     setKitName('');
     setKitDescription('');
-    setSelectedItems(new Set());
+    setSelectedItems(new Map());
   };
 
   // Скачивание QR-кода
@@ -177,13 +198,53 @@ export function EquipmentKits({ kits, inventory, categories, onCreateKit, onUpda
     printWindow.document.close();
   };
 
-  const toggleItem = (id: string) => {
+  // Получить количество для item
+  const getItemQuantity = (id: string) => selectedItems.get(id) || 0;
+
+  // Увеличить количество
+  const incrementItem = (id: string) => {
     setSelectedItems(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      const next = new Map(prev);
+      const current = next.get(id) || 0;
+      next.set(id, current + 1);
       return next;
     });
+  };
+
+  // Уменьшить количество
+  const decrementItem = (id: string) => {
+    setSelectedItems(prev => {
+      const next = new Map(prev);
+      const current = next.get(id) || 0;
+      if (current <= 1) {
+        next.delete(id);
+      } else {
+        next.set(id, current - 1);
+      }
+      return next;
+    });
+  };
+
+  // Установить количество вручную
+  const setItemQuantity = (id: string, quantity: number) => {
+    setSelectedItems(prev => {
+      const next = new Map(prev);
+      if (quantity <= 0) {
+        next.delete(id);
+      } else {
+        next.set(id, quantity);
+      }
+      return next;
+    });
+  };
+
+  // Получить общее количество выбранных единиц
+  const getTotalSelectedCount = () => {
+    let total = 0;
+    selectedItems.forEach(quantity => {
+      total += quantity;
+    });
+    return total;
   };
 
   // Map для быстрого поиска названия категории по ID
@@ -343,7 +404,7 @@ export function EquipmentKits({ kits, inventory, categories, onCreateKit, onUpda
 
             <div>
               <label className="text-sm font-medium">
-                Выберите оборудование * ({selectedItems.size} выбрано)
+                Выберите оборудование * ({getTotalSelectedCount()} единиц, {selectedItems.size} позиций)
               </label>
               
               <div className="space-y-3 mt-2 max-h-64 overflow-y-auto border rounded-lg p-2">
@@ -353,23 +414,43 @@ export function EquipmentKits({ kits, inventory, categories, onCreateKit, onUpda
                       {group.name}
                     </p>
                     <div className="space-y-1">
-                      {group.items.map(item => (
-                        <label 
-                          key={item.id} 
-                          className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={selectedItems.has(item.id!)}
-                            onChange={() => toggleItem(item.id!)}
-                            className="rounded"
-                          />
-                          <span className="text-sm">{item.name}</span>
-                          <span className="text-xs text-gray-400 ml-auto">
-                            {item.quantity} шт.
-                          </span>
-                        </label>
-                      ))}
+                      {group.items.map(item => {
+                        const qty = getItemQuantity(item.id!);
+                        return (
+                          <div 
+                            key={item.id} 
+                            className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded"
+                          >
+                            <span className="text-sm flex-1">{item.name}</span>
+                            <span className="text-xs text-gray-400">
+                              на складе: {item.quantity} шт.
+                            </span>
+                            <div className="flex items-center gap-1 ml-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-6 w-6 p-0"
+                                onClick={() => decrementItem(item.id!)}
+                                disabled={qty === 0}
+                              >
+                                -
+                              </Button>
+                              <span className="w-8 text-center text-sm font-medium">
+                                {qty}
+                              </span>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-6 w-6 p-0"
+                                onClick={() => incrementItem(item.id!)}
+                                disabled={qty >= item.quantity}
+                              >
+                                +
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 ))}

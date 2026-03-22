@@ -128,11 +128,17 @@ export function useChecklistsV2(companyId: string | undefined) {
 
       if (kitError) throw kitError;
 
-      // Добавляем позиции в комплект
-      const kitItems = itemIds.map(id => ({
+      // Подсчитываем количество каждого inventory_id
+      const quantityMap = new Map<string, number>();
+      itemIds.forEach(id => {
+        quantityMap.set(id, (quantityMap.get(id) || 0) + 1);
+      });
+
+      // Добавляем позиции в комплект с правильным количеством
+      const kitItems = Array.from(quantityMap.entries()).map(([inventory_id, quantity]) => ({
         kit_id: kitData.id,
-        inventory_id: id,
-        quantity: 1
+        inventory_id,
+        quantity
       }));
 
       const { error: itemsError } = await supabase
@@ -179,12 +185,18 @@ export function useChecklistsV2(companyId: string | undefined) {
 
         if (deleteError) throw deleteError;
 
-        // Добавляем новые связи
+        // Добавляем новые связи с подсчетом количества
         if (itemIds.length > 0) {
-          const kitItems = itemIds.map(inventoryId => ({
+          // Подсчитываем количество каждого inventory_id
+          const quantityMap = new Map<string, number>();
+          itemIds.forEach(inventoryId => {
+            quantityMap.set(inventoryId, (quantityMap.get(inventoryId) || 0) + 1);
+          });
+
+          const kitItems = Array.from(quantityMap.entries()).map(([inventory_id, quantity]) => ({
             kit_id: id,
-            inventory_id: inventoryId,
-            quantity: 1
+            inventory_id,
+            quantity
           }));
 
           const { error: insertError } = await supabase
