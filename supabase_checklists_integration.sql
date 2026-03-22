@@ -86,6 +86,30 @@ CREATE POLICY "Users can manage kit items"
     ON kit_items FOR ALL 
     USING (kit_id IN (SELECT id FROM equipment_kits WHERE company_id IN (SELECT company_id FROM company_members WHERE user_id = auth.uid())));
 
+-- Политики для checklist_items (многотенантные)
+ALTER TABLE checklist_items ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view checklist items in their company" ON checklist_items;
+DROP POLICY IF EXISTS "Users can insert checklist items in their company" ON checklist_items;
+DROP POLICY IF EXISTS "Users can update checklist items in their company" ON checklist_items;
+DROP POLICY IF EXISTS "Users can delete checklist items in their company" ON checklist_items;
+
+CREATE POLICY "Users can view checklist items in their company" 
+    ON checklist_items FOR SELECT 
+    USING (checklist_id IN (SELECT id FROM checklists WHERE company_id IN (SELECT company_id FROM company_members WHERE user_id = auth.uid())));
+
+CREATE POLICY "Users can insert checklist items in their company" 
+    ON checklist_items FOR INSERT 
+    WITH CHECK (checklist_id IN (SELECT id FROM checklists WHERE company_id IN (SELECT company_id FROM company_members WHERE user_id = auth.uid())));
+
+CREATE POLICY "Users can update checklist items in their company" 
+    ON checklist_items FOR UPDATE 
+    USING (checklist_id IN (SELECT id FROM checklists WHERE company_id IN (SELECT company_id FROM company_members WHERE user_id = auth.uid())));
+
+CREATE POLICY "Users can delete checklist items in their company" 
+    ON checklist_items FOR DELETE 
+    USING (checklist_id IN (SELECT id FROM checklists WHERE company_id IN (SELECT company_id FROM company_members WHERE user_id = auth.uid())));
+
 -- Политики для checklists
 ALTER TABLE checklists ENABLE ROW LEVEL SECURITY;
 

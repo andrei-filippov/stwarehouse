@@ -911,12 +911,14 @@ function ChecklistView({
         
         console.log(`[Kit Scan] Checking: ${item.name}, kit_id_match=${matchByKitId}, name_match=${matchByName}`);
         
-        if ((matchByKitId || matchByName) && !getItemStatus(item).loaded) {
-          console.log(`[Kit Scan] Marking as loaded: ${item.name}, item.id=${item.id}`);
-          // Сначала optimistic update для мгновенного отклика UI
-          setOptimisticUpdates(prev => ({ ...prev, [item.id!]: { loaded: true } }));
-          // Потом отправка на сервер
-          const result = await onUpdateItem(checklist.id, item.id!, { loaded: true });
+        if ((matchByKitId || matchByName) && !isChecked(item)) {
+          console.log(`[Kit Scan] Marking as completed: ${item.name}, item.id=${item.id}`);
+          // В зависимости от режима устанавливаем нужное поле
+          const updates = checkMode === 'simple' 
+            ? { is_checked: true }
+            : { loaded: true, unloaded: true };
+          setOptimisticUpdates(prev => ({ ...prev, [item.id!]: updates }));
+          const result = await onUpdateItem(checklist.id, item.id!, updates);
           console.log(`[Kit Scan] Update result for ${item.name}:`, result);
           if (result.error) {
             console.error(`[Kit Scan] Failed to update ${item.name}:`, result.error);
@@ -943,7 +945,7 @@ function ChecklistView({
       console.error('[Kit Scan] Error:', err);
       toast.error('Ошибка сканирования комплекта', { description: err.message });
     }
-  }, [checklist.id, checklist.items, onUpdateItem, getItemStatus]);
+  }, [checklist.id, checklist.items, onUpdateItem, getItemStatus, isChecked, checkMode]);
 
   // Сохранение QR-кода
   const handleSaveQrCode = useCallback(async () => {
