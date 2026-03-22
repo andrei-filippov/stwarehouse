@@ -6,17 +6,18 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { QRCodeDisplay } from './QRCodeDisplay';
 import { toast } from 'sonner';
 import { Package, Plus, Trash2, QrCode, Edit2 } from 'lucide-react';
-import type { EquipmentKit, CableInventory } from '../types';
+import type { EquipmentKit, CableInventory, CableCategory } from '../types';
 
 interface EquipmentKitsProps {
   kits: EquipmentKit[];
   inventory: CableInventory[];
+  categories: CableCategory[];
   onCreateKit: (kit: Partial<EquipmentKit>, itemIds: string[]) => Promise<{ error: any }>;
   onDeleteKit: (id: string) => Promise<{ error: any }>;
   companyId?: string;
 }
 
-export function EquipmentKits({ kits, inventory, onCreateKit, onDeleteKit, companyId }: EquipmentKitsProps) {
+export function EquipmentKits({ kits, inventory, categories, onCreateKit, onDeleteKit, companyId }: EquipmentKitsProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [kitName, setKitName] = useState('');
   const [kitDescription, setKitDescription] = useState('');
@@ -56,16 +57,26 @@ export function EquipmentKits({ kits, inventory, onCreateKit, onDeleteKit, compa
     });
   };
 
-  // Группировка оборудования по категориям
+  // Map для быстрого поиска названия категории по ID
+  const categoryMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    categories.forEach(cat => {
+      map[cat.id] = cat.name;
+    });
+    return map;
+  }, [categories]);
+
+  // Группировка оборудования по категориям (с названиями)
   const groupedInventory = useMemo(() => {
-    const groups: Record<string, CableInventory[]> = {};
+    const groups: Record<string, { name: string; items: CableInventory[] }> = {};
     inventory.forEach(item => {
-      const cat = item.category_id || 'Без категории';
-      if (!groups[cat]) groups[cat] = [];
-      groups[cat].push(item);
+      const catId = item.category_id || 'Без категории';
+      const catName = categoryMap[catId] || 'Без категории';
+      if (!groups[catId]) groups[catId] = { name: catName, items: [] };
+      groups[catId].items.push(item);
     });
     return groups;
-  }, [inventory]);
+  }, [inventory, categoryMap]);
 
   return (
     <div className="space-y-4">
@@ -161,13 +172,13 @@ export function EquipmentKits({ kits, inventory, onCreateKit, onDeleteKit, compa
               </label>
               
               <div className="space-y-3 mt-2 max-h-64 overflow-y-auto border rounded-lg p-2">
-                {Object.entries(groupedInventory).map(([catId, items]) => (
+                {Object.entries(groupedInventory).map(([catId, group]) => (
                   <div key={catId}>
                     <p className="text-xs font-medium text-gray-500 uppercase mb-1">
-                      {catId === 'Без категории' ? catId : `Категория ${catId}`}
+                      {group.name}
                     </p>
                     <div className="space-y-1">
-                      {items.map(item => (
+                      {group.items.map(item => (
                         <label 
                           key={item.id} 
                           className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer"

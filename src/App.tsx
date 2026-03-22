@@ -522,6 +522,7 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
               <EquipmentKits
                 kits={kits}
                 inventory={cableInventory}
+                categories={cableCategories}
                 onCreateKit={createKit}
                 onDeleteKit={deleteKit}
                 companyId={companyId}
