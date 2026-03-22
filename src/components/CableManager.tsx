@@ -840,115 +840,147 @@ export const CableManager = memo(function CableManager({
   return (
     <div className="space-y-3 sm:space-y-4">
       {/* Заголовок */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
-          <Cable className="w-6 h-6 sm:w-7 sm:h-7 text-blue-600" />
-          <span className="hidden sm:inline">Учет оборудования</span>
-          <span className="sm:hidden">Оборудование</span>
-        </h1>
-        <div className="flex items-center gap-2">
-          {onTransferToEquipment && targetEquipmentCategories && (
-            selectionMode ? (
-              <>
+      <div className="space-y-1">
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
+            <Cable className="w-6 h-6 sm:w-7 sm:h-7 text-blue-600" />
+            <span className="hidden sm:inline">Учет оборудования</span>
+            <span className="sm:hidden">Оборудование</span>
+          </h1>
+        
+        {/* Группировка кнопок по смыслу */}
+        <div className="flex items-center gap-1 sm:gap-2">
+          {/* Группа 1: Управление */}
+          <div className="flex items-center gap-1">
+            <Button 
+              onClick={() => {
+                setEditingCategory(null);
+                setCategoryForm({ name: '', description: '', color: '#3b82f6' });
+                setIsCategoryDialogOpen(true);
+              }}
+              size="sm"
+              className="h-8 sm:h-9"
+            >
+              <Plus className="w-4 h-4 mr-0 sm:mr-1.5" />
+              <span className="hidden sm:inline text-sm">Категория</span>
+            </Button>
+            
+            {/* Кнопка выбора для переноса в оборудование */}
+            {onTransferToEquipment && targetEquipmentCategories && (
+              selectionMode ? (
+                <>
+                  <Button 
+                    variant="default"
+                    size="sm"
+                    onClick={openTransferDialog}
+                    disabled={selectedInventoryIds.size === 0}
+                    className="h-8 sm:h-9"
+                  >
+                    <Package className="w-4 h-4 mr-0 sm:mr-1.5" />
+                    <span className="hidden sm:inline text-sm">В оборудование</span>
+                    {selectedInventoryIds.size > 0 && (
+                      <span className="ml-1.5 bg-white/20 px-1.5 py-0.5 rounded text-xs">
+                        {selectedInventoryIds.size}
+                      </span>
+                    )}
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => {
+                      setSelectionMode(false);
+                      setSelectedInventoryIds(new Set());
+                    }}
+                    className="h-8 sm:h-9 px-2"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </>
+              ) : (
                 <Button 
                   variant="outline" 
                   size="sm"
-                  onClick={() => {
-                    setSelectionMode(false);
-                    setSelectedInventoryIds(new Set());
-                  }}
+                  onClick={() => setSelectionMode(true)}
+                  className="h-8 sm:h-9"
                 >
-                  <X className="w-4 h-4 mr-0 sm:mr-2" />
-                  <span className="hidden sm:inline">Отмена</span>
+                  <CheckSquare className="w-4 h-4 mr-0 sm:mr-1.5" />
+                  <span className="hidden sm:inline text-sm">Выбрать</span>
                 </Button>
-                <Button 
-                  onClick={openTransferDialog}
-                  disabled={selectedInventoryIds.size === 0}
-                  size="sm"
-                >
-                  <Package className="w-4 h-4 mr-0 sm:mr-2" />
-                  <span className="hidden sm:inline">В оборудование</span>
-                  {selectedInventoryIds.size > 0 && (
-                    <span className="ml-1 bg-white/20 px-1.5 py-0.5 rounded text-xs">
-                      {selectedInventoryIds.size}
-                    </span>
-                  )}
-                </Button>
-              </>
-            ) : (
+              )
+            )}
+          </div>
+          
+          {/* Разделитель */}
+          <div className="w-px h-6 bg-gray-300 mx-1 hidden sm:block" />
+          
+          {/* Группа 2: Сканирование и выдача */}
+          <div className="flex items-center gap-1">
+            {/* Кнопка сканирования с выпадающим меню */}
+            <div className="relative flex items-center">
               <Button 
-                variant="outline" 
+                variant={qrScanMode === 'batch' ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => setSelectionMode(true)}
+                onClick={() => setIsQRScannerOpen(true)}
+                className={`h-8 sm:h-9 ${qrScanMode === 'batch' ? 'bg-green-600 hover:bg-green-700' : ''}`}
+                title={qrScanMode === 'batch' ? 'Режим выдачи активен' : 'Сканировать QR-код'}
               >
-                <CheckSquare className="w-4 h-4 mr-0 sm:mr-2" />
-                <span className="hidden sm:inline">Выбрать</span>
+                <svg className="w-4 h-4 mr-0 sm:mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                </svg>
+                <span className="hidden sm:inline text-sm">
+                  {qrScanMode === 'batch' ? `Выдача (${selectedItems.length})` : 'Сканировать'}
+                </span>
+                {qrScanMode === 'batch' && selectedItems.length > 0 && (
+                  <span className="ml-1.5 bg-white/20 px-1.5 py-0.5 rounded text-xs">
+                    {selectedItems.length}
+                  </span>
+                )}
               </Button>
-            )
-          )}
-          <Button 
-            onClick={() => {
-              setEditingCategory(null);
-              setCategoryForm({ name: '', description: '', color: '#3b82f6' });
-              setIsCategoryDialogOpen(true);
-            }}
-            size="sm"
-            className="sm:size-default"
-          >
-            <Plus className="w-4 h-4 mr-0 sm:mr-2" />
-            <span className="hidden sm:inline">Категория</span>
-          </Button>
-          <Button 
-            variant={qrScanMode === 'batch' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => {
-              if (qrScanMode === 'single') {
-                setQrScanMode('batch');
-                const kitCount = kits.length;
-                toast.info('Режим выдачи включен', { 
-                  description: kitCount > 0 
-                    ? `Сканируйте QR оборудования (EQ-*) или комплектов (KIT-*) — доступно ${kitCount} комплектов`
-                    : 'QR-коды будут сразу добавляться в выдачу'
-                });
-              }
-              setIsQRScannerOpen(true);
-            }}
-            title={qrScanMode === 'batch' ? `Режим выдачи активен. Можно сканировать комплекты (${kits.length})` : 'Сканировать QR-код оборудования или комплекта'}
-          >
-            <svg className="w-4 h-4 mr-0 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-            </svg>
-            <span className="hidden sm:inline">{qrScanMode === 'batch' ? 'Выдача' : 'QR'}</span>
-          </Button>
-          {qrScanMode === 'batch' && (
-            <Button
-              variant="ghost"
+              
+              {/* Переключатель режима */}
+              <Button
+                variant={qrScanMode === 'batch' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => {
+                  if (qrScanMode === 'single') {
+                    setQrScanMode('batch');
+                    toast.info('Режим выдачи включен', { 
+                      description: `Сканируйте QR — оборудование и комплекты (${kits.length}) сразу добавятся в выдачу`
+                    });
+                  } else {
+                    setQrScanMode('single');
+                    toast.info('Обычный режим QR');
+                  }
+                }}
+                className={`h-8 sm:h-9 px-2 ml-0.5 ${qrScanMode === 'batch' ? 'bg-green-700 hover:bg-green-800 border-green-700' : ''}`}
+                title={qrScanMode === 'batch' ? 'Выключить режим выдачи' : 'Включить режим выдачи'}
+              >
+                {qrScanMode === 'batch' ? <X className="w-4 h-4" /> : <Package className="w-4 h-4" />}
+              </Button>
+            </div>
+          </div>
+          
+          {/* Разделитель */}
+          <div className="w-px h-6 bg-gray-300 mx-1 hidden sm:block" />
+          
+          {/* Группа 3: Импорт/Экспорт */}
+          <div className="flex items-center gap-1">
+            <Button 
+              variant="outline"
               size="sm"
-              onClick={() => {
-                setQrScanMode('single');
-                toast.info('Обычный режим QR');
-              }}
-              title="Отключить режим выдачи"
-              className="px-2"
+              onClick={exportToExcel}
+              title="Экспорт в Excel"
+              className="h-8 sm:h-9 px-2 sm:px-3"
             >
-              ✕
+              <svg className="w-4 h-4 sm:mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <span className="hidden sm:inline text-sm">Excel</span>
             </Button>
-          )}
-          <Button 
-            variant="outline"
-            size="sm"
-            onClick={exportToExcel}
-            title="Экспорт в Excel"
-          >
-            <svg className="w-4 h-4 mr-0 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <span className="hidden sm:inline">Excel</span>
-          </Button>
-          <Button 
-            variant="outline"
-            size="sm"
-            onClick={() => setIsImportDialogOpen(true)}
+            <Button 
+              variant="outline"
+              size="sm"
+              onClick={() => setIsImportDialogOpen(true)}
             title="Импорт из Excel"
           >
             <svg className="w-4 h-4 mr-0 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -956,7 +988,14 @@ export const CableManager = memo(function CableManager({
             </svg>
             <span className="hidden sm:inline">Импорт</span>
           </Button>
+          </div>
         </div>
+        
+        {/* Подсказка о возможностях */}
+        <p className="text-xs text-gray-500 hidden sm:block">
+          QR-сканер поддерживает оборудование (EQ-*) и комплекты (KIT-*). 
+          <span className="text-blue-600 cursor-pointer hover:underline ml-1" onClick={() => setIsQRScannerOpen(true)}>Открыть сканер</span>
+        </p>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -1048,31 +1087,73 @@ export const CableManager = memo(function CableManager({
           )}
           
           {/* Плавающая панель выдачи */}
-          {selectedItems.length > 0 && (
-            <div className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-sm">
-              <Card className="bg-blue-600 text-white shadow-lg border-0">
-                <CardContent className="p-2 sm:p-3 flex items-center justify-between gap-2">
-                  <span className="text-xs sm:text-sm font-medium truncate">
-                    Выбрано: {selectedItems.length}
-                  </span>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Button 
-                      size="sm" 
-                      variant="secondary"
-                      onClick={openBulkIssueDialog}
-                      className="h-7 sm:h-8 text-xs sm:text-sm"
-                    >
-                      Выдать
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      variant="ghost"
-                      className="text-white hover:text-white/80 h-7 sm:h-8 text-xs sm:text-sm px-2"
-                      onClick={() => setSelectedItems([])}
-                    >
-                      Отмена
-                    </Button>
-                  </div>
+          {(selectedItems.length > 0 || qrScanMode === 'batch') && (
+            <div className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-md">
+              <Card className={`shadow-lg border-0 ${selectedItems.length > 0 ? 'bg-green-600 text-white' : 'bg-amber-500 text-white'}`}>
+                <CardContent className="p-2.5 sm:p-3">
+                  {selectedItems.length > 0 ? (
+                    /* Режим с выбранными позициями */
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Package className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-xs sm:text-sm font-medium truncate">
+                            К выдаче: {selectedItems.length} позиций
+                          </span>
+                          <span className="text-[10px] sm:text-xs opacity-80 truncate">
+                            {selectedItems.slice(0, 2).map(i => i.name).join(', ')}
+                            {selectedItems.length > 2 && ` +${selectedItems.length - 2}`}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <Button 
+                          size="sm" 
+                          variant="secondary"
+                          onClick={openBulkIssueDialog}
+                          className="h-7 sm:h-8 text-xs sm:text-sm font-medium"
+                        >
+                          Выдать
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="ghost"
+                          className="text-white hover:text-white/80 hover:bg-white/20 h-7 sm:h-8 text-xs px-2"
+                          onClick={() => setSelectedItems([])}
+                          title="Очистить выбор"
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Режим ожидания сканирования */
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-2 h-2 bg-white rounded-full animate-pulse shrink-0" />
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-xs sm:text-sm font-medium truncate">
+                            Режим выдачи активен
+                          </span>
+                          <span className="text-[10px] sm:text-xs opacity-90 truncate">
+                            Сканируйте QR оборудования или комплекты ({kits.length})
+                          </span>
+                        </div>
+                      </div>
+                      <Button 
+                        size="sm" 
+                        variant="ghost"
+                        className="text-white hover:text-white/80 hover:bg-white/20 h-7 sm:h-8 text-xs px-2 shrink-0"
+                        onClick={() => {
+                          setQrScanMode('single');
+                          toast.info('Режим выдачи выключен');
+                        }}
+                      >
+                        <X className="w-4 h-4 mr-1" />
+                        <span className="hidden sm:inline">Выйти</span>
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
