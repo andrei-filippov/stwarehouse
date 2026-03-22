@@ -85,7 +85,7 @@ export function Sidebar(props: SidebarProps) {
   );
   
   const referenceTabs = availableTabs.filter(tab => 
-    ['templates', 'checklists', 'staff', 'goals', 'cables'].includes(tab.id)
+    ['templates', 'checklists', 'kits', 'staff', 'goals', 'cables'].includes(tab.id)
   );
   
   const systemTabs = availableTabs.filter(tab => 
