@@ -476,13 +476,39 @@ export function EquipmentKits({ kits, inventory, categories, onCreateKit, onUpda
       </Dialog>
 
       {/* QR-код комплекта */}
-      {showQR && showQR.qr_code && (
-        <QRCodeDisplay
-          value={showQR.qr_code}
-          title={showQR.name}
-          size={200}
-        />
-      )}
+      <Dialog open={!!showQR} onOpenChange={() => setShowQR(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>QR-код: {showQR?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-4">
+            {showQR?.qr_code && (
+              <QRCodeDisplay
+                value={showQR.qr_code}
+                size={250}
+              />
+            )}
+            <p className="text-xs font-mono text-gray-500">{showQR?.qr_code}</p>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setShowQR(null)}>
+                Закрыть
+              </Button>
+              {showQR && (
+                <>
+                  <Button variant="outline" onClick={() => downloadQR(showQR)}>
+                    <Download className="w-4 h-4 mr-2" />
+                    Скачать
+                  </Button>
+                  <Button onClick={() => printQR(showQR)}>
+                    <Printer className="w-4 h-4 mr-2" />
+                    Печать
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
