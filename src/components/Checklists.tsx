@@ -1128,8 +1128,8 @@ function ChecklistView({
             }
             kitScanCounterRef.current[localKey][scanModeField] += canAdd;
             
-            const newTotalQty = currentQty + kitScanCounterRef.current[localKey][scanModeField];
-            console.log(`[Kit Scan] ${equipmentName}: newTotalQty=${newTotalQty}, updates.loaded_quantity=${newTotalQty}`);
+            const newTotalQty = currentQty + canAdd;
+            console.log(`[Kit Scan] ${equipmentName}: currentQty=${currentQty}, canAdd=${canAdd}, newTotalQty=${newTotalQty}`);
             
             // Определяем статус на основе количества
             const isComplete = newTotalQty >= itemNeeded;
