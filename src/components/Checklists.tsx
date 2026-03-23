@@ -928,8 +928,8 @@ function ChecklistView({
     const baseUnloadedQty = status.unloaded_quantity;
     
     // Добавляем локальные сканы из ref (для быстрого сканирования подряд)
-    const localLoaded = scanCounterRef.current[item.id].loaded;
-    const localUnloaded = scanCounterRef.current[item.id].unloaded;
+    const localLoaded = scanCounterRef.current[item.id]?.loaded || 0;
+    const localUnloaded = scanCounterRef.current[item.id]?.unloaded || 0;
     
     const currentLoadedQty = baseLoadedQty + localLoaded;
     const currentUnloadedQty = baseUnloadedQty + localUnloaded;
@@ -1406,11 +1406,9 @@ function ChecklistView({
                           (item.loaded_quantity || 0) > 0 || (item.unloaded_quantity || 0) > 0 ? 'text-amber-600' :
                           'text-muted-foreground'
                         }`}>
-                          {scanMode === 'unload' && item.unloaded_quantity !== undefined
-                            ? `${item.unloaded_quantity} из ${item.quantity}`
-                            : item.loaded_quantity !== undefined
-                              ? `${item.loaded_quantity} из ${item.quantity}`
-                              : `× ${item.quantity}`
+                          {scanMode === 'unload'
+                            ? `${item.unloaded_quantity || 0} из ${item.quantity}`
+                            : `${item.loaded_quantity || 0} из ${item.quantity}`
                           }
                         </span>
                         {item.is_required && <span className="text-red-500 ml-1">*</span>}
@@ -1463,10 +1461,7 @@ function ChecklistView({
                         (item.loaded_quantity || 0) > 0 ? 'text-amber-600' :
                         'text-muted-foreground'
                       }`}>
-                        {item.loaded_quantity !== undefined
-                          ? `${item.loaded_quantity} из ${item.quantity}`
-                          : `× ${item.quantity}`
-                        }
+                        {`${item.loaded_quantity || 0} из ${item.quantity}`}
                       </span>
                       {item.is_required && <span className="text-red-500 ml-1">*</span>}
                       {(item as any).kit_name && <span className="text-xs text-purple-500 ml-2">📦 {(item as any).kit_name}</span>}
