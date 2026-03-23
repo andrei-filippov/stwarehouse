@@ -1037,17 +1037,21 @@ function ChecklistView({
         return;
       }
       
+      console.log('[Kit Scan] Raw kit items data:', kitItemsData);
+      
       // Создаем мапу: название оборудования -> необходимое количество
       const kitEquipmentMap = new Map<string, number>();
       kitItemsData?.forEach((item: any) => {
         const name = (item.cable_inventory as any)?.name?.toLowerCase().trim();
         const qty = item.quantity || 1;
+        console.log(`[Kit Scan] Processing kit item: inventory_id=${item.inventory_id}, qty=${qty}, name=${name}`);
         if (name) {
           kitEquipmentMap.set(name, (kitEquipmentMap.get(name) || 0) + qty);
         }
       });
       
       console.log('[Kit Scan] Equipment in kit:', Object.fromEntries(kitEquipmentMap));
+      console.log('[Kit Scan] Kit ID:', kitData.id);
       
       // Группируем items чек-листа по названию для подсчета
       const checklistItemsByName = new Map<string, typeof checklist.items>();
@@ -1059,7 +1063,19 @@ function ChecklistView({
         checklistItemsByName.get(name)!.push(item);
       }
       
+      // DEBUG: Log all items with kit_id
+      const itemsWithKitId = (checklist.items || []).filter(item => item.kit_id);
+      console.log('[Kit Scan] Items in checklist with kit_id:', itemsWithKitId.map(i => ({ 
+        name: i.name, 
+        kit_id: i.kit_id, 
+        kit_name: i.kit_name 
+      })));
+      
+      // DEBUG: Log all item names in checklist for comparison
+      console.log('[Kit Scan] All item names in checklist:', Array.from(checklistItemsByName.keys()));
+      
       const kitIdStr = String(kitData.id);
+      console.log('[Kit Scan] Looking for kit_id:', kitIdStr);
       let updatedCount = 0;
       const results: string[] = [];
       
@@ -1072,6 +1088,8 @@ function ChecklistView({
           item.kit_id && String(item.kit_id) === kitIdStr
         );
         
+        console.log(`[Kit Scan] Equipment "${equipmentName}": found by name=${matchingItems.length}, by kit_id=${itemsByKitId.length}`);
+        
         // Объединяем и убираем дубликаты
         const allMatchingItems = [...matchingItems, ...itemsByKitId];
         const uniqueItems = allMatchingItems.filter((item, index, self) => 
@@ -1079,9 +1097,12 @@ function ChecklistView({
         );
         
         if (uniqueItems.length === 0) {
+          console.log(`[Kit Scan] Equipment "${equipmentName}": NO MATCHING ITEMS FOUND`);
           results.push(`⚠️ ${equipmentName}: не найден в чек-листе`);
           continue;
         }
+        
+        console.log(`[Kit Scan] Equipment "${equipmentName}": total unique items=${uniqueItems.length}`);
         
         // Считаем сколько уже отсканировано (используем getItemStatus + локальные счетчики)
         let alreadyScanned = 0;

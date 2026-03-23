@@ -154,6 +154,12 @@ export type ChecklistItem = {
   // Поля для двойной проверки и комплектов
   loaded?: boolean;
   unloaded?: boolean;
+  loaded_at?: string;
+  loaded_by?: string;
+  unloaded_at?: string;
+  unloaded_by?: string;
+  loaded_quantity?: number; // Количество отсканированное при погрузке
+  unloaded_quantity?: number; // Количество отсканированное при разгрузке
   kit_id?: string; // ID комплекта/кофра
   kit_name?: string; // Название комплекта
 };
