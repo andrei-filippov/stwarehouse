@@ -825,9 +825,9 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
                 </p>
                 <div className="space-y-1 max-h-64 overflow-auto">
                   {selectedEstimate.items?.map((item, idx) => (
-                    <div key={idx} className="flex justify-between text-sm p-3 bg-gray-50 rounded-lg">
+                    <div key={idx} className="flex justify-between text-sm p-3 bg-muted rounded-lg">
                       <span className="font-medium">{item.name}</span>
-                      <span className="text-gray-600">
+                      <span className="text-muted-foreground">
                         {item.quantity} {item.unit || 'шт'}
                       </span>
                     </div>
