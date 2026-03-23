@@ -118,10 +118,13 @@ export type ChecklistRule = {
 export type ChecklistRuleItem = {
   id?: string;
   rule_id?: string;
-  name: string; // название инструмента/оборудования
+  inventory_id: string; // Ссылка на cable_inventory (реальная позиция)
   quantity: number; // количество на единицу оборудования
-  category: string; // категория: 'tool' | 'cable' | 'accessory' | 'other'
   is_required: boolean; // обязательный или опциональный
+  // Данные из инвентаря (для отображения)
+  inventory_name?: string;
+  inventory_category?: string;
+  inventory_qr_code?: string;
 };
 
 // Чек-лист для конкретной сметы

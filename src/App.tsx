@@ -504,6 +504,8 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
                 estimates={estimates}
                 equipment={equipment}
                 categories={categories}
+                cableInventory={cableInventory}
+                cableCategories={cableCategories}
                 checklists={checklists}
                 rules={rules}
                 onCreateRule={createRule}

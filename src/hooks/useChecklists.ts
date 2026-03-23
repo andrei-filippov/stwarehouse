@@ -155,12 +155,16 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
       logger.info('[createRule] Creating rule items:', ruleItems?.length, 'for rule:', ruleData?.id);
       
       if (ruleItems.length > 0 && ruleData) {
+        // Новая структура: сохраняем ссылки на inventory + метаданные для отображения
         const itemsToInsert = ruleItems.map((item, idx) => ({
           rule_id: ruleData.id,
-          name: item.name || `Item ${idx}`,
+          inventory_id: item.inventory_id,
           quantity: item.quantity || 1,
-          category: item.category || 'other',
-          is_required: item.is_required ?? true
+          is_required: item.is_required ?? true,
+          // Сохраняем метаданные для отображения (на случай если инвентарь изменится)
+          inventory_name: item.inventory_name || `Item ${idx}`,
+          inventory_category: item.inventory_category,
+          inventory_qr_code: item.inventory_qr_code
         }));
         logger.debug('[createRule] Items to insert:', JSON.stringify(itemsToInsert));
 
@@ -268,14 +272,19 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
       // Загружаем QR-коды из cable_inventory для сопоставления
       // Создаем Map: имя оборудования -> массив QR-кодов (для случая когда несколько единиц)
       let inventoryMap: Map<string, { qr_code?: string; kit_id?: string; kit_name?: string }[]> = new Map();
+      // Map для поиска по ID (для правил с inventory_id)
+      let inventoryByIdMap: Map<string, { name?: string; qr_code?: string; kit_id?: string; kit_name?: string; category_id?: string }> = new Map();
+      
       if (isOnline()) {
         try {
           // Загружаем инвентарь с информацией о китах
           const { data: inventory, error: invError } = await supabase
             .from('cable_inventory')
             .select(`
+              id,
               name, 
               qr_code,
+              category_id,
               kit_items:kit_items(kit_id, equipment_kits(id, name))
             `)
             .eq('company_id', companyId);
@@ -290,24 +299,35 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
               kit_items: (i as any).kit_items 
             })));
             
-            // Группируем данные по имени оборудования
+            // Группируем данные по имени оборудования и по ID
             inventory?.forEach(i => {
               const key = i.name?.toLowerCase().trim();
-              if (!key) return;
               
               // Получаем kit_id и kit_name из связи (если есть)
               const kitData = (i as any).kit_items?.[0];
               
-              logger.debug(`[createChecklist] Item ${i.name}: kitData=`, kitData);
-              
-              if (!inventoryMap.has(key)) {
-                inventoryMap.set(key, []);
-              }
-              inventoryMap.get(key)!.push({
+              // Заполняем Map по ID (для правил с inventory_id)
+              inventoryByIdMap.set(i.id, {
+                name: i.name,
                 qr_code: i.qr_code,
+                category_id: i.category_id,
                 kit_id: kitData?.kit_id,
                 kit_name: kitData?.equipment_kits?.name
               });
+              
+              // Заполняем Map по имени (для сопоставления с сметой)
+              if (key) {
+                logger.debug(`[createChecklist] Item ${i.name}: kitData=`, kitData);
+                
+                if (!inventoryMap.has(key)) {
+                  inventoryMap.set(key, []);
+                }
+                inventoryMap.get(key)!.push({
+                  qr_code: i.qr_code,
+                  kit_id: kitData?.kit_id,
+                  kit_name: kitData?.equipment_kits?.name
+                });
+              }
             });
             
             logger.info('[createChecklist] Loaded inventory items:', inventory?.length);
@@ -398,18 +418,42 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
           logger.debug('[createChecklist] Matching rules for', item.name, ':', matchingRules.length);
           
           matchingRules.forEach(rule => {
-            // Берем items напрямую из правила
+            // Берем items из правила и подтягиваем реальные данные из инвентаря
             logger.debug('[createChecklist] Rule:', rule.name, 'has items:', rule.items?.length);
             if (rule.items && rule.items.length > 0) {
               rule.items.forEach(ruleItem => {
-                items.push({
-                  id: `local_item_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
-                  name: ruleItem.name,
-                  quantity: ruleItem.quantity * item.quantity,
-                  category: ruleItem.category,
-                  is_required: ruleItem.is_required,
-                  is_checked: false
-                });
+                // Получаем реальные данные из инвентаря по inventory_id
+                const invData = ruleItem.inventory_id ? inventoryByIdMap.get(ruleItem.inventory_id) : null;
+                
+                if (invData) {
+                  // Есть данные в инвентаре - используем их (с QR-кодом, kit_id и т.д.)
+                  items.push({
+                    id: `local_item_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
+                    name: invData.name || ruleItem.inventory_name || 'Позиция',
+                    quantity: ruleItem.quantity * item.quantity,
+                    category: invData.category_id || 'equipment',
+                    is_required: ruleItem.is_required,
+                    is_checked: false,
+                    qr_code: invData.qr_code || null,
+                    kit_id: invData.kit_id || null,
+                    kit_name: invData.kit_name || null,
+                    source_rule_id: rule.id
+                  });
+                  logger.debug(`[createChecklist] Added item from inventory: ${invData.name}, QR: ${invData.qr_code}`);
+                } else {
+                  // Нет в инвентаре (удалена позиция) - используем сохраненные метаданные
+                  items.push({
+                    id: `local_item_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
+                    name: ruleItem.inventory_name || 'Позиция (не найдена в инвентаре)',
+                    quantity: ruleItem.quantity * item.quantity,
+                    category: 'equipment',
+                    is_required: ruleItem.is_required,
+                    is_checked: false,
+                    qr_code: ruleItem.inventory_qr_code || null,
+                    source_rule_id: rule.id
+                  });
+                  logger.warn(`[createChecklist] Inventory item ${ruleItem.inventory_id} not found, using cached name: ${ruleItem.inventory_name}`);
+                }
               });
             }
           });
