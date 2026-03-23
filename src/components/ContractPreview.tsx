@@ -44,9 +44,39 @@ export function ContractPreview({ contract, pdfSettings, onClose, onSaveContent 
   }, [contract, pdfSettings]);
 
   // Текущий контент (отредактированный или оригинальный) - санитизирован
+  // Добавляем стили для тёмной темы
   const currentContent = useMemo(() => {
     const content = editedHtml || htmlContent;
-    return sanitizeHtml(content);
+    const sanitized = sanitizeHtml(content);
+    
+    // Добавляем стили для тёмной темы
+    const darkModeStyles = `
+      <style>
+        @media (prefers-color-scheme: dark) {
+          body {
+            background-color: #0f172a !important;
+            color: #e2e8f0 !important;
+          }
+          * {
+            color: #e2e8f0 !important;
+          }
+          table, td, th {
+            border-color: #334155 !important;
+          }
+        }
+        body {
+          font-family: 'Times New Roman', Times, serif;
+          line-height: 1.6;
+          padding: 20px;
+        }
+      </style>
+    `;
+    
+    // Вставляем стили перед содержимым
+    if (sanitized.includes('<style')) {
+      return sanitized;
+    }
+    return darkModeStyles + sanitized;
   }, [editedHtml, htmlContent]);
 
   // Обработчик экспорта в DOCX
