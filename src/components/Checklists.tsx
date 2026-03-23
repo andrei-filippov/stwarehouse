@@ -1087,7 +1087,7 @@ function ChecklistView({
         // Маппинг scanMode -> имя поля в ref ('load' -> 'loaded', 'unload' -> 'unloaded')
         const scanModeField = scanMode === 'load' ? 'loaded' : 'unloaded';
         
-        // Считаем сколько уже отсканировано (используем getItemStatus + локальные счетчики)
+        // Считаем сколько уже отсканировано (getItemStatus уже включает optimistic updates)
         let alreadyScanned = 0;
         let totalNeeded = 0;
         for (const item of uniqueItems) {
@@ -1095,10 +1095,8 @@ function ChecklistView({
           const baseQty = scanMode === 'unload' 
             ? status.unloaded_quantity
             : status.loaded_quantity;
-          // Добавляем локальные сканы
-          const localKey = `${item.id}_${equipmentName}`;
-          const localQty = kitScanCounterRef.current[localKey]?.[scanModeField] || 0;
-          alreadyScanned += baseQty + localQty;
+          // НЕ добавляем localQty, т.к. baseQty уже включает optimistic updates
+          alreadyScanned += baseQty;
           totalNeeded += item.quantity || 1;
         }
         
