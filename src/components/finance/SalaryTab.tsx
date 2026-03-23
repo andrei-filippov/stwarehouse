@@ -111,36 +111,36 @@ export function SalaryTab({ staff, records = [], onAddOrUpdate, onDelete }: Sala
     <div className="space-y-6">
       {/* Month Summary */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="bg-blue-50 border-blue-200">
+        <Card className="bg-blue-500/10 border-blue-500/20 dark:bg-blue-500/10 dark:border-blue-500/30">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-blue-700">Начислено</CardTitle>
+            <CardTitle className="text-sm text-blue-700 dark:text-blue-300">Начислено</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-900">
+            <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">
               {monthStats.totalCalculated.toLocaleString('ru-RU')} ₽
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-green-50 border-green-200">
+        <Card className="bg-green-500/10 border-green-500/20 dark:bg-green-500/10 dark:border-green-500/30">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-green-700">Выдано</CardTitle>
+            <CardTitle className="text-sm text-green-700 dark:text-green-300">Выдано</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-900">
+            <div className="text-2xl font-bold text-green-700 dark:text-green-300">
               {monthStats.totalPaid.toLocaleString('ru-RU')} ₽
             </div>
           </CardContent>
         </Card>
 
-        <Card className={`border ${monthStats.balance >= 0 ? 'bg-amber-50 border-amber-200' : 'bg-red-50 border-red-200'}`}>
+        <Card className={`border ${monthStats.balance >= 0 ? 'bg-amber-500/10 border-amber-500/20 dark:bg-amber-500/10 dark:border-amber-500/30' : 'bg-red-500/10 border-red-500/20 dark:bg-red-500/10 dark:border-red-500/30'}`}>
           <CardHeader className="pb-2">
-            <CardTitle className={`text-sm ${monthStats.balance >= 0 ? 'text-amber-700' : 'text-red-700'}`}>
+            <CardTitle className={`text-sm ${monthStats.balance >= 0 ? 'text-amber-700 dark:text-amber-300' : 'text-red-700 dark:text-red-300'}`}>
               Остаток к выдаче
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${monthStats.balance >= 0 ? 'text-amber-900' : 'text-red-900'}`}>
+            <div className={`text-2xl font-bold ${monthStats.balance >= 0 ? 'text-amber-700 dark:text-amber-300' : 'text-red-700 dark:text-red-300'}`}>
               {monthStats.balance.toLocaleString('ru-RU')} ₽
             </div>
           </CardContent>
@@ -173,7 +173,7 @@ export function SalaryTab({ staff, records = [], onAddOrUpdate, onDelete }: Sala
         <h3 className="text-lg font-semibold">Сотрудники ({staff.length})</h3>
         
         {staff.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
+          <div className="text-center py-12 text-muted-foreground">
             <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
             <p>Нет сотрудников</p>
             <p className="text-sm">Добавьте сотрудников во вкладке "Персонал"</p>
@@ -188,16 +188,16 @@ export function SalaryTab({ staff, records = [], onAddOrUpdate, onDelete }: Sala
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                        <span className="font-bold text-indigo-600">
+                      <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center">
+                        <span className="font-bold text-indigo-600 dark:text-indigo-400">
                           {member.full_name?.charAt(0).toUpperCase() || '?'}
                         </span>
                       </div>
                       <div>
-                        <p className="font-medium">{member.full_name || 'Без имени'}</p>
-                        <p className="text-sm text-gray-500">{member.position || 'Сотрудник'}</p>
+                        <p className="font-medium text-foreground">{member.full_name || 'Без имени'}</p>
+                        <p className="text-sm text-muted-foreground">{member.position || 'Сотрудник'}</p>
                         {record?.projects && record.projects.length > 0 && (
-                          <div className="text-xs text-gray-400 mt-1">
+                          <div className="text-xs text-muted-foreground mt-1">
                             {record.projects.length} проектов
                           </div>
                         )}
@@ -206,15 +206,15 @@ export function SalaryTab({ staff, records = [], onAddOrUpdate, onDelete }: Sala
                     
                     <div className="flex items-center gap-6">
                       <div className="text-right">
-                        <p className="text-sm text-gray-500">Начислено</p>
+                        <p className="text-sm text-muted-foreground">Начислено</p>
                         <p className="font-semibold">{record?.total_calculated?.toLocaleString('ru-RU') || 0} ₽</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm text-gray-500">Выдано</p>
-                        <p className="font-semibold text-green-600">{record?.paid?.toLocaleString('ru-RU') || 0} ₽</p>
+                        <p className="text-sm text-muted-foreground">Выдано</p>
+                        <p className="font-semibold text-green-600 dark:text-green-400">{record?.paid?.toLocaleString('ru-RU') || 0} ₽</p>
                       </div>
                       <div className="text-right min-w-[100px]">
-                        <p className="text-sm text-gray-500">Остаток</p>
+                        <p className="text-sm text-muted-foreground">Остаток</p>
                         <Badge variant={balance <= 0 ? "default" : "secondary"}>
                           {balance.toLocaleString('ru-RU')} ₽
                         </Badge>
@@ -248,7 +248,7 @@ export function SalaryTab({ staff, records = [], onAddOrUpdate, onDelete }: Sala
                             variant="ghost"
                             size="sm"
                             onClick={() => handleDelete(record.id)}
-                            className="text-gray-400 hover:text-red-500"
+                            className="text-muted-foreground hover:text-red-500"
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>

@@ -107,9 +107,9 @@ export function ExpensesTab({ expenses, onAdd, onDelete }: ExpensesTabProps) {
         {/* All */}
         <Card 
           className={`cursor-pointer transition-all hover:shadow-md ${
-            activeFilter === 'all' 
-              ? 'bg-gray-100 border-gray-400 ring-2 ring-gray-300' 
-              : 'bg-muted border-gray-200'
+            activeFilter === 'all'
+              ? 'bg-muted border-border ring-2 ring-border'
+              : 'bg-card border-border'
           }`}
           onClick={() => setActiveFilter('all')}
         >
@@ -117,10 +117,10 @@ export function ExpensesTab({ expenses, onAdd, onDelete }: ExpensesTabProps) {
             <div className="flex items-center gap-2 mb-2">
               <span className="text-xs font-medium text-foreground">Всего</span>
             </div>
-            <p className="text-lg font-bold text-gray-900">
+            <p className="text-lg font-bold text-foreground">
               {totalExpenses.toLocaleString('ru-RU')} ₽
             </p>
-            <p className="text-xs text-gray-600">{expenses.length} записей</p>
+            <p className="text-xs text-muted-foreground">{expenses.length} записей</p>
           </CardContent>
         </Card>
 
@@ -133,33 +133,33 @@ export function ExpensesTab({ expenses, onAdd, onDelete }: ExpensesTabProps) {
           const isActive = activeFilter === value;
           
           const colorClasses: Record<string, { normal: string; active: string }> = {
-            blue: { 
-              normal: 'bg-blue-50 border-blue-200 text-blue-700', 
-              active: 'bg-blue-100 border-blue-400 ring-2 ring-blue-300 text-blue-800' 
+            blue: {
+              normal: 'bg-blue-500/10 border-blue-500/20 text-blue-700 dark:text-blue-300',
+              active: 'bg-blue-500/20 border-blue-500/50 ring-2 ring-blue-500/30 text-blue-800 dark:text-blue-200'
             },
-            orange: { 
-              normal: 'bg-orange-50 border-orange-200 text-orange-700', 
-              active: 'bg-orange-100 border-orange-400 ring-2 ring-orange-300 text-orange-800' 
+            orange: {
+              normal: 'bg-orange-500/10 border-orange-500/20 text-orange-700 dark:text-orange-300',
+              active: 'bg-orange-500/20 border-orange-500/50 ring-2 ring-orange-500/30 text-orange-800 dark:text-orange-200'
             },
-            purple: { 
-              normal: 'bg-purple-50 border-purple-200 text-purple-700', 
-              active: 'bg-purple-100 border-purple-400 ring-2 ring-purple-300 text-purple-800' 
+            purple: {
+              normal: 'bg-purple-500/10 border-purple-500/20 text-purple-700 dark:text-purple-300',
+              active: 'bg-purple-500/20 border-purple-500/50 ring-2 ring-purple-500/30 text-purple-800 dark:text-purple-200'
             },
-            green: { 
-              normal: 'bg-green-50 border-green-200 text-green-700', 
-              active: 'bg-green-100 border-green-400 ring-2 ring-green-300 text-green-800' 
+            green: {
+              normal: 'bg-green-500/10 border-green-500/20 text-green-700 dark:text-green-300',
+              active: 'bg-green-500/20 border-green-500/50 ring-2 ring-green-500/30 text-green-800 dark:text-green-200'
             },
-            red: { 
-              normal: 'bg-red-50 border-red-200 text-red-700', 
-              active: 'bg-red-100 border-red-400 ring-2 ring-red-300 text-red-800' 
+            red: {
+              normal: 'bg-red-500/10 border-red-500/20 text-red-700 dark:text-red-300',
+              active: 'bg-red-500/20 border-red-500/50 ring-2 ring-red-500/30 text-red-800 dark:text-red-200'
             },
-            gray: { 
-              normal: 'bg-muted border-gray-200 text-foreground', 
-              active: 'bg-gray-100 border-gray-400 ring-2 ring-gray-300 text-gray-800' 
+            gray: {
+              normal: 'bg-muted border-border text-foreground',
+              active: 'bg-muted border-border ring-2 ring-border text-foreground'
             },
-            indigo: { 
-              normal: 'bg-indigo-50 border-indigo-200 text-indigo-700', 
-              active: 'bg-indigo-100 border-indigo-400 ring-2 ring-indigo-300 text-indigo-800' 
+            indigo: {
+              normal: 'bg-indigo-500/10 border-indigo-500/20 text-indigo-700 dark:text-indigo-300',
+              active: 'bg-indigo-500/20 border-indigo-500/50 ring-2 ring-indigo-500/30 text-indigo-800 dark:text-indigo-200'
             }
           };
           
@@ -191,10 +191,10 @@ export function ExpensesTab({ expenses, onAdd, onDelete }: ExpensesTabProps) {
       {/* Active Filter Indicator */}
       {activeFilter !== 'all' && (
         <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-500">Фильтр:</span>
+          <span className="text-sm text-muted-foreground">Фильтр:</span>
           <Badge 
             variant="outline" 
-            className="cursor-pointer hover:bg-gray-100"
+            className="cursor-pointer hover:bg-muted"
             onClick={() => setActiveFilter('all')}
           >
             {getExpenseCategoryLabel(activeFilter)}
@@ -281,7 +281,7 @@ export function ExpensesTab({ expenses, onAdd, onDelete }: ExpensesTabProps) {
       {/* Expenses List */}
       <div className="space-y-4">
         {filteredExpenses.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
+          <div className="text-center py-12 text-muted-foreground">
             <ShoppingCart className="w-12 h-12 mx-auto mb-4 opacity-50" />
             <p>
               {activeFilter === 'all' 
@@ -310,7 +310,7 @@ export function ExpensesTab({ expenses, onAdd, onDelete }: ExpensesTabProps) {
                       </div>
                       <div>
                         <p className="font-medium">{expense.description}</p>
-                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <Badge variant="outline">{getExpenseCategoryLabel(expense.category)}</Badge>
                           <span>{format(new Date(expense.date), 'dd MMMM yyyy', { locale: ru })}</span>
                         </div>
@@ -325,7 +325,7 @@ export function ExpensesTab({ expenses, onAdd, onDelete }: ExpensesTabProps) {
                           variant="ghost"
                           size="sm"
                           onClick={() => onDelete(expense.id)}
-                          className="text-gray-400 hover:text-red-500"
+                          className="text-muted-foreground hover:text-red-500"
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>

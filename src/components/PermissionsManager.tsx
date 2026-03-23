@@ -180,8 +180,8 @@ export function PermissionsManager({ currentUserId }: PermissionsManagerProps) {
             <Shield className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-gray-900">Управление доступом</h2>
-            <p className="text-sm text-gray-500">Настройка ролей и разрешений пользователей</p>
+            <h2 className="text-xl font-bold text-foreground">Управление доступом</h2>
+            <p className="text-sm text-muted-foreground">Настройка ролей и разрешений пользователей</p>
           </div>
         </div>
         <Button variant="outline" onClick={loadUsers} className="gap-2">
@@ -194,24 +194,24 @@ export function PermissionsManager({ currentUserId }: PermissionsManagerProps) {
       <Card className="p-4 bg-muted/50 border-gray-200">
         <div className="flex flex-wrap gap-4 text-sm">
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+            <Badge variant="outline" className="bg-green-500/10 text-green-700 dark:text-green-300 border-green-500/30">
               <Check className="w-3 h-3 mr-1" /> Доступно
             </Badge>
-            <span className="text-gray-500">- вкладка доступна</span>
+            <span className="text-muted-foreground">- вкладка доступна</span>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+            <Badge variant="outline" className="bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/30">
               <X className="w-3 h-3 mr-1" /> Запрещено
             </Badge>
-            <span className="text-gray-500">- доступ закрыт</span>
+            <span className="text-muted-foreground">- доступ закрыт</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-blue-400" />
-            <span className="text-gray-500">Кастомное</span>
+            <span className="text-muted-foreground">Кастомное</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-gray-400" />
-            <span className="text-gray-500">По роли</span>
+            <span className="text-muted-foreground">По роли</span>
           </div>
         </div>
       </Card>
@@ -221,7 +221,7 @@ export function PermissionsManager({ currentUserId }: PermissionsManagerProps) {
         {users.map((user) => (
           <Card 
             key={user.user_id} 
-            className={`overflow-hidden transition-shadow ${expandedUser === user.user_id ? 'ring-2 ring-blue-100 shadow-lg' : 'hover:shadow-md'}`}
+            className={`overflow-hidden transition-shadow ${expandedUser === user.user_id ? 'ring-2 ring-primary/30 shadow-lg' : 'hover:shadow-md'}`}
           >
             {/* Заголовок карточки пользователя */}
             <div 
@@ -229,32 +229,32 @@ export function PermissionsManager({ currentUserId }: PermissionsManagerProps) {
               onClick={() => toggleUserExpand(user.user_id)}
             >
               <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center">
-                  <UserCog className="w-5 h-5 text-gray-600" />
+                <div className="w-10 h-10 bg-gradient-to-br from-muted to-muted/80 rounded-full flex items-center justify-center">
+                  <UserCog className="w-5 h-5 text-muted-foreground" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold text-gray-900">{user.name || 'Без имени'}</span>
+                    <span className="font-semibold text-foreground">{user.name || 'Без имени'}</span>
                     {user.user_id === currentUserId && (
-                      <Badge variant="outline" className="text-xs bg-blue-50 text-blue-600 border-blue-200">
+                      <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/30">
                         Вы
                       </Badge>
                     )}
                   </div>
-                  <span className="text-sm text-gray-500">{user.email}</span>
+                  <span className="text-sm text-muted-foreground">{user.email}</span>
                 </div>
               </div>
 
               <div className="flex items-center gap-4">
                 {/* Селект роли */}
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-500 hidden sm:inline">Роль:</span>
+                  <span className="text-sm text-muted-foreground hidden sm:inline">Роль:</span>
                   <select
                     value={user.role}
                     onChange={(e) => handleRoleChange(user.user_id, e.target.value as UserRole)}
                     onClick={(e) => e.stopPropagation()}
                     disabled={!canManage || saving[`role-${user.user_id}`] || user.user_id === currentUserId}
-                    className={`text-sm border rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:opacity-50 ${getRoleBadgeColor(user.role)}`}
+                    className={`text-sm border border-border bg-card text-foreground rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:opacity-50 ${getRoleBadgeColor(user.role)}`}
                   >
                     <option value="owner">Владелец</option>
                     <option value="admin">Администратор</option>
@@ -271,9 +271,9 @@ export function PermissionsManager({ currentUserId }: PermissionsManagerProps) {
             {expandedUser === user.user_id && (
               <div className="border-t bg-muted/50 p-4">
                 <div className="flex items-center gap-2 mb-4">
-                  <UserCog className="w-4 h-4 text-gray-500" />
-                  <span className="font-medium text-gray-700">Индивидуальные разрешения</span>
-                  <span className="text-xs text-gray-400">(переопределяют ролевые)</span>
+                  <UserCog className="w-4 h-4 text-muted-foreground" />
+                  <span className="font-medium text-foreground">Индивидуальные разрешения</span>
+                  <span className="text-xs text-muted-foreground/70">(переопределяют ролевые)</span>
                 </div>
 
                 {userPermissions[user.id] ? (

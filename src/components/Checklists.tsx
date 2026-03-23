@@ -515,7 +515,7 @@ function RuleForm({
       <div className="space-y-2">
         {conditionType === 'equipment' ? (
           <select
-            className="w-full border rounded-md p-2"
+            className="w-full border border-border rounded-md p-2 bg-card text-foreground"
             value={selectedEquipmentId}
             onChange={(e) => handleEquipmentSelect(e.target.value)}
           >
@@ -528,7 +528,7 @@ function RuleForm({
           </select>
         ) : (
           <select
-            className="w-full border rounded-md p-2"
+            className="w-full border border-border rounded-md p-2 bg-card text-foreground"
             value={selectedCategory}
             onChange={(e) => handleCategorySelect(e.target.value)}
           >

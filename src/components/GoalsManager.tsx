@@ -268,7 +268,7 @@ export const GoalsManager = memo(function GoalsManager({ tasks, staff, onAdd, on
           title="Всего" 
           value={stats.total} 
           icon={Target} 
-          color="bg-blue-50 text-blue-600" 
+          color="bg-gradient-to-br from-blue-500/10 to-blue-600/5 dark:from-blue-500/20 dark:to-blue-600/10 text-blue-700 dark:text-blue-300" 
           isActive={activeFilter === 'all'}
           onClick={() => setActiveFilter('all')}
         />
@@ -276,7 +276,7 @@ export const GoalsManager = memo(function GoalsManager({ tasks, staff, onAdd, on
           title="На сегодня" 
           value={stats.today} 
           icon={Calendar} 
-          color="bg-green-50 text-green-600" 
+          color="bg-gradient-to-br from-green-500/10 to-green-600/5 dark:from-green-500/20 dark:to-green-600/10 text-green-700 dark:text-green-300" 
           isActive={activeFilter === 'today'}
           onClick={() => setActiveFilter('today')}
         />
@@ -284,7 +284,7 @@ export const GoalsManager = memo(function GoalsManager({ tasks, staff, onAdd, on
           title="В работе" 
           value={stats.inProgress} 
           icon={Clock} 
-          color="bg-yellow-50 text-yellow-600" 
+          color="bg-gradient-to-br from-yellow-500/10 to-yellow-600/5 dark:from-yellow-500/20 dark:to-yellow-600/10 text-yellow-700 dark:text-yellow-300" 
           isActive={activeFilter === 'in_progress'}
           onClick={() => setActiveFilter('in_progress')}
         />
@@ -292,7 +292,7 @@ export const GoalsManager = memo(function GoalsManager({ tasks, staff, onAdd, on
           title="Ожидают" 
           value={stats.pending} 
           icon={Circle} 
-          color="bg-muted text-muted-foreground" 
+          color="bg-gradient-to-br from-gray-500/10 to-gray-600/5 dark:from-gray-500/20 dark:to-gray-600/10 text-foreground" 
           isActive={activeFilter === 'pending'}
           onClick={() => setActiveFilter('pending')}
         />
@@ -300,7 +300,7 @@ export const GoalsManager = memo(function GoalsManager({ tasks, staff, onAdd, on
           title="Выполнено" 
           value={stats.completed} 
           icon={CheckCircle2} 
-          color="bg-emerald-50 text-emerald-600" 
+          color="bg-gradient-to-br from-green-500/10 to-green-600/5 dark:from-green-500/20 dark:to-green-600/10 text-green-700 dark:text-green-300" 
           isActive={activeFilter === 'completed'}
           onClick={() => setActiveFilter('completed')}
         />
@@ -308,7 +308,7 @@ export const GoalsManager = memo(function GoalsManager({ tasks, staff, onAdd, on
           title="Просрочено" 
           value={stats.overdue} 
           icon={Clock} 
-          color="bg-red-500/10 text-red-600" 
+          color="bg-gradient-to-br from-red-500/10 to-red-600/5 dark:from-red-500/20 dark:to-red-600/10 text-red-700 dark:text-red-300" 
           isActive={activeFilter === 'overdue'}
           onClick={() => setActiveFilter('overdue')}
         />

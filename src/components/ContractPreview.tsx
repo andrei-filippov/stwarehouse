@@ -99,13 +99,13 @@ export function ContractPreview({ contract, pdfSettings, onClose, onSaveContent 
   const PreviewContent = () => (
     <div className="flex flex-col h-full">
       {/* Header с информацией о договоре */}
-      <div className="p-4 border-b bg-white">
+      <div className="p-4 border-b bg-card">
         <Card>
           <CardContent className="pt-4">
             <div className="flex flex-wrap gap-4 items-center justify-between">
               <div>
                 <h3 className="text-lg font-bold">Договор № {contract.number}</h3>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-muted-foreground">
                   от {new Date(contract.date).toLocaleDateString('ru-RU')}
                 </p>
               </div>
@@ -120,23 +120,23 @@ export function ContractPreview({ contract, pdfSettings, onClose, onSaveContent 
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 text-sm">
               <div>
-                <span className="text-gray-500">Заказчик:</span>
+                <span className="text-muted-foreground">Заказчик:</span>
                 <div className="font-medium">{contract.customer?.name || 'Не указан'}</div>
               </div>
               <div>
-                <span className="text-gray-500">Сумма:</span>
+                <span className="text-muted-foreground">Сумма:</span>
                 <div className="font-medium text-lg">
                   {contract.total_amount.toLocaleString('ru-RU')} ₽
                 </div>
               </div>
               <div>
-                <span className="text-gray-500">Мероприятие:</span>
+                <span className="text-muted-foreground">Мероприятие:</span>
                 <div className="font-medium">
                   {contract.event_name || contract.estimates?.[0]?.estimate?.event_name || 'Не указано'}
                 </div>
               </div>
               <div>
-                <span className="text-gray-500">Место:</span>
+                <span className="text-muted-foreground">Место:</span>
                 <div className="font-medium">
                   {contract.venue || contract.estimates?.[0]?.estimate?.venue || 'Не указано'}
                 </div>
@@ -147,7 +147,7 @@ export function ContractPreview({ contract, pdfSettings, onClose, onSaveContent 
       </div>
 
       {/* Действия */}
-      <div className="flex flex-wrap gap-2 p-4 border-b bg-gray-50">
+      <div className="flex flex-wrap gap-2 p-4 border-b bg-muted">
         <Button 
           onClick={handlePrint} 
           disabled={isPrinting || isEditing}
@@ -237,12 +237,12 @@ export function ContractPreview({ contract, pdfSettings, onClose, onSaveContent 
           {isEditing ? (
             // Режим редактирования - показываем HTML с таблицами
             <div className="h-full flex flex-col">
-              <div className="text-sm text-gray-500 mb-2">
+              <div className="text-sm text-muted-foreground mb-2">
                 Режим редактирования. Вы можете изменить текст договора перед печатью или экспортом.
               </div>
               <div
                 ref={editRef}
-                className="flex-1 border rounded-lg p-4 bg-white overflow-auto font-serif text-sm leading-relaxed"
+                className="flex-1 border rounded-lg p-4 bg-card overflow-auto font-serif text-sm leading-relaxed"
                 style={{ minHeight: '400px' }}
                 contentEditable
                 dangerouslySetInnerHTML={{ __html: currentContent }}
@@ -250,7 +250,7 @@ export function ContractPreview({ contract, pdfSettings, onClose, onSaveContent 
             </div>
           ) : (
             // Режим предпросмотра - используем iframe для изоляции стилей
-            <div className="border rounded-lg bg-white overflow-hidden shadow-inner">
+            <div className="border rounded-lg bg-card overflow-hidden shadow-inner">
               <iframe
                 ref={previewRef as any}
                 srcDoc={currentContent}
@@ -270,16 +270,16 @@ export function ContractPreview({ contract, pdfSettings, onClose, onSaveContent 
             <CardContent className="pt-4 space-y-3">
               <h4 className="font-medium">Основная информация</h4>
               <div className="grid grid-cols-2 gap-2 text-sm">
-                <div className="text-gray-500">Номер:</div>
+                <div className="text-muted-foreground">Номер:</div>
                 <div>{contract.number}</div>
                 
-                <div className="text-gray-500">Дата:</div>
+                <div className="text-muted-foreground">Дата:</div>
                 <div>{new Date(contract.date).toLocaleDateString('ru-RU')}</div>
                 
-                <div className="text-gray-500">Тип:</div>
+                <div className="text-muted-foreground">Тип:</div>
                 <div>{CONTRACT_TYPE_LABELS[contract.type]}</div>
                 
-                <div className="text-gray-500">Статус:</div>
+                <div className="text-muted-foreground">Статус:</div>
                 <div>{CONTRACT_STATUS_LABELS[contract.status]}</div>
               </div>
             </CardContent>
@@ -301,7 +301,7 @@ export function ContractPreview({ contract, pdfSettings, onClose, onSaveContent 
                   )}
                 </div>
               ) : (
-                <div className="text-gray-500">Заказчик не выбран</div>
+                <div className="text-muted-foreground">Заказчик не выбран</div>
               )}
             </CardContent>
           </Card>
@@ -310,13 +310,13 @@ export function ContractPreview({ contract, pdfSettings, onClose, onSaveContent 
             <CardContent className="pt-4 space-y-3">
               <h4 className="font-medium">Исполнитель</h4>
               <div className="grid grid-cols-2 gap-2 text-sm">
-                <div className="text-gray-500">Наименование:</div>
+                <div className="text-muted-foreground">Наименование:</div>
                 <div>{contract.executor_name || pdfSettings.companyName || 'Не указано'}</div>
                 
-                <div className="text-gray-500">Представитель:</div>
+                <div className="text-muted-foreground">Представитель:</div>
                 <div>{contract.executor_representative || pdfSettings.personName || 'Не указано'}</div>
                 
-                <div className="text-gray-500">Основание:</div>
+                <div className="text-muted-foreground">Основание:</div>
                 <div>{contract.executor_basis || 'Устава'}</div>
               </div>
             </CardContent>
@@ -328,9 +328,9 @@ export function ContractPreview({ contract, pdfSettings, onClose, onSaveContent 
               {contract.estimates && contract.estimates.length > 0 ? (
                 <div className="space-y-2">
                   {contract.estimates.map((ce, index) => (
-                    <div key={ce.id} className="text-sm p-2 bg-gray-50 rounded">
+                    <div key={ce.id} className="text-sm p-2 bg-muted rounded">
                       <div className="font-medium">{index + 1}. {ce.estimate?.event_name}</div>
-                      <div className="text-gray-500">
+                      <div className="text-muted-foreground">
                         {ce.estimate?.event_date && new Date(ce.estimate.event_date).toLocaleDateString('ru-RU')}
                         {' · '}
                         {ce.estimate?.total?.toLocaleString('ru-RU')} ₽
@@ -339,7 +339,7 @@ export function ContractPreview({ contract, pdfSettings, onClose, onSaveContent 
                   ))}
                 </div>
               ) : (
-                <div className="text-gray-500">Сметы не привязаны</div>
+                <div className="text-muted-foreground">Сметы не привязаны</div>
               )}
             </CardContent>
           </Card>

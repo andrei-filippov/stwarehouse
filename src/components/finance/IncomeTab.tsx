@@ -111,9 +111,9 @@ export function IncomeTab({ estimates, companyId }: IncomeTabProps) {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card 
           className={`cursor-pointer transition-all hover:shadow-md ${
-            activeFilter === 'all' 
-              ? 'bg-gray-100 border-gray-400 ring-2 ring-gray-300' 
-              : 'bg-muted border-gray-200'
+            activeFilter === 'all'
+              ? 'bg-muted border-border ring-2 ring-border'
+              : 'bg-card border-border'
           }`}
           onClick={() => setActiveFilter('all')}
         >
@@ -121,10 +121,10 @@ export function IncomeTab({ estimates, companyId }: IncomeTabProps) {
             <CardTitle className="text-sm text-foreground">Всего</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-gray-900">
+            <div className="text-2xl font-bold text-foreground">
               {(totalEstimateIncome + totalManualIncome).toLocaleString('ru-RU')} ₽
             </div>
-            <p className="text-xs text-gray-600">
+            <p className="text-xs text-muted-foreground">
               {estimateIncomes.length + manualIncomes.length} записей
             </p>
           </CardContent>
@@ -132,58 +132,58 @@ export function IncomeTab({ estimates, companyId }: IncomeTabProps) {
 
         <Card 
           className={`cursor-pointer transition-all hover:shadow-md ${
-            activeFilter === 'estimates' 
-              ? 'bg-green-100 border-green-400 ring-2 ring-green-300' 
-              : 'bg-green-50 border-green-200'
+            activeFilter === 'estimates'
+              ? 'bg-green-500/20 border-green-500/50 ring-2 ring-green-500/30'
+              : 'bg-green-500/10 border-green-500/20 dark:bg-green-500/10 dark:border-green-500/30'
           }`}
           onClick={() => setActiveFilter('estimates')}
         >
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-green-700">Получено (сметы)</CardTitle>
+            <CardTitle className="text-sm text-green-700 dark:text-green-300">Получено (сметы)</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-900">
+            <div className="text-2xl font-bold text-green-700 dark:text-green-300">
               {totalEstimateIncome.toLocaleString('ru-RU')} ₽
             </div>
-            <p className="text-xs text-green-600">{estimateIncomes.length} завершенных смет</p>
+            <p className="text-xs text-green-600 dark:text-green-400">{estimateIncomes.length} завершенных смет</p>
           </CardContent>
         </Card>
 
         <Card 
           className={`cursor-pointer transition-all hover:shadow-md ${
-            activeFilter === 'manual' 
-              ? 'bg-blue-100 border-blue-400 ring-2 ring-blue-300' 
-              : 'bg-blue-50 border-blue-200'
+            activeFilter === 'manual'
+              ? 'bg-blue-500/20 border-blue-500/50 ring-2 ring-blue-500/30'
+              : 'bg-blue-500/10 border-blue-500/20 dark:bg-blue-500/10 dark:border-blue-500/30'
           }`}
           onClick={() => setActiveFilter('manual')}
         >
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-blue-700">Ручные поступления</CardTitle>
+            <CardTitle className="text-sm text-blue-700 dark:text-blue-300">Ручные поступления</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-900">
+            <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">
               {totalManualIncome.toLocaleString('ru-RU')} ₽
             </div>
-            <p className="text-xs text-blue-600">{manualIncomes.length} записей</p>
+            <p className="text-xs text-blue-600 dark:text-blue-400">{manualIncomes.length} записей</p>
           </CardContent>
         </Card>
 
         <Card 
           className={`cursor-pointer transition-all hover:shadow-md ${
-            activeFilter === 'pending' 
-              ? 'bg-amber-100 border-amber-400 ring-2 ring-amber-300' 
-              : 'bg-amber-50 border-amber-200'
+            activeFilter === 'pending'
+              ? 'bg-amber-500/20 border-amber-500/50 ring-2 ring-amber-500/30'
+              : 'bg-amber-500/10 border-amber-500/20 dark:bg-amber-500/10 dark:border-amber-500/30'
           }`}
           onClick={() => setActiveFilter('pending')}
         >
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-amber-700">Ожидается</CardTitle>
+            <CardTitle className="text-sm text-amber-700 dark:text-amber-300">Ожидается</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-amber-900">
+            <div className="text-2xl font-bold text-amber-700 dark:text-amber-300">
               {totalPendingIncome.toLocaleString('ru-RU')} ₽
             </div>
-            <p className="text-xs text-amber-600">{pendingIncomes.length} ожидают оплаты</p>
+            <p className="text-xs text-amber-600 dark:text-amber-400">{pendingIncomes.length} ожидают оплаты</p>
           </CardContent>
         </Card>
       </div>
@@ -249,7 +249,7 @@ export function IncomeTab({ estimates, companyId }: IncomeTabProps) {
       {/* Active Filter Indicator */}
       {activeFilter !== 'all' && (
         <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-500">Фильтр:</span>
+          <span className="text-sm text-muted-foreground">Фильтр:</span>
           <Badge 
             variant="outline" 
             className="cursor-pointer hover:bg-gray-100"
@@ -274,19 +274,19 @@ export function IncomeTab({ estimates, companyId }: IncomeTabProps) {
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+                      <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
                         <FileText className="w-5 h-5 text-green-600" />
                       </div>
                       <div>
-                        <p className="font-medium">{income.source}</p>
-                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <p className="font-medium text-foreground">{income.source}</p>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <Calendar className="w-3 h-3" />
                           {format(new Date(income.date), 'dd MMMM yyyy', { locale: ru })}
                         </div>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-lg font-bold text-green-600">
+                      <p className="text-lg font-bold text-green-600 dark:text-green-400">
                         +{income.amount.toLocaleString('ru-RU')} ₽
                       </p>
                       <Badge variant="outline" className="text-green-600 border-green-200">
@@ -310,22 +310,22 @@ export function IncomeTab({ estimates, companyId }: IncomeTabProps) {
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                      <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
                         <Plus className="w-5 h-5 text-blue-600" />
                       </div>
                       <div>
-                        <p className="font-medium">{income.source}</p>
+                        <p className="font-medium text-foreground">{income.source}</p>
                         {income.description && (
-                          <p className="text-sm text-gray-500">{income.description}</p>
+                          <p className="text-sm text-muted-foreground">{income.description}</p>
                         )}
-                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <Calendar className="w-3 h-3" />
                           {format(new Date(income.date), 'dd MMMM yyyy', { locale: ru })}
                         </div>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-lg font-bold text-blue-600">
+                      <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
                         +{income.amount.toLocaleString('ru-RU')} ₽
                       </p>
                       <Button
@@ -353,19 +353,19 @@ export function IncomeTab({ estimates, companyId }: IncomeTabProps) {
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+                      <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
                         <Clock className="w-5 h-5 text-amber-600" />
                       </div>
                       <div>
-                        <p className="font-medium">{income.source}</p>
-                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <p className="font-medium text-foreground">{income.source}</p>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <Calendar className="w-3 h-3" />
                           {format(new Date(income.date), 'dd MMMM yyyy', { locale: ru })}
                         </div>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-lg font-bold text-amber-600">
+                      <p className="text-lg font-bold text-amber-600 dark:text-amber-400">
                         {income.amount.toLocaleString('ru-RU')} ₽
                       </p>
                       <Badge variant="outline" className="text-amber-600 border-amber-200">
@@ -386,7 +386,7 @@ export function IncomeTab({ estimates, companyId }: IncomeTabProps) {
           (activeFilter === 'manual' && manualIncomes.length === 0) ||
           (activeFilter === 'pending' && pendingIncomes.length === 0)
         ) && (
-          <div className="text-center py-12 text-gray-500">
+          <div className="text-center py-12 text-muted-foreground">
             <TrendingUp className="w-12 h-12 mx-auto mb-4 opacity-50" />
             <p>
               {activeFilter === 'all' && 'Нет данных о поступлениях'}

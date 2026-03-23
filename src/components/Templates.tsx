@@ -782,7 +782,7 @@ function TemplateForm({ categories, equipment, template, onSubmit, onCancel }: T
         <div className="grid grid-cols-12 gap-2">
           <div className="col-span-4">
             <select
-              className="w-full border rounded-md px-3 py-2 text-sm"
+              className="w-full border border-border rounded-md px-3 py-2 text-sm bg-card text-foreground"
               value={newItem.equipment_id}
               onChange={(e) => handleEquipmentSelect(e.target.value)}
             >
@@ -805,7 +805,7 @@ function TemplateForm({ categories, equipment, template, onSubmit, onCancel }: T
           </div>
           <div className="col-span-2">
             <select
-              className="w-full border rounded-md px-3 py-2 text-sm"
+              className="w-full border border-border rounded-md px-3 py-2 text-sm bg-card text-foreground"
               value={newItem.category}
               onChange={(e) => setNewItem({ ...newItem, category: e.target.value })}
               disabled={!!newItem.equipment_id}

@@ -1213,7 +1213,7 @@ export function EstimateBuilder({
                                             const num = val === '' ? 0 : parseInt(val);
                                             handleUpdateItem(item.id, { quantity: num });
                                           }}
-                                          className="w-10 h-8 text-center bg-transparent text-sm font-medium outline-none"
+                                          className="w-10 h-8 text-center bg-transparent text-sm font-medium text-foreground outline-none"
                                         />
                                         <button
                                           onClick={() => {
@@ -1272,7 +1272,7 @@ export function EstimateBuilder({
                                               handleUpdateItem(item.id, { coefficient: num });
                                             }
                                           }}
-                                          className="w-12 h-8 text-center bg-transparent text-sm font-medium outline-none"
+                                          className="w-12 h-8 text-center bg-transparent text-sm font-medium text-foreground outline-none"
                                         />
                                         <button
                                           onClick={() => {
@@ -1295,7 +1295,7 @@ export function EstimateBuilder({
                                             const num = val === '' ? 0 : parseInt(val);
                                             handleUpdateTotal(item.id, num);
                                           }}
-                                          className="w-16 h-8 text-right text-sm font-medium bg-muted rounded px-2 outline-none focus:ring-1 focus:ring-blue-500"
+                                          className="w-16 h-8 text-right text-sm font-medium bg-muted text-foreground rounded px-2 outline-none focus:ring-1 focus:ring-blue-500"
                                         />
                                         <span className="text-xs text-muted-foreground">₽</span>
                                       </div>
@@ -1641,7 +1641,7 @@ export function EstimateBuilder({
                                             const num = val === '' ? 0 : parseInt(val);
                                             handleUpdateItem(item.id, { quantity: num });
                                           }}
-                                          className="w-10 h-8 text-center text-sm font-medium outline-none"
+                                          className="w-10 h-8 text-center bg-transparent text-sm font-medium text-foreground outline-none"
                                         />
                                         <button
                                           onClick={() => {
@@ -1698,7 +1698,7 @@ export function EstimateBuilder({
                                               handleUpdateItem(item.id, { coefficient: num });
                                             }
                                           }}
-                                          className="w-10 h-8 text-center text-sm font-medium outline-none"
+                                          className="w-10 h-8 text-center bg-transparent text-sm font-medium text-foreground outline-none"
                                         />
                                         <button
                                           onClick={() => {
@@ -1720,7 +1720,7 @@ export function EstimateBuilder({
                                           const num = val === '' ? 0 : parseInt(val);
                                           handleUpdateTotal(item.id, num);
                                         }}
-                                        className="w-20 h-8 text-sm text-right font-medium bg-card rounded border px-2 outline-none focus:ring-1 focus:ring-blue-500"
+                                        className="w-20 h-8 text-sm text-right font-medium bg-card text-foreground rounded border px-2 outline-none focus:ring-1 focus:ring-blue-500"
                                       />
                                       
                                       <Button

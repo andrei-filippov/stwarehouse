@@ -124,67 +124,67 @@ export function FinanceManager({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Финансы</h1>
-          <p className="text-gray-500 mt-1">Управление доходами, расходами и зарплатами</p>
+          <h1 className="text-2xl font-bold text-foreground">Финансы</h1>
+          <p className="text-muted-foreground mt-1">Управление доходами, расходами и зарплатами</p>
         </div>
 
       </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
+        <Card className="bg-gradient-to-br from-green-500/10 to-green-600/5 dark:from-green-500/20 dark:to-green-600/10 border-green-200">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-green-700 flex items-center gap-2">
+            <CardTitle className="text-sm font-medium text-green-700 dark:text-green-300 flex items-center gap-2">
               <TrendingUp className="w-4 h-4" />
               Доходы (мес)
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-900">{monthlyIncome.toLocaleString('ru-RU')} ₽</div>
+            <div className="text-2xl font-bold text-green-700 dark:text-green-300">{monthlyIncome.toLocaleString('ru-RU')} ₽</div>
             <p className={`text-xs mt-1 ${incomeChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
               {incomeChange >= 0 ? '+' : ''}{incomeChange.toFixed(1)}% к прошлому месяцу
             </p>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-red-50 to-rose-50 border-red-200">
+        <Card className="bg-gradient-to-br from-red-500/10 to-red-600/5 dark:from-red-500/20 dark:to-red-600/10 border-red-200">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-red-700 flex items-center gap-2">
+            <CardTitle className="text-sm font-medium text-red-700 dark:text-red-300 flex items-center gap-2">
               <TrendingDown className="w-4 h-4" />
               Расходы (мес)
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-900">{monthlyExpenses.toLocaleString('ru-RU')} ₽</div>
+            <div className="text-2xl font-bold text-red-700 dark:text-red-300">{monthlyExpenses.toLocaleString('ru-RU')} ₽</div>
             <p className={`text-xs mt-1 ${expensesChange >= 0 ? 'text-red-600' : 'text-green-600'}`}>
               {expensesChange >= 0 ? '+' : ''}{expensesChange.toFixed(1)}% к прошлому месяцу
             </p>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-blue-500/10 to-indigo-500/10 border-blue-200">
+        <Card className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 dark:from-blue-500/20 dark:to-blue-600/10 border-blue-200">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-blue-700 flex items-center gap-2">
+            <CardTitle className="text-sm font-medium text-blue-700 dark:text-blue-300 flex items-center gap-2">
               <Users className="w-4 h-4" />
               Зарплаты (мес)
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-900">{monthlySalary.toLocaleString('ru-RU')} ₽</div>
-            <p className="text-xs text-blue-600 mt-1">{staff.length} сотрудников</p>
+            <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">{monthlySalary.toLocaleString('ru-RU')} ₽</div>
+            <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">{staff.length} сотрудников</p>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-purple-50 to-violet-50 border-purple-200">
+        <Card className="bg-gradient-to-br from-purple-500/10 to-purple-600/5 dark:from-purple-500/20 dark:to-purple-600/10 border-purple-200">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-purple-700 flex items-center gap-2">
+            <CardTitle className="text-sm font-medium text-purple-700 dark:text-purple-300 flex items-center gap-2">
               <DollarSign className="w-4 h-4" />
               Прибыль (мес)
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-purple-900">{monthlyProfit.toLocaleString('ru-RU')} ₽</div>
-            <p className="text-xs text-purple-600 mt-1">Маржа: {profitMargin.toFixed(1)}%</p>
+            <div className="text-2xl font-bold text-purple-700 dark:text-purple-300">{monthlyProfit.toLocaleString('ru-RU')} ₽</div>
+            <p className="text-xs text-purple-600 dark:text-purple-400 mt-1">Маржа: {profitMargin.toFixed(1)}%</p>
           </CardContent>
         </Card>
       </div>
