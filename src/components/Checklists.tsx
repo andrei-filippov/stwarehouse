@@ -761,7 +761,7 @@ function ChecklistView({
   const [checkMode, setCheckMode] = useState<'simple' | 'double'>('simple');
   
   // Оптимистичные обновления для мгновенного отклика UI
-  const [optimisticUpdates, setOptimisticUpdates] = useState<Record<string, { is_checked?: boolean; loaded?: boolean; unloaded?: boolean }>>({});
+  const [optimisticUpdates, setOptimisticUpdates] = useState<Record<string, { is_checked?: boolean; loaded?: boolean; unloaded?: boolean; loaded_quantity?: number; unloaded_quantity?: number }>>({});
   
   // QR-сканирование
   const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
@@ -818,7 +818,9 @@ function ChecklistView({
     return {
       isChecked: optimistic?.is_checked ?? item.is_checked,
       loaded: optimistic?.loaded ?? (item as any).loaded ?? false,
-      unloaded: optimistic?.unloaded ?? (item as any).unloaded ?? false
+      unloaded: optimistic?.unloaded ?? (item as any).unloaded ?? false,
+      loaded_quantity: optimistic?.loaded_quantity ?? item.loaded_quantity ?? 0,
+      unloaded_quantity: optimistic?.unloaded_quantity ?? item.unloaded_quantity ?? 0
     };
   };
 
@@ -827,9 +829,13 @@ function ChecklistView({
     const status = getItemStatus(item);
     if (checkMode === 'double') {
       // В двойном режиме считаем отмеченным только если разгружено
-      return status.unloaded;
+      // и количество разгружено >= требуемому
+      if (!status.unloaded) return false;
+      return status.unloaded_quantity >= item.quantity;
     }
-    return status.isChecked;
+    // В простом режиме проверяем loaded_quantity
+    if (status.isChecked) return true;
+    return status.loaded_quantity >= item.quantity;
   }, [checkMode, optimisticUpdates]);
 
   const handleToggle = useCallback(async (item: ChecklistItem) => {
@@ -938,85 +944,162 @@ function ChecklistView({
     }
   }, [checklist.id, onUpdateItem, scanMode, optimisticUpdates, checkMode, getItemStatus]);
 
-  // Обработка сканирования комплекта - отмечает все позиции комплекта
+  // Обработка сканирования комплекта - учитывает количество единиц
   const handleKitScan = useCallback(async (kitData: { id: string; name: string }) => {
     try {
       console.log('[Kit Scan] Processing kit:', kitData.id, kitData.name);
       
-      // Загружаем содержимое комплекта
+      // Загружаем содержимое комплекта с количеством
       const { data: kitItemsData, error: kitItemsError } = await supabase
         .from('kit_items')
         .select(`
           inventory_id,
+          quantity,
           cable_inventory(name)
         `)
         .eq('kit_id', kitData.id);
       
       if (kitItemsError) {
         console.error('[Kit Scan] Error loading kit items:', kitItemsError);
+        toast.error('Ошибка загрузки комплекта');
+        return;
       }
       
-      // Получаем имена оборудования из комплекта
-      const kitEquipmentNames = new Set(
-        kitItemsData?.map((item: any) => (item.cable_inventory as any)?.name?.toLowerCase().trim()).filter(Boolean) || []
-      );
+      // Создаем мапу: название оборудования -> необходимое количество
+      const kitEquipmentMap = new Map<string, number>();
+      kitItemsData?.forEach((item: any) => {
+        const name = (item.cable_inventory as any)?.name?.toLowerCase().trim();
+        const qty = item.quantity || 1;
+        if (name) {
+          kitEquipmentMap.set(name, (kitEquipmentMap.get(name) || 0) + qty);
+        }
+      });
       
-      console.log('[Kit Scan] Equipment in kit:', Array.from(kitEquipmentNames));
+      console.log('[Kit Scan] Equipment in kit:', Object.fromEntries(kitEquipmentMap));
       
-      // Отмечаем все items этого кита
-      let updatedCount = 0;
-      const skippedCount = 0;
-      const kitIdStr = String(kitData.id);
-      
+      // Группируем items чек-листа по названию для подсчета
+      const checklistItemsByName = new Map<string, typeof checklist.items>();
       for (const item of checklist.items || []) {
-        const itemKitId = item.kit_id ? String(item.kit_id) : null;
-        const itemNameLower = item.name.toLowerCase().trim();
+        const name = item.name.toLowerCase().trim();
+        if (!checklistItemsByName.has(name)) {
+          checklistItemsByName.set(name, []);
+        }
+        checklistItemsByName.get(name)!.push(item);
+      }
+      
+      const kitIdStr = String(kitData.id);
+      let updatedCount = 0;
+      const results: string[] = [];
+      
+      // Обрабатываем каждое оборудование из комплекта
+      for (const [equipmentName, requiredQty] of kitEquipmentMap) {
+        const matchingItems = checklistItemsByName.get(equipmentName) || [];
         
-        const matchByKitId = itemKitId === kitIdStr;
-        const matchByName = kitEquipmentNames.has(itemNameLower);
+        // Также ищем по kit_id
+        const itemsByKitId = (checklist.items || []).filter(item => 
+          item.kit_id && String(item.kit_id) === kitIdStr
+        );
         
-        if (matchByKitId || matchByName) {
-          if (isChecked(item)) {
-            continue; // Уже отмечено
-          }
+        // Объединяем и убираем дубликаты
+        const allMatchingItems = [...matchingItems, ...itemsByKitId];
+        const uniqueItems = allMatchingItems.filter((item, index, self) => 
+          index === self.findIndex(i => i.id === item.id)
+        );
+        
+        if (uniqueItems.length === 0) {
+          results.push(`⚠️ ${equipmentName}: не найден в чек-листе`);
+          continue;
+        }
+        
+        // Считаем сколько уже отсканировано
+        let alreadyScanned = 0;
+        for (const item of uniqueItems) {
+          const currentQty = scanMode === 'unload' 
+            ? (item.unloaded_quantity || 0)
+            : (item.loaded_quantity || 0);
+          alreadyScanned += currentQty;
+        }
+        
+        // Сколько нужно еще отсканировать
+        let remainingToScan = requiredQty;
+        
+        for (const item of uniqueItems) {
+          if (remainingToScan <= 0) break;
           
-          // В зависимости от режима сканирования устанавливаем статус
-          let updates: any;
-          if (scanMode === 'load') {
-            updates = checkMode === 'simple' 
-              ? { is_checked: true }
-              : { loaded: true, unloaded: false }; // При погрузке только loaded
-          } else if (scanMode === 'unload') {
-            updates = { loaded: true, unloaded: true }; // При разгрузке оба
-          } else {
-            updates = checkMode === 'simple' 
-              ? { is_checked: true }
-              : { loaded: true, unloaded: true };
-          }
+          const currentQty = scanMode === 'unload' 
+            ? (item.unloaded_quantity || 0)
+            : (item.loaded_quantity || 0);
+          const itemNeeded = item.quantity || 1;
           
-          setOptimisticUpdates(prev => ({ ...prev, [item.id!]: updates }));
-          const result = await onUpdateItem(checklist.id, item.id!, updates);
+          // Сколько можно добавить к этой позиции
+          const canAdd = Math.min(remainingToScan, itemNeeded - currentQty);
           
-          if (result.error) {
-            console.error(`[Kit Scan] Failed to update ${item.name}:`, result.error);
-            setOptimisticUpdates(prev => {
-              const next = { ...prev };
-              delete next[item.id!];
-              return next;
-            });
-          } else {
-            updatedCount++;
+          if (canAdd > 0 || currentQty > 0) {
+            const newQty = currentQty + Math.max(canAdd, 0);
+            
+            // Определяем статус на основе количества
+            const isComplete = newQty >= itemNeeded;
+            
+            let updates: any = {};
+            if (scanMode === 'load') {
+              updates.loaded_quantity = newQty;
+              if (checkMode === 'simple') {
+                updates.is_checked = isComplete;
+              } else {
+                updates.loaded = isComplete;
+                if (!isComplete) updates.unloaded = false;
+              }
+            } else if (scanMode === 'unload') {
+              updates.unloaded_quantity = newQty;
+              updates.loaded = true; // При разгрузке loaded всегда true
+              updates.unloaded = isComplete;
+            }
+            
+            setOptimisticUpdates(prev => ({ ...prev, [item.id!]: updates }));
+            const result = await onUpdateItem(checklist.id, item.id!, updates);
+            
+            if (!result.error) {
+              updatedCount++;
+              remainingToScan -= canAdd;
+            }
           }
         }
+        
+        // Итоговое количество после сканирования
+        let finalScanned = 0;
+        for (const item of uniqueItems) {
+          finalScanned += scanMode === 'unload' 
+            ? (item.unloaded_quantity || 0)
+            : (item.loaded_quantity || 0);
+        }
+        // Плюс то что только что отсканировали
+        finalScanned += (requiredQty - remainingToScan);
+        
+        const statusIcon = finalScanned >= requiredQty ? '✅' : '📦';
+        results.push(`${statusIcon} ${equipmentName}: ${finalScanned} из ${requiredQty}`);
       }
       
       console.log(`[Kit Scan] Total updated: ${updatedCount}`);
       
+      // Показываем детальный результат
       if (updatedCount > 0) {
-        const modeText = scanMode === 'unload' ? 'разгружен' : 'отмечен';
-        toast.success(`Комплект "${kitData.name}" ${modeText}`, { description: `Обработано ${updatedCount} позиций` });
+        toast.success(
+          `Комплект "${kitData.name}" отсканирован`,
+          { 
+            description: results.join('\n'),
+            duration: 5000
+          }
+        );
+      } else if (results.length > 0) {
+        toast.info(
+          `Комплект "${kitData.name}"`,
+          { 
+            description: results.join('\n'),
+            duration: 5000
+          }
+        );
       } else {
-        toast.info(`Комплект "${kitData.name}" уже отмечен или оборудование не найдено в чек-листе`);
+        toast.info(`Комплект "${kitData.name}": оборудование не найдено в чек-листе`);
       }
     } catch (err: any) {
       console.error('[Kit Scan] Error:', err);
@@ -1234,12 +1317,25 @@ function ChecklistView({
                       
                       <span className={`flex-1 ${status.unloaded ? 'line-through text-muted-foreground' : ''}`}>
                         {item.name}
-                        <span className="text-muted-foreground ml-2">× {item.quantity}</span>
+                        {/* Отображение прогресса сканирования */}
+                        <span className={`ml-2 ${
+                          (item.unloaded_quantity || 0) >= item.quantity ? 'text-green-600 font-medium' :
+                          (item.loaded_quantity || 0) >= item.quantity ? 'text-blue-600 font-medium' :
+                          (item.loaded_quantity || 0) > 0 || (item.unloaded_quantity || 0) > 0 ? 'text-amber-600' :
+                          'text-muted-foreground'
+                        }`}>
+                          {scanMode === 'unload' && item.unloaded_quantity !== undefined
+                            ? `${item.unloaded_quantity} из ${item.quantity}`
+                            : item.loaded_quantity !== undefined
+                              ? `${item.loaded_quantity} из ${item.quantity}`
+                              : `× ${item.quantity}`
+                          }
+                        </span>
                         {item.is_required && <span className="text-red-500 ml-1">*</span>}
                         {(item as any).kit_name && <span className="text-xs text-purple-500 ml-2">📦 {(item as any).kit_name}</span>}
                         {item.qr_code && <span className="text-xs text-blue-500 ml-2">📱 {item.qr_code}</span>}
                         <span className="text-xs ml-2">
-                          {status.unloaded ? '(разгружено)' : status.loaded ? '(погружено)' : ''}
+                          {status.unloaded ? '✅ разгружено' : status.loaded ? '📦 погружено' : ''}
                         </span>
                       </span>
                       <Button
@@ -1279,7 +1375,17 @@ function ChecklistView({
                     )}
                     <span className={`flex-1 ${checked ? 'line-through text-muted-foreground' : ''}`}>
                       {item.name}
-                      <span className="text-muted-foreground ml-2">× {item.quantity}</span>
+                      {/* Отображение прогресса сканирования */}
+                      <span className={`ml-2 ${
+                        (item.loaded_quantity || 0) >= item.quantity ? 'text-green-600 font-medium' :
+                        (item.loaded_quantity || 0) > 0 ? 'text-amber-600' :
+                        'text-muted-foreground'
+                      }`}>
+                        {item.loaded_quantity !== undefined
+                          ? `${item.loaded_quantity} из ${item.quantity}`
+                          : `× ${item.quantity}`
+                        }
+                      </span>
                       {item.is_required && <span className="text-red-500 ml-1">*</span>}
                       {(item as any).kit_name && <span className="text-xs text-purple-500 ml-2">📦 {(item as any).kit_name}</span>}
                       {item.qr_code && <span className="text-xs text-blue-500 ml-2">📱 {item.qr_code}</span>}

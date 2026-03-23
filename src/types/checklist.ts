@@ -19,11 +19,13 @@ export type ChecklistItemV2 = {
   loaded: boolean;
   loaded_at?: string;
   loaded_by?: string;
+  loaded_quantity?: number; // Фактическое количество отсканированное при погрузке
   
   // Разгрузка (после возврата)
   unloaded: boolean;
   unloaded_at?: string;
   unloaded_by?: string;
+  unloaded_quantity?: number; // Фактическое количество отсканированное при разгрузке
   
   // Комплект/кофр
   kit_id?: string;
