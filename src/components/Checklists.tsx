@@ -1102,9 +1102,10 @@ function ChecklistView({
           totalNeeded += item.quantity || 1;
         }
         
-        // Сколько еще можно отсканировать (по чек-листу, не по комплекту!)
-        let remainingToScan = Math.max(0, totalNeeded - alreadyScanned);
-        console.log(`[Kit Scan] ${equipmentName}: needed=${totalNeeded}, scanned=${alreadyScanned}, canAdd=${remainingToScan}`);
+        // Сколько еще можно отсканировать (не больше чем в комплекте и не больше чем нужно в чек-листе)
+        const checklistRemaining = Math.max(0, totalNeeded - alreadyScanned);
+        let remainingToScan = Math.min(requiredQty, checklistRemaining);
+        console.log(`[Kit Scan] ${equipmentName}: kitQty=${requiredQty}, needed=${totalNeeded}, scanned=${alreadyScanned}, canAdd=${remainingToScan}`);
         
         for (const item of uniqueItems) {
           if (remainingToScan <= 0) break;
