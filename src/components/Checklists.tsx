@@ -1089,6 +1089,7 @@ function ChecklistView({
         
         // Считаем сколько уже отсканировано (используем getItemStatus + локальные счетчики)
         let alreadyScanned = 0;
+        let totalNeeded = 0;
         for (const item of uniqueItems) {
           const status = getItemStatus(item);
           const baseQty = scanMode === 'unload' 
@@ -1098,10 +1099,12 @@ function ChecklistView({
           const localKey = `${item.id}_${equipmentName}`;
           const localQty = kitScanCounterRef.current[localKey]?.[scanModeField] || 0;
           alreadyScanned += baseQty + localQty;
+          totalNeeded += item.quantity || 1;
         }
         
-        // Сколько нужно еще отсканировать
-        let remainingToScan = Math.max(0, requiredQty - alreadyScanned);
+        // Сколько еще можно отсканировать (по чек-листу, не по комплекту!)
+        let remainingToScan = Math.max(0, totalNeeded - alreadyScanned);
+        console.log(`[Kit Scan] ${equipmentName}: needed=${totalNeeded}, scanned=${alreadyScanned}, canAdd=${remainingToScan}`);
         
         for (const item of uniqueItems) {
           if (remainingToScan <= 0) break;
@@ -1146,11 +1149,8 @@ function ChecklistView({
             setOptimisticUpdates(prev => ({ ...prev, [item.id!]: updates }));
             
             // Запускаем API вызов асинхронно
-            onUpdateItem(checklist.id, item.id!, updates).then(() => {
-              // Success
-            }).catch(err => {
-              console.error('[Kit Scan] Failed to update kit item:', err);
-              // Откатываем локальный счетчик при ошибке (используем scanModeField)
+            onUpdateItem(checklist.id, item.id!, updates).catch(err => {
+              console.error('[Kit Scan] Failed:', err);
               kitScanCounterRef.current[localKey][scanModeField] -= canAdd;
             });
             
@@ -1167,7 +1167,7 @@ function ChecklistView({
         results.push(`${statusIcon} ${equipmentName}: ${finalScanned} из ${requiredQty}`);
       }
       
-      console.log(`[Kit Scan] Total updated: ${updatedCount}`);
+      console.log(`[Kit Scan] Total updated: ${updatedCount}, scanMode=${scanMode}`);
       
       // Показываем детальный результат
       if (updatedCount > 0) {
