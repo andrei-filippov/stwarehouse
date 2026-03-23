@@ -35,33 +35,34 @@
   }
 
   .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 5.9% 10%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 240 4.9% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Графитовая тема - Slate палитра */
+    --background: 222 47% 4%;           /* slate-950: #030712 - глубокий графит */
+    --foreground: 210 40% 98%;          /* slate-100: #f1f5f9 - мягкий белый */
+    --card: 215 28% 10%;                /* slate-900: #0f172a - графит карточек */
+    --card-foreground: 210 40% 98%;     /* slate-100 */
+    --popover: 215 28% 10%;             /* slate-900 */
+    --popover-foreground: 210 40% 98%;  /* slate-100 */
+    --primary: 217 91% 60%;             /* blue-500: #3b82f6 - яркий синий акцент */
+    --primary-foreground: 222 47% 4%;   /* slate-950 */
+    --secondary: 217 19% 20%;           /* slate-800: #1e293b - вторичный графит */
+    --secondary-foreground: 210 40% 98%;/* slate-100 */
+    --muted: 217 19% 20%;               /* slate-800 */
+    --muted-foreground: 215 20% 65%;    /* slate-400: #94a3b8 - приглушённый текст */
+    --accent: 217 19% 20%;              /* slate-800 */
+    --accent-foreground: 210 40% 98%;   /* slate-100 */
+    --destructive: 0 72% 51%;           /* red-500: #ef4444 */
+    --destructive-foreground: 210 40% 98%;
+    --border: 217 19% 22%;              /* slate-800/700: границы */
+    --input: 217 19% 20%;               /* slate-800 */
+    --ring: 217 91% 60%;                /* blue-500: кольцо фокуса */
+    --sidebar-background: 222 47% 6%;   /* slate-950: чуть светлее фона */
+    --sidebar-foreground: 210 40% 98%;  /* slate-100 */
+    --sidebar-primary: 217 91% 60%;     /* blue-500 */
+    --sidebar-primary-foreground: 222 47% 4%;
+    --sidebar-accent: 217 19% 18%;      /* slate-800 */
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217 19% 18%;      /* slate-800 */
+    --sidebar-ring: 217 91% 60%;        /* blue-500 */
   }
 }
 
