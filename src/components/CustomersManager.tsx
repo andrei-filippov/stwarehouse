@@ -434,7 +434,7 @@ function CustomerForm({ initialData, onSubmit, onCancel, submitting }: CustomerF
             <select
               className="w-full border border-border rounded-lg p-2 bg-card text-foreground focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
               value={formData.type}
-              onChange={(e) => setFormData({ ...formData, type: e.target.value })
+              onChange={(e) => setFormData({ ...formData, type: e.target.value })}
             >
               <option value="company">ООО / АО / Компания</option>
               <option value="ip">Индивидуальный предприниматель</option>
