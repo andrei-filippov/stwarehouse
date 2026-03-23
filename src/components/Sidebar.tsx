@@ -17,7 +17,9 @@ import {
   ChevronRight,
   FileSignature,
   Plus,
-  UserPlus
+  UserPlus,
+  Sun,
+  Moon
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -29,6 +31,7 @@ import {
 import { Button } from './ui/button';
 import type { TabId } from '../lib/permissions';
 import { useCompanyContext } from '../contexts/CompanyContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { SyncDialog } from './SyncDialog';
 import { useOfflineSync } from '../hooks/useOfflineSync';
 import { useState, useEffect } from 'react';
@@ -216,6 +219,9 @@ export function Sidebar(props: SidebarProps) {
           </DropdownMenu>
         )}
         
+        {/* Theme Toggle */}
+        <ThemeToggle collapsed={collapsed} />
+
         {/* Offline Status */}
         <div className={`${collapsed ? 'flex justify-center' : 'px-3'}`}>
           <button
@@ -288,5 +294,34 @@ export function Sidebar(props: SidebarProps) {
         onSync={syncData}
       />
     </aside>
+  );
+}
+
+// Компонент переключателя темы
+function ThemeToggle({ collapsed }: { collapsed: boolean }) {
+  const { resolvedTheme, toggleTheme } = useTheme();
+
+  return (
+    <div className={`${collapsed ? 'flex justify-center' : 'px-3'}`}>
+      <button
+        onClick={toggleTheme}
+        className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors w-full 
+          bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700
+          ${collapsed ? 'justify-center' : ''}`}
+        title={resolvedTheme === 'light' ? 'Переключить на тёмную тему' : 'Переключить на светлую тему'}
+      >
+        {resolvedTheme === 'light' ? (
+          <>
+            <Moon className="w-4 h-4" />
+            {!collapsed && <span>Тёмная тема</span>}
+          </>
+        ) : (
+          <>
+            <Sun className="w-4 h-4" />
+            {!collapsed && <span>Светлая тема</span>}
+          </>
+        )}
+      </button>
+    </div>
   );
 }

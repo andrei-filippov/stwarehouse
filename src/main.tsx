@@ -5,6 +5,7 @@ import './index.css'
 import App from './App.tsx'
 import { Toaster } from './components/ui/sonner'
 import { AppLoader } from './components/AppLoader'
+import { ThemeProvider } from './contexts/ThemeContext'
 
 // Регистрация Service Worker для офлайн-режима
 if ('serviceWorker' in navigator) {
@@ -51,10 +52,12 @@ if ('serviceWorker' in navigator) {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AppLoader>
-      <App />
-    </AppLoader>
-    <Toaster position="top-right" richColors closeButton />
-    <SpeedInsights />
+    <ThemeProvider>
+      <AppLoader>
+        <App />
+      </AppLoader>
+      <Toaster position="top-right" richColors closeButton />
+      <SpeedInsights />
+    </ThemeProvider>
   </StrictMode>,
 )
