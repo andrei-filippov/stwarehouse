@@ -138,8 +138,10 @@ export const ChecklistsManager = memo(function ChecklistsManager({
   useEffect(() => {
     if (selectedChecklist && checklists !== prevChecklistsRef.current) {
       const updated = checklists.find(c => c.id === selectedChecklist.id);
+      console.log('[Checklists] checklists changed, found updated:', updated?.items?.length, 'current:', selectedChecklist.items?.length);
       // Обновляем только если данные реально изменились
       if (updated && JSON.stringify(updated.items) !== JSON.stringify(selectedChecklist.items)) {
+        console.log('[Checklists] Updating selectedChecklist with new data');
         setSelectedChecklist(updated);
       }
       prevChecklistsRef.current = checklists;
@@ -823,13 +825,14 @@ function ChecklistView({
   // Получаем статус item (с учетом режима)
   const getItemStatus = (item: ChecklistItem) => {
     const optimistic = item.id ? optimisticUpdates[item.id] : undefined;
-    return {
+    const status = {
       isChecked: optimistic?.is_checked ?? item.is_checked,
       loaded: optimistic?.loaded ?? (item as any).loaded ?? false,
       unloaded: optimistic?.unloaded ?? (item as any).unloaded ?? false,
       loaded_quantity: optimistic?.loaded_quantity ?? item.loaded_quantity ?? 0,
       unloaded_quantity: optimistic?.unloaded_quantity ?? item.unloaded_quantity ?? 0
     };
+    return status;
   };
 
   // Проверяем состояние чекбокса (оптимистичное или из пропсов)
@@ -1142,6 +1145,8 @@ function ChecklistView({
             
             const newTotalQty = currentQty + kitScanCounterRef.current[localKey][scanMode];
             
+            console.log(`[Kit Scan] Item ${item.name} (id=${item.id}): currentQty=${currentQty}, canAdd=${canAdd}, newTotal=${newTotalQty}, itemNeeded=${itemNeeded}`);
+            
             // Определяем статус на основе количества
             const isComplete = newTotalQty >= itemNeeded;
             
@@ -1160,11 +1165,15 @@ function ChecklistView({
               updates.unloaded = isComplete;
             }
             
+            console.log(`[Kit Scan] Sending updates for item ${item.id}:`, updates);
+            
             setOptimisticUpdates(prev => ({ ...prev, [item.id!]: updates }));
             
             // Запускаем API вызов асинхронно
-            onUpdateItem(checklist.id, item.id!, updates).catch(err => {
-              console.error('Failed to update kit item:', err);
+            onUpdateItem(checklist.id, item.id!, updates).then(result => {
+              console.log(`[Kit Scan] Update result for item ${item.id}:`, result);
+            }).catch(err => {
+              console.error('[Kit Scan] Failed to update kit item:', err);
               // Откатываем локальный счетчик при ошибке
               kitScanCounterRef.current[localKey][scanMode] -= canAdd;
             });
@@ -1420,16 +1429,16 @@ function ChecklistView({
                       
                       <span className={`flex-1 ${status.unloaded ? 'line-through text-muted-foreground' : ''}`}>
                         {item.name}
-                        {/* Отображение прогресса сканирования */}
+                        {/* Отображение прогресса сканирования - используем status для оптимистичных обновлений */}
                         <span className={`ml-2 ${
-                          (item.unloaded_quantity || 0) >= item.quantity ? 'text-green-600 font-medium' :
-                          (item.loaded_quantity || 0) >= item.quantity ? 'text-blue-600 font-medium' :
-                          (item.loaded_quantity || 0) > 0 || (item.unloaded_quantity || 0) > 0 ? 'text-amber-600' :
+                          (status.unloaded_quantity || 0) >= item.quantity ? 'text-green-600 font-medium' :
+                          (status.loaded_quantity || 0) >= item.quantity ? 'text-blue-600 font-medium' :
+                          (status.loaded_quantity || 0) > 0 || (status.unloaded_quantity || 0) > 0 ? 'text-amber-600' :
                           'text-muted-foreground'
                         }`}>
                           {scanMode === 'unload'
-                            ? `${item.unloaded_quantity || 0} из ${item.quantity}`
-                            : `${item.loaded_quantity || 0} из ${item.quantity}`
+                            ? `${status.unloaded_quantity || 0} из ${item.quantity}`
+                            : `${status.loaded_quantity || 0} из ${item.quantity}`
                           }
                         </span>
                         {item.is_required && <span className="text-red-500 ml-1">*</span>}
@@ -1476,13 +1485,13 @@ function ChecklistView({
                     )}
                     <span className={`flex-1 ${checked ? 'line-through text-muted-foreground' : ''}`}>
                       {item.name}
-                      {/* Отображение прогресса сканирования */}
+                      {/* Отображение прогресса сканирования - используем status для оптимистичных обновлений */}
                       <span className={`ml-2 ${
-                        (item.loaded_quantity || 0) >= item.quantity ? 'text-green-600 font-medium' :
-                        (item.loaded_quantity || 0) > 0 ? 'text-amber-600' :
+                        (status.loaded_quantity || 0) >= item.quantity ? 'text-green-600 font-medium' :
+                        (status.loaded_quantity || 0) > 0 ? 'text-amber-600' :
                         'text-muted-foreground'
                       }`}>
-                        {`${item.loaded_quantity || 0} из ${item.quantity}`}
+                        {`${status.loaded_quantity || 0} из ${item.quantity}`}
                       </span>
                       {item.is_required && <span className="text-red-500 ml-1">*</span>}
                       {(item as any).kit_name && <span className="text-xs text-purple-500 ml-2">📦 {(item as any).kit_name}</span>}

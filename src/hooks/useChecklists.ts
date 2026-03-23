@@ -47,14 +47,22 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
         // Отладка: проверяем что QR-коды загружаются
         data?.forEach((c: any) => {
           const itemsWithQr = c.items?.filter((i: any) => i.qr_code) || [];
-          logger.debug(`[fetchChecklists] Checklist ${c.event_name}: ${itemsWithQr.length}/${c.items?.length} items with QR`);
+          const itemsWithKit = c.items?.filter((i: any) => i.kit_id) || [];
+          logger.info(`[fetchChecklists] Checklist ${c.event_name}: ${itemsWithQr.length}/${c.items?.length} items with QR, ${itemsWithKit.length} with kit_id`);
+          // Debug: log items with loaded_quantity
+          const itemsWithQty = c.items?.filter((i: any) => i.loaded_quantity > 0) || [];
+          if (itemsWithQty.length > 0) {
+            logger.info(`[fetchChecklists] Items with loaded_quantity:`, itemsWithQty.map((i: any) => ({ name: i.name, qty: i.loaded_quantity })));
+          }
         });
         
         // Мержим: серверные + локальные которых нет на сервере
         const serverIds = new Set((data || []).map(c => c.id));
         const unsyncedLocal = localChecklists.filter(c => !serverIds.has(c.id));
         
-        setChecklists([...unsyncedLocal, ...(data || [])]);
+        const merged = [...unsyncedLocal, ...(data || [])];
+        logger.info(`[fetchChecklists] Setting checklists: ${merged.length} total (${data?.length || 0} server + ${unsyncedLocal.length} local)`);
+        setChecklists(merged);
       } catch (err) {
         // Ошибка сети - показываем только локальные
         logger.warn('Network error, showing local data:', err);
