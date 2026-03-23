@@ -763,6 +763,12 @@ function ChecklistView({
   // Оптимистичные обновления для мгновенного отклика UI
   const [optimisticUpdates, setOptimisticUpdates] = useState<Record<string, { is_checked?: boolean; loaded?: boolean; unloaded?: boolean; loaded_quantity?: number; unloaded_quantity?: number }>>({});
   
+  // Локальный счетчик сканирований для синхронного отслеживания (чтобы не ждать API)
+  const scanCounterRef = useRef<Record<string, { loaded: number; unloaded: number }>>({});
+  
+  // Локальный счетчик для комплектов (по названию оборудования)
+  const kitScanCounterRef = useRef<Record<string, { loaded: number; unloaded: number }>>({});
+  
   // QR-сканирование
   const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
   const [scanMode, setScanMode] = useState<'load' | 'unload'>('load');
@@ -771,9 +777,11 @@ function ChecklistView({
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingQrCode, setEditingQrCode] = useState('');
 
-  // При смене чек-листа сбрасываем оптимистичные обновления
+  // При смене чек-листа сбрасываем оптимистичные обновления и локальные счетчики
   useEffect(() => {
     setOptimisticUpdates({});
+    scanCounterRef.current = {};
+    kitScanCounterRef.current = {};
     
     // Отладка: показываем что пришло в чек-листе
     const itemsWithQr = checklist.items?.filter(i => i.qr_code) || [];
@@ -909,23 +917,40 @@ function ChecklistView({
   const handleEquipmentScan = useCallback(async (item: ChecklistItem) => {
     if (!item.id) return;
     
+    // Инициализируем счетчик если нужно
+    if (!scanCounterRef.current[item.id]) {
+      scanCounterRef.current[item.id] = { loaded: 0, unloaded: 0 };
+    }
+    
+    // Берем базовое количество из статуса (из БД или optimisticUpdates)
     const status = getItemStatus(item);
-    const currentQty = scanMode === 'unload' ? status.unloaded_quantity : status.loaded_quantity;
+    const baseLoadedQty = status.loaded_quantity;
+    const baseUnloadedQty = status.unloaded_quantity;
+    
+    // Добавляем локальные сканы из ref (для быстрого сканирования подряд)
+    const localLoaded = scanCounterRef.current[item.id].loaded;
+    const localUnloaded = scanCounterRef.current[item.id].unloaded;
+    
+    const currentLoadedQty = baseLoadedQty + localLoaded;
+    const currentUnloadedQty = baseUnloadedQty + localUnloaded;
+    
     const targetQty = item.quantity || 1;
     
     if (scanMode === 'load') {
-      if (currentQty >= targetQty) {
+      if (currentLoadedQty >= targetQty) {
         toast.info('Уже погружено полностью', { 
-          description: `${item.name}: ${currentQty} из ${targetQty}` 
+          description: `${item.name}: ${currentLoadedQty} из ${targetQty}` 
         });
         return;
       }
       
-      const newQty = currentQty + 1;
-      const isComplete = newQty >= targetQty;
+      // Увеличиваем локальный счетчик сразу (синхронно)
+      scanCounterRef.current[item.id].loaded += 1;
+      const newTotalQty = currentLoadedQty + 1;
+      const isComplete = newTotalQty >= targetQty;
       
       let updates: any = {
-        loaded_quantity: newQty
+        loaded_quantity: newTotalQty
       };
       
       if (checkMode === 'double') {
@@ -936,43 +961,57 @@ function ChecklistView({
       }
       
       setOptimisticUpdates(prev => ({ ...prev, [item.id!]: updates }));
-      await onUpdateItem(checklist.id, item.id, updates);
+      
+      // Запускаем API вызов асинхронно (не ждем)
+      onUpdateItem(checklist.id, item.id, updates).catch(err => {
+        console.error('Failed to update item:', err);
+        // Откатываем локальный счетчик при ошибке
+        scanCounterRef.current[item.id].loaded -= 1;
+      });
       
       toast.success(
         isComplete ? '✅ Погружено полностью' : '📦 Погружено', 
-        { description: `${item.name}: ${newQty} из ${targetQty}` }
+        { description: `${item.name}: ${newTotalQty} из ${targetQty}` }
       );
       
     } else if (scanMode === 'unload') {
-      if (status.loaded_quantity < targetQty) {
+      if (currentLoadedQty < targetQty) {
         toast.error('Сначала нужно погрузить', { 
-          description: `${item.name}: погружено ${status.loaded_quantity} из ${targetQty}` 
+          description: `${item.name}: погружено ${currentLoadedQty} из ${targetQty}` 
         });
         return;
       }
       
-      if (currentQty >= targetQty) {
+      if (currentUnloadedQty >= targetQty) {
         toast.info('Уже разгружено полностью', { 
-          description: `${item.name}: ${currentQty} из ${targetQty}` 
+          description: `${item.name}: ${currentUnloadedQty} из ${targetQty}` 
         });
         return;
       }
       
-      const newQty = currentQty + 1;
-      const isComplete = newQty >= targetQty;
+      // Увеличиваем локальный счетчик сразу (синхронно)
+      scanCounterRef.current[item.id].unloaded += 1;
+      const newTotalQty = currentUnloadedQty + 1;
+      const isComplete = newTotalQty >= targetQty;
       
       const updates = {
-        unloaded_quantity: newQty,
+        unloaded_quantity: newTotalQty,
         loaded: true,
         unloaded: isComplete
       };
       
       setOptimisticUpdates(prev => ({ ...prev, [item.id!]: updates }));
-      await onUpdateItem(checklist.id, item.id, updates);
+      
+      // Запускаем API вызов асинхронно (не ждем)
+      onUpdateItem(checklist.id, item.id, updates).catch(err => {
+        console.error('Failed to update item:', err);
+        // Откатываем локальный счетчик при ошибке
+        scanCounterRef.current[item.id].unloaded -= 1;
+      });
       
       toast.success(
         isComplete ? '✅ Разгружено полностью' : '📦 Разгружено', 
-        { description: `${item.name}: ${newQty} из ${targetQty}` }
+        { description: `${item.name}: ${newTotalQty} из ${targetQty}` }
       );
     }
   }, [checklist.id, onUpdateItem, scanMode, optimisticUpdates, checkMode, getItemStatus]);
@@ -1044,17 +1083,20 @@ function ChecklistView({
           continue;
         }
         
-        // Считаем сколько уже отсканировано (используем getItemStatus для учета оптимистичных обновлений)
+        // Считаем сколько уже отсканировано (используем getItemStatus + локальные счетчики)
         let alreadyScanned = 0;
         for (const item of uniqueItems) {
           const status = getItemStatus(item);
-          const currentQty = scanMode === 'unload' 
+          const baseQty = scanMode === 'unload' 
             ? status.unloaded_quantity
             : status.loaded_quantity;
-          alreadyScanned += currentQty;
+          // Добавляем локальные сканы
+          const localKey = `${item.id}_${equipmentName}`;
+          const localQty = kitScanCounterRef.current[localKey]?.[scanMode] || 0;
+          alreadyScanned += baseQty + localQty;
         }
         
-        // Сколько нужно еще отсканировать (уже отсканированное минус то что нужно)
+        // Сколько нужно еще отсканировать
         let remainingToScan = Math.max(0, requiredQty - alreadyScanned);
         
         for (const item of uniqueItems) {
@@ -1070,14 +1112,21 @@ function ChecklistView({
           const canAdd = Math.min(remainingToScan, itemNeeded - currentQty);
           
           if (canAdd > 0) {
-            const newQty = currentQty + canAdd;
+            // Увеличиваем локальный счетчик комплекта
+            const localKey = `${item.id}_${equipmentName}`;
+            if (!kitScanCounterRef.current[localKey]) {
+              kitScanCounterRef.current[localKey] = { loaded: 0, unloaded: 0 };
+            }
+            kitScanCounterRef.current[localKey][scanMode] += canAdd;
+            
+            const newTotalQty = currentQty + kitScanCounterRef.current[localKey][scanMode];
             
             // Определяем статус на основе количества
-            const isComplete = newQty >= itemNeeded;
+            const isComplete = newTotalQty >= itemNeeded;
             
             let updates: any = {};
             if (scanMode === 'load') {
-              updates.loaded_quantity = newQty;
+              updates.loaded_quantity = newTotalQty;
               if (checkMode === 'simple') {
                 updates.is_checked = isComplete;
               } else {
@@ -1085,23 +1134,27 @@ function ChecklistView({
                 if (!isComplete) updates.unloaded = false;
               }
             } else if (scanMode === 'unload') {
-              updates.unloaded_quantity = newQty;
-              updates.loaded = true; // При разгрузке loaded всегда true
+              updates.unloaded_quantity = newTotalQty;
+              updates.loaded = true;
               updates.unloaded = isComplete;
             }
             
             setOptimisticUpdates(prev => ({ ...prev, [item.id!]: updates }));
-            const result = await onUpdateItem(checklist.id, item.id!, updates);
             
-            if (!result.error) {
-              updatedCount++;
-              remainingToScan -= canAdd;
-            }
+            // Запускаем API вызов асинхронно
+            onUpdateItem(checklist.id, item.id!, updates).catch(err => {
+              console.error('Failed to update kit item:', err);
+              // Откатываем локальный счетчик при ошибке
+              kitScanCounterRef.current[localKey][scanMode] -= canAdd;
+            });
+            
+            updatedCount++;
+            remainingToScan -= canAdd;
           }
         }
         
         // Итоговое количество после сканирования
-        const scannedNow = requiredQty - remainingToScan; // Сколько отсканировали в этом вызове
+        const scannedNow = requiredQty - remainingToScan;
         const finalScanned = alreadyScanned + scannedNow;
         
         const statusIcon = finalScanned >= requiredQty ? '✅' : '📦';
