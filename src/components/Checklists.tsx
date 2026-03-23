@@ -138,10 +138,8 @@ export const ChecklistsManager = memo(function ChecklistsManager({
   useEffect(() => {
     if (selectedChecklist && checklists !== prevChecklistsRef.current) {
       const updated = checklists.find(c => c.id === selectedChecklist.id);
-      console.log('[Checklists] checklists changed, found updated:', updated?.items?.length, 'current:', selectedChecklist.items?.length);
       // Обновляем только если данные реально изменились
       if (updated && JSON.stringify(updated.items) !== JSON.stringify(selectedChecklist.items)) {
-        console.log('[Checklists] Updating selectedChecklist with new data');
         setSelectedChecklist(updated);
       }
       prevChecklistsRef.current = checklists;
@@ -1040,21 +1038,17 @@ function ChecklistView({
         return;
       }
       
-      console.log('[Kit Scan] Raw kit items data:', kitItemsData);
-      
       // Создаем мапу: название оборудования -> необходимое количество
       const kitEquipmentMap = new Map<string, number>();
       kitItemsData?.forEach((item: any) => {
         const name = (item.cable_inventory as any)?.name?.toLowerCase().trim();
         const qty = item.quantity || 1;
-        console.log(`[Kit Scan] Processing kit item: inventory_id=${item.inventory_id}, qty=${qty}, name=${name}`);
         if (name) {
           kitEquipmentMap.set(name, (kitEquipmentMap.get(name) || 0) + qty);
         }
       });
       
-      console.log('[Kit Scan] Equipment in kit:', Object.fromEntries(kitEquipmentMap));
-      console.log('[Kit Scan] Kit ID:', kitData.id);
+      console.log('[Kit Scan] Kit:', kitData.name, 'Equipment:', Object.fromEntries(kitEquipmentMap));
       
       // Группируем items чек-листа по названию для подсчета
       const checklistItemsByName = new Map<string, typeof checklist.items>();
@@ -1066,19 +1060,7 @@ function ChecklistView({
         checklistItemsByName.get(name)!.push(item);
       }
       
-      // DEBUG: Log all items with kit_id
-      const itemsWithKitId = (checklist.items || []).filter(item => item.kit_id);
-      console.log('[Kit Scan] Items in checklist with kit_id:', itemsWithKitId.map(i => ({ 
-        name: i.name, 
-        kit_id: i.kit_id, 
-        kit_name: i.kit_name 
-      })));
-      
-      // DEBUG: Log all item names in checklist for comparison
-      console.log('[Kit Scan] All item names in checklist:', Array.from(checklistItemsByName.keys()));
-      
       const kitIdStr = String(kitData.id);
-      console.log('[Kit Scan] Looking for kit_id:', kitIdStr);
       let updatedCount = 0;
       const results: string[] = [];
       
@@ -1091,8 +1073,6 @@ function ChecklistView({
           item.kit_id && String(item.kit_id) === kitIdStr
         );
         
-        console.log(`[Kit Scan] Equipment "${equipmentName}": found by name=${matchingItems.length}, by kit_id=${itemsByKitId.length}`);
-        
         // Объединяем и убираем дубликаты
         const allMatchingItems = [...matchingItems, ...itemsByKitId];
         const uniqueItems = allMatchingItems.filter((item, index, self) => 
@@ -1100,12 +1080,12 @@ function ChecklistView({
         );
         
         if (uniqueItems.length === 0) {
-          console.log(`[Kit Scan] Equipment "${equipmentName}": NO MATCHING ITEMS FOUND`);
           results.push(`⚠️ ${equipmentName}: не найден в чек-листе`);
           continue;
         }
         
-        console.log(`[Kit Scan] Equipment "${equipmentName}": total unique items=${uniqueItems.length}`);
+        // Маппинг scanMode -> имя поля в ref ('load' -> 'loaded', 'unload' -> 'unloaded')
+        const scanModeField = scanMode === 'load' ? 'loaded' : 'unloaded';
         
         // Считаем сколько уже отсканировано (используем getItemStatus + локальные счетчики)
         let alreadyScanned = 0;
@@ -1116,7 +1096,7 @@ function ChecklistView({
             : status.loaded_quantity;
           // Добавляем локальные сканы
           const localKey = `${item.id}_${equipmentName}`;
-          const localQty = kitScanCounterRef.current[localKey]?.[scanMode] || 0;
+          const localQty = kitScanCounterRef.current[localKey]?.[scanModeField] || 0;
           alreadyScanned += baseQty + localQty;
         }
         
@@ -1141,11 +1121,9 @@ function ChecklistView({
             if (!kitScanCounterRef.current[localKey]) {
               kitScanCounterRef.current[localKey] = { loaded: 0, unloaded: 0 };
             }
-            kitScanCounterRef.current[localKey][scanMode] += canAdd;
+            kitScanCounterRef.current[localKey][scanModeField] += canAdd;
             
-            const newTotalQty = currentQty + kitScanCounterRef.current[localKey][scanMode];
-            
-            console.log(`[Kit Scan] Item ${item.name} (id=${item.id}): currentQty=${currentQty}, canAdd=${canAdd}, newTotal=${newTotalQty}, itemNeeded=${itemNeeded}`);
+            const newTotalQty = currentQty + kitScanCounterRef.current[localKey][scanModeField];
             
             // Определяем статус на основе количества
             const isComplete = newTotalQty >= itemNeeded;
@@ -1165,17 +1143,15 @@ function ChecklistView({
               updates.unloaded = isComplete;
             }
             
-            console.log(`[Kit Scan] Sending updates for item ${item.id}:`, updates);
-            
             setOptimisticUpdates(prev => ({ ...prev, [item.id!]: updates }));
             
             // Запускаем API вызов асинхронно
-            onUpdateItem(checklist.id, item.id!, updates).then(result => {
-              console.log(`[Kit Scan] Update result for item ${item.id}:`, result);
+            onUpdateItem(checklist.id, item.id!, updates).then(() => {
+              // Success
             }).catch(err => {
               console.error('[Kit Scan] Failed to update kit item:', err);
-              // Откатываем локальный счетчик при ошибке
-              kitScanCounterRef.current[localKey][scanMode] -= canAdd;
+              // Откатываем локальный счетчик при ошибке (используем scanModeField)
+              kitScanCounterRef.current[localKey][scanModeField] -= canAdd;
             });
             
             updatedCount++;
