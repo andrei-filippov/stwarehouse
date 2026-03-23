@@ -1011,12 +1011,13 @@ function ChecklistView({
           continue;
         }
         
-        // Считаем сколько уже отсканировано
+        // Считаем сколько уже отсканировано (используем getItemStatus для учета оптимистичных обновлений)
         let alreadyScanned = 0;
         for (const item of uniqueItems) {
+          const status = getItemStatus(item);
           const currentQty = scanMode === 'unload' 
-            ? (item.unloaded_quantity || 0)
-            : (item.loaded_quantity || 0);
+            ? status.unloaded_quantity
+            : status.loaded_quantity;
           alreadyScanned += currentQty;
         }
         
@@ -1026,9 +1027,10 @@ function ChecklistView({
         for (const item of uniqueItems) {
           if (remainingToScan <= 0) break;
           
+          const status = getItemStatus(item);
           const currentQty = scanMode === 'unload' 
-            ? (item.unloaded_quantity || 0)
-            : (item.loaded_quantity || 0);
+            ? status.unloaded_quantity
+            : status.loaded_quantity;
           const itemNeeded = item.quantity || 1;
           
           // Сколько можно добавить к этой позиции
@@ -1065,12 +1067,13 @@ function ChecklistView({
           }
         }
         
-        // Итоговое количество после сканирования
+        // Итоговое количество после сканирования (используем getItemStatus)
         let finalScanned = 0;
         for (const item of uniqueItems) {
+          const status = getItemStatus(item);
           finalScanned += scanMode === 'unload' 
-            ? (item.unloaded_quantity || 0)
-            : (item.loaded_quantity || 0);
+            ? status.unloaded_quantity
+            : status.loaded_quantity;
         }
         // Плюс то что только что отсканировали
         finalScanned += (requiredQty - remainingToScan);
