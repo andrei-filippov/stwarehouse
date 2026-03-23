@@ -113,12 +113,12 @@ export function IncomeTab({ estimates, companyId }: IncomeTabProps) {
           className={`cursor-pointer transition-all hover:shadow-md ${
             activeFilter === 'all' 
               ? 'bg-gray-100 border-gray-400 ring-2 ring-gray-300' 
-              : 'bg-gray-50 border-gray-200'
+              : 'bg-muted border-gray-200'
           }`}
           onClick={() => setActiveFilter('all')}
         >
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-gray-700">Всего</CardTitle>
+            <CardTitle className="text-sm text-foreground">Всего</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-gray-900">

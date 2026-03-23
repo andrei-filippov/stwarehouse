@@ -151,14 +151,14 @@ export function Dashboard({
       {/* Приветствие */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Дашборд</h1>
-          <p className="text-gray-500">Обзор вашего бизнеса</p>
+          <h1 className="text-2xl font-bold text-foreground">Дашборд</h1>
+          <p className="text-muted-foreground">Обзор вашего бизнеса</p>
         </div>
         <div className="text-right">
-          <p className="text-2xl font-bold text-blue-600">
+          <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
             {format(currentDate, 'd MMMM', { locale: ru })}
           </p>
-          <p className="text-gray-500">{format(currentDate, 'EEEE', { locale: ru })}</p>
+          <p className="text-muted-foreground">{format(currentDate, 'EEEE', { locale: ru })}</p>
         </div>
       </div>
 
@@ -171,12 +171,12 @@ export function Dashboard({
             : 'grid-cols-2'
       }`}>
         {hasAccess('equipment') && (
-          <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 cursor-pointer" onClick={() => onTabChange('equipment')}>
+          <Card className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border-blue-500/20 dark:from-blue-500/20 dark:to-blue-600/10 cursor-pointer" onClick={() => onTabChange('equipment')}>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-blue-600 font-medium">Оборудование</p>
-                  <p className="text-2xl font-bold text-blue-900">{stats.totalEquipment}</p>
+                  <p className="text-sm text-blue-600 dark:text-blue-400 font-medium">Оборудование</p>
+                  <p className="text-2xl font-bold text-primary dark:text-blue-300">{stats.totalEquipment}</p>
                 </div>
                 <Package className="w-8 h-8 text-blue-500" />
               </div>
@@ -185,12 +185,12 @@ export function Dashboard({
         )}
 
         {hasAccess('estimates') && (
-          <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200 cursor-pointer" onClick={() => onTabChange('estimates')}>
+          <Card className="bg-gradient-to-br from-green-500/10 to-green-600/5 border-green-500/20 dark:from-green-500/20 dark:to-green-600/10 cursor-pointer" onClick={() => onTabChange('estimates')}>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-green-600 font-medium">Сметы</p>
-                  <p className="text-2xl font-bold text-green-900">{stats.totalEstimates}</p>
+                  <p className="text-sm text-green-600 dark:text-green-400 font-medium">Сметы</p>
+                  <p className="text-2xl font-bold text-green-700 dark:text-green-300">{stats.totalEstimates}</p>
                 </div>
                 <FileText className="w-8 h-8 text-green-500" />
               </div>
@@ -199,12 +199,12 @@ export function Dashboard({
         )}
 
         {hasAccess('customers') && (
-          <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200 cursor-pointer" onClick={() => onTabChange('customers')}>
+          <Card className="bg-gradient-to-br from-purple-500/10 to-purple-600/5 border-purple-500/20 dark:from-purple-500/20 dark:to-purple-600/10 cursor-pointer" onClick={() => onTabChange('customers')}>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-purple-600 font-medium">Клиенты</p>
-                  <p className="text-2xl font-bold text-purple-900">{stats.totalCustomers}</p>
+                  <p className="text-sm text-purple-600 dark:text-purple-400 font-medium">Клиенты</p>
+                  <p className="text-2xl font-bold text-purple-700 dark:text-purple-300">{stats.totalCustomers}</p>
                 </div>
                 <Users className="w-8 h-8 text-purple-500" />
               </div>
@@ -213,12 +213,12 @@ export function Dashboard({
         )}
 
         {hasAccess('calendar') && (
-          <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200 cursor-pointer" onClick={() => onTabChange('calendar')}>
+          <Card className="bg-gradient-to-br from-orange-500/10 to-orange-600/5 border-orange-500/20 dark:from-orange-500/20 dark:to-orange-600/10 cursor-pointer" onClick={() => onTabChange('calendar')}>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-orange-600 font-medium">Сегодня мероприятий</p>
-                  <p className="text-2xl font-bold text-orange-900">{todayEvents.length}</p>
+                  <p className="text-sm text-orange-600 dark:text-orange-400 font-medium">Сегодня мероприятий</p>
+                  <p className="text-2xl font-bold text-orange-700 dark:text-orange-300">{todayEvents.length}</p>
                 </div>
                 <CalendarDays className="w-8 h-8 text-orange-500" />
               </div>
@@ -233,11 +233,11 @@ export function Dashboard({
         {hasAccess('goals') && (
         <Card className="md:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-lg flex items-center gap-2 text-blue-700">
+            <CardTitle className="text-lg flex items-center gap-2 text-primary">
               <Target className="w-5 h-5" />
               Текущие задачи
               {activeTasks.length > 0 && (
-                <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-sm">
+                <span className="bg-blue-100 text-primary px-2 py-0.5 rounded-full text-sm">
                   {activeTasks.length}
                 </span>
               )}
@@ -246,14 +246,14 @@ export function Dashboard({
               variant="ghost" 
               size="sm" 
               onClick={() => onTabChange('goals')}
-              className="text-blue-600"
+              className="text-blue-600 dark:text-blue-400"
             >
               Все <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
           </CardHeader>
           <CardContent>
             {activeTasks.length === 0 ? (
-              <div className="text-center py-8 text-gray-400">
+              <div className="text-center py-8 text-muted-foreground">
                 <CheckCircle2 className="w-12 h-12 mx-auto mb-2 opacity-50" />
                 <p>Нет активных задач</p>
                 <p className="text-sm mt-1">Все задачи выполнены!</p>
@@ -268,9 +268,9 @@ export function Dashboard({
                     <div 
                       key={task.id}
                       className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer hover:shadow-md transition-shadow ${
-                        isOverdue ? 'bg-red-50 border-red-200' : 
-                        isDueToday ? 'bg-blue-50 border-blue-200' : 
-                        'bg-gray-50 border-gray-200'
+                        isOverdue ? 'bg-red-500/10 border-red-500/30 dark:bg-red-500/20 dark:border-red-500/40' : 
+                        isDueToday ? 'bg-primary/10 border-primary/30 dark:bg-primary/20 dark:border-primary/40' : 
+                        'bg-muted border-border'
                       }`}
                       onClick={() => onTabChange('goals')}
                     >
@@ -280,9 +280,9 @@ export function Dashboard({
                         task.priority === 'medium' ? 'text-blue-500' : 'text-gray-400'
                       }`} />
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-gray-900">{task.title}</p>
+                        <p className="font-medium text-foreground">{task.title}</p>
                         {task.description && (
-                          <p className="text-sm text-gray-500 truncate">{task.description}</p>
+                          <p className="text-sm text-muted-foreground truncate">{task.description}</p>
                         )}
                         <div className="flex items-center gap-2 mt-2 flex-wrap">
                           <span className={`text-xs px-2 py-0.5 rounded-full ${
@@ -291,14 +291,14 @@ export function Dashboard({
                             {TASK_PRIORITIES.find(p => p.value === task.priority)?.label}
                           </span>
                           {task.category && (
-                            <span className="text-xs text-gray-500">
+                            <span className="text-xs text-muted-foreground">
                               {TASK_CATEGORIES.find(c => c.value === task.category)?.label}
                             </span>
                           )}
                           {task.due_date && (
                             <span className={`text-xs ${
-                              isOverdue ? 'text-red-600 font-medium' :
-                              isDueToday ? 'text-blue-600 font-medium' : 'text-gray-500'
+                              isOverdue ? 'text-red-500 font-medium' :
+                              isDueToday ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-500'
                             }`}>
                               {isDueToday ? 'Сегодня' : 
                                isTomorrow(parseISO(task.due_date)) ? 'Завтра' :
@@ -324,21 +324,21 @@ export function Dashboard({
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-lg flex items-center gap-2">
-                <CalendarDays className="w-5 h-5 text-blue-600" />
+                <CalendarDays className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 Ближайшие
               </CardTitle>
               <Button 
                 variant="ghost" 
                 size="sm" 
                 onClick={() => onTabChange('calendar')}
-                className="text-blue-600"
+                className="text-blue-600 dark:text-blue-400"
               >
                 <ArrowRight className="w-4 h-4" />
               </Button>
             </CardHeader>
             <CardContent>
               {upcomingEvents.length === 0 ? (
-                <div className="text-center py-4 text-gray-400">
+                <div className="text-center py-4 text-muted-foreground">
                   <p className="text-sm">Нет мероприятий</p>
                 </div>
               ) : (
@@ -352,14 +352,14 @@ export function Dashboard({
                       <div 
                         key={event.id} 
                         className={`p-2 rounded-lg border cursor-pointer hover:shadow-sm transition-shadow ${
-                          isTodayEvent ? 'bg-orange-50 border-orange-200' : 'bg-gray-50 border-gray-200'
+                          isTodayEvent ? 'bg-orange-500/10 border-orange-500/30 dark:bg-orange-500/20 dark:border-orange-500/40' : 'bg-muted border-border'
                         }`}
                         onClick={() => onOpenEstimate?.(event)}
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-sm truncate">{event.event_name}</p>
-                            <p className="text-xs text-gray-500">{event.venue || 'Без площадки'}</p>
+                            <p className="text-xs text-muted-foreground">{event.venue || 'Без площадки'}</p>
                             <div className="flex items-center gap-2 mt-1">
                               {isTodayEvent && (
                                 <span className="text-xs px-1.5 py-0.5 bg-orange-500 text-white rounded">
@@ -371,12 +371,12 @@ export function Dashboard({
                                   Завтра
                                 </span>
                               )}
-                              <span className="text-xs text-gray-600">
+                              <span className="text-xs text-muted-foreground">
                                 {format(date, 'd MMM', { locale: ru })}
                               </span>
                             </div>
                           </div>
-                          <p className="font-bold text-sm text-blue-600 ml-2">
+                          <p className="font-bold text-sm text-primary dark:text-blue-400 ml-2">
                             {event.total.toLocaleString('ru-RU')} ₽
                           </p>
                         </div>

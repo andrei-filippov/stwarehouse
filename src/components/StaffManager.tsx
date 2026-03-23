@@ -415,7 +415,7 @@ export const StaffManager = memo(function StaffManager({ staff, onAdd, onUpdate,
           <div className="hidden md:block border rounded-xl overflow-hidden shadow-sm">
             <Table>
               <TableHeader>
-                <TableRow className="bg-gray-50 hover:bg-gray-50">
+                <TableRow className="bg-muted hover:bg-muted">
                   <TableHead className="w-10">
                     <Checkbox 
                       checked={selectedIds.size === filteredStaff.length && filteredStaff.length > 0}
@@ -440,7 +440,7 @@ export const StaffManager = memo(function StaffManager({ staff, onAdd, onUpdate,
                   </TableRow>
                 ) : (
                   filteredStaff.map((s, idx) => (
-                    <TableRow key={s.id} className={`hover:bg-blue-50/50 transition-colors ${!s.is_active ? 'bg-gray-50' : ''}`}>
+                    <TableRow key={s.id} className={`hover:bg-primary/10 transition-colors ${!s.is_active ? 'bg-muted' : ''}`}>
                       <TableCell>
                         <Checkbox 
                           checked={selectedIds.has(s.id)}

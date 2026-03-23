@@ -160,7 +160,7 @@ export function TransferToInventoryDialog({
         <div className="space-y-4">
           {Object.entries(groupedByCategory).map(([category, categoryItems]) => (
             <div key={category} className="border rounded-lg overflow-hidden">
-              <div className="bg-gray-50 px-4 py-2 font-medium text-sm border-b">
+              <div className="bg-muted px-4 py-2 font-medium text-sm border-b">
                 Категория: {category}
               </div>
               <div className="divide-y">

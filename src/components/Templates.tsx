@@ -645,7 +645,7 @@ function ContractTemplateForm({ companyId, onCancel, onSave }: ContractTemplateF
         />
       </div>
 
-      <div className="bg-gray-50 p-3 rounded-lg">
+      <div className="bg-muted p-3 rounded-lg">
         <h4 className="text-sm font-medium mb-2">Доступные плейсхолдеры:</h4>
         <div className="grid grid-cols-2 gap-1 text-xs">
           {placeholders.map((p) => (
@@ -776,7 +776,7 @@ function TemplateForm({ categories, equipment, template, onSubmit, onCancel }: T
         </div>
       </div>
 
-      <div className="border rounded-lg p-4 space-y-4 bg-gray-50">
+      <div className="border rounded-lg p-4 space-y-4 bg-muted">
         <h4 className="font-medium">Добавить оборудование в шаблон</h4>
         
         <div className="grid grid-cols-12 gap-2">
@@ -852,7 +852,7 @@ function TemplateForm({ categories, equipment, template, onSubmit, onCancel }: T
               {items.map((item, idx) => (
                 <div 
                   key={idx} 
-                  className="flex justify-between items-center bg-white p-3 rounded border"
+                  className="flex justify-between items-center bg-card p-3 rounded border"
                 >
                   <div className="flex-1">
                     <span className="font-medium text-sm">{item.equipment_name}</span>

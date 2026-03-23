@@ -858,9 +858,9 @@ export function EstimateBuilder({
 
   return (
     <>
-      <div className="fixed inset-0 bg-white z-40 flex flex-col">
+      <div className="fixed inset-0 bg-card z-40 flex flex-col">
         {/* Шапка */}
-        <div className="border-b p-1.5 md:p-3 flex items-center justify-between bg-gray-50 print:hidden shrink-0">
+        <div className="border-b p-1.5 md:p-3 flex items-center justify-between bg-muted print:hidden shrink-0">
           <div className="flex items-center gap-1.5 md:gap-3">
             <Button variant="ghost" size="sm" onClick={handleClose} className="h-8 w-8 md:w-auto p-0 md:px-2">
               <ChevronLeft className="w-5 h-5" />
@@ -899,15 +899,15 @@ export function EstimateBuilder({
         </div>
 
         {/* Mobile Tab Switcher */}
-        <div className="flex md:hidden border-b bg-white">
+        <div className="flex md:hidden border-b bg-card">
           <button
-            className={`flex-1 py-3 text-sm font-medium ${activeMobileTab === 'equipment' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}
+            className={`flex-1 py-3 text-sm font-medium ${activeMobileTab === 'equipment' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-muted-foreground'}`}
             onClick={() => setActiveMobileTab('equipment')}
           >
             Оборудование
           </button>
           <button
-            className={`flex-1 py-3 text-sm font-medium ${activeMobileTab === 'estimate' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}
+            className={`flex-1 py-3 text-sm font-medium ${activeMobileTab === 'estimate' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-muted-foreground'}`}
             onClick={() => setActiveMobileTab('estimate')}
           >
             Смета ({items.length})
@@ -923,11 +923,11 @@ export function EstimateBuilder({
           
           {/* Мобильная панель Оборудования */}
           {activeMobileTab === 'equipment' && (
-            <div className="flex flex-col w-full h-full bg-white md:hidden">
+            <div className="flex flex-col w-full h-full bg-card md:hidden">
               {/* Поиск и фильтр */}
-              <div className="p-2 border-b space-y-2 shrink-0 bg-gray-50">
+              <div className="p-2 border-b space-y-2 shrink-0 bg-muted">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground/70 w-4 h-4" />
                   <Input
                     placeholder="Поиск оборудования..."
                     value={searchQuery}
@@ -940,7 +940,7 @@ export function EstimateBuilder({
                 <select
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white h-10"
+                  className="w-full px-3 py-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-card h-10"
                 >
                   <option value="all">Все категории</option>
                   {equipmentCategories.map(cat => (
@@ -953,7 +953,7 @@ export function EstimateBuilder({
               <div className="flex-1 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
                 <div className="p-2 space-y-2 pb-20">
                   {filteredEquipment.length === 0 ? (
-                    <div className="text-center py-8 text-gray-400">
+                    <div className="text-center py-8 text-muted-foreground/70">
                       <p>Ничего не найдено</p>
                     </div>
                   ) : (
@@ -976,13 +976,13 @@ export function EstimateBuilder({
                             <div className="flex justify-between items-start">
                               <div className="flex-1 min-w-0 mr-2">
                                 <h3 className="font-medium text-sm truncate">{item.name}</h3>
-                                <p className="text-xs text-gray-500">{item.category}</p>
+                                <p className="text-xs text-muted-foreground">{item.category}</p>
                               </div>
                               <div className="text-right shrink-0">
                                 <p className="font-bold text-sm">{item.price.toLocaleString('ru-RU')} ₽</p>
                                 <p className={cn(
                                   "text-xs",
-                                  availableQty <= 0 ? "text-red-500 font-medium" : "text-gray-500"
+                                  availableQty <= 0 ? "text-red-500 font-medium" : "text-muted-foreground"
                                 )}>
                                   {availableQty} / {item.quantity} {item.unit}
                                 </p>
@@ -1012,9 +1012,9 @@ export function EstimateBuilder({
           
           {/* Мобильная панель Сметы */}
           {activeMobileTab === 'estimate' && (
-            <div className="flex flex-col w-full h-full bg-white md:hidden">
+            <div className="flex flex-col w-full h-full bg-card md:hidden">
               {/* Шапка сметы - сворачиваемая */}
-              <div className="border-b shrink-0 bg-gray-50">
+              <div className="border-b shrink-0 bg-muted">
                 {/* Всегда видимая часть - название и кнопка */}
                 <div className="p-2 flex items-center gap-2">
                   <Input
@@ -1088,7 +1088,7 @@ export function EstimateBuilder({
                     <select
                       value={customerId}
                       onChange={(e) => setCustomerId(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-md text-sm h-9 bg-white"
+                      className="w-full px-3 py-2 border rounded-md text-sm h-9 bg-card"
                     >
                       <option value="">Заказчик</option>
                       {customers.map(customer => (
@@ -1100,10 +1100,10 @@ export function EstimateBuilder({
 
                     {/* Выбор цвета для календаря - мобильная версия */}
                     <div>
-                      <Label className="text-[10px] text-gray-500 mb-1 block">Цвет в календаре</Label>
+                      <Label className="text-[10px] text-muted-foreground mb-1 block">Цвет в календаре</Label>
                       <div className="flex flex-wrap gap-2">
                         {[
-                          { value: 'blue', label: 'Синий', class: 'bg-blue-500' },
+                          { value: 'blue', label: 'Синий', class: 'bg-primary/100' },
                           { value: 'green', label: 'Зеленый', class: 'bg-green-500' },
                           { value: 'red', label: 'Красный', class: 'bg-red-500' },
                           { value: 'purple', label: 'Фиолетовый', class: 'bg-purple-500' },
@@ -1134,7 +1134,7 @@ export function EstimateBuilder({
               <div className="flex-1 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
                 <div className="p-2 space-y-3 pb-32">
                   {groupedItems.length === 0 ? (
-                    <div className="text-center py-8 text-gray-400">
+                    <div className="text-center py-8 text-muted-foreground/70">
                       <p>Добавьте оборудование</p>
                       <Button 
                         variant="outline" 
@@ -1153,8 +1153,8 @@ export function EstimateBuilder({
                         <CardHeader 
                           className={cn(
                             "p-2 cursor-move touch-manipulation transition-all",
-                            isDragging && draggedCategory === category ? "bg-blue-100" : "bg-gray-50",
-                            isDragging && dropTarget === category && "bg-blue-50 ring-2 ring-blue-300"
+                            isDragging && draggedCategory === category ? "bg-primary/20" : "bg-muted",
+                            isDragging && dropTarget === category && "bg-primary/10 ring-2 ring-blue-300"
                           )}
                           data-category={category}
                           draggable
@@ -1168,7 +1168,7 @@ export function EstimateBuilder({
                         >
                           <div className="flex items-center justify-between">
                             <CardTitle className="text-sm flex items-center gap-2">
-                              <GripVertical className="w-4 h-4 text-gray-400" />
+                              <GripVertical className="w-4 h-4 text-muted-foreground/70" />
                               {category}
                               <Badge variant="secondary" className="text-xs">{categoryItems.length}</Badge>
                             </CardTitle>
@@ -1190,18 +1190,18 @@ export function EstimateBuilder({
                                 const itemTotal = item.price * item.quantity * (item.coefficient || 1);
                                 
                                 return (
-                                  <div key={item.id} className="p-3 bg-white">
+                                  <div key={item.id} className="p-3 bg-card">
                                     <div className="flex items-center gap-2 mb-2">
-                                      <span className="text-xs text-gray-400 w-5">{idx + 1}</span>
+                                      <span className="text-xs text-muted-foreground/70 w-5">{idx + 1}</span>
                                       <p className="font-medium text-sm flex-1 truncate">{item.name}</p>
                                     </div>
                                     
                                     <div className="flex items-center gap-2 pl-7">
                                       {/* Количество с кнопками +/- */}
-                                      <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
+                                      <div className="flex items-center bg-muted rounded-lg p-0.5">
                                         <button
                                           onClick={() => handleUpdateItem(item.id, { quantity: Math.max(0, item.quantity - 1) })}
-                                          className="w-8 h-8 flex items-center justify-center bg-white rounded-md shadow-sm text-gray-600 active:bg-gray-50"
+                                          className="w-8 h-8 flex items-center justify-center bg-card rounded-md shadow-sm text-muted-foreground active:bg-muted"
                                         >
                                           −
                                         </button>
@@ -1242,23 +1242,23 @@ export function EstimateBuilder({
                                               handleUpdateItem(item.id, { quantity: item.quantity + 1 });
                                             }
                                           }}
-                                          className="w-8 h-8 flex items-center justify-center bg-white rounded-md shadow-sm text-gray-600 active:bg-gray-50"
+                                          className="w-8 h-8 flex items-center justify-center bg-card rounded-md shadow-sm text-muted-foreground active:bg-muted"
                                         >
                                           +
                                         </button>
                                       </div>
                                       
-                                      <span className="text-xs text-gray-400">×</span>
+                                      <span className="text-xs text-muted-foreground/70">×</span>
                                       
                                       {/* Коэффициент с кнопками +/- шаг 0.1 */}
-                                      <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
+                                      <div className="flex items-center bg-muted rounded-lg p-0.5">
                                         <button
                                           onClick={() => {
                                             const current = item.coefficient || 1;
                                             const newVal = Math.max(0, Math.round((current - 0.1) * 10) / 10);
                                             handleUpdateItem(item.id, { coefficient: newVal });
                                           }}
-                                          className="w-8 h-8 flex items-center justify-center bg-white rounded-md shadow-sm text-gray-600 active:bg-gray-50"
+                                          className="w-8 h-8 flex items-center justify-center bg-card rounded-md shadow-sm text-muted-foreground active:bg-muted"
                                         >
                                           −
                                         </button>
@@ -1280,7 +1280,7 @@ export function EstimateBuilder({
                                             const newVal = Math.round((current + 0.1) * 10) / 10;
                                             handleUpdateItem(item.id, { coefficient: newVal });
                                           }}
-                                          className="w-8 h-8 flex items-center justify-center bg-white rounded-md shadow-sm text-gray-600 active:bg-gray-50"
+                                          className="w-8 h-8 flex items-center justify-center bg-card rounded-md shadow-sm text-muted-foreground active:bg-muted"
                                         >
                                           +
                                         </button>
@@ -1295,9 +1295,9 @@ export function EstimateBuilder({
                                             const num = val === '' ? 0 : parseInt(val);
                                             handleUpdateTotal(item.id, num);
                                           }}
-                                          className="w-16 h-8 text-right text-sm font-medium bg-gray-50 rounded px-2 outline-none focus:ring-1 focus:ring-blue-500"
+                                          className="w-16 h-8 text-right text-sm font-medium bg-muted rounded px-2 outline-none focus:ring-1 focus:ring-blue-500"
                                         />
-                                        <span className="text-xs text-gray-500">₽</span>
+                                        <span className="text-xs text-muted-foreground">₽</span>
                                       </div>
                                       
                                       <Button
@@ -1322,9 +1322,9 @@ export function EstimateBuilder({
               </div>
               
               {/* Фиксированная панель с Итого */}
-              <div className="fixed bottom-[72px] left-0 right-0 bg-white border-t p-2 shadow-lg z-30 md:hidden">
+              <div className="fixed bottom-[72px] left-0 right-0 bg-card border-t p-2 shadow-lg z-30 md:hidden">
                 <div className="flex items-center justify-center">
-                  <span className="text-sm text-gray-500 mr-2">Итого:</span>
+                  <span className="text-sm text-muted-foreground mr-2">Итого:</span>
                   <span className="text-lg font-bold">{total.toLocaleString('ru-RU')} ₽</span>
                 </div>
               </div>
@@ -1339,12 +1339,12 @@ export function EstimateBuilder({
             {/* Левая панель - Оборудование (35%) */}
             <div 
               className={cn(
-                "flex flex-col h-full border-r bg-white transition-all duration-300",
+                "flex flex-col h-full border-r bg-card transition-all duration-300",
                 expandedPanel === 'equipment' ? 'w-full' : expandedPanel === 'estimate' ? 'hidden' : 'w-[35%]'
               )}
             >
               {/* Заголовок панели */}
-              <div className="p-3 border-b bg-gray-50 flex items-center justify-between shrink-0">
+              <div className="p-3 border-b bg-muted flex items-center justify-between shrink-0">
                 <span className="font-medium text-sm">Оборудование</span>
                 <Button
                   variant="ghost"
@@ -1358,7 +1358,7 @@ export function EstimateBuilder({
 
               <div className="p-3 border-b space-y-2 shrink-0">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground/70 w-4 h-4" />
                   <Input
                     placeholder="Поиск..."
                     value={searchQuery}
@@ -1375,7 +1375,7 @@ export function EstimateBuilder({
                       "px-2 py-1 text-xs rounded border transition-colors",
                       selectedCategory === 'all' 
                         ? "bg-blue-600 text-white border-blue-600" 
-                        : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                        : "bg-card text-foreground border-border hover:bg-muted"
                     )}
                   >
                     Все
@@ -1388,7 +1388,7 @@ export function EstimateBuilder({
                         "px-2 py-1 text-xs rounded border transition-colors truncate max-w-[120px]",
                         selectedCategory === cat 
                           ? "bg-blue-600 text-white border-blue-600" 
-                          : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                          : "bg-card text-foreground border-border hover:bg-muted"
                       )}
                       title={cat}
                     >
@@ -1419,16 +1419,16 @@ export function EstimateBuilder({
                           <div className="flex justify-between items-start">
                             <div className="flex-1 min-w-0 mr-2">
                               <h3 className="font-medium text-sm truncate">{item.name}</h3>
-                              <p className="text-xs text-gray-500 truncate">{item.category}</p>
+                              <p className="text-xs text-muted-foreground truncate">{item.category}</p>
                               {item.description && (
-                                <p className="text-xs text-gray-400 mt-1 truncate">{item.description}</p>
+                                <p className="text-xs text-muted-foreground/70 mt-1 truncate">{item.description}</p>
                               )}
                             </div>
                             <div className="text-right shrink-0">
                               <p className="font-bold text-sm">{item.price.toLocaleString('ru-RU')} ₽</p>
                               <p className={cn(
                                 "text-xs",
-                                availableQty <= 0 ? "text-red-500 font-medium" : bookedQty > 0 ? "text-amber-600" : "text-gray-500"
+                                availableQty <= 0 ? "text-red-500 font-medium" : bookedQty > 0 ? "text-amber-600" : "text-muted-foreground"
                               )}>
                                 {availableQty} свободно / {item.quantity} {item.unit}
                                 {bookedQty > 0 && <span className="block text-[10px]">({bookedQty} в других сметах)</span>}
@@ -1446,12 +1446,12 @@ export function EstimateBuilder({
             {/* Правая панель - Смета (65%) */}
             <div 
               className={cn(
-                "flex flex-col h-full bg-white transition-all duration-300",
+                "flex flex-col h-full bg-card transition-all duration-300",
                 expandedPanel === 'estimate' ? 'w-full' : expandedPanel === 'equipment' ? 'hidden' : 'w-[65%]'
               )}
             >
               {/* Заголовок панели */}
-              <div className="p-3 border-b bg-gray-50 flex items-center justify-between shrink-0">
+              <div className="p-3 border-b bg-muted flex items-center justify-between shrink-0">
                 <span className="font-medium text-sm">Смета</span>
                 <Button
                   variant="ghost"
@@ -1464,7 +1464,7 @@ export function EstimateBuilder({
               </div>
 
               {/* Шапка сметы */}
-              <div className="p-3 border-b space-y-3 shrink-0 bg-gray-50/50">
+              <div className="p-3 border-b space-y-3 shrink-0 bg-muted/50">
                 <Input
                   placeholder="Название мероприятия"
                   value={eventName}
@@ -1474,7 +1474,7 @@ export function EstimateBuilder({
                 
                 <div className="grid grid-cols-2 gap-2">
                   <div className="relative">
-                    <Label className="text-[10px] text-gray-500 mb-1 block">Начало</Label>
+                    <Label className="text-[10px] text-muted-foreground mb-1 block">Начало</Label>
                     <Input
                       type="date"
                       value={eventStartDate ? eventStartDate.split('T')[0] : ''}
@@ -1494,7 +1494,7 @@ export function EstimateBuilder({
                   </div>
                   
                   <div className="relative">
-                    <Label className="text-[10px] text-gray-500 mb-1 block">Окончание</Label>
+                    <Label className="text-[10px] text-muted-foreground mb-1 block">Окончание</Label>
                     <Input
                       type="date"
                       value={eventEndDate ? eventEndDate.split('T')[0] : ''}
@@ -1538,10 +1538,10 @@ export function EstimateBuilder({
 
                 {/* Выбор цвета для календаря */}
                 <div>
-                  <Label className="text-[10px] text-gray-500 mb-1 block">Цвет в календаре</Label>
+                  <Label className="text-[10px] text-muted-foreground mb-1 block">Цвет в календаре</Label>
                   <div className="flex flex-wrap gap-1.5">
                     {[
-                      { value: 'blue', label: 'Синий', class: 'bg-blue-500' },
+                      { value: 'blue', label: 'Синий', class: 'bg-primary/100' },
                       { value: 'green', label: 'Зеленый', class: 'bg-green-500' },
                       { value: 'red', label: 'Красный', class: 'bg-red-500' },
                       { value: 'purple', label: 'Фиолетовый', class: 'bg-purple-500' },
@@ -1570,7 +1570,7 @@ export function EstimateBuilder({
               <div className="flex-1 overflow-y-auto">
                 <div className="p-3 space-y-4">
                   {groupedItems.length === 0 ? (
-                    <div className="text-center py-8 text-gray-400">
+                    <div className="text-center py-8 text-muted-foreground/70">
                       <p>Добавьте оборудование из списка слева</p>
                     </div>
                   ) : (
@@ -1583,8 +1583,8 @@ export function EstimateBuilder({
                         <CardHeader 
                           className={cn(
                             "p-2.5 cursor-move touch-manipulation transition-all",
-                            isDragging && draggedCategory === category ? "bg-blue-100" : "bg-gray-50",
-                            isDragging && dropTarget === category && "bg-blue-50"
+                            isDragging && draggedCategory === category ? "bg-primary/20" : "bg-muted",
+                            isDragging && dropTarget === category && "bg-primary/10"
                           )}
                           data-category={category}
                           draggable
@@ -1598,7 +1598,7 @@ export function EstimateBuilder({
                         >
                           <div className="flex items-center justify-between">
                             <CardTitle className="text-sm flex items-center gap-2">
-                              <GripVertical className="w-4 h-4 text-gray-400 shrink-0" />
+                              <GripVertical className="w-4 h-4 text-muted-foreground/70 shrink-0" />
                               <span className="truncate">{category}</span>
                               <Badge variant="secondary" className="shrink-0 text-xs">{categoryItems.length}</Badge>
                             </CardTitle>
@@ -1620,16 +1620,16 @@ export function EstimateBuilder({
                                 const itemTotal = item.price * item.quantity * (item.coefficient || 1);
                                 
                                 return (
-                                  <div key={item.id} className="flex items-center gap-2 p-2 bg-gray-50 rounded">
-                                    <span className="text-xs text-gray-400 w-5 shrink-0">{idx + 1}</span>
+                                  <div key={item.id} className="flex items-center gap-2 p-2 bg-muted rounded">
+                                    <span className="text-xs text-muted-foreground/70 w-5 shrink-0">{idx + 1}</span>
                                     <p className="font-medium text-sm flex-1 truncate">{item.name}</p>
                                     
                                     <div className="flex items-center gap-1 shrink-0">
                                       {/* Количество с кнопками +/- */}
-                                      <div className="flex items-center bg-white rounded-lg border">
+                                      <div className="flex items-center bg-card rounded-lg border">
                                         <button
                                           onClick={() => handleUpdateItem(item.id, { quantity: Math.max(0, item.quantity - 1) })}
-                                          className="w-7 h-8 flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded-l-lg transition-colors"
+                                          className="w-7 h-8 flex items-center justify-center text-muted-foreground hover:bg-muted rounded-l-lg transition-colors"
                                         >
                                           −
                                         </button>
@@ -1670,21 +1670,21 @@ export function EstimateBuilder({
                                               handleUpdateItem(item.id, { quantity: item.quantity + 1 });
                                             }
                                           }}
-                                          className="w-7 h-8 flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded-r-lg transition-colors"
+                                          className="w-7 h-8 flex items-center justify-center text-muted-foreground hover:bg-muted rounded-r-lg transition-colors"
                                         >
                                           +
                                         </button>
                                       </div>
                                       
                                       {/* Коэффициент с кнопками +/- шаг 0.1 */}
-                                      <div className="flex items-center bg-white rounded-lg border ml-1">
+                                      <div className="flex items-center bg-card rounded-lg border ml-1">
                                         <button
                                           onClick={() => {
                                             const current = item.coefficient || 1;
                                             const newVal = Math.max(0, Math.round((current - 0.1) * 10) / 10);
                                             handleUpdateItem(item.id, { coefficient: newVal });
                                           }}
-                                          className="w-7 h-8 flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded-l-lg transition-colors"
+                                          className="w-7 h-8 flex items-center justify-center text-muted-foreground hover:bg-muted rounded-l-lg transition-colors"
                                         >
                                           −
                                         </button>
@@ -1706,7 +1706,7 @@ export function EstimateBuilder({
                                             const newVal = Math.round((current + 0.1) * 10) / 10;
                                             handleUpdateItem(item.id, { coefficient: newVal });
                                           }}
-                                          className="w-7 h-8 flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded-r-lg transition-colors"
+                                          className="w-7 h-8 flex items-center justify-center text-muted-foreground hover:bg-muted rounded-r-lg transition-colors"
                                         >
                                           +
                                         </button>
@@ -1720,7 +1720,7 @@ export function EstimateBuilder({
                                           const num = val === '' ? 0 : parseInt(val);
                                           handleUpdateTotal(item.id, num);
                                         }}
-                                        className="w-20 h-8 text-sm text-right font-medium bg-white rounded border px-2 outline-none focus:ring-1 focus:ring-blue-500"
+                                        className="w-20 h-8 text-sm text-right font-medium bg-card rounded border px-2 outline-none focus:ring-1 focus:ring-blue-500"
                                       />
                                       
                                       <Button
@@ -1753,9 +1753,9 @@ export function EstimateBuilder({
               </div>
 
               {/* Панель Итого */}
-              <div className="border-t bg-gray-50 p-3 px-4 shrink-0">
+              <div className="border-t bg-muted p-3 px-4 shrink-0">
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Итого:</span>
+                  <span className="text-muted-foreground">Итого:</span>
                   <span className="text-2xl font-bold">{total.toLocaleString('ru-RU')} ₽</span>
                 </div>
               </div>

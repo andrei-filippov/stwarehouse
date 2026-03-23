@@ -87,10 +87,10 @@ function App() {
 
   if (authLoading) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-        <div className="bg-white p-8 rounded-2xl shadow-xl flex flex-col items-center">
+      <div className="flex flex-col items-center justify-center h-screen bg-background">
+        <div className="bg-card p-8 rounded-2xl shadow-xl flex flex-col items-center border border-border">
           <Spinner className="w-10 h-10 mb-4" />
-          <p className="text-gray-600 font-medium">Загрузка...</p>
+          <p className="text-muted-foreground font-medium">Загрузка...</p>
         </div>
       </div>
     );
@@ -372,7 +372,7 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
   }, [profile, permissions, navItems, activeTab]);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-background flex">
       {/* Desktop Sidebar */}
       <div className="hidden md:block">
         <Sidebar 
@@ -388,7 +388,7 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
       </div>
 
       {/* Mobile Header */}
-      <header className="md:hidden fixed top-0 left-0 right-0 bg-white border-b z-40 px-4 py-3 flex items-center justify-between">
+      <header className="md:hidden fixed top-0 left-0 right-0 bg-background border-b border-border z-40 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center">
             <Package className="w-5 h-5 text-white" />
@@ -396,7 +396,7 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
           <span className="font-bold text-lg">СкладОборуд</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center">
+          <div className="w-8 h-8 bg-gradient-to-br from-muted to-muted/80 rounded-full flex items-center justify-center">
             <User className="w-4 h-4" />
           </div>
         </div>

@@ -109,13 +109,13 @@ export function ExpensesTab({ expenses, onAdd, onDelete }: ExpensesTabProps) {
           className={`cursor-pointer transition-all hover:shadow-md ${
             activeFilter === 'all' 
               ? 'bg-gray-100 border-gray-400 ring-2 ring-gray-300' 
-              : 'bg-gray-50 border-gray-200'
+              : 'bg-muted border-gray-200'
           }`}
           onClick={() => setActiveFilter('all')}
         >
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs font-medium text-gray-700">Всего</span>
+              <span className="text-xs font-medium text-foreground">Всего</span>
             </div>
             <p className="text-lg font-bold text-gray-900">
               {totalExpenses.toLocaleString('ru-RU')} ₽
@@ -154,7 +154,7 @@ export function ExpensesTab({ expenses, onAdd, onDelete }: ExpensesTabProps) {
               active: 'bg-red-100 border-red-400 ring-2 ring-red-300 text-red-800' 
             },
             gray: { 
-              normal: 'bg-gray-50 border-gray-200 text-gray-700', 
+              normal: 'bg-muted border-gray-200 text-foreground', 
               active: 'bg-gray-100 border-gray-400 ring-2 ring-gray-300 text-gray-800' 
             },
             indigo: { 

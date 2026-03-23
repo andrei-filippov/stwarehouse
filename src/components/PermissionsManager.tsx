@@ -191,7 +191,7 @@ export function PermissionsManager({ currentUserId }: PermissionsManagerProps) {
       </div>
 
       {/* Легенда */}
-      <Card className="p-4 bg-gray-50/50 border-gray-200">
+      <Card className="p-4 bg-muted/50 border-gray-200">
         <div className="flex flex-wrap gap-4 text-sm">
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
@@ -225,7 +225,7 @@ export function PermissionsManager({ currentUserId }: PermissionsManagerProps) {
           >
             {/* Заголовок карточки пользователя */}
             <div 
-              className="p-4 flex items-center justify-between cursor-pointer bg-white"
+              className="p-4 flex items-center justify-between cursor-pointer bg-card"
               onClick={() => toggleUserExpand(user.user_id)}
             >
               <div className="flex items-center gap-4">
@@ -269,7 +269,7 @@ export function PermissionsManager({ currentUserId }: PermissionsManagerProps) {
 
             {/* Развёрнутые разрешения */}
             {expandedUser === user.user_id && (
-              <div className="border-t bg-gray-50/50 p-4">
+              <div className="border-t bg-muted/50 p-4">
                 <div className="flex items-center gap-2 mb-4">
                   <UserCog className="w-4 h-4 text-gray-500" />
                   <span className="font-medium text-gray-700">Индивидуальные разрешения</span>
@@ -322,7 +322,7 @@ export function PermissionsManager({ currentUserId }: PermissionsManagerProps) {
                             </span>
                           </div>
                           {isSaving && (
-                            <div className="absolute inset-0 flex items-center justify-center bg-white/50">
+                            <div className="absolute inset-0 flex items-center justify-center bg-card/50">
                               <Spinner className="w-4 h-4" />
                             </div>
                           )}

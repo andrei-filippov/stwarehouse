@@ -80,6 +80,12 @@
     transition: background-color 0.3s ease, color 0.3s ease;
   }
   
+  /* Ensure proper background colors in dark mode */
+  html.dark, html.dark body {
+    background-color: hsl(222 47% 4%);
+    color: hsl(210 40% 98%);
+  }
+  
   /* Плавный переход для всех элементов с цветами */
   *, *::before, *::after {
     transition-property: background-color, border-color, color, fill, stroke;

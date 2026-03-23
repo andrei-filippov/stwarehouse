@@ -182,7 +182,7 @@ export function AuditLogs() {
             </div>
 
             {showFilters && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 p-3 bg-gray-50 rounded-lg">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 p-3 bg-muted rounded-lg">
                 <Select value={selectedAction} onValueChange={(v) => setSelectedAction(v as AuditAction)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Действие" />
@@ -253,7 +253,7 @@ export function AuditLogs() {
             <div className="border rounded-lg overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-b">
+                  <thead className="bg-muted border-b">
                     <tr>
                       <th className="text-left py-2 px-3 font-medium text-gray-600">Время</th>
                       <th className="text-left py-2 px-3 font-medium text-gray-600">Пользователь</th>
@@ -265,7 +265,7 @@ export function AuditLogs() {
                   </thead>
                   <tbody>
                     {logs.map((log) => (
-                      <tr key={log.id} className="border-b hover:bg-gray-50">
+                      <tr key={log.id} className="border-b hover:bg-muted">
                         <td className="py-2 px-3 text-gray-600 whitespace-nowrap">
                           {formatDate(log.created_at)}
                         </td>
@@ -344,7 +344,7 @@ export function AuditLogs() {
                 </div>
               </div>
 
-              <div className="border rounded-lg p-3 bg-gray-50">
+              <div className="border rounded-lg p-3 bg-muted">
                 <p className="font-medium mb-2">Изменения:</p>
                 {renderDataDiff(selectedLog.old_data, selectedLog.new_data)}
               </div>

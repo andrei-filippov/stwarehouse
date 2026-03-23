@@ -191,7 +191,7 @@ export const GoalsManager = memo(function GoalsManager({ tasks, staff, onAdd, on
 
   const getPriorityColor = useCallback((priority: string) => {
     const colors: Record<string, string> = {
-      low: 'bg-gray-100 text-gray-600',
+      low: 'bg-gray-100 text-muted-foreground',
       medium: 'bg-blue-100 text-blue-600',
       high: 'bg-orange-100 text-orange-600',
       urgent: 'bg-red-100 text-red-600',
@@ -292,7 +292,7 @@ export const GoalsManager = memo(function GoalsManager({ tasks, staff, onAdd, on
           title="Ожидают" 
           value={stats.pending} 
           icon={Circle} 
-          color="bg-gray-50 text-gray-600" 
+          color="bg-muted text-muted-foreground" 
           isActive={activeFilter === 'pending'}
           onClick={() => setActiveFilter('pending')}
         />
@@ -308,7 +308,7 @@ export const GoalsManager = memo(function GoalsManager({ tasks, staff, onAdd, on
           title="Просрочено" 
           value={stats.overdue} 
           icon={Clock} 
-          color="bg-red-50 text-red-600" 
+          color="bg-red-500/10 text-red-600" 
           isActive={activeFilter === 'overdue'}
           onClick={() => setActiveFilter('overdue')}
         />
@@ -374,7 +374,7 @@ export const GoalsManager = memo(function GoalsManager({ tasks, staff, onAdd, on
               {renderTaskGroup('📅 Сегодня', groupedTasks.today, 'text-green-600')}
               {renderTaskGroup('🔔 Завтра', groupedTasks.tomorrow, 'text-blue-600')}
               {renderTaskGroup('📆 На этой неделе', groupedTasks.week, 'text-purple-600')}
-              {renderTaskGroup('📌 Позже', groupedTasks.future, 'text-gray-600')}
+              {renderTaskGroup('📌 Позже', groupedTasks.future, 'text-muted-foreground')}
               {renderTaskGroup('✅ Выполнено / Отменено', groupedTasks.completed, 'text-gray-400')}
             </div>
           )}
@@ -458,7 +458,7 @@ function TaskCard({
 
   return (
     <div className={`flex items-start gap-3 p-3 rounded-lg border transition-colors ${
-      isCompleted ? 'bg-gray-50 opacity-60' : isOverdue ? 'bg-red-50 border-red-200' : 'bg-white hover:bg-gray-50'
+      isCompleted ? 'bg-muted opacity-60' : isOverdue ? 'bg-red-500/10 border-red-200' : 'bg-card hover:bg-muted'
     }`}>
       <Checkbox 
         checked={isCompleted}

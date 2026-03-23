@@ -283,7 +283,7 @@ export function ContractForm({
           </div>
 
           {selectedCustomer && (
-            <Card className="bg-gray-50">
+            <Card className="bg-muted">
               <CardContent className="pt-4 space-y-2 text-sm">
                 <div className="flex items-center gap-2">
                   <Building2 className="w-4 h-4 text-gray-400" />
@@ -512,7 +512,7 @@ export function ContractForm({
           )}
 
           {selectedEstimateIds.length > 0 && (
-            <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+            <div className="mt-4 p-4 bg-muted rounded-lg">
               <div className="font-medium mb-2">Итого по выбранным сметам:</div>
               <div className="text-2xl font-bold text-blue-600">
                 {estimates

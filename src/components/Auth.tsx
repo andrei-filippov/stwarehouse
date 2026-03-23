@@ -63,14 +63,14 @@ export function Auth({ onSignIn, onSignUp }: AuthProps) {
                        error?.toLowerCase().includes('session');
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md shadow-xl rounded-xl">
         <CardHeader className="text-center">
           <div className="mx-auto w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-xl flex items-center justify-center mb-4 shadow-lg">
             <Package className="w-6 h-6 text-white" />
           </div>
           <CardTitle className="text-2xl">СкладОборуд</CardTitle>
-          <p className="text-gray-500 mt-2">Система учета оборудования</p>
+          <p className="text-muted-foreground mt-2">Система учета оборудования</p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">

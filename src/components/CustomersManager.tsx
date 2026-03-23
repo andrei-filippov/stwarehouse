@@ -140,7 +140,7 @@ export const CustomersManager = memo(function CustomersManager({ customers, user
           <div className="hidden md:block border rounded-xl overflow-hidden shadow-sm">
             <Table>
               <TableHeader>
-                <TableRow className="bg-gray-50 hover:bg-gray-50">
+                <TableRow className="bg-muted hover:bg-muted">
                   <TableHead>Название / Контакт</TableHead>
                   <TableHead>Тип</TableHead>
                   <TableHead>ИНН</TableHead>

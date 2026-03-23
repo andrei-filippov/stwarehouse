@@ -81,7 +81,7 @@ export function BottomNav({
       )}
 
       {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg z-50 md:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 bg-background border-t shadow-lg z-50 md:hidden">
         <div className="flex items-center justify-around">
           {visibleTabs.map((tab) => {
             const Icon = tab.icon;
@@ -94,7 +94,7 @@ export function BottomNav({
                 className={`flex flex-col items-center justify-center py-2 px-3 flex-1 transition-colors ${
                   isActive 
                     ? 'text-blue-600' 
-                    : 'text-gray-500 hover:text-gray-700'
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 <div className={`p-1.5 rounded-xl mb-0.5 transition-colors ${
@@ -137,7 +137,7 @@ export function BottomNav({
                         className={`flex flex-col items-center gap-2 p-4 rounded-xl transition-all ${
                           isActive
                             ? 'bg-blue-50 text-blue-600 ring-2 ring-blue-200'
-                            : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                            : 'bg-muted text-muted-foreground hover:bg-muted/80'
                         }`}
                       >
                         <Icon className="w-6 h-6" />
@@ -148,13 +148,13 @@ export function BottomNav({
                 </div>
 
                 {/* Статус и кнопка сброса */}
-                <div className="absolute bottom-16 left-0 right-0 px-4 py-3 border-t bg-gray-50">
+                <div className="absolute bottom-16 left-0 right-0 px-4 py-3 border-t bg-muted">
                   <button
                     onClick={() => {
                       setIsSyncDialogOpen(true);
                       setMenuOpen(false);
                     }}
-                    className="w-full flex items-center justify-between p-3 bg-white rounded-lg border hover:bg-gray-50 transition-colors"
+                    className="w-full flex items-center justify-between p-3 bg-card rounded-lg border hover:bg-muted transition-colors transition-colors"
                   >
                     <div className="flex items-center gap-2 text-sm">
                       {serverAvailable ? (
@@ -180,7 +180,7 @@ export function BottomNav({
                   </button>
                 </div>
 
-                <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-white">
+                <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-card">
                   <Button 
                     variant="outline" 
                     className="w-full rounded-xl hover:bg-red-50 hover:text-red-600"
@@ -197,7 +197,7 @@ export function BottomNav({
           )}
         </div>
         {/* Safe area для iPhone */}
-        <div className="h-safe-area-inset-bottom bg-white" />
+        <div className="h-safe-area-inset-bottom bg-background" />
       </nav>
 
       {/* Диалог синхронизации для мобильного */}

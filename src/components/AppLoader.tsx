@@ -30,14 +30,14 @@ export function AppLoader({ children }: { children: React.ReactNode }) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-        <div className="bg-white p-8 rounded-2xl shadow-xl flex flex-col items-center">
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="bg-card p-8 rounded-2xl shadow-xl flex flex-col items-center border border-border">
           <Loader2 className="w-10 h-10 mb-4 animate-spin text-blue-600" />
-          <p className="text-gray-600 font-medium">
+          <p className="text-muted-foreground font-medium">
             {isOffline ? 'Загрузка из кэша...' : 'Загрузка...'}
           </p>
           {isOffline && (
-            <div className="mt-3 flex items-center gap-2 text-amber-600 text-sm bg-amber-50 px-3 py-1.5 rounded-lg">
+            <div className="mt-3 flex items-center gap-2 text-amber-600 text-sm bg-amber-500/10 px-3 py-1.5 rounded-lg">
               <WifiOff className="w-4 h-4" />
               <span>Оффлайн-режим</span>
             </div>

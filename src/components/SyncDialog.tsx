@@ -163,7 +163,7 @@ export function SyncDialog({
 
         <div className="space-y-4 py-4">
           {/* Статус сервера */}
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+          <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
             <span className="text-sm text-gray-600">Сервер Supabase:</span>
             <Badge variant={serverAvailable ? "default" : "destructive"}>
               {serverAvailable ? 'Доступен' : 'Недоступен'}
@@ -171,7 +171,7 @@ export function SyncDialog({
           </div>
 
           {/* Браузер онлайн */}
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+          <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
             <span className="text-sm text-gray-600">Браузер online:</span>
             <Badge variant={browserOnline ? "default" : "destructive"}>
               {browserOnline ? 'Да' : 'Нет'}
@@ -196,7 +196,7 @@ export function SyncDialog({
               {/* Детали очереди */}
               <div className="max-h-32 overflow-y-auto space-y-1">
                 {queueDetails.map((item, idx) => (
-                  <div key={idx} className="flex items-center justify-between px-3 py-1.5 bg-gray-50 rounded text-xs">
+                  <div key={idx} className="flex items-center justify-between px-3 py-1.5 bg-muted rounded text-xs">
                     <span className="text-gray-600">
                       {item.table === 'estimates' && 'Смета'}
                       {item.table === 'estimate_items' && 'Позиции сметы'}

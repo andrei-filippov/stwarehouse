@@ -40,7 +40,7 @@ const EquipmentRow = memo(function EquipmentRow({
             type="checkbox"
             checked={selected}
             onChange={(e) => onSelect?.(item.id, e.target.checked)}
-            className="w-4 h-4 rounded border-gray-300"
+            className="w-4 h-4 rounded border-input"
           />
         </TableCell>
       )}
@@ -50,7 +50,7 @@ const EquipmentRow = memo(function EquipmentRow({
         </div>
       </TableCell>
       <TableCell>
-        <p className="text-sm text-gray-600 max-w-xs truncate" title={item.description}>
+        <p className="text-sm text-muted-foreground max-w-xs truncate" title={item.description}>
           {item.description || '—'}
         </p>
       </TableCell>
@@ -521,7 +521,7 @@ export function EquipmentManager({
                       <Package className="w-4 h-4 md:mr-2" />
                       <span className="hidden md:inline">Перенести</span>
                       {selectedEquipmentIds.size > 0 && (
-                        <span className="ml-1 bg-white/20 px-1.5 py-0.5 rounded text-xs">
+                        <span className="ml-1 bg-card/20 px-1.5 py-0.5 rounded text-xs">
                           {selectedEquipmentIds.size}
                         </span>
                       )}
@@ -548,7 +548,7 @@ export function EquipmentManager({
         </CardHeader>
         <CardContent>
           <div className="relative mb-4">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground/70" />
             <Input
               placeholder="Поиск оборудования..."
               value={search}
@@ -556,7 +556,7 @@ export function EquipmentManager({
               className="pl-10 pr-32"
             />
             {debouncedSearch && (
-              <div className="absolute right-3 top-2.5 text-xs text-gray-500">
+              <div className="absolute right-3 top-2.5 text-xs text-muted-foreground">
                 {sortedCategories.length} кат. / {filteredEquipment.length} поз.
               </div>
             )}
@@ -570,7 +570,7 @@ export function EquipmentManager({
           {/* Группировка по категориям */}
           <div className="space-y-4">
             {sortedCategories.length === 0 ? (
-              <p className="text-center text-gray-500 py-8">Нет оборудования</p>
+              <p className="text-center text-muted-foreground py-8">Нет оборудования</p>
             ) : (
               sortedCategories.map(category => {
                 const items = groupedByCategory[category] || [];
@@ -583,7 +583,7 @@ export function EquipmentManager({
                 return (
                   <Card key={category} className="overflow-hidden">
                     <div 
-                      className="bg-gray-50 p-3 flex items-center justify-between cursor-pointer hover:bg-gray-100"
+                      className="bg-muted p-3 flex items-center justify-between cursor-pointer hover:bg-muted/80"
                       onClick={() => toggleCategory(category)}
                     >
                       <div className="flex items-center gap-2">
@@ -592,14 +592,14 @@ export function EquipmentManager({
                         <Badge variant="secondary">{items.length}</Badge>
                       </div>
                       <div className="flex items-center gap-2">
-                        <div className="text-sm text-gray-500">
+                        <div className="text-sm text-muted-foreground">
                           {items.reduce((sum, i) => sum + i.quantity, 0)} ед.
                         </div>
                         {categoryObj && onDeleteCategory && !isCategoryUsed && (
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-6 w-6 p-0 text-gray-400 hover:text-red-500"
+                            className="h-6 w-6 p-0 text-muted-foreground/70 hover:text-red-500"
                             onClick={(e) => handleDeleteCategoryClick({ id: categoryObj.id, name: category }, e)}
                             title="Удалить категорию"
                           >
@@ -622,7 +622,7 @@ export function EquipmentManager({
                                       type="checkbox"
                                       checked={items.length > 0 && items.every(item => selectedEquipmentIds.has(item.id))}
                                       onChange={(e) => selectAllInCategory(category, e.target.checked)}
-                                      className="w-4 h-4 rounded border-gray-300"
+                                      className="w-4 h-4 rounded border-input"
                                     />
                                   </TableHead>
                                 )}
@@ -668,12 +668,12 @@ export function EquipmentManager({
                                         e.stopPropagation();
                                         selectEquipment(item.id, e.target.checked);
                                       }}
-                                      className="w-4 h-4 rounded border-gray-300 shrink-0"
+                                      className="w-4 h-4 rounded border-input shrink-0"
                                     />
                                   )}
                                   <div className="min-w-0">
                                     <p className="font-medium text-sm truncate">{item.name}</p>
-                                    <p className="text-xs text-gray-500 mt-0.5">{item.description || '—'}</p>
+                                    <p className="text-xs text-muted-foreground mt-0.5">{item.description || '—'}</p>
                                   </div>
                                 </div>
                                 {!selectionMode && (
@@ -698,7 +698,7 @@ export function EquipmentManager({
                                 )}
                               </div>
                               <div className="flex justify-between items-center text-sm">
-                                <div className="flex gap-3 text-gray-600">
+                                <div className="flex gap-3 text-muted-foreground">
                                   <span>{item.quantity} {item.unit || 'шт'}</span>
                                 </div>
                                 <span className="font-semibold">{item.price.toLocaleString('ru-RU')} ₽</span>
@@ -726,7 +726,7 @@ export function EquipmentManager({
           
           {!importPreview ? (
             <div className="space-y-4">
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-muted-foreground">
                 Загрузите Excel или CSV файл со столбцами: Название, Категория, Количество, Ед.изм, Цена, Описание
               </p>
               <Input
@@ -741,17 +741,17 @@ export function EquipmentManager({
               <div className="flex items-center justify-between">
                 <p className="text-sm">Найдено записей: <strong>{importData.length}</strong></p>
                 {importData.length > 10 && (
-                  <p className="text-xs text-gray-500">Показано первые 10</p>
+                  <p className="text-xs text-muted-foreground">Показано первые 10</p>
                 )}
               </div>
               
               {/* Статистика и управление выбором */}
-              <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+              <div className="flex items-center justify-between bg-muted p-3 rounded-lg">
                 <div className="flex items-center gap-4">
                   <span className="text-sm">Всего: <strong>{importData.length}</strong></span>
                   <span className="text-sm text-green-600">Выбрано: <strong>{selectedImportItems.size}</strong></span>
                   {importData.length > 0 && (
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs text-muted-foreground">
                       ({importData.filter((_, i) => !selectedImportItems.has(i)).length} уже на складе)
                     </span>
                   )}
@@ -796,7 +796,7 @@ export function EquipmentManager({
               {/* Таблица с прокруткой */}
               <div className="overflow-auto border rounded-lg flex-1 max-h-[50vh]">
                 <Table>
-                  <TableHeader className="bg-gray-50 sticky top-0 z-10">
+                  <TableHeader className="bg-muted sticky top-0 z-10">
                     <TableRow>
                       <TableHead className="w-12 text-center">
                         <input
@@ -829,7 +829,7 @@ export function EquipmentManager({
                       return (
                         <TableRow 
                           key={idx} 
-                          className={isExisting ? 'bg-gray-50' : ''}
+                          className={isExisting ? 'bg-muted' : ''}
                         >
                           <TableCell className="text-center">
                             <input
@@ -847,20 +847,20 @@ export function EquipmentManager({
                               className="w-4 h-4"
                             />
                           </TableCell>
-                          <TableCell className="text-center text-sm text-gray-500">{idx + 1}</TableCell>
+                          <TableCell className="text-center text-sm text-muted-foreground">{idx + 1}</TableCell>
                           <TableCell>
                             <div className="font-medium" title={item.name}>
                               {item.name}
                             </div>
                             {item.description && (
-                              <div className="text-xs text-gray-500 truncate max-w-[300px]" title={item.description}>
+                              <div className="text-xs text-muted-foreground truncate max-w-[300px]" title={item.description}>
                                 {item.description}
                               </div>
                             )}
                           </TableCell>
                           <TableCell className="text-sm">{item.category}</TableCell>
                           <TableCell className="text-center">{item.quantity}</TableCell>
-                          <TableCell className="text-center text-sm text-gray-600">{item.unit || 'шт'}</TableCell>
+                          <TableCell className="text-center text-sm text-muted-foreground">{item.unit || 'шт'}</TableCell>
                           <TableCell className="text-right font-medium">
                             {item.price ? `${parseFloat(item.price).toLocaleString('ru-RU')} ₽` : '—'}
                           </TableCell>

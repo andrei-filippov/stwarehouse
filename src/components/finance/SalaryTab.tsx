@@ -329,7 +329,7 @@ export function SalaryTab({ staff, records = [], onAddOrUpdate, onDelete }: Sala
           </DialogHeader>
           <div className="space-y-4 pt-4">
             {selectedStaff && (
-              <div className="bg-gray-50 p-3 rounded-lg text-sm">
+              <div className="bg-muted p-3 rounded-lg text-sm">
                 <p>Начислено: {getRecordForStaff(selectedStaff.id, activeMonth)?.total_calculated?.toLocaleString('ru-RU') || 0} ₽</p>
                 <p>Уже выдано: {getRecordForStaff(selectedStaff.id, activeMonth)?.paid?.toLocaleString('ru-RU') || 0} ₽</p>
                 <p className="font-medium">

@@ -182,7 +182,7 @@ export const ChecklistsManager = memo(function ChecklistsManager({
                   <Spinner className="w-6 h-6" />
                 </div>
               ) : checklists.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-muted-foreground">
                   <p className="mb-2">Нет созданных чек-листов</p>
                   <p className="text-sm">Создайте чек-лист на основе сметы</p>
                 </div>
@@ -198,7 +198,7 @@ export const ChecklistsManager = memo(function ChecklistsManager({
                         <div className="flex justify-between items-start gap-2">
                           <div className="min-w-0 flex-1">
                             <p className="font-medium text-sm md:text-base truncate">{checklist.event_name}</p>
-                            <p className="text-xs md:text-sm text-gray-500">
+                            <p className="text-xs md:text-sm text-muted-foreground">
                               {checklist.event_date ? new Date(checklist.event_date).toLocaleDateString('ru-RU') : '—'}
                             </p>
                           </div>
@@ -260,12 +260,12 @@ export const ChecklistsManager = memo(function ChecklistsManager({
               </div>
             </CardHeader>
             <CardContent className="p-4 pt-0">
-              <p className="text-xs md:text-sm text-gray-500 mb-3 md:mb-4">
+              <p className="text-xs md:text-sm text-muted-foreground mb-3 md:mb-4">
                 Правила автоматически добавляют инструменты в чек-лист на основе позиций сметы.
               </p>
               
               {rules.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-muted-foreground">
                   <p className="mb-2">Нет созданных правил</p>
                   <p className="text-sm">Создайте правило для автоматического формирования чек-листов</p>
                 </div>
@@ -277,7 +277,7 @@ export const ChecklistsManager = memo(function ChecklistsManager({
                         <div className="flex justify-between items-start gap-2">
                           <div className="min-w-0 flex-1">
                             <p className="font-medium text-sm md:text-base">{rule.name}</p>
-                            <p className="text-xs md:text-sm text-gray-500">
+                            <p className="text-xs md:text-sm text-muted-foreground">
                               {rule.condition_type === 'category' ? 'Категория' : 'Оборудование'}: {rule.condition_value}
                             </p>
                             <div className="flex flex-wrap gap-1.5 md:gap-2 mt-2">
@@ -545,7 +545,7 @@ function RuleForm({
       {/* Выбор реальных позиций из инвентаря */}
       <div className="border rounded-lg p-4 space-y-3">
         <h4 className="font-medium">Добавить оборудование из склада</h4>
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-muted-foreground">
           Выберите реальные позиции из вкладки "Учет оборудования". Они будут добавлены в чек-лист с QR-кодами.
         </p>
         
@@ -557,9 +557,9 @@ function RuleForm({
             onChange={(e) => setInventorySearch(e.target.value)}
           />
           {inventorySearch && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-md shadow-lg max-h-48 overflow-y-auto z-50">
+            <div className="absolute top-full left-0 right-0 mt-1 bg-card border rounded-md shadow-lg max-h-48 overflow-y-auto z-50">
               {filteredInventory.length === 0 ? (
-                <div className="p-3 text-sm text-gray-500">Ничего не найдено</div>
+                <div className="p-3 text-sm text-muted-foreground">Ничего не найдено</div>
               ) : (
                 filteredInventory.map(item => {
                   const categoryName = cableCategories.find(c => c.id === item.category_id)?.name;
@@ -569,13 +569,13 @@ function RuleForm({
                   return (
                     <button
                       key={item.id}
-                      className={`w-full text-left p-2 hover:bg-gray-50 flex items-center justify-between ${isAlreadyAdded ? 'opacity-50' : ''}`}
+                      className={`w-full text-left p-2 hover:bg-muted/50 flex items-center justify-between ${isAlreadyAdded ? 'opacity-50' : ''}`}
                       onClick={() => !isAlreadyAdded && addInventoryItem(item)}
                       disabled={isAlreadyAdded}
                     >
                       <div>
                         <div className="text-sm font-medium">{displayName}</div>
-                        <div className="text-xs text-gray-500">{categoryName} {item.qr_code && `• QR: ${item.qr_code}`}</div>
+                        <div className="text-xs text-muted-foreground">{categoryName} {item.qr_code && `• QR: ${item.qr_code}`}</div>
                       </div>
                       {isAlreadyAdded && <span className="text-xs text-green-600">✓ Добавлено</span>}
                     </button>
@@ -589,15 +589,15 @@ function RuleForm({
         {/* Список выбранных позиций */}
         <div className="space-y-2">
           {selectedItems.length === 0 ? (
-            <div className="text-center py-4 text-gray-500 text-sm">
+            <div className="text-center py-4 text-muted-foreground text-sm">
               Выберите позиции из инвентаря выше
             </div>
           ) : (
             selectedItems.map((item, idx) => (
-              <div key={item.inventory_id} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+              <div key={item.inventory_id} className="flex items-center justify-between bg-muted/50 p-2 rounded">
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium truncate">{item.inventory_name}</div>
-                  <div className="text-xs text-gray-500">
+                  <div className="text-xs text-muted-foreground">
                     {item.inventory_category}
                     {item.inventory_qr_code && <span className="ml-1 text-blue-600">• QR: {item.inventory_qr_code}</span>}
                   </div>
@@ -695,7 +695,7 @@ function ChecklistCreateForm({
       </div>
 
       {selectedEstimate && (
-        <div className="bg-blue-50 p-3 rounded text-sm">
+        <div className="bg-primary/10 p-3 rounded text-sm">
           <p><strong>Площадка:</strong> {selectedEstimate.venue}</p>
           <p><strong>Позиций в смете:</strong> {selectedEstimate.items?.length || 0}</p>
         </div>
@@ -716,7 +716,7 @@ function ChecklistCreateForm({
         </div>
         <div className="space-y-1">
           {customItems.map((item, idx) => (
-            <div key={idx} className="flex justify-between items-center bg-gray-50 p-2 rounded text-sm">
+            <div key={idx} className="flex justify-between items-center bg-muted/50 p-2 rounded text-sm">
               <span>{item.name}</span>
               <Button variant="ghost" size="sm" onClick={() => removeCustomItem(idx)}>
                 <Trash2 className="w-3 h-3 text-red-500" />
@@ -1082,15 +1082,15 @@ function ChecklistView({
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center bg-gray-50 p-3 rounded">
+      <div className="flex justify-between items-center bg-muted/50 p-3 rounded">
         <div>
-          <p className="text-sm text-gray-500">Дата: {new Date(checklist.event_date).toLocaleDateString('ru-RU')}</p>
+          <p className="text-sm text-muted-foreground">Дата: {new Date(checklist.event_date).toLocaleDateString('ru-RU')}</p>
           <p className="text-sm font-medium">Готово: {progress} / {total}</p>
         </div>
         <div className="flex items-center gap-1 text-xs text-green-600">
           <span className="relative flex h-2 w-2">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500/100"></span>
           </span>
           <span>Live</span>
         </div>
@@ -1105,8 +1105,8 @@ function ChecklistView({
       {/* Переключатель режима и кнопки */}
       <div className="flex flex-col gap-3">
         {/* Переключатель режима */}
-        <div className="flex items-center justify-between bg-gray-50 p-3 rounded">
-          <span className="text-sm text-gray-600">Режим проверки:</span>
+        <div className="flex items-center justify-between bg-muted/50 p-3 rounded">
+          <span className="text-sm text-muted-foreground">Режим проверки:</span>
           <Button
             variant="ghost"
             size="sm"
@@ -1115,7 +1115,7 @@ function ChecklistView({
           >
             {checkMode === 'simple' ? (
               <>
-                <ToggleLeft className="w-5 h-5 text-gray-400" />
+                <ToggleLeft className="w-5 h-5 text-muted-foreground/70" />
                 <span>Простой</span>
               </>
             ) : (
@@ -1130,14 +1130,14 @@ function ChecklistView({
         {/* Прогресс для двойного режима */}
         {checkMode === 'double' && (
           <div className="grid grid-cols-2 gap-2">
-            <div className="bg-blue-50 p-2 rounded text-center">
-              <div className="text-xs text-gray-500 mb-1">Погружено</div>
+            <div className="bg-primary/10 p-2 rounded text-center">
+              <div className="text-xs text-muted-foreground mb-1">Погружено</div>
               <div className="font-semibold text-blue-600">
                 {checklist.items?.filter(i => getItemStatus(i).loaded).length || 0} / {total}
               </div>
             </div>
-            <div className="bg-green-50 p-2 rounded text-center">
-              <div className="text-xs text-gray-500 mb-1">Разгружено</div>
+            <div className="bg-green-500/10 p-2 rounded text-center">
+              <div className="text-xs text-muted-foreground mb-1">Разгружено</div>
               <div className="font-semibold text-green-600">
                 {checklist.items?.filter(i => getItemStatus(i).unloaded).length || 0} / {total}
               </div>
@@ -1177,7 +1177,7 @@ function ChecklistView({
           )}
           
           {/* Подсказка о сканировании комплектов */}
-          <div className="text-xs text-gray-500 flex items-center gap-1">
+          <div className="text-xs text-muted-foreground flex items-center gap-1">
             <Package className="w-3 h-3" />
             Можно сканировать QR комплектов (KIT-*) и оборудования (EQ-*)
           </div>
@@ -1207,7 +1207,7 @@ function ChecklistView({
       <div className="space-y-4">
         {grouped && sortedCategories.map((category) => (
           <div key={category}>
-            <h4 className="font-semibold mb-2 text-sm text-gray-700">
+            <h4 className="font-semibold mb-2 text-sm text-foreground">
               {categoryNames[category] || category}
             </h4>
             <div className="space-y-1">
@@ -1222,19 +1222,19 @@ function ChecklistView({
                     <div 
                       key={itemKey}
                       className={`flex items-center gap-3 p-2 rounded cursor-pointer transition-colors ${
-                        status.unloaded ? 'bg-green-50' : status.loaded ? 'bg-blue-50' : 'bg-gray-50'
+                        status.unloaded ? 'bg-green-500/10' : status.loaded ? 'bg-primary/10' : 'bg-muted/50'
                       }`}
                       onClick={() => handleToggle(item)}
                     >
                       {/* Иконки погрузки/разгрузки */}
                       <div className="flex flex-col gap-1">
-                        <div className={`w-3 h-3 rounded-full border-2 ${status.loaded ? 'bg-blue-500 border-blue-500' : 'border-gray-300'}`} title="Погрузка" />
-                        <div className={`w-3 h-3 rounded-full border-2 ${status.unloaded ? 'bg-green-500 border-green-500' : 'border-gray-300'}`} title="Разгрузка" />
+                        <div className={`w-3 h-3 rounded-full border-2 ${status.loaded ? 'bg-primary/100 border-blue-500' : 'border-gray-300'}`} title="Погрузка" />
+                        <div className={`w-3 h-3 rounded-full border-2 ${status.unloaded ? 'bg-green-500/100 border-green-500' : 'border-gray-300'}`} title="Разгрузка" />
                       </div>
                       
-                      <span className={`flex-1 ${status.unloaded ? 'line-through text-gray-500' : ''}`}>
+                      <span className={`flex-1 ${status.unloaded ? 'line-through text-muted-foreground' : ''}`}>
                         {item.name}
-                        <span className="text-gray-500 ml-2">× {item.quantity}</span>
+                        <span className="text-muted-foreground ml-2">× {item.quantity}</span>
                         {item.is_required && <span className="text-red-500 ml-1">*</span>}
                         {(item as any).kit_name && <span className="text-xs text-purple-500 ml-2">📦 {(item as any).kit_name}</span>}
                         {item.qr_code && <span className="text-xs text-blue-500 ml-2">📱 {item.qr_code}</span>}
@@ -1254,7 +1254,7 @@ function ChecklistView({
                         title={item.qr_code ? 'Изменить QR-код' : 'Добавить QR-код'}
                       >
                         {item.qr_code ? (
-                          <Edit className="w-3 h-3 text-gray-400" />
+                          <Edit className="w-3 h-3 text-muted-foreground/70" />
                         ) : (
                           <QrCode className="w-3 h-3 text-gray-300" />
                         )}
@@ -1268,18 +1268,18 @@ function ChecklistView({
                   <div 
                     key={itemKey}
                     className={`flex items-center gap-3 p-2 rounded cursor-pointer transition-colors ${
-                      checked ? 'bg-green-50' : 'bg-gray-50'
+                      checked ? 'bg-green-500/10' : 'bg-muted/50'
                     }`}
                     onClick={() => handleToggle(item)}
                   >
                     {checked ? (
                       <CheckSquare className="w-5 h-5 text-green-600" />
                     ) : (
-                      <Square className="w-5 h-5 text-gray-400" />
+                      <Square className="w-5 h-5 text-muted-foreground/70" />
                     )}
-                    <span className={`flex-1 ${checked ? 'line-through text-gray-500' : ''}`}>
+                    <span className={`flex-1 ${checked ? 'line-through text-muted-foreground' : ''}`}>
                       {item.name}
-                      <span className="text-gray-500 ml-2">× {item.quantity}</span>
+                      <span className="text-muted-foreground ml-2">× {item.quantity}</span>
                       {item.is_required && <span className="text-red-500 ml-1">*</span>}
                       {(item as any).kit_name && <span className="text-xs text-purple-500 ml-2">📦 {(item as any).kit_name}</span>}
                       {item.qr_code && <span className="text-xs text-blue-500 ml-2">📱 {item.qr_code}</span>}
@@ -1296,7 +1296,7 @@ function ChecklistView({
                       title={item.qr_code ? 'Изменить QR-код' : 'Добавить QR-код'}
                     >
                       {item.qr_code ? (
-                        <Edit className="w-3 h-3 text-gray-400" />
+                        <Edit className="w-3 h-3 text-muted-foreground/70" />
                       ) : (
                         <QrCode className="w-3 h-3 text-gray-300" />
                       )}
@@ -1568,19 +1568,19 @@ function CalculatorForm({ onClose }: { onClose: () => void }) {
           </Button>
 
           {trussResult !== null && (
-            <div className="bg-blue-50 p-4 rounded-lg space-y-2">
-              <p className="font-semibold text-gray-700">Необходимо комплектующих:</p>
+            <div className="bg-primary/10 p-4 rounded-lg space-y-2">
+              <p className="font-semibold text-foreground">Необходимо комплектующих:</p>
               <div className="grid grid-cols-3 gap-2 text-center">
-                <div className="bg-white p-2 rounded">
-                  <p className="text-xs text-gray-500">Коннекторы</p>
+                <div className="bg-card p-2 rounded">
+                  <p className="text-xs text-muted-foreground">Коннекторы</p>
                   <p className="text-xl font-bold text-blue-600">{trussResult.connectors}</p>
                 </div>
-                <div className="bg-white p-2 rounded">
-                  <p className="text-xs text-gray-500">Пальцы</p>
+                <div className="bg-card p-2 rounded">
+                  <p className="text-xs text-muted-foreground">Пальцы</p>
                   <p className="text-xl font-bold text-blue-600">{trussResult.pins}</p>
                 </div>
-                <div className="bg-white p-2 rounded">
-                  <p className="text-xs text-gray-500">Шплинты</p>
+                <div className="bg-card p-2 rounded">
+                  <p className="text-xs text-muted-foreground">Шплинты</p>
                   <p className="text-xl font-bold text-blue-600">{trussResult.splints}</p>
                 </div>
               </div>
@@ -1622,8 +1622,8 @@ function CalculatorForm({ onClose }: { onClose: () => void }) {
           </Button>
 
           {dmxResult !== null && (
-            <div className="bg-green-50 p-4 rounded-lg space-y-2">
-              <p className="font-semibold text-gray-700">Результат:</p>
+            <div className="bg-green-500/10 p-4 rounded-lg space-y-2">
+              <p className="font-semibold text-foreground">Результат:</p>
               <div className="space-y-1">
                 <p className="text-sm">Кабель на прибор: <strong>{dmxResult.cablePerFixture} м</strong></p>
                 <p className="text-sm">Всего кабелей DMX: <strong>{dmxResult.totalCables} шт</strong></p>

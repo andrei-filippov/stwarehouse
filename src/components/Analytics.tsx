@@ -253,7 +253,7 @@ export const Analytics = memo(function Analytics({
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Выручка</p>
+                <p className="text-sm text-muted-foreground">Выручка</p>
                 <p className="text-2xl font-bold text-green-600">{formatCurrency(totalRevenue)}</p>
                 <p className="text-xs text-green-600/70">только выполненные сметы</p>
               </div>
@@ -261,12 +261,12 @@ export const Analytics = memo(function Analytics({
             </div>
           </CardContent>
         </Card>
-        <Card><CardContent className="p-6"><div className="flex items-center justify-between"><div><p className="text-sm text-gray-500">Расходы</p><p className="text-2xl font-bold text-red-600">{formatCurrency(totalExpenses)}</p></div><TrendingDown className="w-8 h-8 text-red-500" /></div></CardContent></Card>
+        <Card><CardContent className="p-6"><div className="flex items-center justify-between"><div><p className="text-sm text-muted-foreground">Расходы</p><p className="text-2xl font-bold text-red-600">{formatCurrency(totalExpenses)}</p></div><TrendingDown className="w-8 h-8 text-red-500" /></div></CardContent></Card>
         <Card className={profit >= 0 ? 'border-green-200' : 'border-red-200'}>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Прибыль</p>
+                <p className="text-sm text-muted-foreground">Прибыль</p>
                 <p className={`text-2xl font-bold ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCurrency(profit)}</p>
                 <p className="text-xs text-gray-400">{profitMargin.toFixed(1)}% маржинальность</p>
               </div>
@@ -278,13 +278,13 @@ export const Analytics = memo(function Analytics({
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Смет</p>
+                <p className="text-sm text-muted-foreground">Смет</p>
                 <p className="text-2xl font-bold">{estimateCount}</p>
                 <div className="flex gap-1 mt-1 text-xs">
                   {estimatesByStatus.completed > 0 && <span className="text-green-600">{estimatesByStatus.completed}✓</span>}
                   {estimatesByStatus.approved > 0 && <span className="text-blue-600">{estimatesByStatus.approved}✓</span>}
                   {estimatesByStatus.pending > 0 && <span className="text-yellow-600">{estimatesByStatus.pending}⏳</span>}
-                  {estimatesByStatus.draft > 0 && <span className="text-gray-500">{estimatesByStatus.draft}📝</span>}
+                  {estimatesByStatus.draft > 0 && <span className="text-muted-foreground">{estimatesByStatus.draft}📝</span>}
                   {estimatesByStatus.cancelled > 0 && <span className="text-red-600">{estimatesByStatus.cancelled}✕</span>}
                 </div>
               </div>
@@ -312,7 +312,7 @@ export const Analytics = memo(function Analytics({
                       <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap z-10">{formatCurrency(m.expenses)}</div>
                     </div>
                   </div>
-                  <span className="text-xs text-gray-500">{m.month}</span>
+                  <span className="text-xs text-muted-foreground">{m.month}</span>
                 </div>
               );
             })}
@@ -347,7 +347,7 @@ export const Analytics = memo(function Analytics({
               <p className="text-2xl font-bold text-yellow-600">{estimatesByStatus.pending || 0}</p>
               <p className="text-sm text-yellow-700">В работе</p>
             </div>
-            <div className="text-center p-4 bg-gray-50 rounded-lg">
+            <div className="text-center p-4 bg-muted rounded-lg">
               <p className="text-2xl font-bold text-gray-600">{estimatesByStatus.draft || 0}</p>
               <p className="text-sm text-gray-700">Черновики</p>
             </div>
@@ -367,10 +367,10 @@ export const Analytics = memo(function Analytics({
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {expensesByCategory.length === 0 ? <p className="text-center text-gray-500 py-4">Нет расходов за выбранный период</p> :
+              {expensesByCategory.length === 0 ? <p className="text-center text-muted-foreground py-4">Нет расходов за выбранный период</p> :
                 expensesByCategory.map((item, i) => (
                   <div key={i} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3"><span className="text-sm font-medium text-gray-500 w-6">{i + 1}</span><span className="text-sm">{getExpenseCategoryLabel(item.category)}</span></div>
+                    <div className="flex items-center gap-3"><span className="text-sm font-medium text-muted-foreground w-6">{i + 1}</span><span className="text-sm">{getExpenseCategoryLabel(item.category)}</span></div>
                     <span className="text-sm font-medium text-red-600">{formatCurrency(item.amount)}</span>
                   </div>
                 ))}
@@ -380,10 +380,10 @@ export const Analytics = memo(function Analytics({
                 <p className="text-sm font-medium mb-3">Последние расходы</p>
                 <div className="space-y-2 max-h-40 overflow-auto">
                   {filteredExpenses.slice(0, 5).map(expense => (
-                    <div key={expense.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg text-sm">
+                    <div key={expense.id} className="flex items-center justify-between p-2 bg-muted rounded-lg text-sm">
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">{expense.description || getExpenseCategoryLabel(expense.category)}</p>
-                        <p className="text-xs text-gray-500">{format(parseISO(expense.date), 'dd.MM.yyyy', { locale: ru })}</p>
+                        <p className="text-xs text-muted-foreground">{format(parseISO(expense.date), 'dd.MM.yyyy', { locale: ru })}</p>
                       </div>
                       <div className="flex items-center gap-2 ml-2">
                         <span className="font-medium text-red-600">{formatCurrency(expense.amount)}</span>
@@ -404,11 +404,11 @@ export const Analytics = memo(function Analytics({
             <div className="space-y-3">
               {categoryStats.slice(0, 5).map((cat, i) => (
                 <div key={i} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3"><span className="text-sm font-medium text-gray-500 w-6">{i + 1}</span><span className="text-sm">{cat.name}</span></div>
+                  <div className="flex items-center gap-3"><span className="text-sm font-medium text-muted-foreground w-6">{i + 1}</span><span className="text-sm">{cat.name}</span></div>
                   <div className="flex items-center gap-4"><Badge variant="secondary">{cat.count} шт</Badge><span className="text-sm font-medium">{formatCurrency(cat.revenue)}</span></div>
                 </div>
               ))}
-              {categoryStats.length === 0 && <p className="text-center text-gray-500 py-4">Нет данных</p>}
+              {categoryStats.length === 0 && <p className="text-center text-muted-foreground py-4">Нет данных</p>}
             </div>
           </CardContent>
         </Card>
@@ -419,11 +419,11 @@ export const Analytics = memo(function Analytics({
             <div className="space-y-3">
               {topEquipmentByRevenue.slice(0, 5).map((item, i) => (
                 <div key={i} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3"><span className="text-sm font-medium text-gray-500 w-6">{i + 1}</span><div><p className="text-sm font-medium">{item.name}</p><p className="text-xs text-gray-500">{item.category}</p></div></div>
+                  <div className="flex items-center gap-3"><span className="text-sm font-medium text-muted-foreground w-6">{i + 1}</span><div><p className="text-sm font-medium">{item.name}</p><p className="text-xs text-muted-foreground">{item.category}</p></div></div>
                   <span className="text-sm font-medium">{formatCurrency(item.revenue)}</span>
                 </div>
               ))}
-              {topEquipmentByRevenue.length === 0 && <p className="text-center text-gray-500 py-4">Нет данных</p>}
+              {topEquipmentByRevenue.length === 0 && <p className="text-center text-muted-foreground py-4">Нет данных</p>}
             </div>
           </CardContent>
         </Card>
@@ -434,11 +434,11 @@ export const Analytics = memo(function Analytics({
             <div className="space-y-3">
               {topEquipmentByUsage.slice(0, 5).map((item, i) => (
                 <div key={i} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3"><span className="text-sm font-medium text-gray-500 w-6">{i + 1}</span><div><p className="text-sm font-medium">{item.name}</p><p className="text-xs text-gray-500">{item.category}</p></div></div>
+                  <div className="flex items-center gap-3"><span className="text-sm font-medium text-muted-foreground w-6">{i + 1}</span><div><p className="text-sm font-medium">{item.name}</p><p className="text-xs text-muted-foreground">{item.category}</p></div></div>
                   <Badge variant="secondary">{item.count} раз</Badge>
                 </div>
               ))}
-              {topEquipmentByUsage.length === 0 && <p className="text-center text-gray-500 py-4">Нет данных</p>}
+              {topEquipmentByUsage.length === 0 && <p className="text-center text-muted-foreground py-4">Нет данных</p>}
             </div>
           </CardContent>
         </Card>
@@ -449,10 +449,10 @@ export const Analytics = memo(function Analytics({
           <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Users className="w-5 h-5" />Персонал</CardTitle></CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 gap-4">
-              <div className="text-center p-4 bg-gray-50 rounded-lg"><p className="text-2xl font-bold">{staffStats.total}</p><p className="text-sm text-gray-500">Всего</p></div>
-              <div className="text-center p-4 bg-green-50 rounded-lg"><p className="text-2xl font-bold text-green-600">{staffStats.active}</p><p className="text-sm text-gray-500">Активных</p></div>
-              <div className="text-center p-4 bg-gray-50 rounded-lg"><p className="text-2xl font-bold">{staffStats.withCar}</p><p className="text-sm text-gray-500">С авто</p></div>
-              <div className="text-center p-4 bg-orange-50 rounded-lg"><p className="text-2xl font-bold text-orange-600">{warehouseStats.totalItems}</p><p className="text-sm text-gray-500">Видов оборудования</p></div>
+              <div className="text-center p-4 bg-muted rounded-lg"><p className="text-2xl font-bold">{staffStats.total}</p><p className="text-sm text-muted-foreground">Всего</p></div>
+              <div className="text-center p-4 bg-green-50 rounded-lg"><p className="text-2xl font-bold text-green-600">{staffStats.active}</p><p className="text-sm text-muted-foreground">Активных</p></div>
+              <div className="text-center p-4 bg-muted rounded-lg"><p className="text-2xl font-bold">{staffStats.withCar}</p><p className="text-sm text-muted-foreground">С авто</p></div>
+              <div className="text-center p-4 bg-orange-50 rounded-lg"><p className="text-2xl font-bold text-orange-600">{warehouseStats.totalItems}</p><p className="text-sm text-muted-foreground">Видов оборудования</p></div>
             </div>
           </CardContent>
         </Card>
@@ -463,11 +463,11 @@ export const Analytics = memo(function Analytics({
             <div className="space-y-3">
               {customerStats.slice(0, 5).map((c, i) => (
                 <div key={i} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3"><span className="text-sm font-medium text-gray-500 w-6">{i + 1}</span><div><p className="text-sm font-medium">{c.name}</p><p className="text-xs text-gray-500">{c.count} смет</p></div></div>
+                  <div className="flex items-center gap-3"><span className="text-sm font-medium text-muted-foreground w-6">{i + 1}</span><div><p className="text-sm font-medium">{c.name}</p><p className="text-xs text-muted-foreground">{c.count} смет</p></div></div>
                   <span className="text-sm font-medium">{formatCurrency(c.revenue)}</span>
                 </div>
               ))}
-              {customerStats.length === 0 && <p className="text-center text-gray-500 py-4">Нет данных</p>}
+              {customerStats.length === 0 && <p className="text-center text-muted-foreground py-4">Нет данных</p>}
             </div>
           </CardContent>
         </Card>
@@ -482,7 +482,7 @@ export const Analytics = memo(function Analytics({
               <p className="text-3xl font-bold text-blue-600">{formatCurrency(warehouseStats.totalValue)}</p>
             </div>
             <div className="text-right">
-              <p className="text-sm text-gray-500">Средняя цена за ед.</p>
+              <p className="text-sm text-muted-foreground">Средняя цена за ед.</p>
               <p className="text-xl font-medium">{formatCurrency(warehouseStats.avgPrice)}</p>
             </div>
           </div>
