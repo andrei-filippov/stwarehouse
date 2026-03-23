@@ -106,13 +106,13 @@ export function Sidebar(props: SidebarProps) {
         className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
           isActive 
             ? 'bg-blue-600 text-white shadow-md' 
-            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
         } ${collapsed ? 'justify-center' : ''}`}
         title={collapsed ? tab.label : undefined}
       >
-        <Icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-white' : 'text-gray-500'}`} />
+        <Icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-white' : 'text-muted-foreground'}`} />
         {!collapsed && <span className="text-sm font-medium">{tab.label}</span>}
-        {!collapsed && isActive && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white" />}
+        {!collapsed && isActive && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary-foreground" />}
       </button>
     );
   };
@@ -123,12 +123,12 @@ export function Sidebar(props: SidebarProps) {
 
   return (
     <aside 
-      className={`hidden md:flex flex-col bg-white border-r h-screen sticky top-0 transition-all duration-300 ${
+      className={`hidden md:flex flex-col bg-background border-r border-border h-screen sticky top-0 transition-all duration-300 ${
         collapsed ? 'w-16' : 'w-64'
       }`}
     >
       {/* Header */}
-      <div className="p-4 border-b flex items-center justify-between">
+      <div className="p-4 border-b border-border flex items-center justify-between">
         {!collapsed && (
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center">
@@ -148,14 +148,14 @@ export function Sidebar(props: SidebarProps) {
       <div className="flex-1 overflow-y-auto py-4 px-2 space-y-6">
         {/* Main */}
         <div className="space-y-1">
-          {!collapsed && <p className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Основное</p>}
+          {!collapsed && <p className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Основное</p>}
           {mainTabs.map(renderNavItem)}
         </div>
 
         {/* Finance */}
         {financeTabs.length > 0 && (
           <div className="space-y-1">
-            {!collapsed && <p className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Финансы</p>}
+            {!collapsed && <p className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Финансы</p>}
             {financeTabs.map(renderNavItem)}
           </div>
         )}
@@ -163,7 +163,7 @@ export function Sidebar(props: SidebarProps) {
         {/* References */}
         {referenceTabs.length > 0 && (
           <div className="space-y-1">
-            {!collapsed && <p className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Справочники</p>}
+            {!collapsed && <p className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Справочники</p>}
             {referenceTabs.map(renderNavItem)}
           </div>
         )}
@@ -171,21 +171,21 @@ export function Sidebar(props: SidebarProps) {
         {/* System */}
         {systemTabs.length > 0 && (
           <div className="space-y-1">
-            {!collapsed && <p className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Система</p>}
+            {!collapsed && <p className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Система</p>}
             {systemTabs.map(renderNavItem)}
           </div>
         )}
       </div>
 
       {/* User & Company */}
-      <div className="p-3 border-t space-y-2">
+      <div className="p-3 border-t border-border space-y-2">
         {/* Company Selector */}
         {companies.length > 0 && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button 
                 variant="ghost" 
-                className={`w-full justify-start text-gray-700 hover:text-blue-600 hover:bg-blue-50 ${collapsed ? 'justify-center px-2' : ''}`}
+                className={`w-full justify-start text-foreground hover:text-primary hover:bg-primary/10 ${collapsed ? 'justify-center px-2' : ''}`}
                 title={collapsed ? currentCompany?.name : undefined}
               >
                 <Building2 className="w-5 h-5 shrink-0" />
@@ -195,7 +195,7 @@ export function Sidebar(props: SidebarProps) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-56">
-              <div className="px-2 py-1.5 text-sm font-semibold text-gray-500">
+              <div className="px-2 py-1.5 text-sm font-semibold text-muted-foreground">
                 Ваши компании
               </div>
               <DropdownMenuSeparator />
@@ -256,14 +256,14 @@ export function Sidebar(props: SidebarProps) {
         
         {!collapsed && userName && (
           <div className="px-3 py-2">
-            <p className="text-sm font-medium text-gray-900 truncate">{userName}</p>
-            <p className="text-xs text-gray-500">{userRole}</p>
+            <p className="text-sm font-medium text-foreground truncate">{userName}</p>
+            <p className="text-xs text-muted-foreground">{userRole}</p>
           </div>
         )}
         
         <Button 
           variant="ghost" 
-          className={`w-full justify-start text-gray-600 hover:text-red-600 hover:bg-red-50 ${collapsed ? 'justify-center px-2' : ''}`}
+          className={`w-full justify-start text-muted-foreground hover:text-destructive hover:bg-destructive/10 ${collapsed ? 'justify-center px-2' : ''}`}
           onClick={onSignOut}
           title={collapsed ? 'Выйти' : undefined}
         >
@@ -275,7 +275,7 @@ export function Sidebar(props: SidebarProps) {
         <Button 
           variant="ghost" 
           size="sm"
-          className={`w-full text-gray-400 hover:text-gray-600 ${collapsed ? 'justify-center' : 'justify-end'}`}
+          className={`w-full text-muted-foreground hover:text-foreground ${collapsed ? 'justify-center' : 'justify-end'}`}
           onClick={onToggleCollapse}
         >
           {collapsed ? <ChevronRight className="w-4 h-4" /> : <><span className="text-xs mr-1">Свернуть</span><ChevronLeft className="w-4 h-4" /></>}
@@ -306,7 +306,7 @@ function ThemeToggle({ collapsed }: { collapsed: boolean }) {
       <button
         onClick={toggleTheme}
         className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors w-full 
-          bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700
+          bg-muted text-muted-foreground hover:bg-muted/80
           ${collapsed ? 'justify-center' : ''}`}
         title={resolvedTheme === 'light' ? 'Переключить на тёмную тему' : 'Переключить на светлую тему'}
       >
