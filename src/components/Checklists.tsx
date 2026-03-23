@@ -1118,6 +1118,7 @@ function ChecklistView({
           
           // Сколько можно добавить к этой позиции
           const canAdd = Math.min(remainingToScan, itemNeeded - currentQty);
+          console.log(`[Kit Scan] ${equipmentName}: item=${item.name}, currentQty=${currentQty}, itemNeeded=${itemNeeded}, canAdd=${canAdd}`);
           
           if (canAdd > 0) {
             // Увеличиваем локальный счетчик комплекта
@@ -1128,6 +1129,7 @@ function ChecklistView({
             kitScanCounterRef.current[localKey][scanModeField] += canAdd;
             
             const newTotalQty = currentQty + kitScanCounterRef.current[localKey][scanModeField];
+            console.log(`[Kit Scan] ${equipmentName}: newTotalQty=${newTotalQty}, updates.loaded_quantity=${newTotalQty}`);
             
             // Определяем статус на основе количества
             const isComplete = newTotalQty >= itemNeeded;
