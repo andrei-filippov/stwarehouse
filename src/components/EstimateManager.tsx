@@ -213,8 +213,8 @@ export const EstimateManager = memo(function EstimateManager({
       return (
         <div className="flex items-center justify-center h-screen">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Загрузка данных...</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Загрузка данных...</p>
           </div>
         </div>
       );
@@ -309,7 +309,7 @@ export const EstimateManager = memo(function EstimateManager({
         {/* Поиск */}
         <div className="px-6 pb-4">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/70" />
             <Input
               placeholder="Поиск по названию, заказчику, площадке..."
               value={searchQuery}
@@ -328,7 +328,7 @@ export const EstimateManager = memo(function EstimateManager({
             )}
           </div>
           {searchQuery && (
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               Найдено: {filteredEstimates.length} из {estimates.length}
             </p>
           )}
@@ -338,7 +338,7 @@ export const EstimateManager = memo(function EstimateManager({
           {/* Desktop Table с группировкой */}
           <div className="hidden md:block space-y-4">
             {groupedEstimates.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-8 text-muted-foreground">
                 {searchQuery ? 'Ничего не найдено' : 'Нет смет'}
               </div>
             ) : (
@@ -355,23 +355,23 @@ export const EstimateManager = memo(function EstimateManager({
                       }
                       setExpandedMonths(newExpanded);
                     }}
-                    className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors"
+                    className="w-full flex items-center justify-between px-4 py-3 bg-muted hover:bg-muted transition-colors"
                   >
                     <div className="flex items-center gap-2">
-                      <CalendarDays className="w-5 h-5 text-gray-500" />
-                      <span className="font-semibold text-gray-700">{month}</span>
+                      <CalendarDays className="w-5 h-5 text-muted-foreground" />
+                      <span className="font-semibold text-foreground">{month}</span>
                       <Badge variant="secondary" className="ml-2">
                         {monthEstimates.length}
                       </Badge>
                     </div>
                     <div className="flex items-center gap-4">
-                      <span className="text-sm text-gray-600">
+                      <span className="text-sm text-muted-foreground">
                         {monthEstimates.reduce((sum, e) => sum + (e.total || 0), 0).toLocaleString('ru-RU')} ₽
                       </span>
                       {expandedMonths.has(month) ? (
-                        <ChevronDown className="w-5 h-5 text-gray-400" />
+                        <ChevronDown className="w-5 h-5 text-muted-foreground/70" />
                       ) : (
-                        <ChevronRight className="w-5 h-5 text-gray-400" />
+                        <ChevronRight className="w-5 h-5 text-muted-foreground/70" />
                       )}
                     </div>
                   </button>
@@ -380,7 +380,7 @@ export const EstimateManager = memo(function EstimateManager({
                   {expandedMonths.has(month) && (
                     <Table>
                       <TableHeader>
-                        <TableRow className="bg-gray-50/50">
+                        <TableRow className="bg-muted/50">
                           <TableHead className="w-[30%]">Мероприятие</TableHead>
                           <TableHead>Заказчик</TableHead>
                           <TableHead>Площадка</TableHead>
@@ -394,14 +394,14 @@ export const EstimateManager = memo(function EstimateManager({
                         {monthEstimates.map((estimate) => (
                           <TableRow 
                             key={estimate.id} 
-                            className={`cursor-pointer hover:bg-blue-50/50 transition-colors ${estimate.is_editing ? 'bg-blue-50' : ''}`}
+                            className={`cursor-pointer hover:bg-primary/10 transition-colors ${estimate.is_editing ? 'bg-primary/10' : ''}`}
                             onClick={() => handleEdit(estimate)}
                           >
                             <TableCell className="font-medium">
                               <div className="flex items-center gap-2">
                                 {estimate.event_name}
                                 {estimate.is_editing && (
-                                  <span className="inline-flex items-center gap-1 text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded">
+                                  <span className="inline-flex items-center gap-1 text-xs text-primary bg-primary/10 px-2 py-0.5 rounded">
                                     <Loader2 className="w-3 h-3 animate-spin" />
                                     {estimate.editor_name || 'редактируется'}
                                   </span>
@@ -484,7 +484,7 @@ export const EstimateManager = memo(function EstimateManager({
           {/* Mobile Cards с группировкой */}
           <div className="md:hidden space-y-4">
             {groupedEstimates.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-8 text-muted-foreground">
                 {searchQuery ? 'Ничего не найдено' : 'Нет смет'}
               </div>
             ) : (
@@ -501,23 +501,23 @@ export const EstimateManager = memo(function EstimateManager({
                       }
                       setExpandedMonths(newExpanded);
                     }}
-                    className="w-full flex items-center justify-between px-3 py-2 bg-gray-50"
+                    className="w-full flex items-center justify-between px-3 py-2 bg-muted"
                   >
                     <div className="flex items-center gap-2">
-                      <CalendarDays className="w-4 h-4 text-gray-500" />
-                      <span className="font-semibold text-sm text-gray-700">{month}</span>
+                      <CalendarDays className="w-4 h-4 text-muted-foreground" />
+                      <span className="font-semibold text-sm text-foreground">{month}</span>
                       <Badge variant="secondary" className="text-xs">
                         {monthEstimates.length}
                       </Badge>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-600">
+                      <span className="text-xs text-muted-foreground">
                         {monthEstimates.reduce((sum, e) => sum + (e.total || 0), 0).toLocaleString('ru-RU')} ₽
                       </span>
                       {expandedMonths.has(month) ? (
-                        <ChevronDown className="w-4 h-4 text-gray-400" />
+                        <ChevronDown className="w-4 h-4 text-muted-foreground/70" />
                       ) : (
-                        <ChevronRight className="w-4 h-4 text-gray-400" />
+                        <ChevronRight className="w-4 h-4 text-muted-foreground/70" />
                       )}
                     </div>
                   </button>
@@ -530,7 +530,7 @@ export const EstimateManager = memo(function EstimateManager({
                         return (
                           <Card 
                             key={estimate.id} 
-                            className={`rounded-none border-0 shadow-none cursor-pointer hover:bg-gray-50 ${estimate.is_editing ? 'bg-blue-50/50' : ''}`}
+                            className={`rounded-none border-0 shadow-none cursor-pointer hover:bg-muted ${estimate.is_editing ? 'bg-primary/10' : ''}`}
                             onClick={() => handleEdit(estimate)}
                           >
                             <CardContent className="p-3">
@@ -539,13 +539,13 @@ export const EstimateManager = memo(function EstimateManager({
                                   <h3 className="font-semibold text-sm break-words leading-tight">
                                     {estimate.event_name}
                                     {estimate.is_editing && (
-                                      <span className="ml-1 inline-flex items-center text-[10px] text-blue-600 bg-blue-100 px-1 rounded">
+                                      <span className="ml-1 inline-flex items-center text-[10px] text-primary bg-primary/10 px-1 rounded">
                                         <Loader2 className="w-2 h-2 animate-spin mr-0.5" />
                                         редакт.
                                       </span>
                                     )}
                                   </h3>
-                                  <p className="text-xs text-gray-500 truncate">{estimate.venue || 'Без площадки'}</p>
+                                  <p className="text-xs text-muted-foreground truncate">{estimate.venue || 'Без площадки'}</p>
                                 </div>
                                 <div className="flex gap-0.5 shrink-0">
                                   <Button 
@@ -576,7 +576,7 @@ export const EstimateManager = memo(function EstimateManager({
                                 </div>
                               </div>
                               
-                              <div className="flex items-center gap-1 mt-1 text-xs text-gray-600">
+                              <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
                                 <span>
                                   {new Date(estimate.event_start_date || estimate.event_date).toLocaleDateString('ru-RU')}
                                   {isMultiDay && ` — ${new Date(estimate.event_end_date || estimate.event_date).toLocaleDateString('ru-RU')}`}
@@ -603,9 +603,9 @@ export const EstimateManager = memo(function EstimateManager({
                                 </div>
                               )}
                               
-                              <div className="flex items-end justify-between mt-1.5 pt-1.5 border-t border-gray-100">
-                                <span className="text-xs text-gray-500 truncate">{estimate.customer_name || '-'}</span>
-                                <span className="font-bold text-sm text-blue-600">{estimate.total.toLocaleString('ru-RU')} ₽</span>
+                              <div className="flex items-end justify-between mt-1.5 pt-1.5 border-t border-border">
+                                <span className="text-xs text-muted-foreground truncate">{estimate.customer_name || '-'}</span>
+                                <span className="font-bold text-sm text-primary">{estimate.total.toLocaleString('ru-RU')} ₽</span>
                               </div>
                             </CardContent>
                           </Card>
@@ -639,7 +639,7 @@ export const EstimateManager = memo(function EstimateManager({
               >
                 <div className="text-left">
                   <div className="font-medium">{template.name}</div>
-                  <div className="text-xs text-gray-500">
+                  <div className="text-xs text-muted-foreground">
                     {template.description || `${template.items?.length || 0} позиций`}
                   </div>
                 </div>

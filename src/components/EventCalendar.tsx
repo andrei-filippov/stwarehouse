@@ -280,16 +280,16 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
         className={cn(
           "min-h-[60px] sm:min-h-[100px] p-1 sm:p-2 rounded-lg sm:rounded-xl border-2 cursor-pointer transition-all duration-200 relative group",
           isCurrentMonth 
-            ? "bg-white border-gray-100 hover:border-blue-300 hover:shadow-lg" 
-            : "bg-gray-50/50 border-gray-100 text-gray-400",
+            ? "bg-card border-border hover:border-primary/50 hover:shadow-lg" 
+            : "bg-muted/50 border-border text-muted-foreground/70",
           isToday && "ring-2 ring-blue-500 ring-offset-1 sm:ring-offset-2",
-          hasEvents && isCurrentMonth && "bg-gradient-to-br from-blue-50/50 to-white"
+          hasEvents && isCurrentMonth && "bg-gradient-to-br from-primary/10 to-background"
         )}
       >
         <div className={cn(
           "font-semibold text-xs sm:text-sm mb-0.5 sm:mb-1 w-5 h-5 sm:w-7 sm:h-7 flex items-center justify-center rounded-full",
-          isToday ? "bg-blue-600 text-white" : "text-gray-700",
-          !isCurrentMonth && "text-gray-400"
+          isToday ? "bg-blue-600 text-white" : "text-foreground",
+          !isCurrentMonth && "text-muted-foreground/70"
         )}>
           {format(day, 'd')}
         </div>
@@ -302,7 +302,7 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
                 <div key={i} className="w-1.5 h-1.5 rounded-full bg-blue-500" />
               ))}
               {dayEstimates.length > 3 && (
-                <span className="text-[8px] text-gray-400">+</span>
+                <span className="text-[8px] text-muted-foreground/70">+</span>
               )}
             </div>
           )}
@@ -367,18 +367,18 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
                   onClick={() => setSelectedDate(day)}
                   className={cn(
                     "w-[140px] min-h-[300px] p-2 rounded-xl border-2 cursor-pointer transition-all flex-shrink-0",
-                    "bg-white border-gray-100 hover:border-blue-300 hover:shadow-lg",
-                    isToday && "ring-2 ring-blue-500 ring-offset-1 bg-blue-50/30"
+                    "bg-card border-border hover:border-primary/50 hover:shadow-lg",
+                    isToday && "ring-2 ring-blue-500 ring-offset-1 bg-muted/30"
                   )}
                 >
                   <div className={cn(
                     "text-center pb-2 mb-2 border-b",
                     isToday ? "border-blue-500" : "border-gray-100"
                   )}>
-                    <div className="text-[10px] text-gray-500 uppercase font-medium">{weekDays[idx]}</div>
+                    <div className="text-[10px] text-muted-foreground uppercase font-medium">{weekDays[idx]}</div>
                     <div className={cn(
                       "text-xl font-bold mt-1",
-                      isToday ? "text-blue-600" : "text-gray-800"
+                      isToday ? "text-blue-600" : "text-foreground"
                     )}>
                       {format(day, 'd')}
                     </div>
@@ -424,18 +424,18 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
                 onClick={() => setSelectedDate(day)}
                 className={cn(
                   "min-h-[400px] p-3 rounded-xl border-2 cursor-pointer transition-all",
-                  "bg-white border-gray-100 hover:border-blue-300 hover:shadow-lg",
-                  isToday && "ring-2 ring-blue-500 ring-offset-2 bg-blue-50/30"
+                  "bg-card border-border hover:border-primary/50 hover:shadow-lg",
+                  isToday && "ring-2 ring-blue-500 ring-offset-2 bg-muted/30"
                 )}
               >
                 <div className={cn(
                   "text-center pb-2 mb-2 border-b",
                   isToday ? "border-blue-500" : "border-gray-100"
                 )}>
-                  <div className="text-xs text-gray-500 uppercase font-medium">{weekDays[idx]}</div>
+                  <div className="text-xs text-muted-foreground uppercase font-medium">{weekDays[idx]}</div>
                   <div className={cn(
                     "text-2xl font-bold mt-1",
-                    isToday ? "text-blue-600" : "text-gray-800"
+                    isToday ? "text-blue-600" : "text-foreground"
                   )}>
                     {format(day, 'd')}
                   </div>
@@ -482,30 +482,30 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
         <div className={cn(
           "p-3 sm:p-6 rounded-xl sm:rounded-2xl border-2",
           isToday 
-            ? "bg-gradient-to-br from-blue-50 via-white to-indigo-50 border-blue-300" 
-            : "bg-white border-gray-200"
+            ? "bg-gradient-to-br from-primary/10 via-background to-primary/5 border-primary/30" 
+            : "bg-card border-border"
         )}>
           <div className="flex items-center justify-between mb-4 sm:mb-6">
             <div className="min-w-0 flex-1">
-              <h2 className="text-lg sm:text-3xl font-bold text-gray-800 truncate">
+              <h2 className="text-lg sm:text-3xl font-bold text-foreground truncate">
                 {format(day, 'EEEE', { locale: ru })}
               </h2>
               <p className={cn(
                 "text-sm sm:text-lg mt-1",
-                isToday ? "text-blue-600 font-medium" : "text-gray-500"
+                isToday ? "text-blue-600 font-medium" : "text-muted-foreground"
               )}>
                 {format(day, 'd MMMM yyyy', { locale: ru })}
                 {isToday && <Badge className="ml-2 bg-blue-600 text-xs">Сегодня</Badge>}
               </p>
             </div>
             <div className="text-right shrink-0 ml-4">
-              <div className="text-3xl sm:text-5xl font-bold text-gray-800">{format(day, 'd')}</div>
-              <div className="text-sm sm:text-lg text-gray-500">{format(day, 'MMM', { locale: ru })}</div>
+              <div className="text-3xl sm:text-5xl font-bold text-foreground">{format(day, 'd')}</div>
+              <div className="text-sm sm:text-lg text-muted-foreground">{format(day, 'MMM', { locale: ru })}</div>
             </div>
           </div>
 
           {dayEstimates.length === 0 ? (
-            <div className="text-center py-8 sm:py-12 text-gray-400">
+            <div className="text-center py-8 sm:py-12 text-muted-foreground/70">
               <CalendarIcon className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 opacity-30" />
               <p className="text-base sm:text-lg">Нет мероприятий на этот день</p>
             </div>
@@ -522,22 +522,22 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
                     <CardContent className="flex-1 p-3 sm:p-4">
                       <div className="flex justify-between items-start gap-2">
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-base sm:text-xl font-bold text-gray-800 mb-1 sm:mb-2 truncate">{estimate.event_name}</h3>
-                          <div className="flex flex-wrap gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600">
+                          <h3 className="text-base sm:text-xl font-bold text-foreground mb-1 sm:mb-2 truncate">{estimate.event_name}</h3>
+                          <div className="flex flex-wrap gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
                             <span className="flex items-center gap-1">
-                              <MapPin className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400" />
+                              <MapPin className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground" />
                               <span className="truncate">{estimate.venue || 'Площадка не указана'}</span>
                             </span>
                             {estimate.creator_name && (
                               <span className="flex items-center gap-1 hidden sm:flex">
-                                <User className="w-4 h-4 text-gray-400" />
+                                <User className="w-4 h-4 text-muted-foreground" />
                                 {estimate.creator_name}
                               </span>
                             )}
                           </div>
                         </div>
                         <div className="text-right shrink-0">
-                          <div className="text-xs sm:text-sm text-gray-500">
+                          <div className="text-xs sm:text-sm text-muted-foreground">
                             {estimate.items?.length || 0} поз.
                           </div>
                         </div>
@@ -565,7 +565,7 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
               </div>
               <div className="min-w-0">
                 <CardTitle className="text-lg sm:text-2xl truncate">Календарь мероприятий</CardTitle>
-                <p className="text-xs sm:text-sm text-gray-500 mt-0.5 hidden sm:block">Управление событиями и бронированием</p>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 hidden sm:block">Управление событиями и бронированием</p>
               </div>
             </div>
             
@@ -575,7 +575,7 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
                 type="single" 
                 value={view} 
                 onValueChange={(v) => v && setView(v as CalendarView)}
-                className="bg-gray-100 p-0.5 sm:p-1 rounded-lg"
+                className="bg-muted p-0.5 sm:p-1 rounded-lg"
               >
                 <ToggleGroupItem value="month" aria-label="Месяц" className="gap-1 h-8 w-8 sm:h-9 sm:w-auto sm:px-3 p-0">
                   <LayoutGrid className="w-4 h-4" />
@@ -592,7 +592,7 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
               </ToggleGroup>
 
               {/* Навигация */}
-              <div className="flex items-center gap-0.5 sm:gap-1 bg-gray-100 p-0.5 sm:p-1 rounded-lg">
+              <div className="flex items-center gap-0.5 sm:gap-1 bg-muted p-0.5 sm:p-1 rounded-lg">
                 <Button variant="ghost" size="icon" onClick={navigatePrev} className="h-8 w-8 sm:h-9 sm:w-9">
                   <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
                 </Button>
@@ -618,7 +618,7 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
               {/* Заголовки дней недели */}
               <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-1 sm:mb-3">
                 {weekDays.map(day => (
-                  <div key={day} className="text-center font-semibold text-[10px] sm:text-sm py-1 sm:py-3 text-gray-500 uppercase tracking-wider">
+                  <div key={day} className="text-center font-semibold text-[10px] sm:text-sm py-1 sm:py-3 text-muted-foreground uppercase tracking-wider">
                     <span className="sm:hidden">{day.charAt(0)}</span>
                     <span className="hidden sm:inline">{day}</span>
                   </div>
@@ -663,7 +663,7 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
                 Сметы ({selectedDateEstimates.length})
               </h3>
               {selectedDateEstimates.length === 0 ? (
-                <div className="text-center py-8 text-gray-400 bg-gray-50 rounded-xl">
+                <div className="text-center py-8 text-muted-foreground/70 bg-muted rounded-xl">
                   <CalendarIcon className="w-12 h-12 mx-auto mb-2 opacity-30" />
                   <p>Нет смет на этот день</p>
                 </div>
@@ -693,11 +693,11 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
                         <div className="flex justify-between items-start">
                           <div className="min-w-0 flex-1">
                             <p className="font-semibold text-lg truncate">{estimate.event_name}</p>
-                            <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
+                            <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
                               <MapPin className="w-4 h-4" />
                               {estimate.venue || 'Площадка не указана'}
                             </p>
-                            <p className="text-xs text-gray-500 mt-2 flex items-center gap-2">
+                            <p className="text-xs text-muted-foreground mt-2 flex items-center gap-2">
                               <span className="flex items-center gap-1">
                                 📅 {new Date(estimate.event_start_date || estimate.event_date).toLocaleDateString('ru-RU')}
                                 {(estimate.event_end_date || estimate.event_date) !== (estimate.event_start_date || estimate.event_date) && 
@@ -705,14 +705,14 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
                               </span>
                             </p>
                             {estimate.creator_name && (
-                              <p className="text-xs text-blue-600 mt-2 flex items-center gap-1">
+                              <p className="text-xs text-primary mt-2 flex items-center gap-1">
                                 <User className="w-3 h-3" />
                                 {estimate.creator_name}
                               </p>
                             )}
                           </div>
                           <div className="text-right ml-4">
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-muted-foreground">
                               {estimate.items?.length || 0} позиций
                             </p>
                           </div>
@@ -753,10 +753,10 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
                         className={cn(
                           "p-2 sm:p-3 rounded-lg text-xs sm:text-sm border",
                           eq.isFullyBooked
-                            ? 'bg-red-50 border-red-200 text-red-800'
+                            ? 'bg-red-500/10 border-red-500/30 text-red-700 dark:text-red-400'
                             : eq.available < eq.quantity * 0.2
-                            ? 'bg-yellow-50 border-yellow-200 text-yellow-800'
-                            : 'bg-green-50 border-green-200 text-green-800'
+                            ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-700 dark:text-yellow-400'
+                            : 'bg-green-500/10 border-green-500/30 text-green-700 dark:text-green-400'
                         )}
                       >
                         <p className="font-semibold truncate">{eq.name}</p>
@@ -790,16 +790,16 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
           </DialogHeader>
           {selectedEstimate && (
             <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm bg-gray-50 p-3 sm:p-4 rounded-xl">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm bg-muted p-3 sm:p-4 rounded-xl">
                 <div>
-                  <p className="text-gray-500 mb-1">Площадка</p>
+                  <p className="text-muted-foreground mb-1">Площадка</p>
                   <p className="font-medium flex items-center gap-1">
-                    <MapPin className="w-4 h-4 text-gray-400" />
+                    <MapPin className="w-4 h-4 text-muted-foreground" />
                     {selectedEstimate.venue || '-'}
                   </p>
                 </div>
                 <div>
-                  <p className="text-gray-500 mb-1">Период</p>
+                  <p className="text-muted-foreground mb-1">Период</p>
                   <p className="font-medium">
                     {new Date(selectedEstimate.event_start_date || selectedEstimate.event_date).toLocaleDateString('ru-RU')}
                     {(selectedEstimate.event_end_date || selectedEstimate.event_date) !== (selectedEstimate.event_start_date || selectedEstimate.event_date) && 
@@ -809,9 +809,9 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
 
                 {selectedEstimate.creator_name && (
                   <div>
-                    <p className="text-gray-500 mb-1">Составитель</p>
+                    <p className="text-muted-foreground mb-1">Составитель</p>
                     <p className="font-medium flex items-center gap-1">
-                      <User className="w-4 h-4 text-gray-400" />
+                      <User className="w-4 h-4 text-muted-foreground" />
                       {selectedEstimate.creator_name}
                     </p>
                   </div>

@@ -928,7 +928,7 @@ export const CableManager = memo(function CableManager({
                     <Package className="w-4 h-4 mr-0 sm:mr-1.5" />
                     <span className="hidden sm:inline text-sm">В оборудование</span>
                     {selectedInventoryIds.size > 0 && (
-                      <span className="ml-1.5 bg-white/20 px-1.5 py-0.5 rounded text-xs">
+                      <span className="ml-1.5 bg-background/20 px-1.5 py-0.5 rounded text-xs">
                         {selectedInventoryIds.size}
                       </span>
                     )}
@@ -980,7 +980,7 @@ export const CableManager = memo(function CableManager({
                   {qrScanMode === 'batch' ? `Выдача (${selectedItems.length})` : 'Сканировать'}
                 </span>
                 {qrScanMode === 'batch' && selectedItems.length > 0 && (
-                  <span className="ml-1.5 bg-white/20 px-1.5 py-0.5 rounded text-xs">
+                  <span className="ml-1.5 bg-background/20 px-1.5 py-0.5 rounded text-xs">
                     {selectedItems.length}
                   </span>
                 )}
@@ -1042,7 +1042,7 @@ export const CableManager = memo(function CableManager({
       </div>
         
       {/* Подсказка о возможностях */}
-      <p className="text-xs text-gray-500 hidden sm:block">
+      <p className="text-xs text-muted-foreground hidden sm:block">
         QR-сканер поддерживает оборудование (EQ-*) и комплекты (KIT-*). 
         <span className="text-blue-600 cursor-pointer hover:underline ml-1" onClick={() => setIsQRScannerOpen(true)}>Открыть сканер</span>
       </p>
@@ -1067,13 +1067,13 @@ export const CableManager = memo(function CableManager({
         {/* Вкладка Склад */}
         <TabsContent value="warehouse" className="space-y-4">
           {/* Подвкладки: Оборудование vs Коммутация */}
-          <div className="flex gap-2 p-1 bg-gray-100 rounded-lg">
+          <div className="flex gap-2 p-1 bg-muted rounded-lg">
             <button
               onClick={() => setWarehouseSubTab('equipment')}
               className={`flex-1 py-1.5 px-3 rounded-md text-sm font-medium transition-all ${
                 warehouseSubTab === 'equipment' 
-                  ? 'bg-white text-blue-600 shadow-sm' 
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? 'bg-background text-blue-600 shadow-sm' 
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               Оборудование
@@ -1083,8 +1083,8 @@ export const CableManager = memo(function CableManager({
               onClick={() => setWarehouseSubTab('cabling')}
               className={`flex-1 py-1.5 px-3 rounded-md text-sm font-medium transition-all ${
                 warehouseSubTab === 'cabling' 
-                  ? 'bg-white text-blue-600 shadow-sm' 
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? 'bg-background text-blue-600 shadow-sm' 
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               Коммутация
@@ -1102,13 +1102,13 @@ export const CableManager = memo(function CableManager({
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full px-4 py-2 pl-10 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-              <svg className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="absolute left-3 top-2.5 w-5 h-5 text-muted-foreground/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-2.5 text-muted-foreground/70 hover:text-muted-foreground"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -1118,7 +1118,7 @@ export const CableManager = memo(function CableManager({
           
           {categories.length === 0 ? (
             <Card>
-              <CardContent className="p-8 text-center text-gray-500">
+              <CardContent className="p-8 text-center text-muted-foreground">
                 <Package className="w-12 h-12 mx-auto mb-3 opacity-50" />
                 <p>Нет категорий</p>
                 <p className="text-sm mb-4">Добавьте первую категорию кабелей</p>
@@ -1193,7 +1193,7 @@ export const CableManager = memo(function CableManager({
                         <Button 
                           size="sm" 
                           variant="ghost"
-                          className="text-white hover:text-white/80 hover:bg-white/20 h-7 sm:h-8 text-xs px-2"
+                          className="text-white hover:text-white/80 hover:bg-background/20 h-7 sm:h-8 text-xs px-2"
                           onClick={() => setSelectedItems([])}
                           title="Очистить выбор"
                         >
@@ -1205,7 +1205,7 @@ export const CableManager = memo(function CableManager({
                     /* Режим ожидания сканирования */
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2 min-w-0">
-                        <div className="w-2 h-2 bg-white rounded-full animate-pulse shrink-0" />
+                        <div className="w-2 h-2 bg-background rounded-full animate-pulse shrink-0" />
                         <div className="flex flex-col min-w-0">
                           <span className="text-xs sm:text-sm font-medium truncate">
                             Режим выдачи активен
@@ -1218,7 +1218,7 @@ export const CableManager = memo(function CableManager({
                       <Button 
                         size="sm" 
                         variant="ghost"
-                        className="text-white hover:text-white/80 hover:bg-white/20 h-7 sm:h-8 text-xs px-2 shrink-0"
+                        className="text-white hover:text-white/80 hover:bg-background/20 h-7 sm:h-8 text-xs px-2 shrink-0"
                         onClick={() => {
                           setQrScanMode('single');
                           toast.info('Режим выдачи выключен');
@@ -1247,7 +1247,7 @@ export const CableManager = memo(function CableManager({
             </CardHeader>
             <CardContent>
               {movements.filter(m => m.is_returned !== true).length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-muted-foreground">
                   <CheckCircle2 className="w-12 h-12 mx-auto mb-3 opacity-50" />
                   <p>Всё на складе</p>
                   <p className="text-sm">Нет выданных позиций</p>
@@ -1259,7 +1259,7 @@ export const CableManager = memo(function CableManager({
                     return (
                       <div 
                         key={movement.id}
-                        className="flex flex-col sm:flex-row sm:items-center justify-between p-2 sm:p-3 bg-gray-50 rounded-lg gap-2"
+                        className="flex flex-col sm:flex-row sm:items-center justify-between p-2 sm:p-3 bg-muted/50 rounded-lg gap-2"
                       >
                         <div className="flex items-start sm:items-center gap-2 sm:gap-3">
                           <Checkbox
@@ -1280,13 +1280,13 @@ export const CableManager = memo(function CableManager({
                               />
                               <span className="font-medium">{category?.name || 'Неизвестно'}</span>
                               {movement.equipment_name ? (
-                                <span className="text-gray-600 text-sm">{movement.equipment_name}</span>
+                                <span className="text-muted-foreground text-sm">{movement.equipment_name}</span>
                               ) : (
-                                <span className="text-gray-600 text-sm">{movement.length} м</span>
+                                <span className="text-muted-foreground text-sm">{movement.length} м</span>
                               )}
-                              <span className="text-gray-600 text-sm">× {movement.quantity} шт</span>
+                              <span className="text-muted-foreground text-sm">× {movement.quantity} шт</span>
                             </div>
-                            <div className="text-xs sm:text-sm text-gray-500 mt-1">
+                            <div className="text-xs sm:text-sm text-muted-foreground mt-1">
                               <User className="w-3 h-3 inline mr-1" />
                               {movement.issued_to}
                               {movement.contact && (
@@ -1294,11 +1294,11 @@ export const CableManager = memo(function CableManager({
                               )}
                             </div>
                             {movement.contact && (
-                              <div className="text-xs text-gray-400 sm:hidden">
+                              <div className="text-xs text-muted-foreground/70 sm:hidden">
                                 {movement.contact}
                               </div>
                             )}
-                            <div className="text-xs text-gray-400">
+                            <div className="text-xs text-muted-foreground/70">
                               {format(new Date(movement.created_at || ''), 'dd.MM.yyyy HH:mm', { locale: ru })}
                             </div>
                           </div>
@@ -1323,7 +1323,7 @@ export const CableManager = memo(function CableManager({
             </CardHeader>
             <CardContent>
               {repairs.filter(r => r.status === 'in_repair').length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-muted-foreground">
                   <CheckCircle2 className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3 opacity-50" />
                   <p className="text-sm sm:text-base">Всё исправно</p>
                   <p className="text-xs sm:text-sm">Нет оборудования в ремонте</p>
@@ -1335,7 +1335,7 @@ export const CableManager = memo(function CableManager({
                     return (
                       <div 
                         key={repair.id}
-                        className="flex flex-col sm:flex-row sm:items-center justify-between p-2 sm:p-3 bg-yellow-50 rounded-lg border border-yellow-200 gap-2"
+                        className="flex flex-col sm:flex-row sm:items-center justify-between p-2 sm:p-3 bg-yellow-500/10 rounded-lg border border-yellow-500/30 gap-2"
                       >
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-1 sm:gap-2 text-sm sm:text-base">
@@ -1344,20 +1344,20 @@ export const CableManager = memo(function CableManager({
                               style={{ backgroundColor: category?.color || '#ccc' }}
                             />
                             <span className="font-medium">{repair.equipment_name}</span>
-                            <span className="text-gray-600 text-sm">× {repair.quantity} шт</span>
+                            <span className="text-muted-foreground text-sm">× {repair.quantity} шт</span>
                             <Badge className={`${getRepairStatusColor(repair.status)} text-xs`}>
                               {getRepairStatusLabel(repair.status)}
                             </Badge>
                           </div>
-                          <div className="text-xs sm:text-sm text-gray-600 mt-1">
+                          <div className="text-xs sm:text-sm text-muted-foreground mt-1">
                             <span className="font-medium">Причина:</span> {repair.reason}
                           </div>
                           {repair.notes && (
-                            <div className="text-xs sm:text-sm text-gray-500">
+                            <div className="text-xs sm:text-sm text-muted-foreground">
                               <span className="font-medium">Примечание:</span> {repair.notes}
                             </div>
                           )}
-                          <div className="text-xs text-gray-400 mt-1">
+                          <div className="text-xs text-muted-foreground/70 mt-1">
                             Отправлено: {format(new Date(repair.sent_date), 'dd.MM.yyyy')}
                           </div>
                         </div>
@@ -1501,7 +1501,7 @@ export const CableManager = memo(function CableManager({
                     className="w-8 h-8 rounded cursor-pointer border-0 p-0"
                     title="Произвольный цвет"
                   />
-                  <span className="text-xs text-gray-500">{categoryForm.color}</span>
+                  <span className="text-xs text-muted-foreground">{categoryForm.color}</span>
                 </div>
               </div>
             </div>
@@ -1523,7 +1523,7 @@ export const CableManager = memo(function CableManager({
                     </option>
                   ))}
               </select>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-muted-foreground mt-1">
                 Оставьте пустым для создания корневой категории
               </p>
             </div>
@@ -1560,7 +1560,7 @@ export const CableManager = memo(function CableManager({
                 onChange={(e) => setInventoryForm({ ...inventoryForm, name: e.target.value })}
                 placeholder="Например: Микрофон Shure SM58 (для оборудования)"
               />
-              <p className="text-xs text-gray-500 mt-1">Для кабелей оставьте пустым, укажите только длину</p>
+              <p className="text-xs text-muted-foreground mt-1">Для кабелей оставьте пустым, укажите только длину</p>
             </div>
             <div>
               <label className="text-sm font-medium">Длина (м)</label>
@@ -1571,7 +1571,7 @@ export const CableManager = memo(function CableManager({
                 onChange={(e) => setInventoryForm({ ...inventoryForm, length: e.target.value })}
                 placeholder="Например: 1.5 (для кабелей)"
               />
-              <p className="text-xs text-gray-500 mt-1">Для оборудования без длины оставьте пустым</p>
+              <p className="text-xs text-muted-foreground mt-1">Для оборудования без длины оставьте пустым</p>
             </div>
             <div>
               <label className="text-sm font-medium">Количество *</label>
@@ -1599,7 +1599,7 @@ export const CableManager = memo(function CableManager({
                 onChange={(e) => setInventoryForm({ ...inventoryForm, watts: e.target.value })}
                 placeholder="Например: 1500 (для расчёта нагрузки)"
               />
-              <p className="text-xs text-gray-500 mt-1">Укажите мощность для расчёта общей нагрузки</p>
+              <p className="text-xs text-muted-foreground mt-1">Укажите мощность для расчёта общей нагрузки</p>
             </div>
             <div>
               <label className="text-sm font-medium">Комментарий</label>
@@ -1661,7 +1661,7 @@ export const CableManager = memo(function CableManager({
               {bulkIssueForm.items.map((item) => {
                 const category = categories.find(c => c.id === item.category_id);
                 return (
-                  <div key={item.inventory_id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div key={item.inventory_id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                     <div className="flex items-start gap-2 min-w-0 flex-1">
                       <div 
                         className="w-3 h-3 rounded-full mt-1 shrink-0" 
@@ -1669,7 +1669,7 @@ export const CableManager = memo(function CableManager({
                       />
                       <div className="flex flex-col min-w-0">
                         <span className="text-sm font-medium truncate">{item.name || 'Без названия'}</span>
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-muted-foreground">
                           {category?.name} {item.length > 0 && `• ${item.length} м`}
                         </span>
                       </div>
@@ -1692,7 +1692,7 @@ export const CableManager = memo(function CableManager({
                       >
                         +
                       </Button>
-                      <span className="text-xs text-gray-400 ml-1 w-6 text-right">/ {item.available}</span>
+                      <span className="text-xs text-muted-foreground/70 ml-1 w-6 text-right">/ {item.available}</span>
                     </div>
                   </div>
                 );
@@ -1726,9 +1726,9 @@ export const CableManager = memo(function CableManager({
           
           {!importPreview ? (
             <div className="space-y-4">
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                <Package className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                <p className="text-sm text-gray-600 mb-4">
+              <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
+                <Package className="w-12 h-12 mx-auto mb-4 text-muted-foreground/70" />
+                <p className="text-sm text-muted-foreground mb-4">
                   Перетащите файл Excel или нажмите для выбора
                 </p>
                 <input
@@ -1736,15 +1736,15 @@ export const CableManager = memo(function CableManager({
                   accept=".xlsx,.xls,.csv"
                   onChange={handleFileUpload}
                   ref={fileInputRef}
-                  className="block w-full text-sm text-gray-500
+                  className="block w-full text-sm text-muted-foreground
                     file:mr-4 file:py-2 file:px-4
                     file:rounded-full file:border-0
                     file:text-sm file:font-semibold
-                    file:bg-blue-50 file:text-blue-700
+                    file:bg-primary/10 file:text-blue-700
                     hover:file:bg-blue-100"
                 />
               </div>
-              <div className="bg-gray-50 p-4 rounded-lg text-sm text-gray-600">
+              <div className="bg-muted/50 p-4 rounded-lg text-sm text-muted-foreground">
                 <p className="font-medium mb-2">Формат файла:</p>
                 <ul className="list-disc list-inside space-y-1">
                   <li>Категория - название категории (создастся автоматически если нет)</li>
@@ -1763,7 +1763,7 @@ export const CableManager = memo(function CableManager({
               
               <div className="overflow-auto border rounded-lg max-h-[40vh]">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50 sticky top-0">
+                  <thead className="bg-muted/50 sticky top-0">
                     <tr>
                       <th className="px-3 py-2 text-left">Категория</th>
                       <th className="px-3 py-2 text-left">Название</th>
@@ -1787,7 +1787,7 @@ export const CableManager = memo(function CableManager({
                   </tbody>
                 </table>
                 {importData.length > 10 && (
-                  <p className="text-center text-xs text-gray-500 py-2">
+                  <p className="text-center text-xs text-muted-foreground py-2">
                     ... и ещё {importData.length - 10} записей
                   </p>
                 )}
@@ -2101,10 +2101,10 @@ function CategoryItem({
             {dragHandleProps && (
               <button
                 {...dragHandleProps}
-                className="p-1 hover:bg-gray-200 rounded cursor-grab active:cursor-grabbing shrink-0"
+                className="p-1 hover:bg-muted/80 rounded cursor-grab active:cursor-grabbing shrink-0"
                 onClick={(e) => e.stopPropagation()}
               >
-                <GripVertical className="w-4 h-4 text-gray-500" />
+                <GripVertical className="w-4 h-4 text-muted-foreground" />
               </button>
             )}
             {/* Чекбокс выбора всех в категории */}
@@ -2116,14 +2116,14 @@ function CategoryItem({
                   e.stopPropagation();
                   onSelectAllInCategory(category.id, e.target.checked);
                 }}
-                className="w-4 h-4 rounded border-gray-300 shrink-0"
+                className="w-4 h-4 rounded border-border shrink-0"
               />
             )}
             <div 
               className="w-3 h-3 sm:w-4 sm:h-4 rounded-full shrink-0"
               style={{ backgroundColor: category.color }}
             />
-            {level > 0 && <span className="text-gray-400 text-xs sm:text-sm">└</span>}
+            {level > 0 && <span className="text-muted-foreground/70 text-xs sm:text-sm">└</span>}
             <CardTitle className={`${level > 0 ? 'text-sm sm:text-base' : 'text-base sm:text-lg'} truncate`}>
               {category.name}
             </CardTitle>
@@ -2167,17 +2167,17 @@ function CategoryItem({
           </div>
         </div>
         {category.description && (
-          <p className="text-sm text-gray-500 mt-1">{category.description}</p>
+          <p className="text-sm text-muted-foreground mt-1">{category.description}</p>
         )}
         <div className="flex gap-2 sm:gap-4 mt-2 text-xs sm:text-sm flex-wrap">
           {catStats.totalLength > 0 && (
-            <span className="text-gray-600">
+            <span className="text-muted-foreground">
               <span className="hidden sm:inline">Общий метраж: </span>
               <span className="sm:hidden">Метраж: </span>
               <strong>{catStats.totalLength.toFixed(1)} м</strong>
             </span>
           )}
-          <span className="text-gray-600">
+          <span className="text-muted-foreground">
             <span className="hidden sm:inline">На складе: </span>
             <span className="sm:hidden">Склад: </span>
             <strong>{catStats.totalQty} шт</strong>
@@ -2202,7 +2202,7 @@ function CategoryItem({
       {isExpanded && (
         <CardContent>
           {catInventory.length === 0 ? (
-            <p className="text-sm text-gray-500">Нет позиций</p>
+            <p className="text-sm text-muted-foreground">Нет позиций</p>
           ) : (
             <div className="space-y-2">
               {catInventory.map(item => {
@@ -2217,9 +2217,9 @@ function CategoryItem({
                   <div 
                     key={item.id}
                     className={`flex flex-col sm:flex-row sm:items-center justify-between p-2 rounded gap-2 ${
-                      isSelected ? 'bg-blue-50 border border-blue-200' : 
-                      selectionMode && selectedInventoryIds?.has(item.id) ? 'bg-green-50 border border-green-200' :
-                      isLow ? 'bg-orange-50' : 'bg-gray-50'
+                      isSelected ? 'bg-primary/10 border border-primary/30' : 
+                      selectionMode && selectedInventoryIds?.has(item.id) ? 'bg-green-500/10 border border-green-500/30' :
+                      isLow ? 'bg-orange-500/10' : 'bg-muted/50'
                     }`}
                   >
                     <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
@@ -2228,7 +2228,7 @@ function CategoryItem({
                           type="checkbox"
                           checked={selectedInventoryIds?.has(item.id) || false}
                           onChange={(e) => onSelectInventory?.(item.id, e.target.checked)}
-                          className="w-4 h-4 rounded border-gray-300 shrink-0"
+                          className="w-4 h-4 rounded border-border shrink-0"
                         />
                       ) : (
                         <Checkbox
@@ -2253,7 +2253,7 @@ function CategoryItem({
                         >
                           -
                         </Button>
-                        <span className={`text-sm w-8 sm:w-10 text-center ${isLow ? 'text-orange-600 font-medium' : 'text-gray-600'}`}>
+                        <span className={`text-sm w-8 sm:w-10 text-center ${isLow ? 'text-orange-600 font-medium' : 'text-muted-foreground'}`}>
                           {actualQty}
                         </span>
                         <Button
@@ -2282,14 +2282,14 @@ function CategoryItem({
                         <AlertCircle className="w-4 h-4 text-orange-500 shrink-0 hidden sm:block" />
                       )}
                       {item.notes && (
-                        <span className="hidden sm:inline text-xs text-gray-500 truncate max-w-[200px]" title={item.notes}>
+                        <span className="hidden sm:inline text-xs text-muted-foreground truncate max-w-[200px]" title={item.notes}>
                           {item.notes}
                         </span>
                       )}
                     </div>
                     <div className="flex items-center justify-between sm:justify-end gap-1 pl-6 sm:pl-0">
                       {item.notes && (
-                        <span className="text-xs text-gray-500 truncate flex-1 sm:hidden" title={item.notes}>
+                        <span className="text-xs text-muted-foreground truncate flex-1 sm:hidden" title={item.notes}>
                           {item.notes}
                         </span>
                       )}
