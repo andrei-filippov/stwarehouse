@@ -145,7 +145,7 @@ export function Sidebar(props: SidebarProps) {
       </div>
 
       {/* Navigation */}
-      <div className="flex-1 overflow-y-auto py-4 px-2 space-y-6">
+      <div className="flex-1 overflow-y-auto py-4 px-2 space-y-6 scrollbar-dark">
         {/* Main */}
         <div className="space-y-1">
           {!collapsed && <p className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Основное</p>}

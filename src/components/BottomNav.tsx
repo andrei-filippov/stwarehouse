@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Package, FileText, Calendar, Users, Menu, Plus, Wifi, WifiOff } from 'lucide-react';
+import { Package, FileText, Calendar, Users, Menu, Plus, Wifi, WifiOff, Sun, Moon } from 'lucide-react';
 import { Button } from './ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './ui/sheet';
 import { SyncDialog } from './SyncDialog';
 import { useOfflineSync } from '../hooks/useOfflineSync';
+import { useTheme } from '../contexts/ThemeContext';
 import type { TabId } from '../lib/permissions';
 
 interface BottomNavProps {
@@ -28,6 +29,7 @@ export function BottomNav({
   const [menuOpen, setMenuOpen] = useState(false);
   const [isSyncDialogOpen, setIsSyncDialogOpen] = useState(false);
   const [browserOnline, setBrowserOnline] = useState(navigator.onLine);
+  const { resolvedTheme, toggleTheme } = useTheme();
   
   // Получаем реальный статус сервера
   const { serverAvailable } = useOfflineSync(companyId);
@@ -180,10 +182,33 @@ export function BottomNav({
                   </button>
                 </div>
 
+                {/* Theme Toggle */}
+                <div className="absolute bottom-16 left-0 right-0 px-4 py-2 border-t bg-muted">
+                  <button
+                    onClick={() => {
+                      toggleTheme();
+                      setMenuOpen(false);
+                    }}
+                    className="w-full flex items-center justify-center gap-2 p-3 bg-card rounded-lg border hover:bg-muted transition-colors"
+                  >
+                    {resolvedTheme === 'light' ? (
+                      <>
+                        <Moon className="w-4 h-4" />
+                        <span className="text-sm">Тёмная тема</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sun className="w-4 h-4" />
+                        <span className="text-sm">Светлая тема</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
                 <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-card">
                   <Button 
                     variant="outline" 
-                    className="w-full rounded-xl hover:bg-red-50 hover:text-red-600"
+                    className="w-full rounded-xl hover:bg-red-500/10 hover:text-red-600"
                     onClick={() => {
                       setMenuOpen(false);
                       onSignOut();
