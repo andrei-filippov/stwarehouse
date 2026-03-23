@@ -935,6 +935,8 @@ function ChecklistView({
     const currentLoadedQty = baseLoadedQty + localLoaded;
     const currentUnloadedQty = baseUnloadedQty + localUnloaded;
     
+    console.log(`[Equipment Scan] ${item.name}: base=${baseLoadedQty}, local=${localLoaded}, current=${currentLoadedQty}`);
+    
     const targetQty = item.quantity || 1;
     
     if (scanMode === 'load') {
@@ -949,6 +951,7 @@ function ChecklistView({
       scanCounterRef.current[item.id].loaded += 1;
       const newTotalQty = currentLoadedQty + 1;
       const isComplete = newTotalQty >= targetQty;
+      console.log(`[Equipment Scan] ${item.name}: +1, newTotal=${newTotalQty}, target=${targetQty}`);
       
       let updates: any = {
         loaded_quantity: newTotalQty
