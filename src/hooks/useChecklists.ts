@@ -759,10 +759,28 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
       )
       .subscribe();
 
+    // Подписка на изменения items правил (когда добавляют/удаляют позиции из правила)
+    const ruleItemsChannel = supabase
+      .channel('checklist-rule-items-changes')
+      .on('postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'checklist_rule_items'
+        },
+        (payload) => {
+          logger.info('[Realtime] Rule item changed:', payload.eventType);
+          // При изменении items правил перезагружаем правила
+          fetchRules();
+        }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(checklistsChannel);
       supabase.removeChannel(itemsChannel);
       supabase.removeChannel(rulesChannel);
+      supabase.removeChannel(ruleItemsChannel);
     };
   }, [companyId, fetchChecklists, fetchRules]);
 
