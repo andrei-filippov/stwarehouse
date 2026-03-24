@@ -70,7 +70,7 @@ export function YandexDiskFileManager({
     }
   }, [client, currentPath, loadFiles]);
 
-  // Обработка OAuth callback
+  // Обработка OAuth callback (автоматическая)
   useEffect(() => {
     const hash = window.location.hash;
     if (hash.includes('access_token')) {
@@ -84,6 +84,13 @@ export function YandexDiskFileManager({
       }
     }
   }, []);
+  
+  // Ручной ввод токена
+  const handleManualToken = (tokenValue: string) => {
+    setToken(tokenValue);
+    localStorage.setItem('yandex_disk_token', tokenValue);
+    toast.success('Токен сохранен');
+  };
 
   const handleLogin = () => {
     const authUrl = getYandexOAuthUrl(clientId, redirectUri);
@@ -190,28 +197,34 @@ export function YandexDiskFileManager({
             Яндекс Диск
           </CardTitle>
         </CardHeader>
-        <CardContent className="text-center py-8">
-          <p className="text-muted-foreground mb-4">
-            Подключите Яндекс Диск для хранения файлов
+        <CardContent className="space-y-4">
+          <p className="text-muted-foreground">
+            Для подключения получите токен на Яндексе и вставьте его ниже:
           </p>
-          <Button onClick={() => setShowAuthDialog(true)}>
-            Подключить
+          
+          <Button 
+            variant="outline" 
+            onClick={() => window.open('https://oauth.yandex.ru/authorize?response_type=token&client_id=' + clientId, '_blank')}
+            className="w-full"
+          >
+            <ExternalLink className="w-4 h-4 mr-2" />
+            Получить токен на Яндексе
           </Button>
           
-          <Dialog open={showAuthDialog} onOpenChange={setShowAuthDialog}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Подключение Яндекс Диска</DialogTitle>
-              </DialogHeader>
-              <p className="text-sm text-muted-foreground mb-4">
-                Для работы с файлами необходимо авторизоваться в Яндексе и дать приложению доступ к вашему Диску.
-              </p>
-              <Button onClick={handleLogin} className="w-full">
-                <ExternalLink className="w-4 h-4 mr-2" />
-                Войти через Яндекс
-              </Button>
-            </DialogContent>
-          </Dialog>
+          <div className="space-y-2">
+            <Input 
+              placeholder="Вставьте OAuth токен сюда..."
+              onChange={(e) => {
+                const value = e.target.value.trim();
+                if (value.length > 20) {
+                  handleManualToken(value);
+                }
+              }}
+            />
+            <p className="text-xs text-muted-foreground">
+              Скопируйте токен из адресной строки после #access_token=
+            </p>
+          </div>
         </CardContent>
       </Card>
     );
