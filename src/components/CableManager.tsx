@@ -2090,7 +2090,7 @@ function CategoryItem({
   const showLowStock = hasLowStock || hasChildrenLowStock;
 
   return (
-    <Card className={showLowStock ? 'border-orange-300' : ''}>
+    <Card className={`${showLowStock ? 'border-orange-300' : ''} bg-muted/50 border-border/50`}>
       <CardHeader className="pb-2">
         <div 
           className="flex items-center justify-between cursor-pointer"
