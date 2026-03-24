@@ -100,7 +100,15 @@ export class YandexDiskClient {
   // Создать папку
   async createFolder(path: string) {
     const params = new URLSearchParams({ path });
-    return this.request(`/resources?${params}`, { method: 'PUT' });
+    try {
+      return await this.request(`/resources?${params}`, { method: 'PUT' });
+    } catch (error: any) {
+      // 409 = папка уже существует, это не ошибка
+      if (error.message?.includes('409')) {
+        return { created: true, path };
+      }
+      throw error;
+    }
   }
 
   // Опубликовать файл (получить публичную ссылку)
