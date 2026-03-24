@@ -7,7 +7,8 @@ import { Progress } from './ui/progress';
 import { toast } from 'sonner';
 import { 
   Upload, Download, Trash2, FolderPlus, RefreshCw, 
-  ExternalLink, Folder, File, LogOut, CheckCircle 
+  ExternalLink, Folder, File, LogOut, CheckCircle, 
+  Eye, X
 } from 'lucide-react';
 import { YandexDiskClient, getYandexOAuthUrl } from '../lib/yandexDisk';
 
@@ -38,6 +39,8 @@ export function YandexDiskFileManager({
   const [loading, setLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [showAuthDialog, setShowAuthDialog] = useState(false);
+  const [previewItem, setPreviewItem] = useState<DiskItem | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   // Инициализация клиента
   useEffect(() => {
@@ -186,6 +189,33 @@ export function YandexDiskFileManager({
     } catch (error: any) {
       toast.error('Ошибка публикации', { description: error.message });
     }
+  };
+
+  const handlePreview = async (item: DiskItem) => {
+    if (!client || item.type !== 'file') return;
+
+    // Проверяем поддерживаемый тип файла
+    const isImage = item.name.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+    const isPdf = item.name.match(/\.pdf$/i);
+    const isText = item.name.match(/\.(txt|md|json|js|ts|jsx|tsx|css|html)$/i);
+    
+    if (!isImage && !isPdf && !isText) {
+      toast.info('Предпросмотр доступен только для изображений, PDF и текстовых файлов');
+      return;
+    }
+
+    try {
+      const url = await client.getDownloadUrl(item.path);
+      setPreviewUrl(url);
+      setPreviewItem(item);
+    } catch (error: any) {
+      toast.error('Ошибка загрузки файла', { description: error.message });
+    }
+  };
+
+  const closePreview = () => {
+    setPreviewItem(null);
+    setPreviewUrl(null);
   };
 
   const formatSize = (bytes?: number) => {
@@ -355,6 +385,15 @@ export function YandexDiskFileManager({
                         variant="ghost"
                         size="sm"
                         className="h-8 w-8 p-0"
+                        onClick={() => handlePreview(item)}
+                        title="Просмотр"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0"
                         onClick={() => handleDownload(item)}
                         title="Скачать"
                       >
@@ -390,6 +429,50 @@ export function YandexDiskFileManager({
           )}
         </div>
       </CardContent>
+
+      {/* Preview Dialog */}
+      <Dialog open={!!previewItem} onOpenChange={closePreview}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
+          <DialogHeader className="flex flex-row items-center justify-between">
+            <DialogTitle className="truncate pr-8">{previewItem?.name}</DialogTitle>
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={closePreview}>
+              <X className="w-4 h-4" />
+            </Button>
+          </DialogHeader>
+          
+          {previewUrl && previewItem && (
+            <div className="mt-4">
+              {previewItem.name.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                <img 
+                  src={previewUrl} 
+                  alt={previewItem.name}
+                  className="max-w-full max-h-[70vh] mx-auto object-contain"
+                />
+              ) : previewItem.name.match(/\.pdf$/i) ? (
+                <iframe 
+                  src={previewUrl}
+                  className="w-full h-[70vh] border-0"
+                  title={previewItem.name}
+                />
+              ) : (
+                <iframe 
+                  src={previewUrl}
+                  className="w-full h-[70vh] border-0 bg-white"
+                  title={previewItem.name}
+                />
+              )}
+            </div>
+          )}
+          
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => previewItem && handleDownload(previewItem)}>
+              <Download className="w-4 h-4 mr-2" />
+              Скачать
+            </Button>
+            <Button onClick={closePreview}>Закрыть</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
