@@ -359,12 +359,7 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
 
   const navItems = allNavItems.filter(item => checkAccess(item.id));
 
-  // Логирование для отладки
-  useEffect(() => {
-    console.log('[Debug] userRole:', userRole);
-    console.log('[Debug] navItems:', navItems.map(i => i.id));
-    console.log('[Debug] files access:', checkAccess('files'));
-  }, [permissions, userRole, navItems, checkAccess]);
+  // Логирование для отладки отключено в production
 
   useEffect(() => {
     if (profile && navItems.length > 0) {
