@@ -205,15 +205,37 @@ export function YandexDiskFileManager({
     }
 
     try {
-      const url = await client.getDownloadUrl(item.path);
-      setPreviewUrl(url);
+      toast.loading('Загрузка файла...', { id: 'preview' });
+      
+      // Получаем URL для скачивания
+      const downloadUrl = await client.getDownloadUrl(item.path);
+      
+      // Скачиваем файл через fetch с токеном
+      const response = await fetch(downloadUrl, {
+        headers: {
+          'Authorization': `OAuth ${token}`
+        }
+      });
+      
+      if (!response.ok) throw new Error('Failed to fetch file');
+      
+      // Создаем blob URL
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      
+      setPreviewUrl(blobUrl);
       setPreviewItem(item);
+      toast.dismiss('preview');
     } catch (error: any) {
+      toast.dismiss('preview');
       toast.error('Ошибка загрузки файла', { description: error.message });
     }
   };
 
   const closePreview = () => {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
     setPreviewItem(null);
     setPreviewUrl(null);
   };
