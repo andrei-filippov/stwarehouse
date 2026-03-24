@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
-import { Package, User } from 'lucide-react';
+import { Package, User, Cloud } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from './hooks/useAuth';
 import { CompanyProvider, useCompanyContext } from './contexts/CompanyContext';
@@ -24,6 +24,7 @@ const CustomersManager = lazy(() => import('./components/CustomersManager'));
 const ContractManager = lazy(() => import('./components/ContractManager'));
 const AdminPanel = lazy(() => import('./components/AdminPanel'));
 const EquipmentKits = lazy(() => import('./components/EquipmentKits').then(m => ({ default: m.EquipmentKits })));
+const YandexDiskFileManager = lazy(() => import('./components/YandexDiskFileManager').then(m => ({ default: m.YandexDiskFileManager })));
 
 import { AccessDenied } from './components/AccessDenied';
 import { BottomNav } from './components/BottomNav';
@@ -351,6 +352,7 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
     { id: 'finance' as Tab, label: 'Финансы', icon: DollarSign },
     { id: 'customers' as Tab, label: 'Заказчики', icon: Building2 },
     { id: 'contracts' as Tab, label: 'Договоры', icon: FileSignature },
+    { id: 'files' as Tab, label: 'Файлы', icon: Cloud },
     { id: 'settings' as Tab, label: 'Настройки PDF', icon: Settings },
     { id: 'admin' as Tab, label: 'Админ', icon: Shield },
   ], []);
@@ -642,6 +644,16 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
             ) : (
               <AccessDenied role={userRole} requiredRole="Администратор" />
             )
+          )}
+
+          {activeTab === 'files' && (
+            <LazyComponent>
+              <YandexDiskFileManager 
+                clientId={import.meta.env.VITE_YANDEX_CLIENT_ID || ''}
+                redirectUri={window.location.origin}
+                basePath="/stwarehouse"
+              />
+            </LazyComponent>
           )}
 
           {activeTab === 'settings' && (
