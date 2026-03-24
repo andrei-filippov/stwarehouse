@@ -583,7 +583,7 @@ export function EquipmentManager({
                 return (
                   <Card key={category} className="overflow-hidden">
                     <div 
-                      className="bg-muted p-3 flex items-center justify-between cursor-pointer hover:bg-muted/80"
+                      className="bg-slate-800/80 border-b border-slate-700/50 p-3 flex items-center justify-between cursor-pointer hover:bg-slate-800 transition-colors"
                       onClick={() => toggleCategory(category)}
                     >
                       <div className="flex items-center gap-2">
