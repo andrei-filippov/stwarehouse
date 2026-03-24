@@ -16,6 +16,8 @@ import {
 } from 'lucide-react';
 import type { Equipment, Estimate, Customer, Staff, Goal } from '../types';
 import { TASK_CATEGORIES, TASK_PRIORITIES } from '../types/goals';
+import { QuickQRScanner } from './QuickQRScanner';
+import type { ChecklistV2 } from '../types/checklist';
 import { format, isToday, isTomorrow, isPast, parseISO, isValid } from 'date-fns';
 import { ru } from 'date-fns/locale';
 
@@ -36,6 +38,8 @@ interface DashboardProps {
   customers: Customer[];
   staff?: Staff[];
   goals?: Goal[];
+  checklists?: ChecklistV2[];
+  companyId?: string;
   onTabChange: (tab: string) => void;
   onOpenEstimate?: (estimate: Estimate) => void;
   availableTabs?: string[];
@@ -48,6 +52,8 @@ export function Dashboard({
   customers, 
   staff, 
   goals,
+  checklists = [],
+  companyId,
   onTabChange,
   onOpenEstimate,
   availableTabs = [],
@@ -395,6 +401,9 @@ export function Dashboard({
               <CardTitle className="text-lg">Быстрые действия</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
+              {hasAccess('checklists') && (
+                <QuickQRScanner companyId={companyId} checklists={checklists} />
+              )}
               {hasAccess('estimates') && (
               <Button 
                 className="w-full justify-start"

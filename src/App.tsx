@@ -420,6 +420,8 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
               customers={customers}
               staff={staff}
               goals={tasks}
+              checklists={checklistsV2}
+              companyId={companyId}
               onTabChange={setActiveTab}
               checkAccess={checkAccess}
             />
