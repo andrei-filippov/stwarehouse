@@ -52,17 +52,30 @@ export function YandexDiskFileManager({
     
     setLoading(true);
     try {
+      // Сначала пробуем создать папку (если её нет)
+      try {
+        await client.createFolder(basePath);
+      } catch {
+        // Папка уже существует или другая ошибка - игнорируем
+      }
+      
       const response = await client.listFiles(currentPath);
       setItems(response._embedded?.items || []);
     } catch (error: any) {
-      toast.error('Ошибка загрузки файлов', { description: error.message });
-      if (error.message?.includes('401')) {
+      if (error.message?.includes('403')) {
+        toast.error('Доступ запрещён', { 
+          description: 'Проверьте, что приложению на Яндексе разрешён доступ к Диску' 
+        });
+      } else if (error.message?.includes('401')) {
+        toast.error('Токен истёк', { description: 'Авторизуйтесь заново' });
         handleLogout();
+      } else {
+        toast.error('Ошибка загрузки файлов', { description: error.message });
       }
     } finally {
       setLoading(false);
     }
-  }, [client, currentPath]);
+  }, [client, currentPath, basePath]);
 
   useEffect(() => {
     if (client) {
@@ -198,6 +211,14 @@ export function YandexDiskFileManager({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="bg-amber-500/10 border border-amber-500/30 p-3 rounded-lg text-sm">
+            <p className="font-medium text-amber-500 mb-1">Важно!</p>
+            <p className="text-muted-foreground">
+              При создании приложения на Яндексе необходимо включить доступ к <strong>Яндекс.Диск REST API</strong> 
+              с правами <strong>"Чтение всего Диска"</strong> и <strong>"Запись в любом месте"</strong>.
+            </p>
+          </div>
+          
           <p className="text-muted-foreground">
             Для подключения получите токен на Яндексе и вставьте его ниже:
           </p>
