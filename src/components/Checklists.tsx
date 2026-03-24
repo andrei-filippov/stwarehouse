@@ -885,6 +885,9 @@ function ChecklistView({
     
     console.log('[QR Scan] Scanning:', searchCode);
     
+    // Задержка 1 секунда перед обработкой сканирования
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
     // 1. Проверяем - это QR код комплекта?
     const { data: kitData, error: kitError } = await supabase
       .from('equipment_kits')
