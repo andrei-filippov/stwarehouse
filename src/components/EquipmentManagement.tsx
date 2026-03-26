@@ -583,16 +583,16 @@ export function EquipmentManager({
                 return (
                   <Card key={category} className="overflow-hidden">
                     <div 
-                      className="bg-slate-800/80 border-b border-slate-700/50 p-3 flex items-center justify-between cursor-pointer hover:bg-slate-800 transition-colors"
+                      className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 border-b border-slate-200 dark:border-slate-700 p-3 flex items-center justify-between cursor-pointer hover:from-slate-100 hover:to-slate-200 dark:hover:from-slate-700 dark:hover:to-slate-800 transition-all"
                       onClick={() => toggleCategory(category)}
                     >
                       <div className="flex items-center gap-2">
-                        {isExpanded ? <ChevronDown className="w-5 h-5" /> : <ChevronUp className="w-5 h-5" />}
-                        <span className="font-semibold">{category}</span>
-                        <Badge variant="secondary">{items.length}</Badge>
+                        {isExpanded ? <ChevronDown className="w-5 h-5 text-slate-500 dark:text-slate-400" /> : <ChevronUp className="w-5 h-5 text-slate-500 dark:text-slate-400" />}
+                        <span className="font-semibold text-slate-700 dark:text-slate-200">{category}</span>
+                        <Badge variant="secondary" className="bg-white/70 dark:bg-slate-700/50 text-slate-600 dark:text-slate-300">{items.length}</Badge>
                       </div>
                       <div className="flex items-center gap-2">
-                        <div className="text-sm text-muted-foreground">
+                        <div className="text-sm text-slate-500 dark:text-slate-400">
                           {items.reduce((sum, i) => sum + i.quantity, 0)} ед.
                         </div>
                         {categoryObj && onDeleteCategory && !isCategoryUsed && (

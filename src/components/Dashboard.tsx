@@ -14,10 +14,10 @@ import {
   Target,
   Circle
 } from 'lucide-react';
-import type { Equipment, Estimate, Customer, Staff, Goal } from '../types';
+import type { Equipment, Estimate, Customer, Staff, Goal, CableInventory, CableCategory } from '../types';
 import { TASK_CATEGORIES, TASK_PRIORITIES } from '../types/goals';
 import { QuickQRScanner } from './QuickQRScanner';
-import type { ChecklistV2 } from '../types/checklist';
+import type { ChecklistV2, EquipmentKit } from '../types/checklist';
 import { format, isToday, isTomorrow, isPast, parseISO, isValid } from 'date-fns';
 import { ru } from 'date-fns/locale';
 
@@ -39,11 +39,15 @@ interface DashboardProps {
   staff?: Staff[];
   goals?: Goal[];
   checklists?: ChecklistV2[];
+  inventory?: CableInventory[];
+  categories?: CableCategory[];
+  kits?: EquipmentKit[];
   companyId?: string;
   onTabChange: (tab: string) => void;
   onOpenEstimate?: (estimate: Estimate) => void;
   availableTabs?: string[];
   checkAccess?: (tab: string) => boolean;
+  refreshCableInventory?: () => void;
 }
 
 export function Dashboard({ 
@@ -53,11 +57,15 @@ export function Dashboard({
   staff, 
   goals,
   checklists = [],
+  inventory = [],
+  categories = [],
+  kits = [],
   companyId,
   onTabChange,
   onOpenEstimate,
   availableTabs = [],
-  checkAccess
+  checkAccess,
+  refreshCableInventory
 }: DashboardProps) {
   // Функция проверки доступа к вкладке (мемоизирована)
   const hasAccess = useCallback((tab: string): boolean => {
@@ -402,7 +410,14 @@ export function Dashboard({
             </CardHeader>
             <CardContent className="space-y-2">
               {hasAccess('checklists') && (
-                <QuickQRScanner companyId={companyId} checklists={checklists} />
+                <QuickQRScanner 
+                  companyId={companyId} 
+                  checklists={checklists}
+                  inventory={inventory}
+                  categories={categories}
+                  kits={kits}
+                  onRefresh={refreshCableInventory}
+                />
               )}
               {hasAccess('estimates') && (
               <Button 

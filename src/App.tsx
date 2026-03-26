@@ -421,9 +421,13 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
               staff={staff}
               goals={tasks}
               checklists={checklistsV2}
+              inventory={cableInventory}
+              categories={cableCategories}
+              kits={kits}
               companyId={companyId}
               onTabChange={setActiveTab}
               checkAccess={checkAccess}
+              refreshCableInventory={refreshCableInventory}
             />
           )}
 
