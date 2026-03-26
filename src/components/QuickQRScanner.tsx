@@ -6,6 +6,7 @@ import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
 import { 
   Scan, 
   Info, 
@@ -88,9 +89,11 @@ export function QuickQRScanner({
   // Получаем активные чеклисты (не завершенные)
   const activeChecklists = useMemo(() => {
     return checklists.filter(c => {
-      const total = c.items?.length || 0;
-      const unloaded = c.items?.filter(i => i.unloaded).length || 0;
-      return total === 0 || unloaded < total; // Не показываем полностью разгруженные
+      const totalQty = c.items?.reduce((sum, i) => sum + (i.quantity || 1), 0) || 0;
+      const unloadedQty = c.items?.reduce((sum, i) => {
+        return sum + (i.unloaded_quantity || (i.unloaded ? (i.quantity || 1) : 0));
+      }, 0) || 0;
+      return totalQty === 0 || unloadedQty < totalQty; // Не показываем полностью разгруженные
     });
   }, [checklists]);
 
@@ -211,12 +214,25 @@ export function QuickQRScanner({
       return;
     }
     
-    // Определяем, какие позиции еще не отмечены (в зависимости от режима)
+    // Определяем, какие позиции еще не отмечены полностью (в зависимости от режима)
     const isItemPending = (item: ChecklistItemV2) => {
+      const totalQty = item.quantity || 1;
       if (checklistMode === 'load') {
-        return !item.loaded;
+        const loadedQty = item.loaded_quantity || (item.loaded ? totalQty : 0);
+        return loadedQty < totalQty;
       } else {
-        return !item.unloaded;
+        const unloadedQty = item.unloaded_quantity || (item.unloaded ? totalQty : 0);
+        return unloadedQty < totalQty;
+      }
+    };
+    
+    // Получаем текущее количество отсканированное
+    const getCurrentQuantity = (item: ChecklistItemV2) => {
+      const totalQty = item.quantity || 1;
+      if (checklistMode === 'load') {
+        return item.loaded_quantity || (item.loaded ? totalQty : 0);
+      } else {
+        return item.unloaded_quantity || (item.unloaded ? totalQty : 0);
       }
     };
     
@@ -302,26 +318,36 @@ export function QuickQRScanner({
   }, [selectedChecklist, allInventory, allKits]);
 
   // Обновление позиции чеклиста
-  const updateChecklistItem = async (item: ChecklistItemV2, quantity: number) => {
+  const updateChecklistItem = async (item: ChecklistItemV2, scanQty: number) => {
     if (!selectedChecklist) return;
     
     const now = new Date().toISOString();
     const user = (await supabase.auth.getUser()).data.user;
+    const totalQty = item.quantity || 1;
     
-    const updates: any = {
-      is_checked: true
-    };
+    // Получаем текущее количество и добавляем отсканированное
+    let currentQty = 0;
+    if (checklistMode === 'load') {
+      currentQty = item.loaded_quantity || (item.loaded ? totalQty : 0);
+    } else {
+      currentQty = item.unloaded_quantity || (item.unloaded ? totalQty : 0);
+    }
+    
+    const newQty = Math.min(currentQty + scanQty, totalQty);
+    const isComplete = newQty >= totalQty;
+    
+    const updates: any = {};
     
     if (checklistMode === 'load') {
-      updates.loaded = true;
-      updates.loaded_at = now;
+      updates.loaded = isComplete;
+      updates.loaded_at = isComplete ? now : (item.loaded_at || now);
       updates.loaded_by = user?.email || user?.id;
-      updates.loaded_quantity = quantity;
+      updates.loaded_quantity = newQty;
     } else {
-      updates.unloaded = true;
-      updates.unloaded_at = now;
+      updates.unloaded = isComplete;
+      updates.unloaded_at = isComplete ? now : (item.unloaded_at || now);
       updates.unloaded_by = user?.email || user?.id;
-      updates.unloaded_quantity = quantity;
+      updates.unloaded_quantity = newQty;
     }
     
     // Обновляем локально (сравниваем по id элемента чеклиста)
@@ -331,10 +357,14 @@ export function QuickQRScanner({
     
     setSelectedChecklist({ ...selectedChecklist, items: updatedItems });
     
-    // Обновляем прогресс
-    const loaded = updatedItems?.filter(i => i.loaded).length || 0;
-    const unloaded = updatedItems?.filter(i => i.unloaded).length || 0;
-    const total = updatedItems?.length || 0;
+    // Обновляем прогресс (считаем сумму quantity)
+    const total = updatedItems?.reduce((sum, i) => sum + (i.quantity || 1), 0) || 0;
+    const loaded = updatedItems?.reduce((sum, i) => {
+      return sum + (i.loaded_quantity || (i.loaded ? (i.quantity || 1) : 0));
+    }, 0) || 0;
+    const unloaded = updatedItems?.reduce((sum, i) => {
+      return sum + (i.unloaded_quantity || (i.unloaded ? (i.quantity || 1) : 0));
+    }, 0) || 0;
     setChecklistProgress({ loaded, unloaded, total });
     
     // Сохраняем в БД (checklist_items нет company_id, проверяем через checklist_id)
@@ -449,10 +479,15 @@ export function QuickQRScanner({
   // Выбор чеклиста
   const selectChecklist = (checklist: ChecklistV2) => {
     setSelectedChecklist(checklist);
-    const loaded = checklist.items?.filter(i => i.loaded).length || 0;
-    const unloaded = checklist.items?.filter(i => i.unloaded).length || 0;
-    const total = checklist.items?.length || 0;
-    setChecklistProgress({ loaded, unloaded, total });
+    // Считаем сумму quantity, а не количество позиций
+    const totalQty = checklist.items?.reduce((sum, i) => sum + (i.quantity || 1), 0) || 0;
+    const loadedQty = checklist.items?.reduce((sum, i) => {
+      return sum + (i.loaded_quantity || (i.loaded ? (i.quantity || 1) : 0));
+    }, 0) || 0;
+    const unloadedQty = checklist.items?.reduce((sum, i) => {
+      return sum + (i.unloaded_quantity || (i.unloaded ? (i.quantity || 1) : 0));
+    }, 0) || 0;
+    setChecklistProgress({ loaded: loadedQty, unloaded: unloadedQty, total: totalQty });
     setIsChecklistDialogOpen(true);
   };
 
@@ -612,6 +647,54 @@ export function QuickQRScanner({
                     />
                   </div>
                   
+                  {/* Список позиций (свернутый) */}
+                  <Collapsible className="border rounded-lg">
+                    <CollapsibleTrigger className="w-full p-3 flex items-center justify-between text-sm hover:bg-muted/50 transition-colors">
+                      <span className="font-medium">Позиции для сканирования</span>
+                      <span className="text-muted-foreground">
+                        {selectedChecklist.items?.filter(i => {
+                          if (checklistMode === 'load') {
+                            return (i.loaded_quantity || 0) < (i.quantity || 1);
+                          } else {
+                            return (i.unloaded_quantity || 0) < (i.quantity || 1);
+                          }
+                        }).length} осталось
+                      </span>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="max-h-48 overflow-y-auto border-t">
+                        {selectedChecklist.items?.map((item, idx) => {
+                          const totalQty = item.quantity || 1;
+                          const doneQty = checklistMode === 'load' 
+                            ? (item.loaded_quantity || (item.loaded ? totalQty : 0))
+                            : (item.unloaded_quantity || (item.unloaded ? totalQty : 0));
+                          const isComplete = doneQty >= totalQty;
+                          
+                          return (
+                            <div 
+                              key={item.id || idx}
+                              className={`flex items-center justify-between p-2 text-sm border-b last:border-b-0 ${
+                                isComplete ? 'bg-green-500/10' : 'hover:bg-muted/30'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 flex-1 min-w-0">
+                                <div className={`w-2 h-2 rounded-full ${
+                                  isComplete ? 'bg-green-500' : 'bg-amber-500'
+                                }`} />
+                                <span className={`truncate ${isComplete ? 'text-muted-foreground line-through' : ''}`}>
+                                  {item.name}
+                                </span>
+                              </div>
+                              <span className={`text-xs shrink-0 ${isComplete ? 'text-green-600' : 'text-muted-foreground'}`}>
+                                {doneQty}/{totalQty}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                  
                   <Button onClick={openScanner} className="w-full">
                     <Scan className="w-4 h-4 mr-2" />
                     Сканировать оборудование
@@ -652,9 +735,13 @@ export function QuickQRScanner({
                       
                       <div className="max-h-48 overflow-y-auto space-y-2">
                         {activeChecklists.map(checklist => {
-                          const total = checklist.items?.length || 0;
-                          const loaded = checklist.items?.filter(i => i.loaded).length || 0;
-                          const unloaded = checklist.items?.filter(i => i.unloaded).length || 0;
+                          const totalQty = checklist.items?.reduce((sum, i) => sum + (i.quantity || 1), 0) || 0;
+                          const loadedQty = checklist.items?.reduce((sum, i) => {
+                            return sum + (i.loaded_quantity || (i.loaded ? (i.quantity || 1) : 0));
+                          }, 0) || 0;
+                          const unloadedQty = checklist.items?.reduce((sum, i) => {
+                            return sum + (i.unloaded_quantity || (i.unloaded ? (i.quantity || 1) : 0));
+                          }, 0) || 0;
                           
                           return (
                             <div
@@ -670,8 +757,8 @@ export function QuickQRScanner({
                                   </p>
                                 </div>
                                 <div className="flex gap-2 text-xs">
-                                  <span className="text-blue-600">↗ {loaded}/{total}</span>
-                                  <span className="text-green-600">↙ {unloaded}/{total}</span>
+                                  <span className="text-blue-600">↗ {loadedQty}/{totalQty}</span>
+                                  <span className="text-green-600">↙ {unloadedQty}/{totalQty}</span>
                                 </div>
                               </div>
                             </div>
