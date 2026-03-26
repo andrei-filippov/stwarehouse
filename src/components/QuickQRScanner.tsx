@@ -119,6 +119,15 @@ export function QuickQRScanner({
   // Объединенные данные
   const allInventory = inventory.length > 0 ? inventory : localInventory;
   const allKits = kits.length > 0 ? kits : localKits;
+  
+  // Debug: выводим данные для проверки
+  useEffect(() => {
+    if (isMainOpen) {
+      console.log('[QuickQRScanner] Inventory:', allInventory.length, 'items');
+      console.log('[QuickQRScanner] Kits:', allKits.length, 'kits');
+      console.log('[QuickQRScanner] Checklists:', checklists.length, 'checklists');
+    }
+  }, [isMainOpen, allInventory, allKits, checklists]);
 
   // Открытие главного диалога
   const openMainDialog = useCallback(() => {
@@ -191,16 +200,42 @@ export function QuickQRScanner({
 
   // Обработка сканирования в режиме чеклиста
   const handleChecklistScan = useCallback((qrCode: string) => {
-    if (!selectedChecklist) return;
+    if (!selectedChecklist) {
+      console.log('[QuickQRScanner] No selected checklist');
+      return;
+    }
+    
+    if (!selectedChecklist.items || selectedChecklist.items.length === 0) {
+      console.log('[QuickQRScanner] Checklist has no items');
+      toast.error('Чеклист пуст');
+      return;
+    }
+    
+    // Определяем, какие позиции еще не отмечены (в зависимости от режима)
+    const isItemPending = (item: ChecklistItemV2) => {
+      if (checklistMode === 'load') {
+        return !item.loaded;
+      } else {
+        return !item.unloaded;
+      }
+    };
     
     // Ищем комплект
     const kit = allKits.find(k => k.qr_code === qrCode);
     if (kit && kit.items) {
       let foundCount = 0;
       kit.items.forEach(kitItem => {
-        const checklistItem = selectedChecklist.items?.find(
-          i => i.inventory_id === kitItem.inventory_id && !i.is_checked
+        // Ищем по inventory_id или по имени
+        let checklistItem = selectedChecklist.items?.find(
+          i => i.inventory_id && kitItem.inventory_id && 
+               i.inventory_id === kitItem.inventory_id && isItemPending(i)
         );
+        // Fallback: ищем по имени
+        if (!checklistItem && kitItem.inventory_name) {
+          checklistItem = selectedChecklist.items?.find(
+            i => i.name === kitItem.inventory_name && isItemPending(i)
+          );
+        }
         if (checklistItem) {
           updateChecklistItem(checklistItem, kitItem.quantity);
           foundCount++;
@@ -212,22 +247,46 @@ export function QuickQRScanner({
           description: `Отмечено ${foundCount} позиций`
         });
       } else {
-        toast.info('Позиции комплекта не найдены в чеклисте');
+        toast.info('Позиции комплекта не найдены в чеклисте или уже отмечены');
       }
       return;
     }
     
     // Ищем оборудование
     const inventoryItem = allInventory.find(i => i.qr_code === qrCode);
+    console.log('[QuickQRScanner] Scanned QR:', qrCode);
+    console.log('[QuickQRScanner] Found inventory:', inventoryItem);
+    console.log('[QuickQRScanner] Checklist items count:', selectedChecklist.items?.length || 0);
+    console.log('[QuickQRScanner] Checklist items:', selectedChecklist.items);
+    
     if (!inventoryItem) {
-      toast.error('QR-код не найден');
+      toast.error('QR-код не найден в базе оборудования');
       return;
     }
     
-    // Ищем в чеклисте
-    const checklistItem = selectedChecklist.items?.find(
-      i => i.inventory_id === inventoryItem.id && !i.is_checked
+    // Сначала ищем в чеклисте по QR-коду (самый точный способ)
+    let checklistItem = selectedChecklist.items?.find(
+      i => i.qr_code === qrCode && isItemPending(i)
     );
+    console.log('[QuickQRScanner] Found by QR code:', checklistItem);
+    
+    // Затем ищем по inventory_id
+    if (!checklistItem) {
+      checklistItem = selectedChecklist.items?.find(
+        i => i.inventory_id && inventoryItem.id && 
+             i.inventory_id === inventoryItem.id && isItemPending(i)
+      );
+      console.log('[QuickQRScanner] Found by inventory_id:', checklistItem);
+    }
+    
+    // Если не нашли по inventory_id, ищем по имени (fallback)
+    if (!checklistItem && inventoryItem.name) {
+      console.log('[QuickQRScanner] Searching by name:', inventoryItem.name);
+      checklistItem = selectedChecklist.items?.find(
+        i => i.name?.toLowerCase() === inventoryItem.name?.toLowerCase() && isItemPending(i)
+      );
+      console.log('[QuickQRScanner] Found by name:', checklistItem);
+    }
     
     if (!checklistItem) {
       toast.error('Не найдено в чеклисте', {
@@ -265,9 +324,9 @@ export function QuickQRScanner({
       updates.unloaded_quantity = quantity;
     }
     
-    // Обновляем локально
+    // Обновляем локально (сравниваем по id элемента чеклиста)
     const updatedItems = selectedChecklist.items?.map(i => 
-      i.inventory_id === item.inventory_id ? { ...i, ...updates } : i
+      i.id === item.id ? { ...i, ...updates } : i
     );
     
     setSelectedChecklist({ ...selectedChecklist, items: updatedItems });
