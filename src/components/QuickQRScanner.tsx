@@ -337,13 +337,13 @@ export function QuickQRScanner({
     const total = updatedItems?.length || 0;
     setChecklistProgress({ loaded, unloaded, total });
     
-    // Сохраняем в БД
-    if (item.id && companyId) {
+    // Сохраняем в БД (checklist_items нет company_id, проверяем через checklist_id)
+    if (item.id && selectedChecklist?.id) {
       const { error } = await supabase
         .from('checklist_items')
         .update(updates)
         .eq('id', item.id)
-        .eq('company_id', companyId);
+        .eq('checklist_id', selectedChecklist.id);
       
       if (error) {
         console.error('Error updating checklist item:', error);
