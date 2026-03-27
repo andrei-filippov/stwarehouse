@@ -654,7 +654,7 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
               <YandexDiskFileManager 
                 clientId={import.meta.env.VITE_YANDEX_CLIENT_ID || ''}
                 redirectUri={window.location.origin}
-                basePath="/stwarehouse"
+                companyId={companyId}
               />
             </LazyComponent>
           )}
