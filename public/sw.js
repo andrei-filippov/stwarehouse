@@ -1,7 +1,7 @@
 // Service Worker для оффлайн-режима
-const CACHE_NAME = 'stwarehouse-v7';
-const STATIC_CACHE = 'stwarehouse-static-v7';
-const ASSETS_CACHE = 'stwarehouse-assets-v7';
+const CACHE_NAME = 'stwarehouse-v8';
+const STATIC_CACHE = 'stwarehouse-static-v8';
+const ASSETS_CACHE = 'stwarehouse-assets-v8';
 
 // Критические ресурсы для кэширования при установке
 const PRECACHE_URLS = [
@@ -57,8 +57,11 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
   
-  // 1. API запросы к Supabase и Google Fonts — пропускаем
-  if (url.hostname.includes('supabase.co') || url.hostname.includes('googleapis.com') || url.hostname.includes('gstatic.com')) {
+  // 1. API запросы к Supabase, Яндекс Диск и Google Fonts — пропускаем
+  if (url.hostname.includes('supabase.co') || 
+      url.hostname.includes('yandex.') || 
+      url.hostname.includes('googleapis.com') || 
+      url.hostname.includes('gstatic.com')) {
     event.respondWith(
       fetch(request).catch(() => {
         return new Response(
