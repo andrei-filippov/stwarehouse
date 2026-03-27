@@ -6,8 +6,8 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="description" content="Система управления складом оборудования и сметами" />
     
-    <!-- Content Security Policy -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.yandex.net https://*.yandex.ru https://*.disk.yandex.ru https://downloader.disk.yandex.ru https://oauth.yandex.ru https://cloud-api.yandex.net; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; frame-src 'self' https://*.disk.yandex.ru https://downloader.disk.yandex.ru; media-src 'self' https://*.disk.yandex.ru https://downloader.disk.yandex.ru;">
+    <!-- Content Security Policy - разрешаем все HTTPS для Яндекс Диска -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co https:; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; frame-src 'self' https:; media-src 'self' https:;">
     
     <!-- Favicon -->
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
