@@ -271,14 +271,17 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
       let inventoryMap: Map<string, { qr_code?: string; kit_id?: string; kit_name?: string }[]> = new Map();
       // Map для поиска по ID (для правил с inventory_id)
       let inventoryByIdMap: Map<string, { name?: string; qr_code?: string; kit_id?: string; kit_name?: string; category_id?: string }> = new Map();
+      // Категории кабелей (нужны для формирования имени и категории)
+      let cableCategories: { id: string; name: string }[] = [];
       
       if (isOnline()) {
         try {
-          // Загружаем категории кабелей (нужны для формирования имени)
-          const { data: cableCategories } = await supabase
+          // Загружаем категории кабелей
+          const { data: categoriesData } = await supabase
             .from('cable_categories')
             .select('id, name')
             .eq('company_id', companyId);
+          cableCategories = categoriesData || [];
           
           // Загружаем инвентарь с информацией о китах
           const { data: inventory, error: invError } = await supabase
@@ -441,6 +444,12 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
                 
                 // Формируем имя позиции: инвентарь > кэш > имя правила
                 const displayName = invData?.name || cachedName || `${rule.name}`;
+                // Получаем имя категории для отображения
+                const categoryName = invData?.category_id 
+                  ? cableCategories?.find(c => c.id === invData.category_id)?.name 
+                  : null;
+                // Используем имя категории как category (или 'tool' как fallback)
+                const category = categoryName || 'tool';
                 
                 if (invData) {
                   // Есть данные в инвентаре - используем их (с QR-кодом, kit_id и т.д.)
@@ -448,7 +457,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
                     id: `local_item_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
                     name: displayName,
                     quantity: ruleItem.quantity * item.quantity,
-                    category: invData.category_id || 'equipment',
+                    category: category,
                     is_required: ruleItem.is_required,
                     is_checked: false,
                     qr_code: invData.qr_code || null,
@@ -463,7 +472,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
                     id: `local_item_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
                     name: displayName,
                     quantity: ruleItem.quantity * item.quantity,
-                    category: 'equipment',
+                    category: ruleItem.inventory_category || 'tool',
                     is_required: ruleItem.is_required,
                     is_checked: false,
                     qr_code: ruleItem.inventory_qr_code || null,
