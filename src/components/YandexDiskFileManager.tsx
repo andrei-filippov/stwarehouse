@@ -228,7 +228,7 @@ export function YandexDiskFileManager({
     }
   };
 
-  // Предпросмотр - открываем в новой вкладке
+  // Предпросмотр через публикацию файла
   const handlePreview = async (item: DiskItem) => {
     if (!client || item.type !== 'file') return;
     
@@ -242,15 +242,23 @@ export function YandexDiskFileManager({
     }
 
     try {
-      toast.loading('Получение ссылки...', { id: 'preview' });
-      const downloadUrl = await client.getDownloadUrl(item.path);
-      toast.dismiss('preview');
+      toast.loading('Открытие...', { id: 'preview' });
       
-      // Открываем в новой вкладке - это обходит CSP ограничения
-      window.open(downloadUrl, '_blank');
+      // Если файл уже опубликован - используем public_url
+      if (item.public_url) {
+        window.open(item.public_url, '_blank');
+        toast.dismiss('preview');
+        return;
+      }
+      
+      // Иначе публикуем и открываем
+      const publicUrl = await client.publishFile(item.path);
+      window.open(publicUrl, '_blank');
+      toast.success('Файл опубликован для просмотра');
+      await loadFiles(); // Обновляем чтобы сохранить public_url
     } catch (error: any) {
       toast.dismiss('preview');
-      toast.error('Ошибка', { description: error.message });
+      toast.error('Ошибка открытия', { description: error.message });
     }
   };
 
