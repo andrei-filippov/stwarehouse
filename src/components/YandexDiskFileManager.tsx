@@ -222,11 +222,22 @@ export function YandexDiskFileManager({
     const name = prompt('Название папки:');
     if (!name) return;
 
+    // Очищаем имя папки от недопустимых символов
+    const cleanName = name.trim().replace(/[\/:*?"<>|]/g, '_');
+    if (!cleanName) {
+      toast.error('Некорректное название папки');
+      return;
+    }
+
+    const folderPath = `${currentPath}/${cleanName}`;
+    console.log('Creating folder:', folderPath);
+
     try {
-      await client.createFolder(`${currentPath}/${name}`);
+      await client.createFolder(folderPath);
       toast.success('Папка создана');
       await loadFiles();
     } catch (error: any) {
+      console.error('Create folder error:', error);
       toast.error('Ошибка создания папки', { description: error.message });
     }
   };
