@@ -228,7 +228,7 @@ export function YandexDiskFileManager({
     }
   };
 
-  // Предпросмотр
+  // Предпросмотр - открываем в новой вкладке
   const handlePreview = async (item: DiskItem) => {
     if (!client || item.type !== 'file') return;
     
@@ -242,22 +242,15 @@ export function YandexDiskFileManager({
     }
 
     try {
-      toast.loading('Загрузка...', { id: 'preview' });
+      toast.loading('Получение ссылки...', { id: 'preview' });
       const downloadUrl = await client.getDownloadUrl(item.path);
-      const response = await fetch(downloadUrl, {
-        headers: { 'Authorization': `OAuth ${dbToken}` }
-      });
-      
-      if (!response.ok) throw new Error('Failed to fetch');
-      
-      const blob = await response.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      setPreviewUrl(blobUrl);
-      setPreviewItem(item);
       toast.dismiss('preview');
+      
+      // Открываем в новой вкладке - это обходит CSP ограничения
+      window.open(downloadUrl, '_blank');
     } catch (error: any) {
       toast.dismiss('preview');
-      toast.error('Ошибка загрузки', { description: error.message });
+      toast.error('Ошибка', { description: error.message });
     }
   };
 
