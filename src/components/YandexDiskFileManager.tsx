@@ -115,11 +115,20 @@ export function YandexDiskFileManager({
     
     setLoading(true);
     try {
-      // Создаем папку если её нет
-      try {
-        await client.createFolder(basePath);
-      } catch {
-        // Папка уже существует
+      // Создаем все папки по пути рекурсивно
+      const pathParts = currentPath.split('/').filter(Boolean);
+      let currentBuildPath = '';
+      
+      for (const part of pathParts) {
+        currentBuildPath += '/' + part;
+        try {
+          await client.createFolder(currentBuildPath);
+        } catch (err: any) {
+          // Игнорируем если папка уже существует
+          if (!err.message?.includes('409') && !err.message?.includes('exists')) {
+            console.warn('Error creating folder:', currentBuildPath, err.message);
+          }
+        }
       }
       
       const response = await client.listFiles(currentPath);
@@ -133,7 +142,7 @@ export function YandexDiskFileManager({
     } finally {
       setLoading(false);
     }
-  }, [client, currentPath, basePath]);
+  }, [client, currentPath]);
 
   useEffect(() => {
     if (client && currentPath) {
@@ -163,6 +172,13 @@ export function YandexDiskFileManager({
 
     setUploadProgress(0);
     try {
+      // Сначала создаем папку если нужно
+      try {
+        await client.createFolder(currentPath);
+      } catch {
+        // Игнорируем ошибку создания папки
+      }
+      
       const filePath = `${currentPath}/${file.name}`;
       await client.uploadFile(filePath, file, (progress) => {
         setUploadProgress(progress);

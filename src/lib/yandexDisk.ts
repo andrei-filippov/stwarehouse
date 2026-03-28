@@ -104,7 +104,11 @@ export class YandexDiskClient {
       return await this.request(`/resources?${params}`, { method: 'PUT' });
     } catch (error: any) {
       // 409 = папка уже существует, это не ошибка
-      if (error.message?.includes('409')) {
+      // Проверяем и по сообщению и по коду ошибки
+      if (error.message?.includes('409') || 
+          error.message?.includes('already exists') ||
+          error.message?.includes('уже существует') ||
+          error.message?.includes('Resource already exists')) {
         return { created: true, path };
       }
       throw error;
