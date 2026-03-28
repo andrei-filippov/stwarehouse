@@ -123,6 +123,30 @@
     background-color: hsl(217 19% 35%);
   }
   
+  /* Global dark theme scrollbar - applies to all scrollable elements in dark mode */
+  html.dark * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(217 19% 25%) transparent;
+  }
+  
+  html.dark *::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  
+  html.dark *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  html.dark *::-webkit-scrollbar-thumb {
+    background-color: hsl(217 19% 25%);
+    border-radius: 3px;
+  }
+  
+  html.dark *::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(217 19% 35%);
+  }
+  
   /* Плавный переход для всех элементов с цветами */
   *, *::before, *::after {
     transition-property: background-color, border-color, color, fill, stroke;
