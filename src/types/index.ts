@@ -121,6 +121,9 @@ export type ChecklistRuleItem = {
   inventory_id: string; // Ссылка на cable_inventory (реальная позиция)
   quantity: number; // количество на единицу оборудования
   is_required: boolean; // обязательный или опциональный
+  // Обязательные поля для обратной совместимости со старой схемой
+  name?: string;
+  category?: string;
   // Данные из инвентаря (для отображения)
   inventory_name?: string;
   inventory_category?: string;

@@ -155,9 +155,12 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
           inventory_id: item.inventory_id,
           quantity: item.quantity || 1,
           is_required: item.is_required ?? true,
+          // Обязательное поле name (для обратной совместимости)
+          name: item.inventory_name || item.name || `Item ${idx + 1}`,
+          category: item.inventory_category || item.category || 'other',
           // Сохраняем метаданные для отображения (на случай если инвентарь изменится)
-          inventory_name: item.inventory_name || `Item ${idx}`,
-          inventory_category: item.inventory_category,
+          inventory_name: item.inventory_name || item.name || `Item ${idx + 1}`,
+          inventory_category: item.inventory_category || item.category,
           inventory_qr_code: item.inventory_qr_code
         }));
         logger.debug('[createRule] Items to insert:', JSON.stringify(itemsToInsert));
