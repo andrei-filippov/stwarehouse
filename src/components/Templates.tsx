@@ -345,7 +345,7 @@ function ContractTemplates({ userId, companyId }: ContractTemplatesProps) {
                         {template.file_name?.split('.').pop()?.toUpperCase()}
                       </span>
                     ) : (
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-700">
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
                         <FileText className="w-3 h-3 mr-1" />
                         Текст
                       </span>
@@ -650,8 +650,8 @@ function ContractTemplateForm({ companyId, onCancel, onSave }: ContractTemplateF
         <div className="grid grid-cols-2 gap-1 text-xs">
           {placeholders.map((p) => (
             <div key={p.key} className="flex items-center gap-2">
-              <code className="bg-gray-200 px-1 rounded">{p.key}</code>
-              <span className="text-gray-600">{p.desc}</span>
+              <code className="bg-gray-200 dark:bg-gray-800 px-1 rounded">{p.key}</code>
+              <span className="text-gray-600 dark:text-gray-400">{p.desc}</span>
             </div>
           ))}
         </div>

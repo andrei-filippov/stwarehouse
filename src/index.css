@@ -152,16 +152,32 @@
      Единый дизайн для всех выпадающих списков
      ============================================ */
   
+  /* ============================================
+     UNIFIED DROPDOWN/DARK THEME STYLES
+     Единый дизайн для всех выпадающих списков
+     ============================================ */
+  
   /* Общий фон и стиль для всех выпадающих контейнеров в темной теме */
   html.dark [data-slot="select-content"],
   html.dark [data-slot="dropdown-menu-content"],
   html.dark [data-slot="dropdown-menu-sub-content"],
   html.dark [data-slot="popover-content"],
-  html.dark [data-slot="command"] {
-    background-color: hsl(215 28% 10%); /* slate-900 - card background */
-    border-color: hsl(217 19% 22%);     /* slate-800 - border */
+  html.dark [data-slot="command"],
+  /* Дополнительные селекторы для Radix UI порталов */
+  html.dark [data-radix-popper-content-wrapper] > [data-slot="select-content"],
+  html.dark [data-radix-popper-content-wrapper] > [data-slot="dropdown-menu-content"],
+  html.dark [data-radix-popper-content-wrapper] > [data-slot="popover-content"] {
+    background-color: hsl(215 28% 10%) !important; /* slate-900 - card background */
+    border-color: hsl(217 19% 22%) !important;     /* slate-800 - border */
     box-shadow: 0 10px 38px -10px rgba(0, 0, 0, 0.5), 
-                0 4px 20px -4px rgba(0, 0, 0, 0.4);
+                0 4px 20px -4px rgba(0, 0, 0, 0.4) !important;
+  }
+  
+  /* Viewport внутри Select - критично для правильного фона */
+  html.dark [data-slot="select-content"] [data-slot="select-viewport"],
+  html.dark .radix-select-viewport,
+  html.dark [data-radix-select-viewport] {
+    background-color: hsl(215 28% 10%) !important;
   }
   
   /* Скругление для выпадающих списков */
@@ -220,6 +236,7 @@
     border-radius: 0.375rem;
     margin: 0 0.25rem;
     transition: all 0.15s ease;
+    color: hsl(210 40% 98%) !important; /* Явный цвет текста */
   }
   
   /* Hover state - единый синий акцент */
@@ -232,8 +249,8 @@
   html.dark [data-slot="dropdown-menu-radio-item"]:hover,
   html.dark [data-slot="dropdown-menu-radio-item"]:focus,
   html.dark [data-slot="command-item"][data-selected="true"] {
-    background-color: hsl(217 19% 20%); /* slate-800 - secondary/hover */
-    color: hsl(210 40% 98%);            /* slate-100 - foreground */
+    background-color: hsl(217 19% 20%) !important; /* slate-800 - secondary/hover */
+    color: hsl(210 40% 98%) !important;            /* slate-100 - foreground */
   }
   
   /* Active/Selected state - синий акцент */
@@ -241,8 +258,8 @@
   html.dark [data-slot="dropdown-menu-item"][data-state="checked"],
   html.dark [data-slot="dropdown-menu-checkbox-item"][data-state="checked"],
   html.dark [data-slot="dropdown-menu-radio-item"][data-state="checked"] {
-    background-color: hsl(217 91% 60% / 0.15); /* blue-500 с прозрачностью */
-    color: hsl(217 91% 70%);                   /* светло-синий текст */
+    background-color: hsl(217 91% 60% / 0.15) !important; /* blue-500 с прозрачностью */
+    color: hsl(217 91% 70%) !important;                   /* светло-синий текст */
   }
   
   /* Лейблы в выпадающих списках */
@@ -320,6 +337,41 @@
     box-shadow: 0 0 0 3px hsl(217 91% 60% / 0.2);
   }
   
+  /* Placeholder в Select */
+  html.dark [data-slot="select-value"][data-placeholder] {
+    color: hsl(215 20% 55%) !important;
+  }
+  
+  /* Нативные select и option в темной теме */
+  html.dark select {
+    background-color: hsl(217 19% 15% / 0.3);
+    border-color: hsl(217 19% 22%);
+    color: hsl(210 40% 98%);
+  }
+  
+  html.dark select option {
+    background-color: hsl(215 28% 10%);
+    color: hsl(210 40% 98%);
+  }
+  
+  html.dark select option:hover,
+  html.dark select option:focus {
+    background-color: hsl(217 19% 20%);
+  }
+  
+  /* Все текстовые элементы внутри выпадающих списков */
+  html.dark [data-slot="select-content"] *,
+  html.dark [data-slot="dropdown-menu-content"] *,
+  html.dark [data-slot="popover-content"] * {
+    color: hsl(210 40% 98%);
+  }
+  
+  /* Исключение для muted элементов */
+  html.dark [data-slot="select-content"] [data-slot="select-label"],
+  html.dark [data-slot="dropdown-menu-content"] [data-slot="dropdown-menu-label"] {
+    color: hsl(215 20% 55%) !important;
+  }
+  
   /* Индикатор выбранного пункта (галочка) */
   html.dark [data-slot="select-item-indicator"] svg,
   html.dark [data-slot="dropdown-menu-item"] [data-slot="dropdown-menu-item-indicator"] svg {
@@ -362,6 +414,47 @@
   html.dark .rdp-day[data-selected="true"] {
     background-color: hsl(217 91% 60%);
     color: hsl(222 47% 4%);
+  }
+  
+  /* ============================================
+     DIALOG STYLES (модальные окна)
+     ============================================ */
+  
+  /* Dialog Overlay - затемнение фона */
+  html.dark [data-slot="dialog-overlay"] {
+    background-color: rgba(0, 0, 0, 0.7);
+  }
+  
+  /* Dialog Content - фон и границы */
+  html.dark [data-slot="dialog-content"] {
+    background-color: hsl(215 28% 10%) !important; /* slate-900 */
+    border-color: hsl(217 19% 22%) !important;     /* slate-800 */
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8) !important;
+  }
+  
+  /* Dialog Header */
+  html.dark [data-slot="dialog-header"] {
+    border-color: hsl(217 19% 22%);
+  }
+  
+  /* Dialog Title */
+  html.dark [data-slot="dialog-title"] {
+    color: hsl(210 40% 98%);
+  }
+  
+  /* Dialog Description */
+  html.dark [data-slot="dialog-description"] {
+    color: hsl(215 20% 65%);
+  }
+  
+  /* Dialog Close Button */
+  html.dark [data-slot="dialog-close"] {
+    color: hsl(215 20% 55%);
+  }
+  
+  html.dark [data-slot="dialog-close"]:hover {
+    color: hsl(210 40% 98%);
+    background-color: hsl(217 19% 20%);
   }
   
   /* ============================================

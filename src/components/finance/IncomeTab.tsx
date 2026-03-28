@@ -252,7 +252,7 @@ export function IncomeTab({ estimates, companyId }: IncomeTabProps) {
           <span className="text-sm text-muted-foreground">Фильтр:</span>
           <Badge 
             variant="outline" 
-            className="cursor-pointer hover:bg-gray-100"
+            className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
             onClick={() => setActiveFilter('all')}
           >
             {activeFilter === 'estimates' && 'Получено от смет'}

@@ -132,7 +132,7 @@ export function ActPreview({
       </div>
 
       {/* Preview */}
-      <div className="flex-1 overflow-auto p-8 bg-gray-100">
+      <div className="flex-1 overflow-auto p-8 bg-gray-100 dark:bg-gray-900">
         <div className="max-w-[210mm] mx-auto bg-white shadow-lg">
           {isEditing ? (
             <div

@@ -191,23 +191,23 @@ export const GoalsManager = memo(function GoalsManager({ tasks, staff, onAdd, on
 
   const getPriorityColor = useCallback((priority: string) => {
     const colors: Record<string, string> = {
-      low: 'bg-gray-100 text-muted-foreground',
-      medium: 'bg-blue-100 text-blue-600',
-      high: 'bg-orange-100 text-orange-600',
-      urgent: 'bg-red-100 text-red-600',
+      low: 'bg-gray-100 dark:bg-gray-800 text-muted-foreground',
+      medium: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
+      high: 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400',
+      urgent: 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400',
     };
-    return colors[priority] || 'bg-gray-100';
+    return colors[priority] || 'bg-gray-100 dark:bg-gray-800';
   }, []);
 
   const getCategoryColor = useCallback((category: string) => {
     const colors: Record<string, string> = {
-      repair: 'bg-red-100 text-red-800',
-      check: 'bg-blue-100 text-blue-800',
-      wiring: 'bg-yellow-100 text-yellow-800',
-      purchase: 'bg-green-100 text-green-800',
-      other: 'bg-gray-100 text-gray-800',
+      repair: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300',
+      check: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300',
+      wiring: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300',
+      purchase: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300',
+      other: 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-300',
     };
-    return colors[category] || 'bg-gray-100';
+    return colors[category] || 'bg-gray-100 dark:bg-gray-800';
   }, []);
 
   const getFilterLabel = useCallback((filter: FilterType): string => {

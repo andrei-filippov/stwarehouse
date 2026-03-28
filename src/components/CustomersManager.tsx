@@ -100,10 +100,10 @@ export const CustomersManager = memo(function CustomersManager({ customers, user
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
             <AlertCircle className="w-8 h-8 text-red-600" />
           </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Ошибка загрузки</h3>
+          <h3 className="text-lg font-semibold text-foreground mb-2">Ошибка загрузки</h3>
           <p className="text-gray-600 max-w-md mb-4">{error}</p>
           <p className="text-sm text-gray-500">
-            Пожалуйста, выполните SQL скрипт <code className="bg-gray-100 px-1 py-0.5 rounded">supabase_schema.sql</code> в Supabase Dashboard
+            Пожалуйста, выполните SQL скрипт <code className="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">supabase_schema.sql</code> в Supabase Dashboard
           </p>
         </div>
       </Card>

@@ -78,18 +78,18 @@ function SortableCategoryItem({
   return (
     <div ref={setNodeRef} style={style} className="space-y-2">
       {/* Заголовок категории с drag handle */}
-      <div className="flex items-center justify-between bg-gray-100 p-2 rounded">
+      <div className="flex items-center justify-between bg-gray-100 dark:bg-gray-800 p-2 rounded">
         <div className="flex items-center gap-2">
           <button
             {...attributes}
             {...listeners}
-            className="p-1 hover:bg-gray-200 rounded cursor-grab active:cursor-grabbing"
+            className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded cursor-grab active:cursor-grabbing"
           >
-            <GripVertical className="w-4 h-4 text-gray-500" />
+            <GripVertical className="w-4 h-4 text-gray-500 dark:text-gray-400" />
           </button>
-          <h3 className="font-semibold text-gray-700">{category}</h3>
+          <h3 className="font-semibold text-gray-700 dark:text-gray-300">{category}</h3>
         </div>
-        <span className="text-sm text-gray-500">{items.length} поз.</span>
+        <span className="text-sm text-gray-500 dark:text-gray-400">{items.length} поз.</span>
       </div>
 
       {/* Позиции категории */}

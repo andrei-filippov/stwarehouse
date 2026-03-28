@@ -866,11 +866,11 @@ export function EquipmentManager({
                           </TableCell>
                           <TableCell className="text-center">
                             {isExisting ? (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-gray-200 text-gray-700">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
                                 На складе
                               </span>
                             ) : (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-green-100 text-green-700">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
                                 Новое
                               </span>
                             )}

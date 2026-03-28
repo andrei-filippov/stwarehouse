@@ -240,7 +240,7 @@ export const Analytics = memo(function Analytics({
           {(['all', 'year', 'month'] as const).map(p => (
             <button key={p} onClick={() => setPeriod(p)}
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                period === p ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                period === p ? 'bg-blue-500 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
               }`}>
               {p === 'all' ? 'Всё время' : p === 'year' ? 'Год' : 'Месяц'}
             </button>

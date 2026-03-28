@@ -77,7 +77,7 @@ export function CompanySettings() {
             <Building2 className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-gray-900">Настройки компании</h2>
+            <h2 className="text-xl font-bold text-foreground">Настройки компании</h2>
             <p className="text-sm text-gray-500">Редактирование реквизитов и данных</p>
           </div>
         </div>
