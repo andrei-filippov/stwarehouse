@@ -439,9 +439,11 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
                   ? ruleItem.inventory_name 
                   : null;
                 
+                // Формируем имя позиции: инвентарь > кэш > имя правила
+                const displayName = invData?.name || cachedName || `${rule.name}`;
+                
                 if (invData) {
                   // Есть данные в инвентаре - используем их (с QR-кодом, kit_id и т.д.)
-                  const displayName = invData.name || cachedName || 'Позиция';
                   items.push({
                     id: `local_item_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
                     name: displayName,
@@ -457,7 +459,6 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
                   logger.debug(`[createChecklist] Added item from inventory: ${displayName}, QR: ${invData.qr_code}`);
                 } else {
                   // Нет в инвентаре (удалена позиция) - используем сохраненные метаданные
-                  const displayName = cachedName || 'Позиция (не найдена в инвентаре)';
                   items.push({
                     id: `local_item_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
                     name: displayName,
@@ -468,7 +469,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
                     qr_code: ruleItem.inventory_qr_code || null,
                     source_rule_id: rule.id
                   });
-                  logger.warn(`[createChecklist] Inventory item ${ruleItem.inventory_id} not found, using cached name: ${displayName}`);
+                  logger.warn(`[createChecklist] Inventory item ${ruleItem.inventory_id} not found, using name: ${displayName}`);
                 }
               });
             }
