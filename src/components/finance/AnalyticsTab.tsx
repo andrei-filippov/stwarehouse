@@ -34,7 +34,7 @@ export function AnalyticsTab({ estimates }: AnalyticsTabProps) {
         if (!data[monthKey]) {
           data[monthKey] = { month: monthLabel, income: 0, count: 0 };
         }
-        data[monthKey].income += estimate.total_price || 0;
+        data[monthKey].income += estimate.total || 0;
         data[monthKey].count += 1;
       }
     });
@@ -114,7 +114,7 @@ export function AnalyticsTab({ estimates }: AnalyticsTabProps) {
 
     // Топ по общему количеству
     const topByQuantity = [...equipmentList]
-      .sort((a, b) => b.totalQuantity - a.quantity)
+      .sort((a, b) => b.totalQuantity - a.totalQuantity)
       .slice(0, 10);
 
     return { topByUsage, topByRevenue, topByQuantity, totalUniqueEquipment: equipmentList.length };
@@ -127,9 +127,9 @@ export function AnalyticsTab({ estimates }: AnalyticsTabProps) {
     const pending = estimates.filter(e => e.status === 'pending');
     const draft = estimates.filter(e => e.status === 'draft' || !e.status);
     
-    const totalIncome = completed.reduce((sum, e) => sum + (e.total_price || 0), 0);
-    const approvedIncome = approved.reduce((sum, e) => sum + (e.total_price || 0), 0);
-    const pendingIncome = pending.reduce((sum, e) => sum + (e.total_price || 0), 0);
+    const totalIncome = completed.reduce((sum, e) => sum + (e.total || 0), 0);
+    const approvedIncome = approved.reduce((sum, e) => sum + (e.total || 0), 0);
+    const pendingIncome = pending.reduce((sum, e) => sum + (e.total || 0), 0);
     
     const avgEstimateValue = completed.length > 0 
       ? totalIncome / completed.length 
