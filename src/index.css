@@ -484,6 +484,57 @@
     background-color: hsl(217 19% 30%);
   }
   
+  /* ============================================
+     RECHARTS STYLES (графики)
+     ============================================ */
+  
+  /* Текст осей и легенд */
+  html.dark .recharts-text {
+    fill: hsl(215 20% 65%) !important;
+  }
+  
+  /* Линии сетки */
+  html.dark .recharts-cartesian-grid-horizontal line,
+  html.dark .recharts-cartesian-grid-vertical line {
+    stroke: hsl(217 19% 22%) !important;
+  }
+  
+  /* Оси */
+  html.dark .recharts-axis-line,
+  html.dark .recharts-cartesian-axis-line {
+    stroke: hsl(217 19% 22%) !important;
+  }
+  
+  /* Тики осей */
+  html.dark .recharts-cartesian-axis-tick-line {
+    stroke: hsl(217 19% 30%) !important;
+  }
+  
+  /* Tooltip */
+  html.dark .recharts-tooltip-wrapper {
+    outline: none !important;
+  }
+  
+  html.dark .recharts-default-tooltip {
+    background-color: hsl(215 28% 10%) !important;
+    border: 1px solid hsl(217 19% 22%) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 10px 38px -10px rgba(0, 0, 0, 0.5) !important;
+  }
+  
+  html.dark .recharts-tooltip-label {
+    color: hsl(210 40% 98%) !important;
+  }
+  
+  html.dark .recharts-tooltip-item {
+    color: hsl(215 20% 65%) !important;
+  }
+  
+  /* Legend */
+  html.dark .recharts-legend-item-text {
+    fill: hsl(215 20% 65%) !important;
+  }
+  
   /* Плавный переход для всех элементов с цветами */
   *, *::before, *::after {
     transition-property: background-color, border-color, color, fill, stroke;
