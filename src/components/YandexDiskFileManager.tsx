@@ -193,13 +193,31 @@ export function YandexDiskFileManager({
     }
   };
 
-  // Скачивание
+  // Скачивание через публикацию (обходит ограничения авторизации)
   const handleDownload = async (item: DiskItem) => {
     if (!client || item.type !== 'file') return;
     try {
-      const url = await client.getDownloadUrl(item.path);
-      window.open(url, '_blank');
+      toast.loading('Подготовка ссылки...', { id: 'download' });
+      
+      // Если файл уже опубликован - используем public_url
+      let url = item.public_url;
+      if (!url) {
+        url = await client.publishFile(item.path);
+        await loadFiles(); // Обновляем чтобы сохранить public_url
+      }
+      
+      // Создаем временную ссылку для скачивания
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = item.name;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast.dismiss('download');
     } catch (error: any) {
+      toast.dismiss('download');
       toast.error('Ошибка скачивания', { description: error.message });
     }
   };
@@ -457,14 +475,18 @@ export function YandexDiskFileManager({
             items.map((item) => (
               <div
                 key={item.path}
-                className="flex items-center justify-between p-3 rounded-lg hover:bg-muted transition-colors group"
+                className="flex items-center justify-between p-3 rounded-lg hover:bg-muted transition-colors group cursor-pointer"
+                onClick={() => {
+                  if (item.type === 'dir') {
+                    setCurrentPath(item.path);
+                  } else {
+                    handlePreview(item);
+                  }
+                }}
               >
                 <div className="flex items-center gap-3 min-w-0">
                   {item.type === 'dir' ? (
-                    <Folder 
-                      className="w-5 h-5 text-blue-500 shrink-0 cursor-pointer"
-                      onClick={() => setCurrentPath(item.path)}
-                    />
+                    <Folder className="w-5 h-5 text-blue-500 shrink-0" />
                   ) : (
                     <File className="w-5 h-5 text-gray-400 shrink-0" />
                   )}
@@ -476,7 +498,7 @@ export function YandexDiskFileManager({
                   </div>
                 </div>
                 
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
                   {item.type === 'file' && (
                     <>
                       <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => handlePreview(item)}>
