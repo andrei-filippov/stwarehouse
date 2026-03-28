@@ -812,10 +812,44 @@ export const CableManager = memo(function CableManager({
     return roots;
   }, [categories]);
 
-  // Показываем все категории (фильтрация только для оборудования внутри категорий)
+  // Фильтруем категории для подвкладок: показываем категории с нужным типом оборудования 
+  // ИЛИ категории, созданные недавно (последние 24 часа) - чтобы видеть новые пустые категории
   const filteredCategoryTree = useMemo(() => {
-    return categoryTree;
-  }, [categoryTree]);
+    const isRecentlyCreated = (cat: CableCategory) => {
+      if (!cat.created_at) return false;
+      const created = new Date(cat.created_at);
+      const now = new Date();
+      const hoursDiff = (now.getTime() - created.getTime()) / (1000 * 60 * 60);
+      return hoursDiff < 24; // Показываем категории, созданные менее 24 часов назад
+    };
+
+    const hasMatchingItems = (catId: string): boolean => {
+      // Проверяем, есть ли в категории оборудование нужного типа
+      const items = warehouseSubTab === 'equipment' ? equipmentItems : cablingItems;
+      return items.some(item => item.category_id === catId);
+    };
+
+    const processCategory = (cat: CableCategory & { children: CableCategory[] }): (CableCategory & { children: CableCategory[] }) | null => {
+      // Фильтруем дочерние категории
+      const filteredChildren = cat.children
+        .map(child => processCategory(child as CableCategory & { children: CableCategory[] }))
+        .filter(Boolean) as (CableCategory & { children: CableCategory[] })[];
+
+      // Проверяем, нужно ли показывать эту категорию
+      const shouldShow = isRecentlyCreated(cat) || hasMatchingItems(cat.id) || filteredChildren.length > 0;
+      
+      if (!shouldShow) return null;
+
+      return {
+        ...cat,
+        children: filteredChildren
+      };
+    };
+
+    return categoryTree
+      .map(cat => processCategory(cat))
+      .filter(Boolean) as (CableCategory & { children: CableCategory[] })[];
+  }, [categoryTree, warehouseSubTab, equipmentItems, cablingItems]);
 
   // Фильтрация инвентаря по поисковому запросу
   const filteredInventory = useMemo(() => {
@@ -2038,6 +2072,11 @@ function CategoryItem({
   const hasLowStock = catInventory.some(i => (i.min_quantity ?? 0) > 0 && i.quantity < (i.min_quantity ?? 0));
   const hasChildren = category.children && category.children.length > 0;
   
+  // Проверяем, создана ли категория недавно (менее 24 часов назад)
+  const isNewCategory = category.created_at ? 
+    ((new Date().getTime() - new Date(category.created_at).getTime()) / (1000 * 60 * 60)) < 24 : 
+    false;
+  
   // Подсчет выданного и в ремонте
   const getIssuedQtyForItem = (categoryId: string, length: number, name?: string) => {
     return movements
@@ -2102,6 +2141,11 @@ function CategoryItem({
             <CardTitle className={`${level > 0 ? 'text-sm sm:text-base' : 'text-base sm:text-lg'} truncate`}>
               {category.name}
             </CardTitle>
+            {isNewCategory && catInventory.length === 0 && (
+              <Badge variant="outline" className="text-xs bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800 shrink-0">
+                Новая
+              </Badge>
+            )}
             {showLowStock && (
               <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500 shrink-0" />
             )}
