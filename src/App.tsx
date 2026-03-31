@@ -48,6 +48,7 @@ import { useExpenses } from './hooks/useExpenses';
 import { useSalary } from './hooks/useSalary';
 import { useIncomes } from './hooks/useIncomes';
 import { useContracts } from './hooks/useContracts';
+import { useCompanyBankAccounts } from './hooks/useCompanyBankAccounts';
 
 // Компонент-обёртка для Suspense
 const LazyComponent = ({ children }: { children: React.ReactNode }) => (
@@ -262,6 +263,7 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
   const { records: salaryRecords, addOrUpdateRecord: addOrUpdateSalary, deleteRecord: deleteSalary } = useSalary(companyId);
   const { incomes, addIncome, deleteIncome } = useIncomes(companyId);
   const { contracts, templates: contractTemplates, loading: contractsLoading, createContract, updateContract, deleteContract, getNextContractNumber } = useContracts(companyId);
+  const { accounts: bankAccounts } = useCompanyBankAccounts(companyId);
 
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [fabAction, setFabAction] = useState(0);
@@ -643,6 +645,7 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
                   customers={customers}
                   estimates={estimates}
                   pdfSettings={pdfSettings}
+                  bankAccounts={bankAccounts}
                   onCreate={createContract}
                   onUpdate={updateContract}
                   onDelete={deleteContract}

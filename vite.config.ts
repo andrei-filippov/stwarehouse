@@ -14,6 +14,7 @@ export default defineConfig({
   build: {
     chunkSizeWarningLimit: 1000, // Увеличиваем лимит до 1MB
     rollupOptions: {
+      external: ['@vercel/speed-insights/react'],
       output: {
         manualChunks: {
           // Разделяем библиотеки на отдельные чанки

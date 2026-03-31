@@ -6,6 +6,9 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="description" content="Система управления складом оборудования и сметами" />
     
+    <!-- Content Security Policy -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src *; img-src * data: blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src *; script-src 'self' 'unsafe-inline'; frame-src *; media-src *;">
+    
     <!-- Favicon -->
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
@@ -14,6 +17,20 @@
     <!-- PWA для Android/Chrome -->
     <meta name="theme-color" content="#000000" />
     <link rel="manifest" href="/manifest.json" />
+    
+    <!-- Prevent flash of wrong theme -->
+    <script>
+      (function() {
+        const theme = localStorage.getItem('theme') || 'system';
+        const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const isDark = theme === 'dark' || (theme === 'system' && systemDark);
+        if (isDark) {
+          document.documentElement.classList.add('dark');
+          document.documentElement.style.backgroundColor = '#020617';
+          document.body.style.backgroundColor = '#020617';
+        }
+      })();
+    </script>
     
     <!-- PWA для iOS/Safari и Android -->
     <meta name="mobile-web-app-capable" content="yes" />
@@ -28,12 +45,12 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&subset=cyrillic,cyrillic-ext&display=swap" rel="stylesheet">
-    <script type="module" crossorigin src="/assets/index-C7zL1h4z.js"></script>
+    <script type="module" crossorigin src="/assets/index-D1tg1kGt.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/vendor-react-qkC6yhPU.js">
     <link rel="modulepreload" crossorigin href="/assets/vendor-charts-C7GPe4HJ.js">
-    <link rel="modulepreload" crossorigin href="/assets/vendor-ui-DvGPNvZG.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-ui-F6eLURWD.js">
     <link rel="modulepreload" crossorigin href="/assets/vendor-pdf-BXl3LOEh.js">
-    <link rel="stylesheet" crossorigin href="/assets/index-QUaSu8un.css">
+    <link rel="stylesheet" crossorigin href="/assets/index-dyyZzeKG.css">
   </head>
   <body>
     <div id="root"></div>

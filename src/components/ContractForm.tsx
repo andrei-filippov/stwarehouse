@@ -20,7 +20,7 @@ import {
   CalendarDays,
   Banknote
 } from 'lucide-react';
-import type { Contract, ContractTemplate, ContractType, ContractStatus, PDFSettings } from '../types';
+import type { Contract, ContractTemplate, ContractType, ContractStatus, PDFSettings, CompanyBankAccount } from '../types';
 import { CONTRACT_TYPE_LABELS, CONTRACT_STATUS_LABELS } from '../types';
 
 interface ContractFormProps {
@@ -29,8 +29,9 @@ interface ContractFormProps {
   customers: any[];
   estimates: any[];
   pdfSettings: PDFSettings;
+  bankAccounts?: CompanyBankAccount[];
   getNextNumber: (type: ContractType, year: number) => Promise<string>;
-  onSave: (contract: any, estimateIds: string[]) => void;
+  onSave: (contract: any, estimateIds: string[], bankAccountId?: string) => void;
   onCancel: () => void;
 }
 
@@ -40,6 +41,7 @@ export function ContractForm({
   customers,
   estimates,
   pdfSettings,
+  bankAccounts = [],
   getNextNumber,
   onSave,
   onCancel,
@@ -84,6 +86,12 @@ export function ContractForm({
   // Привязанные сметы
   const [selectedEstimateIds, setSelectedEstimateIds] = useState<string[]>(
     contract?.estimates?.map((e: any) => e.estimate_id) || []
+  );
+  
+  // Банковский счет
+  const defaultAccount = bankAccounts.find(a => a.is_default);
+  const [selectedBankAccountId, setSelectedBankAccountId] = useState<string>(
+    contract?.bank_account_id || defaultAccount?.id || ''
   );
 
   // Генерация номера при создании нового договора
@@ -152,7 +160,7 @@ export function ContractForm({
       additional_terms: additionalTerms || null,
     };
 
-    onSave(contractData, selectedEstimateIds);
+    onSave(contractData, selectedEstimateIds, selectedBankAccountId);
   };
 
   const toggleEstimate = (estimateId: string) => {
@@ -402,6 +410,44 @@ export function ContractForm({
             </div>
             <p className="text-sm text-gray-500">Сумма автоматически рассчитывается из привязанных смет</p>
           </div>
+
+          {bankAccounts.length > 0 && (
+            <div className="space-y-2">
+              <Label>Банковский счет для оплаты</Label>
+              <Select value={selectedBankAccountId} onValueChange={setSelectedBankAccountId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Выберите счет" />
+                </SelectTrigger>
+                <SelectContent>
+                  {bankAccounts.map((account) => (
+                    <SelectItem key={account.id} value={account.id}>
+                      <div className="flex items-center gap-2">
+                        <span>{account.name}</span>
+                        <span className="text-muted-foreground">({account.currency})</span>
+                        {account.is_default && (
+                          <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">по умолчанию</span>
+                        )}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedBankAccountId && (
+                <div className="text-sm text-muted-foreground space-y-1 bg-muted p-2 rounded">
+                  {(() => {
+                    const acc = bankAccounts.find(a => a.id === selectedBankAccountId);
+                    return acc ? (
+                      <>
+                        <p><span className="font-medium">Банк:</span> {acc.bank_name}</p>
+                        <p><span className="font-medium">Р/с:</span> {acc.account}</p>
+                        <p><span className="font-medium">БИК:</span> {acc.bik}</p>
+                      </>
+                    ) : null;
+                  })()}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="paymentTerms">Условия оплаты</Label>

@@ -16,7 +16,7 @@ import {
   Maximize2,
   Minimize2
 } from 'lucide-react';
-import type { Contract, PDFSettings } from '../types';
+import type { Contract, PDFSettings, CompanyBankAccount } from '../types';
 import { CONTRACT_STATUS_LABELS, CONTRACT_STATUS_COLORS, CONTRACT_TYPE_LABELS } from '../types';
 import { generateContractHTML, exportContractToDOCX, printContract } from '../lib/contractExport';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
@@ -25,11 +25,12 @@ import { sanitizeHtml } from '../lib/utils';
 interface ContractPreviewProps {
   contract: Contract;
   pdfSettings: PDFSettings;
+  bankAccounts?: CompanyBankAccount[];
   onClose: () => void;
   onSaveContent?: (content: string) => void;
 }
 
-export function ContractPreview({ contract, pdfSettings, onClose, onSaveContent }: ContractPreviewProps) {
+export function ContractPreview({ contract, pdfSettings, bankAccounts = [], onClose, onSaveContent }: ContractPreviewProps) {
   const [isExportingDOCX, setIsExportingDOCX] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -40,8 +41,8 @@ export function ContractPreview({ contract, pdfSettings, onClose, onSaveContent 
 
   // Генерируем HTML для предпросмотра
   const htmlContent = useMemo(() => {
-    return generateContractHTML(contract, pdfSettings);
-  }, [contract, pdfSettings]);
+    return generateContractHTML(contract, pdfSettings, bankAccounts);
+  }, [contract, pdfSettings, bankAccounts]);
 
   // Текущий контент (отредактированный или оригинальный) - санитизирован
   // Добавляем стили для тёмной темы
@@ -83,7 +84,7 @@ export function ContractPreview({ contract, pdfSettings, onClose, onSaveContent 
   const handleExportDOCX = async () => {
     setIsExportingDOCX(true);
     try {
-      await exportContractToDOCX(contract, pdfSettings);
+      await exportContractToDOCX(contract, pdfSettings, bankAccounts);
     } catch (error) {
       console.error('DOCX export error:', error);
       alert('Ошибка при экспорте в DOCX');
@@ -96,7 +97,7 @@ export function ContractPreview({ contract, pdfSettings, onClose, onSaveContent 
   const handlePrint = () => {
     setIsPrinting(true);
     try {
-      printContract(contract, pdfSettings);
+      printContract(contract, pdfSettings, bankAccounts);
     } catch (error) {
       console.error('Print error:', error);
       alert('Ошибка при печати');

@@ -1,5 +1,5 @@
 import { Document, Paragraph, TextRun, Table, TableCell, TableRow, WidthType, AlignmentType, HeadingLevel, Packer, ImageRun } from 'docx';
-import type { Contract, ContractTemplateData, PDFSettings } from '../types';
+import type { Contract, ContractTemplateData, PDFSettings, CompanyBankAccount } from '../types';
 import { numberToWords } from '../types/contracts';
 
 // Конвертация base64 в Uint8Array для изображений
@@ -14,13 +14,13 @@ function base64ToUint8Array(base64: string): Uint8Array {
 }
 
 // Генерация HTML для предпросмотра и печати
-export function generateContractHTML(contract: Contract, pdfSettings: PDFSettings): string {
+export function generateContractHTML(contract: Contract, pdfSettings: PDFSettings, bankAccounts: CompanyBankAccount[] = [], includeHeader: boolean = false): string {
   const template = contract.template;
   if (!template) {
     return '<p>Шаблон не найден</p>';
   }
 
-  const data = prepareTemplateData(contract, pdfSettings);
+  const data = prepareTemplateData(contract, pdfSettings, bankAccounts);
   
   // Замена плейсхолдеров
   let html = template.content;
@@ -28,11 +28,11 @@ export function generateContractHTML(contract: Contract, pdfSettings: PDFSetting
     return (data as Record<string, string>)[key] || '';
   });
 
-  // Добавляем шапку с настройками PDF
-  const headerHTML = generateHeaderHTML(pdfSettings);
-  
-  // Вставляем шапку перед содержимым договора
-  html = html.replace('<body>', `<body>${headerHTML}`);
+  // Добавляем шапку с настройками PDF только если явно запрошено
+  if (includeHeader) {
+    const headerHTML = generateHeaderHTML(pdfSettings);
+    html = html.replace('<body>', `<body>${headerHTML}`);
+  }
 
   // Возвращаем HTML без глобальных стилей - стили будут применены через inline style в компоненте
   return html;
@@ -58,9 +58,14 @@ function generateHeaderHTML(pdfSettings: PDFSettings): string {
 }
 
 // Подготовка данных для шаблона
-function prepareTemplateData(contract: Contract, pdfSettings: PDFSettings): ContractTemplateData {
+function prepareTemplateData(contract: Contract, pdfSettings: PDFSettings, bankAccounts: CompanyBankAccount[] = []): ContractTemplateData {
   const customer = contract.customer;
   const estimates = contract.estimates || [];
+  
+  // Получаем банковский счёт исполнителя
+  const executorAccount = contract.bank_account_id 
+    ? bankAccounts.find(a => a.id === contract.bank_account_id)
+    : bankAccounts.find(a => a.is_default) || bankAccounts[0];
   
   // Форматируем дату
   const formatDate = (dateStr?: string) => {
@@ -139,6 +144,10 @@ function prepareTemplateData(contract: Contract, pdfSettings: PDFSettings): Cont
     executor_name: contract.executor_name || pdfSettings.companyName || '',
     executor_representative: contract.executor_representative || pdfSettings.personName || '',
     executor_basis: contract.executor_basis || 'Устава',
+    executor_bank_name: executorAccount?.bank_name || '',
+    executor_bank_bik: executorAccount?.bik || '',
+    executor_bank_account: executorAccount?.account || '',
+    executor_bank_corr_account: executorAccount?.corr_account || '',
     
     event_name: contract.event_name || estimates[0]?.estimate?.event_name || '',
     event_date: formatDate(contract.event_start_date) || formatDate(estimates[0]?.estimate?.event_date) || '',
@@ -153,8 +162,8 @@ function prepareTemplateData(contract: Contract, pdfSettings: PDFSettings): Cont
 }
 
 // Экспорт в DOCX
-export async function exportContractToDOCX(contract: Contract, pdfSettings: PDFSettings): Promise<void> {
-  const data = prepareTemplateData(contract, pdfSettings);
+export async function exportContractToDOCX(contract: Contract, pdfSettings: PDFSettings, bankAccounts: CompanyBankAccount[] = []): Promise<void> {
+  const data = prepareTemplateData(contract, pdfSettings, bankAccounts);
   const estimates = contract.estimates || [];
 
   // Создаём параграфы
@@ -575,8 +584,8 @@ export async function exportContractToDOCX(contract: Contract, pdfSettings: PDFS
 }
 
 // Печать договора (открытие окна печати)
-export function printContract(contract: Contract, pdfSettings: PDFSettings): void {
-  const html = generateContractHTML(contract, pdfSettings);
+export function printContract(contract: Contract, pdfSettings: PDFSettings, bankAccounts: CompanyBankAccount[] = []): void {
+  const html = generateContractHTML(contract, pdfSettings, bankAccounts);
   
   const printWindow = window.open('', '_blank');
   if (!printWindow) {

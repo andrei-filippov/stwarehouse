@@ -52,6 +52,9 @@ export type Contract = {
   executor_representative?: string;
   executor_basis?: string;
   
+  // Банковский счёт
+  bank_account_id?: string;
+  
   // Статус
   status: ContractStatus;
   
@@ -136,6 +139,10 @@ export type ContractTemplateData = {
   executor_name: string;
   executor_representative: string;
   executor_basis: string;
+  executor_bank_name?: string;
+  executor_bank_bik?: string;
+  executor_bank_account?: string;
+  executor_bank_corr_account?: string;
   
   // Мероприятие
   event_name: string;

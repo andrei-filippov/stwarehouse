@@ -52,15 +52,20 @@ export function useContracts(companyId: string | undefined) {
 
   const createContract = useCallback(async (
     contract: Partial<Contract>, 
-    estimateIds: string[]
+    estimateIds: string[],
+    bankAccountId?: string
   ) => {
     if (!companyId) return { error: new Error('No company selected'), data: null };
     
     try {
-      // Создаём договор с company_id
+      // Создаём договор с company_id и bank_account_id
       const { data: newContract, error: contractError } = await supabase
         .from('contracts')
-        .insert({ ...contract, company_id: companyId })
+        .insert({ 
+          ...contract, 
+          company_id: companyId,
+          bank_account_id: bankAccountId || null
+        })
         .select()
         .single();
 
@@ -94,15 +99,19 @@ export function useContracts(companyId: string | undefined) {
   const updateContract = useCallback(async (
     id: string, 
     updates: Partial<Contract>, 
-    estimateIds: string[]
+    estimateIds: string[],
+    bankAccountId?: string
   ) => {
     if (!companyId) return { error: new Error('No company selected') };
     
     try {
-      // Обновляем договор
+      // Обновляем договор с bank_account_id
       const { error: contractError } = await supabase
         .from('contracts')
-        .update(updates)
+        .update({
+          ...updates,
+          bank_account_id: bankAccountId || null
+        })
         .eq('id', id)
         .eq('company_id', companyId);
 

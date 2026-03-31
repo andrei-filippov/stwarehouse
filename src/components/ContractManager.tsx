@@ -16,11 +16,13 @@ import {
   Clock,
   AlertCircle
 } from 'lucide-react';
-import type { Contract, ContractTemplate, PDFSettings, ContractType, ContractStatus } from '../types';
+import type { Contract, ContractTemplate, PDFSettings, ContractType, ContractStatus, CompanyBankAccount } from '../types';
 import { CONTRACT_TYPE_LABELS, CONTRACT_STATUS_LABELS, CONTRACT_STATUS_COLORS } from '../types';
 import { ContractForm } from './ContractForm';
 import { ContractPreview } from './ContractPreview';
 import { ContractDetail } from './ContractDetail';
+import { useCompanyBankAccounts } from '../hooks/useCompanyBankAccounts';
+import { useCompanyContext } from '../contexts/CompanyContext';
 
 interface ContractManagerProps {
   contracts: Contract[];
@@ -28,8 +30,8 @@ interface ContractManagerProps {
   customers: any[];
   estimates: any[];
   pdfSettings: PDFSettings;
-  onCreate: (contract: any, estimateIds: string[]) => Promise<{ error: any; data?: any }>;
-  onUpdate: (id: string, contract: any, estimateIds: string[]) => Promise<{ error: any }>;
+  onCreate: (contract: any, estimateIds: string[], bankAccountId?: string) => Promise<{ error: any; data?: any }>;
+  onUpdate: (id: string, contract: any, estimateIds: string[], bankAccountId?: string) => Promise<{ error: any }>;
   onDelete: (id: string) => Promise<{ error: any }>;
   getNextNumber: (type: ContractType, year: number) => Promise<string>;
   fabAction?: number;
@@ -55,6 +57,8 @@ export const ContractManager = memo(function ContractManager({
   getNextNumber,
   fabAction,
 }: ContractManagerProps) {
+  const { company } = useCompanyContext();
+  const { accounts: bankAccounts } = useCompanyBankAccounts(company?.id);
   const isFirstRender = useRef(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -106,11 +110,11 @@ export const ContractManager = memo(function ContractManager({
     setPreviewContract(null);
   }, []);
 
-  const handleSave = useCallback(async (contractData: any, estimateIds: string[]) => {
+  const handleSave = useCallback(async (contractData: any, estimateIds: string[], bankAccountId?: string) => {
     if (editingContract) {
-      await onUpdate(editingContract.id, contractData, estimateIds);
+      await onUpdate(editingContract.id, contractData, estimateIds, bankAccountId);
     } else {
-      await onCreate(contractData, estimateIds);
+      await onCreate(contractData, estimateIds, bankAccountId);
     }
     setIsFormOpen(false);
     setEditingContract(null);
@@ -339,6 +343,7 @@ export const ContractManager = memo(function ContractManager({
             customers={customers}
             estimates={estimates}
             pdfSettings={pdfSettings}
+            bankAccounts={bankAccounts}
             getNextNumber={getNextNumber}
             onSave={handleSave}
             onCancel={handleCloseForm}
@@ -357,6 +362,7 @@ export const ContractManager = memo(function ContractManager({
               <ContractPreview
                 contract={previewContract}
                 pdfSettings={pdfSettings}
+                bankAccounts={bankAccounts}
                 onClose={handleClosePreview}
               />
             )}
