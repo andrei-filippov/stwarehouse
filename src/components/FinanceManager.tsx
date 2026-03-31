@@ -129,9 +129,9 @@ export function FinanceManager({
       }, 0);
   }, [salaryRecords, prevMonth, prevYear]);
 
-  // Расчёт расходов за месяц (все expenses + выплаченные зарплаты)
+  // Расчёт расходов за месяц (только expenses)
   const monthlyExpenses = useMemo(() => {
-    const regularExpenses = expenses
+    return expenses
       .reduce((sum, e) => {
         const date = new Date(e.date || e.created_at || 0);
         if (date.getMonth() === currentMonth && date.getFullYear() === currentYear) {
@@ -139,13 +139,11 @@ export function FinanceManager({
         }
         return sum;
       }, 0);
-
-    return regularExpenses + monthlySalary;
-  }, [expenses, monthlySalary, currentMonth, currentYear]);
+  }, [expenses, currentMonth, currentYear]);
 
   // Расчёт расходов за прошлый месяц
   const prevMonthExpenses = useMemo(() => {
-    const regularExpenses = expenses
+    return expenses
       .reduce((sum, e) => {
         const date = new Date(e.date || e.created_at || 0);
         if (date.getMonth() === prevMonth && date.getFullYear() === prevYear) {
@@ -153,12 +151,10 @@ export function FinanceManager({
         }
         return sum;
       }, 0);
-
-    return regularExpenses + prevMonthSalary;
-  }, [expenses, prevMonthSalary, prevMonth, prevYear]);
+  }, [expenses, prevMonth, prevYear]);
 
   // Прибыль
-  const monthlyProfit = monthlyIncome - monthlyExpenses;
+  const monthlyProfit = monthlyIncome - monthlyExpenses - monthlySalary;
   const profitMargin = monthlyIncome > 0 ? (monthlyProfit / monthlyIncome) * 100 : 0;
 
   // Рост/падение в процентах
@@ -281,7 +277,7 @@ export function FinanceManager({
         </TabsContent>
 
         <TabsContent value="analytics" className="space-y-4">
-          <AnalyticsTab estimates={estimates} />
+          <AnalyticsTab estimates={estimates} salaryRecords={salaryRecords} staff={staff} />
         </TabsContent>
       </Tabs>
     </div>

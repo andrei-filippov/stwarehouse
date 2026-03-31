@@ -1,12 +1,15 @@
 import { useMemo, useState } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { TrendingUp, Calendar, Package, DollarSign, BarChart3, ChevronDown, ChevronUp } from 'lucide-react';
+import { TrendingUp, Calendar, Package, DollarSign, BarChart3, ChevronDown, ChevronUp, Users } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import type { Estimate, EstimateItem } from '../../types';
+import type { SalaryRecord } from '../../hooks/useSalary';
 
 interface AnalyticsTabProps {
   estimates: Estimate[];
+  salaryRecords?: SalaryRecord[];
+  staff?: { id: string; full_name: string; position: string }[];
 }
 
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
@@ -18,10 +21,10 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: '#ef4444'
 };
 
-export function AnalyticsTab({ estimates }: AnalyticsTabProps) {
+export function AnalyticsTab({ estimates, salaryRecords = [], staff = [] }: AnalyticsTabProps) {
   const [showEquipmentStats, setShowEquipmentStats] = useState(true);
 
-  // Статистика по месяцам
+  // Статистика по месяцам (доходы)
   const monthlyData = useMemo(() => {
     const data: Record<string, { month: string; income: number; count: number }> = {};
     
@@ -41,6 +44,65 @@ export function AnalyticsTab({ estimates }: AnalyticsTabProps) {
     
     return Object.values(data).slice(-12); // Последние 12 месяцев
   }, [estimates]);
+
+  // Статистика зарплат по месяцам
+  const salaryMonthlyData = useMemo(() => {
+    const data: Record<string, { month: string; paid: number; calculated: number; count: number }> = {};
+    
+    salaryRecords.forEach(record => {
+      const monthKey = record.month;
+      const date = new Date(monthKey + '-01');
+      const monthLabel = date.toLocaleDateString('ru-RU', { month: 'short', year: '2-digit' });
+      
+      if (!data[monthKey]) {
+        data[monthKey] = { month: monthLabel, paid: 0, calculated: 0, count: 0 };
+      }
+      data[monthKey].paid += record.paid || 0;
+      data[monthKey].calculated += record.total_calculated || 0;
+      data[monthKey].count += 1;
+    });
+    
+    return Object.values(data)
+      .sort((a, b) => {
+        const keyA = Object.keys(data).find(k => data[k] === a) || '';
+        const keyB = Object.keys(data).find(k => data[k] === b) || '';
+        return keyA.localeCompare(keyB);
+      })
+      .slice(-12);
+  }, [salaryRecords]);
+
+  // Топ сотрудников по зарплате
+  const topStaffBySalary = useMemo(() => {
+    const map = new Map<string, { staffId: string; paid: number; calculated: number; projects: number }>();
+    
+    salaryRecords.forEach(record => {
+      const existing = map.get(record.staff_id);
+      if (existing) {
+        existing.paid += record.paid || 0;
+        existing.calculated += record.total_calculated || 0;
+        existing.projects += record.projects.length;
+      } else {
+        map.set(record.staff_id, {
+          staffId: record.staff_id,
+          paid: record.paid || 0,
+          calculated: record.total_calculated || 0,
+          projects: record.projects.length,
+        });
+      }
+    });
+    
+    return Array.from(map.values())
+      .map(item => {
+        const member = staff.find(s => s.id === item.staffId);
+        return {
+          ...item,
+          name: member?.full_name || 'Неизвестный',
+          position: member?.position || '',
+        };
+      })
+      .sort((a, b) => b.paid - a.paid)
+      .slice(0, 10);
+  }, [salaryRecords, staff]);
 
   // Статистика по статусам
   const statusData = useMemo(() => {
@@ -67,7 +129,7 @@ export function AnalyticsTab({ estimates }: AnalyticsTabProps) {
       category: string;
       totalQuantity: number;
       totalRevenue: number;
-      usageCount: number; // в скольких сметах использовалось
+      usageCount: number;
     }> = {};
 
     estimates.forEach(estimate => {
@@ -92,7 +154,6 @@ export function AnalyticsTab({ estimates }: AnalyticsTabProps) {
         uniqueEquipmentInEstimate.add(key);
       });
 
-      // Увеличиваем счётчик использования для каждого уникального оборудования в смете
       uniqueEquipmentInEstimate.forEach(key => {
         if (equipmentMap[key]) {
           equipmentMap[key].usageCount += 1;
@@ -102,17 +163,14 @@ export function AnalyticsTab({ estimates }: AnalyticsTabProps) {
 
     const equipmentList = Object.values(equipmentMap);
 
-    // Топ по количеству использований
     const topByUsage = [...equipmentList]
       .sort((a, b) => b.usageCount - a.usageCount)
       .slice(0, 10);
 
-    // Топ по выручке
     const topByRevenue = [...equipmentList]
       .sort((a, b) => b.totalRevenue - a.totalRevenue)
       .slice(0, 10);
 
-    // Топ по общему количеству
     const topByQuantity = [...equipmentList]
       .sort((a, b) => b.totalQuantity - a.totalQuantity)
       .slice(0, 10);
@@ -135,6 +193,9 @@ export function AnalyticsTab({ estimates }: AnalyticsTabProps) {
       ? totalIncome / completed.length 
       : 0;
 
+    const totalSalaryPaid = salaryRecords.reduce((sum, r) => sum + (r.paid || 0), 0);
+    const totalSalaryCalculated = salaryRecords.reduce((sum, r) => sum + (r.total_calculated || 0), 0);
+
     return {
       totalEstimates: estimates.length,
       completed: completed.length,
@@ -144,9 +205,11 @@ export function AnalyticsTab({ estimates }: AnalyticsTabProps) {
       totalIncome,
       approvedIncome,
       pendingIncome,
-      avgEstimateValue
+      avgEstimateValue,
+      totalSalaryPaid,
+      totalSalaryCalculated,
     };
-  }, [estimates]);
+  }, [estimates, salaryRecords]);
 
   // Данные для графика оборудования по категориям
   const equipmentByCategory = useMemo(() => {
@@ -245,6 +308,52 @@ export function AnalyticsTab({ estimates }: AnalyticsTabProps) {
         </Card>
       </div>
 
+      {/* Salary Summary Cards */}
+      {salaryRecords.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card className="bg-blue-500/10 border-blue-500/20 dark:bg-blue-500/10 dark:border-blue-500/30">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm text-blue-700 dark:text-blue-300 flex items-center gap-2">
+                <Users className="w-4 h-4" />
+                Всего начислено
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">
+                {stats.totalSalaryCalculated.toLocaleString('ru-RU')} ₽
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-green-500/10 border-green-500/20 dark:bg-green-500/10 dark:border-green-500/30">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm text-green-700 dark:text-green-300 flex items-center gap-2">
+                <DollarSign className="w-4 h-4" />
+                Всего выдано
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-green-700 dark:text-green-300">
+                {stats.totalSalaryPaid.toLocaleString('ru-RU')} ₽
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className={`border ${stats.totalSalaryCalculated - stats.totalSalaryPaid >= 0 ? 'bg-amber-500/10 border-amber-500/20 dark:bg-amber-500/10 dark:border-amber-500/30' : 'bg-red-500/10 border-red-500/20 dark:bg-red-500/10 dark:border-red-500/30'}`}>
+            <CardHeader className="pb-2">
+              <CardTitle className={`text-sm ${stats.totalSalaryCalculated - stats.totalSalaryPaid >= 0 ? 'text-amber-700 dark:text-amber-300' : 'text-red-700 dark:text-red-300'}`}>
+                Остаток к выдаче
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className={`text-2xl font-bold ${stats.totalSalaryCalculated - stats.totalSalaryPaid >= 0 ? 'text-amber-700 dark:text-amber-300' : 'text-red-700 dark:text-red-300'}`}>
+                {(stats.totalSalaryCalculated - stats.totalSalaryPaid).toLocaleString('ru-RU')} ₽
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Monthly Income Chart */}
@@ -328,6 +437,99 @@ export function AnalyticsTab({ estimates }: AnalyticsTabProps) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Salary Analytics */}
+      {salaryRecords.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Monthly Salary Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Users className="w-4 h-4" />
+                Зарплаты по месяцам
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {salaryMonthlyData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={salaryMonthlyData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(217 19% 22%)" />
+                    <XAxis 
+                      dataKey="month" 
+                      tick={{ fill: 'hsl(215 20% 65%)', fontSize: 12 }}
+                      axisLine={{ stroke: 'hsl(217 19% 22%)' }}
+                    />
+                    <YAxis 
+                      tick={{ fill: 'hsl(215 20% 65%)', fontSize: 12 }}
+                      axisLine={{ stroke: 'hsl(217 19% 22%)' }}
+                      tickFormatter={(value) => formatCurrency(value)}
+                    />
+                    <Tooltip 
+                      formatter={(value: number, name: string) => {
+                        const label = name === 'paid' ? 'Выдано' : 'Начислено';
+                        return [`${value.toLocaleString('ru-RU')} ₽`, label];
+                      }}
+                      labelStyle={{ color: 'hsl(210 40% 98%)' }}
+                      contentStyle={{ 
+                        backgroundColor: 'hsl(215 28% 10%)', 
+                        border: '1px solid hsl(217 19% 22%)',
+                        borderRadius: '8px'
+                      }}
+                    />
+                    <Bar dataKey="calculated" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="paid" fill="#10b981" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-[250px] flex items-center justify-center text-muted-foreground">
+                  Нет данных о зарплатах
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Top Staff by Salary */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <BarChart3 className="w-4 h-4" />
+                Топ сотрудников по выплатам
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2 max-h-[250px] overflow-y-auto scrollbar-dark">
+                {topStaffBySalary.map((item, index) => (
+                  <div 
+                    key={item.staffId}
+                    className="flex items-center justify-between p-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="text-sm font-medium text-muted-foreground w-5">{index + 1}</span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate" title={item.name}>
+                          {item.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">{item.position}</p>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+                        {item.paid.toLocaleString('ru-RU')} ₽
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {item.projects} проектов
+                      </p>
+                    </div>
+                  </div>
+                ))}
+                {topStaffBySalary.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">Нет данных</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Equipment Analytics Section */}
       <Card className="overflow-hidden">
