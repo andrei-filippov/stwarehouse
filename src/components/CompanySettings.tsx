@@ -256,7 +256,7 @@ export function CompanySettings() {
                   variant="outline"
                   size="sm"
                   onClick={handleInnLookup}
-                  disabled={isLoadingInn || formData.inn.length < 10 || !dadataActive}
+                  disabled={isLoadingInn || (formData.inn || '').length < 10 || !dadataActive}
                   className="whitespace-nowrap"
                 >
                   {isLoadingInn ? (
