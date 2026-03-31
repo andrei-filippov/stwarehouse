@@ -703,23 +703,23 @@ export function EstimateBuilder({
     // Реквизиты справа
     let detailsRow = 1;
     if (company?.name || pdfSettings.companyName) {
-      worksheet.mergeCells(`D${detailsRow}:F${detailsRow}`);
+      worksheet.mergeCells(`D${detailsRow}:G${detailsRow}`);
       worksheet.getCell(detailsRow, 4).value = company?.name || pdfSettings.companyName;
       worksheet.getCell(detailsRow, 4).font = { bold: true, size: 14 };
-      worksheet.getCell(detailsRow, 4).alignment = { horizontal: 'right', vertical: 'center' };
+      worksheet.getCell(detailsRow, 4).alignment = { horizontal: 'right', vertical: 'center', wrapText: true };
       detailsRow++;
     }
 
     if (company?.inn || company?.kpp || company?.ogrn) {
-      worksheet.mergeCells(`D${detailsRow}:F${detailsRow}`);
+      worksheet.mergeCells(`D${detailsRow}:G${detailsRow}`);
       worksheet.getCell(detailsRow, 4).value = `ИНН: ${company.inn || '-'} / КПП: ${company.kpp || '-'} / ОГРН: ${company.ogrn || '-'}`;
       worksheet.getCell(detailsRow, 4).font = { size: 10 };
-      worksheet.getCell(detailsRow, 4).alignment = { horizontal: 'right', vertical: 'center' };
+      worksheet.getCell(detailsRow, 4).alignment = { horizontal: 'right', vertical: 'center', wrapText: true };
       detailsRow++;
     }
 
     if (company?.legal_address) {
-      worksheet.mergeCells(`D${detailsRow}:F${detailsRow}`);
+      worksheet.mergeCells(`D${detailsRow}:G${detailsRow}`);
       worksheet.getCell(detailsRow, 4).value = company.legal_address;
       worksheet.getCell(detailsRow, 4).font = { size: 10 };
       worksheet.getCell(detailsRow, 4).alignment = { horizontal: 'right', vertical: 'center', wrapText: true };
@@ -727,7 +727,7 @@ export function EstimateBuilder({
     } else if (pdfSettings.companyDetails) {
       pdfSettings.companyDetails.split('\n').forEach((line) => {
         if (detailsRow <= 5) {
-          worksheet.mergeCells(`D${detailsRow}:F${detailsRow}`);
+          worksheet.mergeCells(`D${detailsRow}:G${detailsRow}`);
           worksheet.getCell(detailsRow, 4).value = line;
           worksheet.getCell(detailsRow, 4).font = { size: 10 };
           worksheet.getCell(detailsRow, 4).alignment = { horizontal: 'right', vertical: 'center', wrapText: true };
@@ -802,6 +802,9 @@ export function EstimateBuilder({
           { formula: `D${currentRow}*E${currentRow}*F${currentRow}` }
         ];
         
+        // Перенос текста для наименования
+        row.getCell(2).alignment = { wrapText: true, vertical: 'top' };
+        
         row.getCell(4).numFmt = '#,##0';
         row.getCell(5).numFmt = '#,##0.00" ₽"';
         row.getCell(7).numFmt = '#,##0.00" ₽"';
@@ -834,13 +837,13 @@ export function EstimateBuilder({
     grandTotalRow.getCell(7).numFmt = '#,##0.00" ₽"';
 
     worksheet.columns = [
-      { width: 6 },
-      { width: 50 },
-      { width: 12 },
-      { width: 10 },
-      { width: 15 },
-      { width: 10 },
-      { width: 18 },
+      { width: 5 },   // №
+      { width: 55 },  // Наименование (увеличено + перенос)
+      { width: 10 },  // Ед. изм.
+      { width: 9 },   // Кол-во
+      { width: 13 },  // Цена
+      { width: 9 },   // Коэфф.
+      { width: 16 },  // Стоимость
     ];
 
     for (let row = dataStartRow - 1; row <= currentRow; row++) {
