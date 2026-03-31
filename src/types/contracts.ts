@@ -139,6 +139,12 @@ export type ContractTemplateData = {
   executor_name: string;
   executor_representative: string;
   executor_basis: string;
+  executor_inn?: string;
+  executor_kpp?: string;
+  executor_ogrn?: string;
+  executor_address?: string;
+  executor_phone?: string;
+  executor_email?: string;
   executor_bank_name?: string;
   executor_bank_bik?: string;
   executor_bank_account?: string;

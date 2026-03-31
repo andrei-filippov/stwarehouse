@@ -1,5 +1,5 @@
 import { Document, Paragraph, TextRun, Table, TableCell, TableRow, WidthType, AlignmentType, HeadingLevel, Packer, ImageRun } from 'docx';
-import type { Contract, ContractTemplateData, PDFSettings, CompanyBankAccount } from '../types';
+import type { Contract, ContractTemplateData, PDFSettings, CompanyBankAccount, Company } from '../types';
 import { numberToWords } from '../types/contracts';
 
 // Конвертация base64 в Uint8Array для изображений
@@ -14,13 +14,13 @@ function base64ToUint8Array(base64: string): Uint8Array {
 }
 
 // Генерация HTML для предпросмотра и печати
-export function generateContractHTML(contract: Contract, pdfSettings: PDFSettings, bankAccounts: CompanyBankAccount[] = [], includeHeader: boolean = false): string {
+export function generateContractHTML(contract: Contract, pdfSettings: PDFSettings, bankAccounts: CompanyBankAccount[] = [], company?: Company | null, includeHeader: boolean = false): string {
   const template = contract.template;
   if (!template) {
     return '<p>Шаблон не найден</p>';
   }
 
-  const data = prepareTemplateData(contract, pdfSettings, bankAccounts);
+  const data = prepareTemplateData(contract, pdfSettings, bankAccounts, company);
   
   // Замена плейсхолдеров
   let html = template.content;
@@ -58,7 +58,7 @@ function generateHeaderHTML(pdfSettings: PDFSettings): string {
 }
 
 // Подготовка данных для шаблона
-function prepareTemplateData(contract: Contract, pdfSettings: PDFSettings, bankAccounts: CompanyBankAccount[] = []): ContractTemplateData {
+function prepareTemplateData(contract: Contract, pdfSettings: PDFSettings, bankAccounts: CompanyBankAccount[] = [], company?: Company | null): ContractTemplateData {
   const customer = contract.customer;
   const estimates = contract.estimates || [];
   
@@ -141,9 +141,15 @@ function prepareTemplateData(contract: Contract, pdfSettings: PDFSettings, bankA
     customer_bank_account: customer?.bank_account || '',
     customer_bank_corr_account: customer?.bank_corr_account || '',
     
-    executor_name: contract.executor_name || pdfSettings.companyName || '',
+    executor_name: contract.executor_name || company?.name || pdfSettings.companyName || '',
     executor_representative: contract.executor_representative || pdfSettings.personName || '',
     executor_basis: contract.executor_basis || 'Устава',
+    executor_inn: company?.inn || '',
+    executor_kpp: company?.kpp || '',
+    executor_ogrn: company?.ogrn || '',
+    executor_address: company?.legal_address || '',
+    executor_phone: company?.phone || '',
+    executor_email: company?.email || '',
     executor_bank_name: executorAccount?.bank_name || '',
     executor_bank_bik: executorAccount?.bik || '',
     executor_bank_account: executorAccount?.account || '',
@@ -162,8 +168,8 @@ function prepareTemplateData(contract: Contract, pdfSettings: PDFSettings, bankA
 }
 
 // Экспорт в DOCX
-export async function exportContractToDOCX(contract: Contract, pdfSettings: PDFSettings, bankAccounts: CompanyBankAccount[] = []): Promise<void> {
-  const data = prepareTemplateData(contract, pdfSettings, bankAccounts);
+export async function exportContractToDOCX(contract: Contract, pdfSettings: PDFSettings, bankAccounts: CompanyBankAccount[] = [], company?: Company | null): Promise<void> {
+  const data = prepareTemplateData(contract, pdfSettings, bankAccounts, company);
   const estimates = contract.estimates || [];
 
   // Создаём параграфы
@@ -584,8 +590,8 @@ export async function exportContractToDOCX(contract: Contract, pdfSettings: PDFS
 }
 
 // Печать договора (открытие окна печати)
-export function printContract(contract: Contract, pdfSettings: PDFSettings, bankAccounts: CompanyBankAccount[] = []): void {
-  const html = generateContractHTML(contract, pdfSettings, bankAccounts);
+export function printContract(contract: Contract, pdfSettings: PDFSettings, bankAccounts: CompanyBankAccount[] = [], company?: Company | null): void {
+  const html = generateContractHTML(contract, pdfSettings, bankAccounts, company);
   
   const printWindow = window.open('', '_blank');
   if (!printWindow) {

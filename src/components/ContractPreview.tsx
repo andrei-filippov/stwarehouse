@@ -17,6 +17,7 @@ import {
   Minimize2
 } from 'lucide-react';
 import type { Contract, PDFSettings, CompanyBankAccount } from '../types';
+import { useCompanyContext } from '../contexts/CompanyContext';
 import { CONTRACT_STATUS_LABELS, CONTRACT_STATUS_COLORS, CONTRACT_TYPE_LABELS } from '../types';
 import { generateContractHTML, exportContractToDOCX, printContract } from '../lib/contractExport';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
@@ -31,6 +32,7 @@ interface ContractPreviewProps {
 }
 
 export function ContractPreview({ contract, pdfSettings, bankAccounts = [], onClose, onSaveContent }: ContractPreviewProps) {
+  const { company } = useCompanyContext();
   const [isExportingDOCX, setIsExportingDOCX] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -41,34 +43,33 @@ export function ContractPreview({ contract, pdfSettings, bankAccounts = [], onCl
 
   // Генерируем HTML для предпросмотра
   const htmlContent = useMemo(() => {
-    return generateContractHTML(contract, pdfSettings, bankAccounts);
-  }, [contract, pdfSettings, bankAccounts]);
+    return generateContractHTML(contract, pdfSettings, bankAccounts, company);
+  }, [contract, pdfSettings, bankAccounts, company]);
 
   // Текущий контент (отредактированный или оригинальный) - санитизирован
-  // Добавляем стили для тёмной темы
+  // Всегда используем светлый фон для документов (независимо от темы приложения)
   const currentContent = useMemo(() => {
     const content = editedHtml || htmlContent;
     const sanitized = sanitizeHtml(content);
     
-    // Добавляем стили для тёмной темы
-    const darkModeStyles = `
+    // Стили для печатного документа - всегда светлые
+    const printStyles = `
       <style>
-        @media (prefers-color-scheme: dark) {
-          body {
-            background-color: #0f172a !important;
-            color: #e2e8f0 !important;
-          }
-          * {
-            color: #e2e8f0 !important;
-          }
-          table, td, th {
-            border-color: #334155 !important;
-          }
-        }
         body {
           font-family: 'Times New Roman', Times, serif;
           line-height: 1.6;
           padding: 20px;
+          background-color: #ffffff !important;
+          color: #000000 !important;
+        }
+        * {
+          color: #000000 !important;
+        }
+        table, td, th {
+          border-color: #000000 !important;
+        }
+        .signature-block, .parties, .section {
+          color: #000000 !important;
         }
       </style>
     `;
@@ -77,14 +78,14 @@ export function ContractPreview({ contract, pdfSettings, bankAccounts = [], onCl
     if (sanitized.includes('<style')) {
       return sanitized;
     }
-    return darkModeStyles + sanitized;
+    return printStyles + sanitized;
   }, [editedHtml, htmlContent]);
 
   // Обработчик экспорта в DOCX
   const handleExportDOCX = async () => {
     setIsExportingDOCX(true);
     try {
-      await exportContractToDOCX(contract, pdfSettings, bankAccounts);
+      await exportContractToDOCX(contract, pdfSettings, bankAccounts, company);
     } catch (error) {
       console.error('DOCX export error:', error);
       alert('Ошибка при экспорте в DOCX');
@@ -97,7 +98,7 @@ export function ContractPreview({ contract, pdfSettings, bankAccounts = [], onCl
   const handlePrint = () => {
     setIsPrinting(true);
     try {
-      printContract(contract, pdfSettings, bankAccounts);
+      printContract(contract, pdfSettings, bankAccounts, company);
     } catch (error) {
       console.error('Print error:', error);
       alert('Ошибка при печати');
