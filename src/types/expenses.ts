@@ -3,7 +3,7 @@
 export type ExpenseCategory = 
   | 'equipment'      // Закуп оборудования
   | 'consumables'    // Закуп расходников
-  | 'salary'         // Зарплата персонала
+  | 'subrent'        // Субаренда
   | 'rent'           // Аренда
   | 'transport'      // Транспорт
   | 'other';         // Прочее
@@ -24,7 +24,7 @@ export interface Expense {
 export const EXPENSE_CATEGORIES: { value: ExpenseCategory; label: string }[] = [
   { value: 'equipment', label: 'Закуп оборудования' },
   { value: 'consumables', label: 'Закуп расходников' },
-  { value: 'salary', label: 'Зарплата персонала' },
+  { value: 'subrent', label: 'Субаренда' },
   { value: 'rent', label: 'Аренда' },
   { value: 'transport', label: 'Транспорт' },
   { value: 'other', label: 'Прочее' },

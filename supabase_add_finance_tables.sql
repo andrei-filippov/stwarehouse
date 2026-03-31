@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS income (
 CREATE TABLE IF NOT EXISTS expenses (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
-    category TEXT NOT NULL CHECK (category IN ('equipment', 'repair', 'supplies', 'rent', 'fuel', 'other')),
+    category TEXT NOT NULL CHECK (category IN ('equipment', 'repair', 'supplies', 'subrent', 'rent', 'fuel', 'other')),
     amount DECIMAL(12, 2) NOT NULL CHECK (amount >= 0),
     date DATE NOT NULL DEFAULT CURRENT_DATE,
     description TEXT NOT NULL,
@@ -103,6 +103,7 @@ ALTER TABLE payroll_entries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE salary_payments ENABLE ROW LEVEL SECURITY;
 
 -- Политика: пользователи видят только данные своей компании
+DROP POLICY IF EXISTS "income_company_isolation" ON income;
 CREATE POLICY "income_company_isolation" ON income
     FOR ALL USING (
         EXISTS (
@@ -112,6 +113,7 @@ CREATE POLICY "income_company_isolation" ON income
         )
     );
 
+DROP POLICY IF EXISTS "expenses_company_isolation" ON expenses;
 CREATE POLICY "expenses_company_isolation" ON expenses
     FOR ALL USING (
         EXISTS (
@@ -121,6 +123,7 @@ CREATE POLICY "expenses_company_isolation" ON expenses
         )
     );
 
+DROP POLICY IF EXISTS "payroll_company_isolation" ON payroll_entries;
 CREATE POLICY "payroll_company_isolation" ON payroll_entries
     FOR ALL USING (
         EXISTS (
@@ -130,6 +133,7 @@ CREATE POLICY "payroll_company_isolation" ON payroll_entries
         )
     );
 
+DROP POLICY IF EXISTS "salary_payments_company_isolation" ON salary_payments;
 CREATE POLICY "salary_payments_company_isolation" ON salary_payments
     FOR ALL USING (
         EXISTS (

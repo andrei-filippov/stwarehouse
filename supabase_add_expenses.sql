@@ -4,7 +4,7 @@
 CREATE TABLE IF NOT EXISTS expenses (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-  category TEXT NOT NULL CHECK (category IN ('equipment', 'consumables', 'salary', 'rent', 'transport', 'other')),
+  category TEXT NOT NULL CHECK (category IN ('equipment', 'consumables', 'subrent', 'rent', 'transport', 'other')),
   amount DECIMAL(12, 2) NOT NULL DEFAULT 0,
   description TEXT,
   date DATE NOT NULL,

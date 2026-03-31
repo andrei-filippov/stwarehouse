@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
-import { Plus, Package, Wrench, ShoppingCart, Home, Fuel, MoreHorizontal, Trash2 } from 'lucide-react';
+import { Plus, Package, Wrench, ShoppingCart, Home, Store, Fuel, MoreHorizontal, Trash2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
@@ -23,7 +23,7 @@ interface ExpensesTabProps {
 const categoryIcons: Record<string, { icon: React.ElementType; color: string }> = {
   equipment: { icon: Package, color: 'blue' },
   consumables: { icon: ShoppingCart, color: 'purple' },
-  salary: { icon: Users, color: 'indigo' },
+  subrent: { icon: Store, color: 'teal' },
   rent: { icon: Home, color: 'green' },
   transport: { icon: Fuel, color: 'red' },
   other: { icon: MoreHorizontal, color: 'gray' },
@@ -31,8 +31,6 @@ const categoryIcons: Record<string, { icon: React.ElementType; color: string }> 
   supplies: { icon: ShoppingCart, color: 'purple' },
   fuel: { icon: Fuel, color: 'red' }
 };
-
-import { Users } from 'lucide-react';
 
 type ExpenseFilter = 'all' | ExpenseCategory;
 
@@ -160,6 +158,10 @@ export function ExpensesTab({ expenses, onAdd, onDelete }: ExpensesTabProps) {
             indigo: {
               normal: 'bg-indigo-500/10 border-indigo-500/20 text-indigo-700 dark:text-indigo-300',
               active: 'bg-indigo-500/20 border-indigo-500/50 ring-2 ring-indigo-500/30 text-indigo-800 dark:text-indigo-200'
+            },
+            teal: {
+              normal: 'bg-teal-500/10 border-teal-500/20 text-teal-700 dark:text-teal-300',
+              active: 'bg-teal-500/20 border-teal-500/50 ring-2 ring-teal-500/30 text-teal-800 dark:text-teal-200'
             }
           };
           
