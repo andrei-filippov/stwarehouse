@@ -46,6 +46,7 @@ import { useCustomers } from './hooks/useCustomers';
 import { useCableInventory } from './hooks/useCableInventory';
 import { useExpenses } from './hooks/useExpenses';
 import { useSalary } from './hooks/useSalary';
+import { useIncomes } from './hooks/useIncomes';
 import { useContracts } from './hooks/useContracts';
 
 // Компонент-обёртка для Suspense
@@ -259,6 +260,7 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
 importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInventory, updateInventoryQty: updateCableInventoryQty, deleteInventory: deleteCableInventory, issueCable, returnCable, sendToRepair, updateRepairStatus, deleteRepair, refresh: refreshCableInventory } = useCableInventory(companyId);
   const { expenses, loading: expensesLoading, addExpense, updateExpense, deleteExpense } = useExpenses(companyId);
   const { records: salaryRecords, addOrUpdateRecord: addOrUpdateSalary, deleteRecord: deleteSalary } = useSalary(companyId);
+  const { incomes, addIncome, deleteIncome } = useIncomes(companyId);
   const { contracts, templates: contractTemplates, loading: contractsLoading, createContract, updateContract, deleteContract, getNextContractNumber } = useContracts(companyId);
 
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -603,9 +605,12 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
                 estimates={estimates}
                 staff={staff}
                 expenses={expenses}
+                incomes={incomes}
                 companyId={companyId}
                 onAddExpense={addExpense}
                 onDeleteExpense={deleteExpense}
+                onAddIncome={addIncome}
+                onDeleteIncome={deleteIncome}
                 salaryRecords={salaryRecords}
                 onAddOrUpdateSalary={addOrUpdateSalary}
                 onDeleteSalary={deleteSalary}

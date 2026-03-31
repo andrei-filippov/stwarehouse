@@ -1,12 +1,12 @@
 import { useState, useMemo } from 'react';
-import { Users, Calendar, CheckCircle2, DollarSign, Plus, Wallet, Trash2 } from 'lucide-react';
+import { Users, Calendar, CheckCircle2, DollarSign, Plus, Wallet, Trash2, BarChart3 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { format } from 'date-fns';
+import { format, startOfMonth, endOfMonth, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import type { Staff } from '../../types';
 import type { SalaryRecord, SalaryProject } from '../../hooks/useSalary';
@@ -19,8 +19,14 @@ interface SalaryTabProps {
   onDelete?: (id: string) => Promise<{ error: any }>;
 }
 
+type PeriodMode = 'month' | 'range';
+
 export function SalaryTab({ staff, records = [], onAddOrUpdate, onDelete }: SalaryTabProps) {
+  const [periodMode, setPeriodMode] = useState<PeriodMode>('month');
   const [activeMonth, setActiveMonth] = useState(format(new Date(), 'yyyy-MM'));
+  const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [endDate, setEndDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
+
   const [isProjectDialogOpen, setIsProjectDialogOpen] = useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
@@ -28,7 +34,17 @@ export function SalaryTab({ staff, records = [], onAddOrUpdate, onDelete }: Sala
   const [paymentAmount, setPaymentAmount] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Получаем запись для сотрудника на текущий месяц
+  // Фильтрация записей по периоду
+  const filteredRecords = useMemo(() => {
+    if (periodMode === 'month') {
+      return records.filter(r => r.month === activeMonth);
+    }
+    const start = startDate.slice(0, 7); // yyyy-MM
+    const end = endDate.slice(0, 7);
+    return records.filter(r => r.month >= start && r.month <= end);
+  }, [records, periodMode, activeMonth, startDate, endDate]);
+
+  // Получаем запись для сотрудника на текущий месяц (для диалогов)
   const getRecordForStaff = (staffId: string, month: string): SalaryRecord | undefined => {
     return records.find(r => r.staff_id === staffId && r.month === month);
   };
@@ -88,13 +104,43 @@ export function SalaryTab({ staff, records = [], onAddOrUpdate, onDelete }: Sala
     await onDelete(recordId);
   };
 
-  // Статистика по месяцу
-  const monthStats = useMemo(() => {
-    const monthRecords = records.filter(r => r.month === activeMonth);
-    const totalCalculated = monthRecords.reduce((sum, r) => sum + r.total_calculated, 0);
-    const totalPaid = monthRecords.reduce((sum, r) => sum + r.paid, 0);
+  // Статистика по периоду
+  const periodStats = useMemo(() => {
+    const totalCalculated = filteredRecords.reduce((sum, r) => sum + r.total_calculated, 0);
+    const totalPaid = filteredRecords.reduce((sum, r) => sum + r.paid, 0);
     return { totalCalculated, totalPaid, balance: totalCalculated - totalPaid };
-  }, [records, activeMonth]);
+  }, [filteredRecords]);
+
+  // Аналитика по сотрудникам за период
+  const staffAnalytics = useMemo(() => {
+    const map = new Map<string, {
+      staff: Staff;
+      projectsCount: number;
+      totalCalculated: number;
+      totalPaid: number;
+    }>();
+
+    for (const record of filteredRecords) {
+      const member = staff.find(s => s.id === record.staff_id);
+      if (!member) continue;
+
+      const existing = map.get(record.staff_id);
+      if (existing) {
+        existing.projectsCount += record.projects.length;
+        existing.totalCalculated += record.total_calculated;
+        existing.totalPaid += record.paid;
+      } else {
+        map.set(record.staff_id, {
+          staff: member,
+          projectsCount: record.projects.length,
+          totalCalculated: record.total_calculated,
+          totalPaid: record.paid,
+        });
+      }
+    }
+
+    return Array.from(map.values()).sort((a, b) => b.totalCalculated - a.totalCalculated);
+  }, [filteredRecords, staff]);
 
   // Генерация списка месяцев
   const months = useMemo(() => {
@@ -107,9 +153,18 @@ export function SalaryTab({ staff, records = [], onAddOrUpdate, onDelete }: Sala
     return list;
   }, []);
 
+  const periodLabel = useMemo(() => {
+    if (periodMode === 'month') {
+      const [year, month] = activeMonth.split('-');
+      const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+      return `${monthNames[parseInt(month) - 1]} ${year}`;
+    }
+    return `${format(parseISO(startDate), 'dd.MM.yyyy')} – ${format(parseISO(endDate), 'dd.MM.yyyy')}`;
+  }, [periodMode, activeMonth, startDate, endDate]);
+
   return (
     <div className="space-y-6">
-      {/* Month Summary */}
+      {/* Period Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="bg-blue-500/10 border-blue-500/20 dark:bg-blue-500/10 dark:border-blue-500/30">
           <CardHeader className="pb-2">
@@ -117,7 +172,7 @@ export function SalaryTab({ staff, records = [], onAddOrUpdate, onDelete }: Sala
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">
-              {monthStats.totalCalculated.toLocaleString('ru-RU')} ₽
+              {periodStats.totalCalculated.toLocaleString('ru-RU')} ₽
             </div>
           </CardContent>
         </Card>
@@ -128,45 +183,146 @@ export function SalaryTab({ staff, records = [], onAddOrUpdate, onDelete }: Sala
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-700 dark:text-green-300">
-              {monthStats.totalPaid.toLocaleString('ru-RU')} ₽
+              {periodStats.totalPaid.toLocaleString('ru-RU')} ₽
             </div>
           </CardContent>
         </Card>
 
-        <Card className={`border ${monthStats.balance >= 0 ? 'bg-amber-500/10 border-amber-500/20 dark:bg-amber-500/10 dark:border-amber-500/30' : 'bg-red-500/10 border-red-500/20 dark:bg-red-500/10 dark:border-red-500/30'}`}>
+        <Card className={`border ${periodStats.balance >= 0 ? 'bg-amber-500/10 border-amber-500/20 dark:bg-amber-500/10 dark:border-amber-500/30' : 'bg-red-500/10 border-red-500/20 dark:bg-red-500/10 dark:border-red-500/30'}`}>
           <CardHeader className="pb-2">
-            <CardTitle className={`text-sm ${monthStats.balance >= 0 ? 'text-amber-700 dark:text-amber-300' : 'text-red-700 dark:text-red-300'}`}>
+            <CardTitle className={`text-sm ${periodStats.balance >= 0 ? 'text-amber-700 dark:text-amber-300' : 'text-red-700 dark:text-red-300'}`}>
               Остаток к выдаче
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${monthStats.balance >= 0 ? 'text-amber-700 dark:text-amber-300' : 'text-red-700 dark:text-red-300'}`}>
-              {monthStats.balance.toLocaleString('ru-RU')} ₽
+            <div className={`text-2xl font-bold ${periodStats.balance >= 0 ? 'text-amber-700 dark:text-amber-300' : 'text-red-700 dark:text-red-300'}`}>
+              {periodStats.balance.toLocaleString('ru-RU')} ₽
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Month Selector */}
-      <div className="flex items-center gap-4">
-        <Label>Месяц:</Label>
-        <select
-          value={activeMonth}
-          onChange={(e) => setActiveMonth(e.target.value)}
-          className="border rounded-md px-3 py-2"
-        >
-          {months.map(m => {
-            const [year, month] = m.split('-');
-            const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
-            const monthName = monthNames[parseInt(month) - 1];
-            return (
-              <option key={m} value={m}>
-                {monthName} {year}
-              </option>
-            );
-          })}
-        </select>
-      </div>
+      {/* Period Selector */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Button
+                variant={periodMode === 'month' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setPeriodMode('month')}
+              >
+                Месяц
+              </Button>
+              <Button
+                variant={periodMode === 'range' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setPeriodMode('range')}
+              >
+                Период
+              </Button>
+            </div>
+
+            {periodMode === 'month' ? (
+              <select
+                value={activeMonth}
+                onChange={(e) => setActiveMonth(e.target.value)}
+                className="border rounded-md px-3 py-2"
+              >
+                {months.map(m => {
+                  const [year, month] = m.split('-');
+                  const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+                  const monthName = monthNames[parseInt(month) - 1];
+                  return (
+                    <option key={m} value={m}>
+                      {monthName} {year}
+                    </option>
+                  );
+                })}
+              </select>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-auto"
+                />
+                <span className="text-muted-foreground">–</span>
+                <Input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="w-auto"
+                />
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Analytics Table */}
+      {staffAnalytics.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <BarChart3 className="w-4 h-4" />
+              Аналитика за период: {periodLabel}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted">
+                  <tr>
+                    <th className="text-left px-4 py-2 font-medium">Сотрудник</th>
+                    <th className="text-center px-4 py-2 font-medium">Проекты</th>
+                    <th className="text-right px-4 py-2 font-medium">Начислено</th>
+                    <th className="text-right px-4 py-2 font-medium">Выдано</th>
+                    <th className="text-right px-4 py-2 font-medium">Остаток</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {staffAnalytics.map(({ staff: member, projectsCount, totalCalculated, totalPaid }) => {
+                    const balance = totalCalculated - totalPaid;
+                    return (
+                      <tr key={member.id} className="hover:bg-muted/50">
+                        <td className="px-4 py-2">
+                          <div className="font-medium">{member.full_name || 'Без имени'}</div>
+                          <div className="text-xs text-muted-foreground">{member.position || 'Сотрудник'}</div>
+                        </td>
+                        <td className="px-4 py-2 text-center">{projectsCount}</td>
+                        <td className="px-4 py-2 text-right">{totalCalculated.toLocaleString('ru-RU')} ₽</td>
+                        <td className="px-4 py-2 text-right text-green-600">{totalPaid.toLocaleString('ru-RU')} ₽</td>
+                        <td className="px-4 py-2 text-right">
+                          <span className={balance > 0 ? 'text-amber-600' : balance < 0 ? 'text-red-600' : ''}>
+                            {balance.toLocaleString('ru-RU')} ₽
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  <tr className="bg-muted/70 font-medium">
+                    <td className="px-4 py-2">Итого</td>
+                    <td className="px-4 py-2 text-center">
+                      {staffAnalytics.reduce((sum, s) => sum + s.projectsCount, 0)}
+                    </td>
+                    <td className="px-4 py-2 text-right">
+                      {staffAnalytics.reduce((sum, s) => sum + s.totalCalculated, 0).toLocaleString('ru-RU')} ₽
+                    </td>
+                    <td className="px-4 py-2 text-right text-green-700">
+                      {staffAnalytics.reduce((sum, s) => sum + s.totalPaid, 0).toLocaleString('ru-RU')} ₽
+                    </td>
+                    <td className="px-4 py-2 text-right">
+                      {staffAnalytics.reduce((sum, s) => sum + (s.totalCalculated - s.totalPaid), 0).toLocaleString('ru-RU')} ₽
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Staff List */}
       <div className="space-y-4">
@@ -186,7 +342,7 @@ export function SalaryTab({ staff, records = [], onAddOrUpdate, onDelete }: Sala
             return (
               <Card key={member.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between flex-wrap gap-4">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center">
                         <span className="font-bold text-indigo-600 dark:text-indigo-400">
@@ -204,7 +360,7 @@ export function SalaryTab({ staff, records = [], onAddOrUpdate, onDelete }: Sala
                       </div>
                     </div>
                     
-                    <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-4 sm:gap-6 flex-wrap">
                       <div className="text-right">
                         <p className="text-sm text-muted-foreground">Начислено</p>
                         <p className="font-semibold">{record?.total_calculated?.toLocaleString('ru-RU') || 0} ₽</p>
@@ -213,7 +369,7 @@ export function SalaryTab({ staff, records = [], onAddOrUpdate, onDelete }: Sala
                         <p className="text-sm text-muted-foreground">Выдано</p>
                         <p className="font-semibold text-green-600 dark:text-green-400">{record?.paid?.toLocaleString('ru-RU') || 0} ₽</p>
                       </div>
-                      <div className="text-right min-w-[100px]">
+                      <div className="text-right min-w-[80px]">
                         <p className="text-sm text-muted-foreground">Остаток</p>
                         <Badge variant={balance <= 0 ? "default" : "secondary"}>
                           {balance.toLocaleString('ru-RU')} ₽

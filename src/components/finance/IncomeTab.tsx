@@ -9,13 +9,19 @@ import { Label } from '../ui/label';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import type { Estimate } from '../../types';
+import type { Income } from '../../types/finance';
 
 interface IncomeTabProps {
   estimates: Estimate[];
+  incomes?: Income[];
   companyId?: string;
+  onAddIncome?: (income: Partial<Income>) => Promise<{ error: any; data?: any }>;
+  onDeleteIncome?: (id: string) => Promise<{ error: any }>;
 }
 
-interface ManualIncome {
+type IncomeFilter = 'all' | 'estimates' | 'manual' | 'pending';
+
+interface LegacyManualIncome {
   id: string;
   date: string;
   source: string;
@@ -23,23 +29,8 @@ interface ManualIncome {
   description?: string;
 }
 
-type IncomeFilter = 'all' | 'estimates' | 'manual' | 'pending';
-
-export function IncomeTab({ estimates, companyId }: IncomeTabProps) {
-  // Загружаем из localStorage при инициализации
-  const [manualIncomes, setManualIncomes] = useState<ManualIncome[]>(() => {
-    if (!companyId) return [];
-    const saved = localStorage.getItem(`income_manual_${companyId}`);
-    return saved ? JSON.parse(saved) : [];
-  });
+export function IncomeTab({ estimates, incomes = [], companyId, onAddIncome, onDeleteIncome }: IncomeTabProps) {
   const [activeFilter, setActiveFilter] = useState<IncomeFilter>('all');
-
-  // Сохраняем в localStorage при изменении
-  useEffect(() => {
-    if (companyId) {
-      localStorage.setItem(`income_manual_${companyId}`, JSON.stringify(manualIncomes));
-    }
-  }, [manualIncomes, companyId]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newIncome, setNewIncome] = useState({
     date: format(new Date(), 'yyyy-MM-dd'),
@@ -47,6 +38,45 @@ export function IncomeTab({ estimates, companyId }: IncomeTabProps) {
     amount: '',
     description: ''
   });
+  const [isMigrating, setIsMigrating] = useState(false);
+
+  // Миграция старых данных из localStorage в Supabase
+  useEffect(() => {
+    if (!companyId || !onAddIncome || isMigrating) return;
+
+    const migrate = async () => {
+      const saved = localStorage.getItem(`income_manual_${companyId}`);
+      if (!saved) return;
+
+      const legacyIncomes: LegacyManualIncome[] = JSON.parse(saved);
+      if (!legacyIncomes.length) {
+        localStorage.removeItem(`income_manual_${companyId}`);
+        return;
+      }
+
+      // Если в Supabase уже есть ручные поступления — не мигрируем
+      const existingManual = incomes.filter(i => i.type === 'manual');
+      if (existingManual.length > 0) {
+        localStorage.removeItem(`income_manual_${companyId}`);
+        return;
+      }
+
+      setIsMigrating(true);
+      for (const item of legacyIncomes) {
+        await onAddIncome({
+          source: item.source,
+          amount: item.amount,
+          date: item.date,
+          description: item.description,
+          type: 'manual',
+        });
+      }
+      localStorage.removeItem(`income_manual_${companyId}`);
+      setIsMigrating(false);
+    };
+
+    migrate();
+  }, [companyId, onAddIncome, incomes, isMigrating]);
 
   // Доходы от смет (завершенные)
   const estimateIncomes = useMemo(() => {
@@ -76,22 +106,26 @@ export function IncomeTab({ estimates, companyId }: IncomeTabProps) {
       }));
   }, [estimates]);
 
+  // Ручные поступления из Supabase
+  const manualIncomes = useMemo(() => {
+    return incomes.filter(i => i.type === 'manual');
+  }, [incomes]);
+
   const totalEstimateIncome = estimateIncomes.reduce((sum, i) => sum + i.amount, 0);
   const totalManualIncome = manualIncomes.reduce((sum, i) => sum + i.amount, 0);
   const totalPendingIncome = pendingIncomes.reduce((sum, i) => sum + i.amount, 0);
 
-  const handleAddIncome = () => {
-    if (!newIncome.source || !newIncome.amount) return;
+  const handleAddIncome = async () => {
+    if (!newIncome.source || !newIncome.amount || !onAddIncome) return;
     
-    const income: ManualIncome = {
-      id: `manual_${Date.now()}`,
-      date: newIncome.date,
+    await onAddIncome({
       source: newIncome.source,
       amount: parseFloat(newIncome.amount),
-      description: newIncome.description
-    };
+      date: newIncome.date,
+      description: newIncome.description,
+      type: 'manual',
+    });
     
-    setManualIncomes(prev => [income, ...prev]);
     setNewIncome({
       date: format(new Date(), 'yyyy-MM-dd'),
       source: '',
@@ -101,8 +135,9 @@ export function IncomeTab({ estimates, companyId }: IncomeTabProps) {
     setIsDialogOpen(false);
   };
 
-  const handleDeleteIncome = (id: string) => {
-    setManualIncomes(prev => prev.filter(income => income.id !== id));
+  const handleDeleteIncome = async (id: string) => {
+    if (!onDeleteIncome) return;
+    await onDeleteIncome(id);
   };
 
   return (

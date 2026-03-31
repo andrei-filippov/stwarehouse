@@ -10,14 +10,18 @@ import { SalaryTab } from './finance/SalaryTab';
 import { AnalyticsTab } from './finance/AnalyticsTab';
 import type { Estimate, Staff, Expense } from '../types';
 import type { SalaryRecord } from '../hooks/useSalary';
+import type { Income } from '../types/finance';
 
 interface FinanceManagerProps {
   estimates: Estimate[];
   staff: Staff[];
   expenses: Expense[];
+  incomes?: Income[];
   companyId?: string;
   onAddExpense?: (expense: Partial<Expense>) => Promise<{ error: any }>;
   onDeleteExpense?: (id: string) => Promise<{ error: any }>;
+  onAddIncome?: (income: Partial<Income>) => Promise<{ error: any; data?: any }>;
+  onDeleteIncome?: (id: string) => Promise<{ error: any }>;
   salaryRecords?: SalaryRecord[];
   onAddOrUpdateSalary?: (record: Partial<SalaryRecord>) => Promise<{ error: any }>;
   onDeleteSalary?: (id: string) => Promise<{ error: any }>;
@@ -27,9 +31,12 @@ export function FinanceManager({
   estimates, 
   staff, 
   expenses, 
+  incomes = [],
   companyId, 
   onAddExpense, 
   onDeleteExpense,
+  onAddIncome,
+  onDeleteIncome,
   salaryRecords = [],
   onAddOrUpdateSalary,
   onDeleteSalary
@@ -48,9 +55,9 @@ export function FinanceManager({
   const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
   const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
 
-  // Расчёт доходов за месяц (completed сметы)
+  // Расчёт доходов за месяц (completed сметы + ручные поступления)
   const monthlyIncome = useMemo(() => {
-    return estimates
+    const estimateIncome = estimates
       .filter(e => e.status === 'completed')
       .reduce((sum, e) => {
         const date = e.event_date ? new Date(e.event_date) : new Date(e.created_at || 0);
@@ -59,11 +66,23 @@ export function FinanceManager({
         }
         return sum;
       }, 0);
-  }, [estimates, currentMonth, currentYear]);
+
+    const manualIncome = incomes
+      .filter(i => i.type === 'manual')
+      .reduce((sum, i) => {
+        const date = new Date(i.date || 0);
+        if (date.getMonth() === currentMonth && date.getFullYear() === currentYear) {
+          return sum + (i.amount || 0);
+        }
+        return sum;
+      }, 0);
+
+    return estimateIncome + manualIncome;
+  }, [estimates, incomes, currentMonth, currentYear]);
 
   // Расчёт доходов за прошлый месяц
   const prevMonthIncome = useMemo(() => {
-    return estimates
+    const estimateIncome = estimates
       .filter(e => e.status === 'completed')
       .reduce((sum, e) => {
         const date = e.event_date ? new Date(e.event_date) : new Date(e.created_at || 0);
@@ -72,11 +91,47 @@ export function FinanceManager({
         }
         return sum;
       }, 0);
-  }, [estimates, prevMonth, prevYear]);
 
-  // Расчёт расходов за месяц
+    const manualIncome = incomes
+      .filter(i => i.type === 'manual')
+      .reduce((sum, i) => {
+        const date = new Date(i.date || 0);
+        if (date.getMonth() === prevMonth && date.getFullYear() === prevYear) {
+          return sum + (i.amount || 0);
+        }
+        return sum;
+      }, 0);
+
+    return estimateIncome + manualIncome;
+  }, [estimates, incomes, prevMonth, prevYear]);
+
+  // Расчёт зарплат за месяц (по выплатам из salary_records)
+  const monthlySalary = useMemo(() => {
+    return salaryRecords
+      .reduce((sum, r) => {
+        const date = r.payment_date ? new Date(r.payment_date) : new Date(r.month + '-01');
+        if (date.getMonth() === currentMonth && date.getFullYear() === currentYear) {
+          return sum + (r.paid || 0);
+        }
+        return sum;
+      }, 0);
+  }, [salaryRecords, currentMonth, currentYear]);
+
+  // Расчёт зарплат за прошлый месяц
+  const prevMonthSalary = useMemo(() => {
+    return salaryRecords
+      .reduce((sum, r) => {
+        const date = r.payment_date ? new Date(r.payment_date) : new Date(r.month + '-01');
+        if (date.getMonth() === prevMonth && date.getFullYear() === prevYear) {
+          return sum + (r.paid || 0);
+        }
+        return sum;
+      }, 0);
+  }, [salaryRecords, prevMonth, prevYear]);
+
+  // Расчёт расходов за месяц (все expenses + выплаченные зарплаты)
   const monthlyExpenses = useMemo(() => {
-    return expenses
+    const regularExpenses = expenses
       .reduce((sum, e) => {
         const date = new Date(e.date || e.created_at || 0);
         if (date.getMonth() === currentMonth && date.getFullYear() === currentYear) {
@@ -84,11 +139,13 @@ export function FinanceManager({
         }
         return sum;
       }, 0);
-  }, [expenses, currentMonth, currentYear]);
+
+    return regularExpenses + monthlySalary;
+  }, [expenses, monthlySalary, currentMonth, currentYear]);
 
   // Расчёт расходов за прошлый месяц
   const prevMonthExpenses = useMemo(() => {
-    return expenses
+    const regularExpenses = expenses
       .reduce((sum, e) => {
         const date = new Date(e.date || e.created_at || 0);
         if (date.getMonth() === prevMonth && date.getFullYear() === prevYear) {
@@ -96,23 +153,12 @@ export function FinanceManager({
         }
         return sum;
       }, 0);
-  }, [expenses, prevMonth, prevYear]);
 
-  // Расчёт зарплат за месяц (упрощённо: считаем что зарплата = сумма сдельных оплат)
-  const monthlySalary = useMemo(() => {
-    return expenses
-      .filter(e => e.category === 'salary')
-      .reduce((sum, e) => {
-        const date = new Date(e.date || e.created_at || 0);
-        if (date.getMonth() === currentMonth && date.getFullYear() === currentYear) {
-          return sum + (e.amount || 0);
-        }
-        return sum;
-      }, 0);
-  }, [expenses, currentMonth, currentYear]);
+    return regularExpenses + prevMonthSalary;
+  }, [expenses, prevMonthSalary, prevMonth, prevYear]);
 
   // Прибыль
-  const monthlyProfit = monthlyIncome - monthlyExpenses - monthlySalary;
+  const monthlyProfit = monthlyIncome - monthlyExpenses;
   const profitMargin = monthlyIncome > 0 ? (monthlyProfit / monthlyIncome) * 100 : 0;
 
   // Рост/падение в процентах
@@ -211,7 +257,13 @@ export function FinanceManager({
         </TabsList>
 
         <TabsContent value="income" className="space-y-4">
-          <IncomeTab estimates={completedEstimates} companyId={companyId} />
+          <IncomeTab 
+            estimates={completedEstimates} 
+            incomes={incomes}
+            companyId={companyId}
+            onAddIncome={onAddIncome}
+            onDeleteIncome={onDeleteIncome}
+          />
         </TabsContent>
 
         <TabsContent value="expenses" className="space-y-4">
@@ -237,4 +289,3 @@ export function FinanceManager({
 }
 
 export default FinanceManager;
-
