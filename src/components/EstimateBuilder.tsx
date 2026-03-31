@@ -665,7 +665,6 @@ export function EstimateBuilder({
     let currentRow = 1;
 
     // Шапка с логотипом
-    let headerEndRow = 5;
     if (pdfSettings.logo) {
       try {
         const base64Data = pdfSettings.logo.split(',')[1];
