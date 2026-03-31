@@ -459,6 +459,7 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
                 templates={templates}
                 customers={customers}
                 pdfSettings={pdfSettings}
+                company={company}
                 equipmentCategories={
                   [...new Set([
                     ...(categories?.map((c: any) => c.name) || []),

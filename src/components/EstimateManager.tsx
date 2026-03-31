@@ -19,6 +19,7 @@ interface EstimateManagerProps {
   templates: Template[];
   customers: any[];
   pdfSettings: PDFSettings;
+  company?: { name?: string; inn?: string; kpp?: string; ogrn?: string; legal_address?: string } | null;
   equipmentCategories?: string[];
   repairs?: any[];
   cableCategories?: any[];
@@ -39,6 +40,7 @@ export const EstimateManager = memo(function EstimateManager({
   templates,
   customers,
   pdfSettings,
+  company,
   equipmentCategories,
   repairs,
   cableCategories,
@@ -229,6 +231,7 @@ export const EstimateManager = memo(function EstimateManager({
         estimate={editingEstimate}
         selectedTemplate={selectedTemplate}
         pdfSettings={pdfSettings}
+        company={company}
         equipmentCategories={categoriesList}
         repairs={repairs}
         cableCategories={cableCategories}

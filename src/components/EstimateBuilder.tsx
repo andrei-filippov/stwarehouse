@@ -42,6 +42,7 @@ interface EstimateBuilderProps {
   estimate: Estimate | null;
   selectedTemplate: any;
   pdfSettings: PDFSettings;
+  company?: { name?: string; inn?: string; kpp?: string; ogrn?: string; legal_address?: string } | null;
   equipmentCategories: string[];
   repairs?: EquipmentRepair[];
   cableCategories?: CableCategory[];
@@ -58,6 +59,7 @@ export function EstimateBuilder({
   estimate,
   selectedTemplate,
   pdfSettings,
+  company,
   equipmentCategories,
   repairs,
   cableCategories,
@@ -583,8 +585,9 @@ export function EstimateBuilder({
             ${pdfSettings.logo ? `<img src="${pdfSettings.logo}" alt="Логотип" />` : '<p>&nbsp;</p>'}
           </div>
           <div class="company-section">
-            ${pdfSettings.companyName ? `<h2>${pdfSettings.companyName}</h2>` : ''}
-            ${pdfSettings.companyDetails ? pdfSettings.companyDetails.split('\n').map(line => `<p>${line}</p>`).join('') : ''}
+            ${company?.name ? `<h2>${company.name}</h2>` : pdfSettings.companyName ? `<h2>${pdfSettings.companyName}</h2>` : ''}
+            ${company?.inn || company?.kpp || company?.ogrn ? `<p>ИНН: ${company.inn || '-'} / КПП: ${company.kpp || '-'} / ОГРН: ${company.ogrn || '-'}</p>` : ''}
+            ${company?.legal_address ? `<p>${company.legal_address}</p>` : pdfSettings.companyDetails ? pdfSettings.companyDetails.split('\n').map(line => `<p>${line}</p>`).join('') : ''}
           </div>
         </div>
 
@@ -699,15 +702,29 @@ export function EstimateBuilder({
 
     // Реквизиты справа
     let detailsRow = 1;
-    if (pdfSettings.companyName) {
+    if (company?.name || pdfSettings.companyName) {
       worksheet.mergeCells(`D${detailsRow}:F${detailsRow}`);
-      worksheet.getCell(detailsRow, 4).value = pdfSettings.companyName;
+      worksheet.getCell(detailsRow, 4).value = company?.name || pdfSettings.companyName;
       worksheet.getCell(detailsRow, 4).font = { bold: true, size: 14 };
       worksheet.getCell(detailsRow, 4).alignment = { horizontal: 'right', vertical: 'center' };
       detailsRow++;
     }
 
-    if (pdfSettings.companyDetails) {
+    if (company?.inn || company?.kpp || company?.ogrn) {
+      worksheet.mergeCells(`D${detailsRow}:F${detailsRow}`);
+      worksheet.getCell(detailsRow, 4).value = `ИНН: ${company.inn || '-'} / КПП: ${company.kpp || '-'} / ОГРН: ${company.ogrn || '-'}`;
+      worksheet.getCell(detailsRow, 4).font = { size: 10 };
+      worksheet.getCell(detailsRow, 4).alignment = { horizontal: 'right', vertical: 'center' };
+      detailsRow++;
+    }
+
+    if (company?.legal_address) {
+      worksheet.mergeCells(`D${detailsRow}:F${detailsRow}`);
+      worksheet.getCell(detailsRow, 4).value = company.legal_address;
+      worksheet.getCell(detailsRow, 4).font = { size: 10 };
+      worksheet.getCell(detailsRow, 4).alignment = { horizontal: 'right', vertical: 'center', wrapText: true };
+      detailsRow++;
+    } else if (pdfSettings.companyDetails) {
       pdfSettings.companyDetails.split('\n').forEach((line) => {
         if (detailsRow <= 5) {
           worksheet.mergeCells(`D${detailsRow}:F${detailsRow}`);
