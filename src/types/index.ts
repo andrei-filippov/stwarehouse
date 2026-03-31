@@ -294,3 +294,7 @@ export {
   getMemberStatusLabel,
   getCompanyPlanLabel
 } from './company';
+
+// Bank Accounts
+export type { CompanyBankAccount, Currency } from './bankAccounts';
+export { CURRENCY_LABELS, getCurrencyLabel } from './bankAccounts';
