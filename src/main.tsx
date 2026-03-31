@@ -1,11 +1,11 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { SpeedInsights } from '@vercel/speed-insights/react'
 import './index.css'
 import App from './App.tsx'
 import { Toaster } from './components/ui/sonner'
 import { AppLoader } from './components/AppLoader'
 import { ThemeProvider } from './contexts/ThemeContext'
+import { SpeedInsightsWrapper } from './components/SpeedInsightsWrapper'
 
 // Регистрация Service Worker для офлайн-режима
 if ('serviceWorker' in navigator) {
@@ -57,7 +57,7 @@ createRoot(document.getElementById('root')!).render(
         <App />
       </AppLoader>
       <Toaster position="top-right" richColors closeButton />
-      <SpeedInsights />
+      <SpeedInsightsWrapper />
     </ThemeProvider>
   </StrictMode>,
 )
