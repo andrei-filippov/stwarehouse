@@ -697,24 +697,34 @@ export function EstimateBuilder({
       }
     }
 
-    // Объединяем ячейки для логотипа
-    worksheet.mergeCells('A1:C5');
-
-    // Реквизиты справа
+    // Реквизиты справа (динамическое количество строк)
     let detailsRow = 1;
+    const startRow = 1;
+    
     if (company?.name || pdfSettings.companyName) {
       worksheet.mergeCells(`D${detailsRow}:G${detailsRow}`);
       worksheet.getCell(detailsRow, 4).value = company?.name || pdfSettings.companyName;
       worksheet.getCell(detailsRow, 4).font = { bold: true, size: 14 };
       worksheet.getCell(detailsRow, 4).alignment = { horizontal: 'right', vertical: 'center', wrapText: true };
+      worksheet.getRow(detailsRow).height = 20;
       detailsRow++;
     }
 
-    if (company?.inn || company?.kpp || company?.ogrn) {
+    if (company?.inn || company?.kpp) {
       worksheet.mergeCells(`D${detailsRow}:G${detailsRow}`);
-      worksheet.getCell(detailsRow, 4).value = `ИНН: ${company.inn || '-'} / КПП: ${company.kpp || '-'} / ОГРН: ${company.ogrn || '-'}`;
+      worksheet.getCell(detailsRow, 4).value = `ИНН: ${company.inn || '-'} / КПП: ${company.kpp || '-'}`;
       worksheet.getCell(detailsRow, 4).font = { size: 10 };
       worksheet.getCell(detailsRow, 4).alignment = { horizontal: 'right', vertical: 'center', wrapText: true };
+      worksheet.getRow(detailsRow).height = 16;
+      detailsRow++;
+    }
+
+    if (company?.ogrn) {
+      worksheet.mergeCells(`D${detailsRow}:G${detailsRow}`);
+      worksheet.getCell(detailsRow, 4).value = `ОГРН: ${company.ogrn}`;
+      worksheet.getCell(detailsRow, 4).font = { size: 10 };
+      worksheet.getCell(detailsRow, 4).alignment = { horizontal: 'right', vertical: 'center', wrapText: true };
+      worksheet.getRow(detailsRow).height = 16;
       detailsRow++;
     }
 
@@ -723,24 +733,25 @@ export function EstimateBuilder({
       worksheet.getCell(detailsRow, 4).value = company.legal_address;
       worksheet.getCell(detailsRow, 4).font = { size: 10 };
       worksheet.getCell(detailsRow, 4).alignment = { horizontal: 'right', vertical: 'center', wrapText: true };
+      // Увеличиваем высоту строки для длинного адреса
+      worksheet.getRow(detailsRow).height = 32;
       detailsRow++;
     } else if (pdfSettings.companyDetails) {
       pdfSettings.companyDetails.split('\n').forEach((line) => {
-        if (detailsRow <= 5) {
-          worksheet.mergeCells(`D${detailsRow}:G${detailsRow}`);
-          worksheet.getCell(detailsRow, 4).value = line;
-          worksheet.getCell(detailsRow, 4).font = { size: 10 };
-          worksheet.getCell(detailsRow, 4).alignment = { horizontal: 'right', vertical: 'center', wrapText: true };
-          detailsRow++;
-        }
+        worksheet.mergeCells(`D${detailsRow}:G${detailsRow}`);
+        worksheet.getCell(detailsRow, 4).value = line;
+        worksheet.getCell(detailsRow, 4).font = { size: 10 };
+        worksheet.getCell(detailsRow, 4).alignment = { horizontal: 'right', vertical: 'center', wrapText: true };
+        worksheet.getRow(detailsRow).height = 16;
+        detailsRow++;
       });
     }
 
-    for (let i = 1; i <= 5; i++) {
-      worksheet.getRow(i).height = 16;
-    }
+    // Логотип занимает столько же строк, сколько и реквизиты (минимум 4)
+    const headerEndRow = Math.max(detailsRow - 1, 4);
+    worksheet.mergeCells(`A${startRow}:C${headerEndRow}`);
 
-    currentRow = 7;
+    currentRow = headerEndRow + 2;
     worksheet.getCell(currentRow, 1).value = 'Коммерческое предложение:';
     worksheet.getCell(currentRow, 1).font = { bold: true, size: 12 };
     currentRow++;
