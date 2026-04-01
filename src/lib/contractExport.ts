@@ -119,6 +119,8 @@ function prepareTemplateData(contract: Contract, pdfSettings: PDFSettings, bankA
     
     customer_name: customer?.name || '',
     customer_type: customer ? (customerTypeLabels[customer.type] || customer.type) : '',
+    customer_type_short: customer?.type === 'ip' ? 'ИП' : customer?.type === 'company' ? 'ООО' : '',
+    customer_representative_short: getShortName(customer?.contact_person || ''),
     customer_inn: customer?.inn || '',
     customer_kpp: customer?.kpp || '',
     customer_ogrn: customer?.ogrn || '',
@@ -130,8 +132,11 @@ function prepareTemplateData(contract: Contract, pdfSettings: PDFSettings, bankA
     customer_bank_account: customer?.bank_account || '',
     customer_bank_corr_account: customer?.bank_corr_account || '',
     
+    executor_type: company?.type === 'ip' ? 'Индивидуальный предприниматель' : 'Общество с ограниченной ответственностью',
+    executor_type_short: company?.type === 'ip' ? 'ИП' : 'ООО',
     executor_name: contract.executor_name || company?.name || pdfSettings.companyName || '',
     executor_representative: contract.executor_representative || pdfSettings.personName || '',
+    executor_representative_short: getShortName(contract.executor_representative || pdfSettings.personName || ''),
     executor_basis: contract.executor_basis || 'Устава',
     executor_inn: company?.inn || '',
     executor_kpp: company?.kpp || '',
@@ -147,6 +152,7 @@ function prepareTemplateData(contract: Contract, pdfSettings: PDFSettings, bankA
     event_name: contract.event_name || estimates[0]?.estimate?.event_name || '',
     event_date: formatDate(contract.event_start_date) || formatDate(estimates[0]?.estimate?.event_date) || '',
     event_venue: contract.venue || estimates[0]?.estimate?.venue || '',
+    event_city: (contract.venue || estimates[0]?.estimate?.venue || '').split(',')[0] || 'Красноярск',
     
     total_amount: contract.total_amount.toLocaleString('ru-RU'),
     total_amount_text: numberToWords(contract.total_amount),
@@ -154,6 +160,17 @@ function prepareTemplateData(contract: Contract, pdfSettings: PDFSettings, bankA
     
     specification_table: generateSpecTable(),
   };
+}
+
+// Функция для получения сокращённого ФИО (Иванов И.И.)
+function getShortName(fullName: string): string {
+  if (!fullName) return '';
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length === 0) return '';
+  if (parts.length === 1) return parts[0];
+  const lastName = parts[0];
+  const initials = parts.slice(1).map(n => n[0]?.toUpperCase() + '.').join('');
+  return `${lastName} ${initials}`;
 }
 
 // Функция для очистки текста от HTML и спецсимволов

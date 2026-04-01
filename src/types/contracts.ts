@@ -124,6 +124,8 @@ export type ContractTemplateData = {
   // Заказчик
   customer_name: string;
   customer_type: string;
+  customer_type_short?: string;
+  customer_representative_short?: string;
   customer_inn?: string;
   customer_kpp?: string;
   customer_ogrn?: string;
@@ -136,8 +138,11 @@ export type ContractTemplateData = {
   customer_bank_corr_account?: string;
   
   // Исполнитель
+  executor_type?: string;
+  executor_type_short?: string;
   executor_name: string;
   executor_representative: string;
+  executor_representative_short?: string;
   executor_basis: string;
   executor_inn?: string;
   executor_kpp?: string;
@@ -154,6 +159,7 @@ export type ContractTemplateData = {
   event_name: string;
   event_date: string;
   event_venue: string;
+  event_city?: string;
   
   // Финансы
   total_amount: string;
