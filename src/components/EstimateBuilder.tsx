@@ -7,6 +7,7 @@ import { Badge } from './ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from './ui/dialog';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { 
@@ -113,6 +114,9 @@ export function EstimateBuilder({
   
   // Состояние для сворачивания шапки сметы на мобильном
   const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(true);
+  
+  // Состояние для сворачивания шапки сметы на десктопе
+  const [isDesktopHeaderOpen, setIsDesktopHeaderOpen] = useState(true);
   
   // Состояние для показа фильтра категорий
   const [showCategoryFilter, setShowCategoryFilter] = useState(false);
@@ -1221,9 +1225,27 @@ export function EstimateBuilder({
                                 
                                 return (
                                   <div key={item.id} className="p-3 bg-card">
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <span className="text-xs text-muted-foreground/70 w-5">{idx + 1}</span>
-                                      <p className="font-medium text-sm flex-1 truncate">{item.name}</p>
+                                    <div className="flex items-start gap-2 mb-2">
+                                      <span className="text-xs text-muted-foreground/70 w-5 shrink-0">{idx + 1}</span>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="font-medium text-sm">{item.name}</p>
+                                        {/* Описание позиции */}
+                                        <Input
+                                          placeholder="Описание (необязательно)"
+                                          value={item.description || ''}
+                                          onChange={(e) => handleUpdateItem(item.id, { description: e.target.value })}
+                                          className="h-7 mt-1.5 text-xs bg-muted/50 border-0 focus:bg-muted focus:ring-1 focus:ring-blue-500"
+                                        />
+                                      </div>
+                                      {/* Кнопка удаления позиции */}
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleRemoveItem(item.id)}
+                                        className="h-7 w-7 p-0 text-red-500 shrink-0"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </Button>
                                     </div>
                                     
                                     <div className="flex items-center gap-2 pl-7">
@@ -1329,15 +1351,6 @@ export function EstimateBuilder({
                                         />
                                         <span className="text-xs text-muted-foreground">₽</span>
                                       </div>
-                                      
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => handleRemoveItem(item.id)}
-                                        className="h-8 w-8 p-0 text-red-500"
-                                      >
-                                        <Trash2 className="w-4 h-4" />
-                                      </Button>
                                     </div>
                                   </div>
                                 );
@@ -1493,108 +1506,129 @@ export function EstimateBuilder({
                 </Button>
               </div>
 
-              {/* Шапка сметы */}
-              <div className="p-3 border-b space-y-3 shrink-0 bg-muted/50">
-                <Input
-                  placeholder="Название мероприятия"
-                  value={eventName}
-                  onChange={(e) => setEventName(e.target.value)}
-                  className="font-medium"
-                />
-                
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="relative">
-                    <Label className="text-[10px] text-muted-foreground mb-1 block">Начало</Label>
+              {/* Шапка сметы - Collapsible для десктопа */}
+              <Collapsible open={isDesktopHeaderOpen} onOpenChange={setIsDesktopHeaderOpen}>
+                <CollapsibleTrigger asChild>
+                  <div className="p-2 border-b bg-muted/50 flex items-center justify-between cursor-pointer hover:bg-muted/70 transition-colors">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-foreground">{eventName || 'Новое мероприятие'}</span>
+                      {venue && <span className="text-xs text-muted-foreground">• {venue}</span>}
+                      {eventStartDate && (
+                        <span className="text-xs text-muted-foreground">
+                          • {format(new Date(eventStartDate), 'dd.MM.yyyy')}
+                          {eventEndDate && eventEndDate !== eventStartDate && ` - ${format(new Date(eventEndDate), 'dd.MM.yyyy')}`}
+                        </span>
+                      )}
+                    </div>
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                      {isDesktopHeaderOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    </Button>
+                  </div>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="p-3 border-b space-y-3 bg-muted/30">
                     <Input
-                      type="date"
-                      value={eventStartDate ? eventStartDate.split('T')[0] : ''}
-                      onChange={(e) => {
-                        const date = e.target.value;
-                        if (date) {
-                          setEventStartDate(new Date(date).toISOString());
-                          if (!eventEndDate || new Date(eventEndDate) < new Date(date)) {
-                            setEventEndDate(new Date(date).toISOString());
-                          }
-                        } else {
-                          setEventStartDate('');
-                        }
-                      }}
-                      className="text-sm"
+                      placeholder="Название мероприятия"
+                      value={eventName}
+                      onChange={(e) => setEventName(e.target.value)}
+                      className="font-medium"
                     />
-                  </div>
-                  
-                  <div className="relative">
-                    <Label className="text-[10px] text-muted-foreground mb-1 block">Окончание</Label>
+                    
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="relative">
+                        <Label className="text-[10px] text-muted-foreground mb-1 block">Начало</Label>
+                        <Input
+                          type="date"
+                          value={eventStartDate ? eventStartDate.split('T')[0] : ''}
+                          onChange={(e) => {
+                            const date = e.target.value;
+                            if (date) {
+                              setEventStartDate(new Date(date).toISOString());
+                              if (!eventEndDate || new Date(eventEndDate) < new Date(date)) {
+                                setEventEndDate(new Date(date).toISOString());
+                              }
+                            } else {
+                              setEventStartDate('');
+                            }
+                          }}
+                          className="text-sm"
+                        />
+                      </div>
+                      
+                      <div className="relative">
+                        <Label className="text-[10px] text-muted-foreground mb-1 block">Окончание</Label>
+                        <Input
+                          type="date"
+                          value={eventEndDate ? eventEndDate.split('T')[0] : ''}
+                          onChange={(e) => {
+                            const date = e.target.value;
+                            if (date) {
+                              const newEnd = new Date(date);
+                              if (eventStartDate && newEnd < new Date(eventStartDate)) {
+                                alert('Дата окончания не может быть раньше даты начала');
+                                return;
+                              }
+                              setEventEndDate(newEnd.toISOString());
+                            } else {
+                              setEventEndDate('');
+                            }
+                          }}
+                          className="text-sm"
+                          min={eventStartDate ? eventStartDate.split('T')[0] : undefined}
+                        />
+                      </div>
+                    </div>
+                    
                     <Input
-                      type="date"
-                      value={eventEndDate ? eventEndDate.split('T')[0] : ''}
-                      onChange={(e) => {
-                        const date = e.target.value;
-                        if (date) {
-                          const newEnd = new Date(date);
-                          if (eventStartDate && newEnd < new Date(eventStartDate)) {
-                            alert('Дата окончания не может быть раньше даты начала');
-                            return;
-                          }
-                          setEventEndDate(newEnd.toISOString());
-                        } else {
-                          setEventEndDate('');
-                        }
-                      }}
-                      className="text-sm"
-                      min={eventStartDate ? eventStartDate.split('T')[0] : undefined}
+                      placeholder="Место проведения"
+                      value={venue}
+                      onChange={(e) => setVenue(e.target.value)}
                     />
-                  </div>
-                </div>
-                
-                <Input
-                  placeholder="Место проведения"
-                  value={venue}
-                  onChange={(e) => setVenue(e.target.value)}
-                />
 
-                <select
-                  value={customerId}
-                  onChange={(e) => setCustomerId(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Выберите заказчика</option>
-                  {customers.map(customer => (
-                    <option key={customer.id} value={customer.id}>
-                      {customer.name}
-                    </option>
-                  ))}
-                </select>
+                    <select
+                      value={customerId}
+                      onChange={(e) => setCustomerId(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-card"
+                    >
+                      <option value="">Выберите заказчика</option>
+                      {customers.map(customer => (
+                        <option key={customer.id} value={customer.id}>
+                          {customer.name}
+                        </option>
+                      ))}
+                    </select>
 
-                {/* Выбор цвета для календаря */}
-                <div>
-                  <Label className="text-[10px] text-muted-foreground mb-1 block">Цвет в календаре</Label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {[
-                      { value: 'blue', label: 'Синий', class: 'bg-primary/100' },
-                      { value: 'green', label: 'Зеленый', class: 'bg-green-500' },
-                      { value: 'red', label: 'Красный', class: 'bg-red-500' },
-                      { value: 'purple', label: 'Фиолетовый', class: 'bg-purple-500' },
-                      { value: 'orange', label: 'Оранжевый', class: 'bg-orange-500' },
-                      { value: 'pink', label: 'Розовый', class: 'bg-pink-500' },
-                      { value: 'cyan', label: 'Голубой', class: 'bg-cyan-500' },
-                      { value: 'amber', label: 'Желтый', class: 'bg-amber-500' },
-                    ].map((color) => (
-                      <button
-                        key={color.value}
-                        type="button"
-                        onClick={() => setEventColor(color.value)}
-                        title={color.label}
-                        className={`
-                          w-6 h-6 rounded-full ${color.class}
-                          transition-all hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-gray-400
-                          ${eventColor === color.value ? 'ring-2 ring-offset-2 ring-gray-800 scale-110' : ''}
-                        `}
-                      />
-                    ))}
+                    {/* Выбор цвета для календаря */}
+                    <div>
+                      <Label className="text-[10px] text-muted-foreground mb-1 block">Цвет в календаре</Label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[
+                          { value: 'blue', label: 'Синий', class: 'bg-primary/100' },
+                          { value: 'green', label: 'Зеленый', class: 'bg-green-500' },
+                          { value: 'red', label: 'Красный', class: 'bg-red-500' },
+                          { value: 'purple', label: 'Фиолетовый', class: 'bg-purple-500' },
+                          { value: 'orange', label: 'Оранжевый', class: 'bg-orange-500' },
+                          { value: 'pink', label: 'Розовый', class: 'bg-pink-500' },
+                          { value: 'cyan', label: 'Голубой', class: 'bg-cyan-500' },
+                          { value: 'amber', label: 'Желтый', class: 'bg-amber-500' },
+                        ].map((color) => (
+                          <button
+                            key={color.value}
+                            type="button"
+                            onClick={() => setEventColor(color.value)}
+                            title={color.label}
+                            className={`
+                              w-6 h-6 rounded-full ${color.class}
+                              transition-all hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-gray-400
+                              ${eventColor === color.value ? 'ring-2 ring-offset-2 ring-gray-800 scale-110' : ''}
+                            `}
+                          />
+                        ))}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
+                </CollapsibleContent>
+              </Collapsible>
 
               {/* Список позиций */}
               <div className="flex-1 overflow-y-auto">
@@ -1650,11 +1684,20 @@ export function EstimateBuilder({
                                 const itemTotal = item.price * item.quantity * (item.coefficient || 1);
                                 
                                 return (
-                                  <div key={item.id} className="flex items-center gap-2 p-2 bg-muted rounded">
-                                    <span className="text-xs text-muted-foreground/70 w-5 shrink-0">{idx + 1}</span>
-                                    <p className="font-medium text-sm flex-1 truncate">{item.name}</p>
+                                  <div key={item.id} className="flex items-start gap-2 p-2 bg-muted rounded">
+                                    <span className="text-xs text-muted-foreground/70 w-5 shrink-0 mt-1">{idx + 1}</span>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="font-medium text-sm truncate">{item.name}</p>
+                                      {/* Описание позиции */}
+                                      <Input
+                                        placeholder="Описание (необязательно)"
+                                        value={item.description || ''}
+                                        onChange={(e) => handleUpdateItem(item.id, { description: e.target.value })}
+                                        className="h-6 mt-1 text-xs bg-card/50 border-0 focus:bg-card focus:ring-1 focus:ring-blue-500"
+                                      />
+                                    </div>
                                     
-                                    <div className="flex items-center gap-1 shrink-0">
+                                    <div className="flex items-center gap-1 shrink-0 mt-1">
                                       {/* Количество с кнопками +/- */}
                                       <div className="flex items-center bg-card rounded-lg border">
                                         <button
