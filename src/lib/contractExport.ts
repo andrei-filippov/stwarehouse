@@ -74,10 +74,14 @@ function prepareTemplateData(contract: Contract, pdfSettings: PDFSettings, bankA
       '</tr></thead><tbody>';
 
     let globalIndex = 1;
+    let hasItems = false;
+    
     estimates.forEach(ce => {
       const estimate = ce.estimate;
-      if (!estimate || !estimate.items) return;
+      if (!estimate || !estimate.items || estimate.items.length === 0) return;
 
+      hasItems = true;
+      
       // Группируем по категориям
       const grouped = estimate.items.reduce((acc, item) => {
         if (!acc[item.category]) acc[item.category] = [];
@@ -86,7 +90,7 @@ function prepareTemplateData(contract: Contract, pdfSettings: PDFSettings, bankA
       }, {} as Record<string, typeof estimate.items>);
 
       Object.entries(grouped).forEach(([category, items]) => {
-        tableHTML += `<tr style="background:#e3f2fd;"><td colspan="6"><strong>${category}</strong></td></tr>`;
+        tableHTML += `<tr style="background:#f5f5f5;"><td colspan="6"><strong>${category}</strong></td></tr>`;
         items?.forEach(item => {
           const sum = item.price * item.quantity * (item.coefficient || 1);
           tableHTML += `<tr>` +
@@ -100,6 +104,10 @@ function prepareTemplateData(contract: Contract, pdfSettings: PDFSettings, bankA
         });
       });
     });
+
+    if (!hasItems) {
+      return '<p>Позиции сметы не найдены</p>';
+    }
 
     tableHTML += '</tbody></table>';
     return tableHTML;
@@ -441,7 +449,7 @@ export async function exportContractToDOCX(contract: Contract, pdfSettings: PDFS
     let globalIndex = 1;
     estimates.forEach(ce => {
       const estimate = ce.estimate;
-      if (!estimate?.items) return;
+      if (!estimate?.items || estimate.items.length === 0) return;
 
       // Группируем по категориям
       const grouped = estimate.items.reduce((acc, item) => {

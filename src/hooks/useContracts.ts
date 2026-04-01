@@ -20,7 +20,7 @@ export function useContracts(companyId: string | undefined) {
         template:template_id (*),
         estimates:contract_estimates (
           *,
-          estimate:estimate_id (*)
+          estimate:estimate_id (*, items:estimate_items(*))
         )
       `)
       .eq('company_id', companyId)
