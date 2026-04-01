@@ -234,9 +234,12 @@ function ContractTemplates({ userId, companyId }: ContractTemplatesProps) {
     loading,
     uploadTemplateFile,
     createTextTemplate,
+    updateTemplate,
     deleteTemplate,
     downloadFile,
   } = useContractTemplates(userId, companyId);
+  
+  const [editingTemplate, setEditingTemplate] = useState<ContractTemplate | null>(null);
 
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [isTextDialogOpen, setIsTextDialogOpen] = useState(false);
@@ -288,6 +291,16 @@ function ContractTemplates({ userId, companyId }: ContractTemplatesProps) {
       await deleteTemplate(template.id, template.file_path || undefined);
     }
   };
+  
+  const handleEdit = (template: ContractTemplate) => {
+    setEditingTemplate(template);
+    setIsTextDialogOpen(true);
+  };
+  
+  const handleCloseDialog = () => {
+    setIsTextDialogOpen(false);
+    setEditingTemplate(null);
+  };
 
   const formatFileSize = (bytes?: number) => {
     if (!bytes) return '-';
@@ -302,7 +315,7 @@ function ContractTemplates({ userId, companyId }: ContractTemplatesProps) {
         <div className="flex justify-between items-center">
           <CardTitle>Шаблоны договоров</CardTitle>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setIsTextDialogOpen(true)}>
+            <Button variant="outline" onClick={() => { setEditingTemplate(null); setIsTextDialogOpen(true); }}>
               <FileText className="w-4 h-4 mr-2" />
               Текстовый
             </Button>
@@ -369,6 +382,16 @@ function ContractTemplates({ userId, companyId }: ContractTemplatesProps) {
                           title="Скачать"
                         >
                           <Download className="w-4 h-4" />
+                        </Button>
+                      )}
+                      {!template.is_file_template && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEdit(template)}
+                          title="Редактировать"
+                        >
+                          <Edit className="w-4 h-4 text-blue-500" />
                         </Button>
                       )}
                       <Button
@@ -473,22 +496,33 @@ function ContractTemplates({ userId, companyId }: ContractTemplatesProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Диалог создания текстового шаблона */}
+      {/* Диалог создания/редактирования текстового шаблона */}
       <Dialog open={isTextDialogOpen} onOpenChange={setIsTextDialogOpen}>
         <DialogContent className="max-w-3xl w-[95%] max-h-[90vh] overflow-y-auto rounded-xl p-4 sm:p-6" aria-describedby="text-template-desc">
           <DialogHeader>
-            <DialogTitle>Текстовый шаблон договора</DialogTitle>
+            <DialogTitle>
+              {editingTemplate ? 'Редактирование шаблона договора' : 'Текстовый шаблон договора'}
+            </DialogTitle>
             <DialogDescription id="text-template-desc">
-              Создайте шаблон договора с использованием плейсхолдеров
+              {editingTemplate 
+                ? 'Измените шаблон договора с использованием плейсхолдеров' 
+                : 'Создайте шаблон договора с использованием плейсхолдеров'}
             </DialogDescription>
           </DialogHeader>
           <ContractTemplateForm
             companyId={companyId}
-            onCancel={() => setIsTextDialogOpen(false)}
+            editingTemplate={editingTemplate}
+            onCancel={handleCloseDialog}
             onSave={async (data) => {
               const { error } = await createTextTemplate(data);
               if (!error) {
-                setIsTextDialogOpen(false);
+                handleCloseDialog();
+              }
+            }}
+            onUpdate={async (id, data) => {
+              const { error } = await updateTemplate(id, data);
+              if (!error) {
+                handleCloseDialog();
               }
             }}
           />
@@ -503,85 +537,217 @@ function ContractTemplates({ userId, companyId }: ContractTemplatesProps) {
 // ============================================
 interface ContractTemplateFormProps {
   companyId?: string;
+  editingTemplate?: ContractTemplate | null;
   onCancel: () => void;
   onSave: (data: any) => void;
+  onUpdate?: (id: string, data: any) => void;
 }
 
-function ContractTemplateForm({ companyId, onCancel, onSave }: ContractTemplateFormProps) {
-  const [formData, setFormData] = useState({
-    name: '',
-    type: 'service' as ContractType,
-    description: '',
-    content: `<!DOCTYPE html>
+function ContractTemplateForm({ companyId, editingTemplate, onCancel, onSave, onUpdate }: ContractTemplateFormProps) {
+  const defaultContent = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
   <style>
-    body { font-family: "Times New Roman", serif; font-size: 12pt; line-height: 1.5; }
+    body { font-family: "Times New Roman", serif; font-size: 12pt; line-height: 1.5; max-width: 800px; margin: 0 auto; padding: 20px; }
     .center { text-align: center; }
     .bold { font-weight: bold; }
+    .header { margin-bottom: 20px; }
+    .date-line { display: flex; justify-content: space-between; margin-bottom: 20px; }
+    .section { margin: 15px 0; }
+    .section-title { font-weight: bold; text-transform: uppercase; margin: 15px 0 10px 0; }
+    .requisites-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+    .requisites-table td { width: 50%; vertical-align: top; padding: 15px; border: 1px solid #000; }
     table.spec { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 10pt; }
     table.spec th, table.spec td { border: 1px solid #000; padding: 5px; text-align: left; }
     table.spec th { background-color: #f0f0f0; }
+    .page-break { page-break-before: always; }
   </style>
 </head>
 <body>
-  <h2 class="center bold">ДОГОВОР № {{contract_number}}</h2>
-  <p class="center">от {{contract_date}}</p>
+  <div class="header center">
+    <div class="bold" style="font-size: 14pt;">ДОГОВОР ВОЗМЕЗДНОГО ОКАЗАНИЯ УСЛУГ № {{contract_number}}</div>
+    <div class="date-line">
+      <span>г. {{event_city}}</span>
+      <span>{{contract_date}}</span>
+    </div>
+  </div>
   
-  <p><span class="bold">{{executor_name}}</span>, именуемое в дальнейшем «Исполнитель», 
-  в лице <span class="bold">{{executor_representative}}</span>, действующего на основании 
-  <span class="bold">{{executor_basis}}</span>, с одной стороны, и 
-  <span class="bold">{{customer_name}}</span>, именуемое в дальнейшем «Заказчик», 
-  в лице <span class="bold">{{customer_representative}}</span>, действующего на основании 
-  <span class="bold">{{customer_basis}}</span>, с другой стороны, вместе именуемые «Стороны», 
-  заключили настоящий договор о нижеследующем:</p>
+  <p>{{executor_type}} {{executor_name}}, именуемый в дальнейшем «Исполнитель», с одной стороны, и 
+  {{customer_type}} {{customer_name}}, в дальнейшем именуемый «Заказчик», с другой стороны, 
+  вместе именуемые «Стороны», заключили настоящий договор о нижеследующем:</p>
 
-  <h3>1. Предмет договора</h3>
-  <p>1.1. По настоящему Договору Исполнитель обязуется оказать услуги по техническому 
-  оснащению мероприятия «<span class="bold">{{event_name}}</span>», 
-  <span class="bold">{{event_date}}</span>.</p>
+  <div class="section">
+    <div class="section-title">Предмет договора</div>
+    <p>По настоящему Договору Исполнитель обязуется по заданию Заказчика оказать ему Услуги по техническому обеспечению 
+    {{event_name}}, с этой целью:</p>
+    <p>- обеспечить звуковым оборудование, в необходимой для проведения мероприятия комплектации;</p>
+    <p>- произвести монтаж и демонтаж оборудования;</p>
+    <p>- обеспечить работу технических специалистов для сопровождения мероприятия.</p>
+    <p>Заказчик обязуется принять и оплатить услуги согласно Приложению № 1 к настоящему Договору, 
+    которое является неотъемлемой частью Договора.</p>
+  </div>
 
-  <h3>2. Цена договора</h3>
-  <p>2.1. Общая стоимость услуг составляет <span class="bold">{{total_amount}}</span> 
-  (<span class="italic">{{total_amount_text}}</span>), НДС не облагается.</p>
+  <div class="section">
+    <div class="section-title">Цена договора и порядок оплаты</div>
+    <p>Стоимость оказываемых услуг составляет {{total_amount}} ({{total_amount_text}}) рублей, НДС не облагается.</p>
+    <p>Заказчик осуществляет оплату в следующем порядке: {{payment_terms}}</p>
+  </div>
 
-  <h3>3. Реквизиты сторон</h3>
-  <table class="spec">
-    <tr>
-      <td><b>Исполнитель:</b><br>{{executor_name}}<br>{{executor_representative}}</td>
-      <td><b>Заказчик:</b><br>{{customer_name}}<br>{{customer_representative}}</td>
-    </tr>
-  </table>
+  <div class="section">
+    <div class="section-title">Права и обязанности сторон</div>
+    <p><b>Права и обязанности Исполнителя:</b></p>
+    <p>Исполнитель обязуется обеспечить услуги надлежащего качества.</p>
+    <p>Исполнитель вправе требовать оплаты за оказанные услуги.</p>
+    <p><b>Права и обязанности Заказчика:</b></p>
+    <p>Заказчик обязан осуществить оплату услуг в соответствии с настоящим Договором.</p>
+    <p>Заказчик вправе получать от Исполнителя объяснения, связанные с оказанием услуг.</p>
+  </div>
 
-  <p>Подписи сторон:</p>
-  <table class="spec">
-    <tr>
-      <td>От Исполнителя: _______________</td>
-      <td>От Заказчика: _______________</td>
-    </tr>
-  </table>
+  <div class="section">
+    <div class="section-title">Срок оказания услуг</div>
+    <p>Срок оказания услуг {{event_date}}.</p>
+    <p>По окончании оказания услуги сторонами составляется акт приемки оказанных услуг.</p>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Ответственность сторон</div>
+    <p>Стороны несут ответственность за нарушение условий настоящего Договора в соответствии с законодательством РФ.</p>
+    <p>Сторона, не исполнившая или ненадлежащим образом исполнившая свои обязательства, обязана возместить другой стороне причиненные убытки.</p>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Адреса, банковские реквизиты и подписи сторон</div>
+    <table class="requisites-table">
+      <tr>
+        <td>
+          <b>Исполнитель:</b><br><br>
+          {{executor_type}} {{executor_name}}<br>
+          ИНН: {{executor_inn}}<br>
+          ОГРНИП: {{executor_ogrn}}<br>
+          Адрес: {{executor_address}}<br><br>
+          Расчётный счет: {{executor_bank_account}}<br>
+          Банк: {{executor_bank_name}}<br>
+          БИК: {{executor_bank_bik}}<br>
+          Корр.счёт: {{executor_bank_corr_account}}<br><br>
+          ______________ {{executor_representative_short}}<br>
+          М.П.
+        </td>
+        <td>
+          <b>Заказчик:</b><br><br>
+          {{customer_type}} {{customer_name}}<br>
+          ИНН: {{customer_inn}}<br>
+          ОГРНИП: {{customer_ogrn}}<br>
+          Адрес: {{customer_address}}<br><br>
+          Расчётный счет: {{customer_bank_account}}<br>
+          Банк: {{customer_bank_name}}<br>
+          БИК: {{customer_bank_bik}}<br>
+          Корр.счёт: {{customer_bank_corr_account}}<br><br>
+          ______________ {{customer_representative_short}}<br>
+          М.П.
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="page-break"></div>
+
+  <div class="center" style="margin-bottom: 20px;">
+    <div class="bold">Приложение № 1</div>
+    <div>к Договору о возмездном оказании услуг от {{contract_date}} № {{contract_number}}</div>
+    <div class="bold" style="margin-top: 15px;">СПЕЦИФИКАЦИЯ</div>
+    <div>на оказание услуг по предоставлению оборудования и персонала</div>
+  </div>
+
+  {{specification_table}}
+
+  <div style="margin-top: 30px; text-align: right; font-weight: bold;">
+    ИТОГО: {{total_amount}}
+  </div>
+
+  <div style="margin-top: 50px;">
+    <table style="width: 100%;">
+      <tr>
+        <td style="width: 50%;">
+          {{executor_type}}<br>
+          {{executor_name}}<br>
+          ___________________ {{executor_representative_short}}
+        </td>
+        <td style="width: 50%;">
+          {{customer_type}}<br>
+          {{customer_name}}<br>
+          ___________________ {{customer_representative_short}}
+        </td>
+      </tr>
+    </table>
+  </div>
 </body>
-</html>`,
+</html>`;
+
+  const [formData, setFormData] = useState({
+    name: '',
+    type: 'service' as ContractType,
+    description: '',
+    content: defaultContent,
     is_default: false,
   });
+
+  // Заполняем форму при редактировании
+  useEffect(() => {
+    if (editingTemplate) {
+      setFormData({
+        name: editingTemplate.name,
+        type: editingTemplate.type,
+        description: editingTemplate.description || '',
+        content: editingTemplate.content || defaultContent,
+        is_default: editingTemplate.is_default,
+      });
+    } else {
+      setFormData({
+        name: '',
+        type: 'service' as ContractType,
+        description: '',
+        content: defaultContent,
+        is_default: false,
+      });
+    }
+  }, [editingTemplate]);
 
   const placeholders = [
     { key: '{{contract_number}}', desc: 'Номер договора' },
     { key: '{{contract_date}}', desc: 'Дата договора' },
     { key: '{{customer_name}}', desc: 'Наименование заказчика' },
-    { key: '{{customer_type}}', desc: 'Тип заказчика (ООО, ИП, ФЛ)' },
+    { key: '{{customer_type}}', desc: 'Тип заказчика (ИП/ООО)' },
+    { key: '{{customer_type_short}}', desc: 'Тип коротко (ИП/ООО)' },
+    { key: '{{customer_representative_short}}', desc: 'Представитель (Фамилия И.О.)' },
     { key: '{{customer_inn}}', desc: 'ИНН заказчика' },
     { key: '{{customer_kpp}}', desc: 'КПП заказчика' },
+    { key: '{{customer_ogrn}}', desc: 'ОГРН/ОГРНИП заказчика' },
     { key: '{{customer_address}}', desc: 'Юр. адрес заказчика' },
     { key: '{{customer_representative}}', desc: 'Представитель заказчика' },
     { key: '{{customer_basis}}', desc: 'Основание (Устава/доверенность)' },
+    { key: '{{customer_bank_name}}', desc: 'Банк заказчика' },
+    { key: '{{customer_bank_bik}}', desc: 'БИК банка заказчика' },
+    { key: '{{customer_bank_account}}', desc: 'Р/с заказчика' },
+    { key: '{{customer_bank_corr_account}}', desc: 'К/с банка заказчика' },
+    { key: '{{executor_type}}', desc: 'Тип исполнителя (ИП/ООО)' },
+    { key: '{{executor_type_short}}', desc: 'Тип коротко (ИП/ООО)' },
     { key: '{{executor_name}}', desc: 'Наименование исполнителя' },
     { key: '{{executor_representative}}', desc: 'Представитель исполнителя' },
+    { key: '{{executor_representative_short}}', desc: 'Представитель (Фамилия И.О.)' },
     { key: '{{executor_basis}}', desc: 'Основание исполнителя' },
+    { key: '{{executor_inn}}', desc: 'ИНН исполнителя' },
+    { key: '{{executor_kpp}}', desc: 'КПП исполнителя' },
+    { key: '{{executor_ogrn}}', desc: 'ОГРН/ОГРНИП исполнителя' },
+    { key: '{{executor_address}}', desc: 'Юр. адрес исполнителя' },
+    { key: '{{executor_bank_name}}', desc: 'Банк исполнителя' },
+    { key: '{{executor_bank_bik}}', desc: 'БИК банка исполнителя' },
+    { key: '{{executor_bank_account}}', desc: 'Р/с исполнителя' },
+    { key: '{{executor_bank_corr_account}}', desc: 'К/с банка исполнителя' },
     { key: '{{event_name}}', desc: 'Название мероприятия' },
     { key: '{{event_date}}', desc: 'Дата мероприятия' },
     { key: '{{event_venue}}', desc: 'Место проведения' },
+    { key: '{{event_city}}', desc: 'Город проведения' },
     { key: '{{total_amount}}', desc: 'Сумма цифрами' },
     { key: '{{total_amount_text}}', desc: 'Сумма прописью' },
     { key: '{{payment_terms}}', desc: 'Условия оплаты' },
@@ -659,9 +825,18 @@ function ContractTemplateForm({ companyId, onCancel, onSave }: ContractTemplateF
 
       <div className="flex gap-3 justify-end pt-4">
         <Button variant="outline" onClick={onCancel}>Отмена</Button>
-        <Button onClick={() => onSave({ ...formData, company_id: companyId })} disabled={!formData.name}>
+        <Button 
+          onClick={() => {
+            if (editingTemplate && onUpdate) {
+              onUpdate(editingTemplate.id, { ...formData, company_id: companyId });
+            } else {
+              onSave({ ...formData, company_id: companyId });
+            }
+          }} 
+          disabled={!formData.name}
+        >
           <Copy className="w-4 h-4 mr-2" />
-          Сохранить шаблон
+          {editingTemplate ? 'Сохранить изменения' : 'Сохранить шаблон'}
         </Button>
       </div>
     </div>
