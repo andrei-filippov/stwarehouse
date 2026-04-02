@@ -89,7 +89,29 @@ function prepareTemplateData(contract: Contract, pdfSettings: PDFSettings, bankA
         return acc;
       }, {} as Record<string, typeof estimate.items>);
 
-      Object.entries(grouped).forEach(([category, items]) => {
+      // Определяем порядок категорий: сначала category_order из сметы, затем порядок появления
+      const categoryOrder = estimate.category_order || [];
+      const allCategories = Object.keys(grouped);
+      
+      // Сортируем категории: сначала те, что в category_order, затем остальные в порядке появления
+      const sortedCategories = [...allCategories].sort((a, b) => {
+        const indexA = categoryOrder.indexOf(a);
+        const indexB = categoryOrder.indexOf(b);
+        
+        // Если обе категории в category_order - сортируем по индексу
+        if (indexA !== -1 && indexB !== -1) {
+          return indexA - indexB;
+        }
+        // Если только a в category_order - она первее
+        if (indexA !== -1) return -1;
+        // Если только b в category_order - она первее
+        if (indexB !== -1) return 1;
+        // Если ни одна не в category_order - сохраняем порядок появления (исходный порядок в allCategories)
+        return allCategories.indexOf(a) - allCategories.indexOf(b);
+      });
+
+      sortedCategories.forEach(category => {
+        const items = grouped[category];
         tableHTML += `<tr style="background:#f5f5f5;"><td colspan="6"><strong>${category}</strong></td></tr>`;
         items?.forEach(item => {
           const sum = item.price * item.quantity * (item.coefficient || 1);
@@ -463,7 +485,29 @@ export async function exportContractToDOCX(contract: Contract, pdfSettings: PDFS
         return acc;
       }, {} as Record<string, typeof estimate.items>);
 
-      Object.entries(grouped).forEach(([category, items]) => {
+      // Определяем порядок категорий: сначала category_order из сметы, затем порядок появления
+      const categoryOrder = estimate.category_order || [];
+      const allCategories = Object.keys(grouped);
+      
+      // Сортируем категории: сначала те, что в category_order, затем остальные в порядке появления
+      const sortedCategories = [...allCategories].sort((a, b) => {
+        const indexA = categoryOrder.indexOf(a);
+        const indexB = categoryOrder.indexOf(b);
+        
+        // Если обе категории в category_order - сортируем по индексу
+        if (indexA !== -1 && indexB !== -1) {
+          return indexA - indexB;
+        }
+        // Если только a в category_order - она первее
+        if (indexA !== -1) return -1;
+        // Если только b в category_order - она первее
+        if (indexB !== -1) return 1;
+        // Если ни одна не в category_order - сохраняем порядок появления
+        return allCategories.indexOf(a) - allCategories.indexOf(b);
+      });
+
+      sortedCategories.forEach(category => {
+        const items = grouped[category];
         // Заголовок категории
         specRows.push(
           new TableRow({

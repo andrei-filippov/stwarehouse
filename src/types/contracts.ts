@@ -103,6 +103,7 @@ export type ContractEstimateItem = {
     event_start_date?: string;
     event_end_date?: string;
     total: number;
+    category_order?: string[]; // Порядок категорий для спецификации
     items?: Array<{
       name: string;
       description?: string;

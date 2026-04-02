@@ -549,19 +549,20 @@ function ContractTemplateForm({ companyId, editingTemplate, onCancel, onSave, on
 <head>
   <meta charset="UTF-8">
   <style>
-    body { font-family: "Times New Roman", serif; font-size: 12pt; line-height: 1.5; max-width: 800px; margin: 0 auto; padding: 20px; }
+    body { font-family: "Times New Roman", serif; font-size: 12pt; line-height: 1.5; max-width: 800px; margin: 0 auto; padding: 20px; text-align: justify; }
     .center { text-align: center; }
     .bold { font-weight: bold; }
     .header { margin-bottom: 20px; }
     .date-line { display: flex; justify-content: space-between; margin-bottom: 20px; }
     .section { margin: 15px 0; }
-    .section-title { font-weight: bold; text-transform: uppercase; margin: 15px 0 10px 0; }
+    .section-title { font-weight: bold; text-align: center; margin: 20px 0 10px 0; }
     .requisites-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
     .requisites-table td { width: 50%; vertical-align: top; padding: 15px; border: 1px solid #000; }
     table.spec { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 10pt; }
     table.spec th, table.spec td { border: 1px solid #000; padding: 5px; text-align: left; }
     table.spec th { background-color: #f0f0f0; }
     .page-break { page-break-before: always; }
+    p { margin: 8px 0; text-indent: 0; }
   </style>
 </head>
 <body>
@@ -573,60 +574,91 @@ function ContractTemplateForm({ companyId, editingTemplate, onCancel, onSave, on
     </div>
   </div>
   
-  <p>{{executor_type}} {{executor_name}}, именуемый в дальнейшем «Исполнитель», с одной стороны, и 
-  {{customer_type}} {{customer_name}}, в дальнейшем именуемый «Заказчик», с другой стороны, 
+  <p style="text-align: justify;">{{executor_type}} {{executor_name}}, именуемый в дальнейшем «Исполнитель», с одной стороны, и 
+  {{customer_type}} {{customer_name}}, именуемый в дальнейшем «Заказчик», с другой стороны, 
   вместе именуемые «Стороны», заключили настоящий договор о нижеследующем:</p>
 
   <div class="section">
-    <div class="section-title">Предмет договора</div>
-    <p>По настоящему Договору Исполнитель обязуется по заданию Заказчика оказать ему Услуги по техническому обеспечению 
+    <div class="section-title">1  Предмет договора</div>
+    <p>1.1  По настоящему Договору Исполнитель обязуется по заданию Заказчика оказать ему Услуги по техническому обеспечению 
     {{event_name}}, с этой целью:</p>
-    <p>- обеспечить звуковым оборудование, в необходимой для проведения мероприятия комплектации;</p>
+    <p>- обеспечить звуковым оборудованием, в необходимой для проведения мероприятия комплектации;</p>
     <p>- произвести монтаж и демонтаж оборудования;</p>
     <p>- обеспечить работу технических специалистов для сопровождения мероприятия.</p>
-    <p>Заказчик обязуется принять и оплатить услуги согласно Приложению № 1 к настоящему Договору, 
+    <p>1.2  Заказчик обязуется принять и оплатить услуги согласно Приложению № 1 к настоящему Договору, 
     которое является неотъемлемой частью Договора.</p>
+    <p>1.3  Для оказания услуг Исполнитель вправе привлекать соисполнителей по своему выбору по согласованию с Заказчиком. 
+    Использование работы соисполнителей не снимает ответственности с Исполнителя за качество оказываемых услуг.</p>
   </div>
 
   <div class="section">
-    <div class="section-title">Цена договора и порядок оплаты</div>
-    <p>Стоимость оказываемых услуг составляет {{total_amount}} ({{total_amount_text}}) рублей, НДС не облагается.</p>
-    <p>Заказчик осуществляет оплату в следующем порядке: {{payment_terms}}</p>
+    <div class="section-title">2  Цена договора и порядок оплаты</div>
+    <p>2.1  Стоимость оказываемых услуг составляет {{total_amount}} ({{total_amount_text}}) рублей, НДС не облагается.</p>
+    <p>2.2  Заказчик осуществляет оплату в следующем порядке: {{payment_terms}}</p>
   </div>
 
   <div class="section">
-    <div class="section-title">Права и обязанности сторон</div>
+    <div class="section-title">3  Права и обязанности сторон</div>
     <p><b>Права и обязанности Исполнителя:</b></p>
-    <p>Исполнитель обязуется обеспечить услуги надлежащего качества.</p>
-    <p>Исполнитель вправе требовать оплаты за оказанные услуги.</p>
+    <p>3.1.1  Исполнитель обязуется обеспечить услуги надлежащего качества.</p>
+    <p>3.1.2  Исполнитель вправе требовать оплаты за оказанные услуги.</p>
     <p><b>Права и обязанности Заказчика:</b></p>
-    <p>Заказчик обязан осуществить оплату услуг в соответствии с настоящим Договором.</p>
-    <p>Заказчик вправе получать от Исполнителя объяснения, связанные с оказанием услуг.</p>
+    <p>3.2.1  Заказчик обязан осуществить оплату услуг в соответствии с настоящим Договором.</p>
+    <p>3.2.2  Заказчик вправе получать от Исполнителя объяснения, связанные с оказанием услуг.</p>
   </div>
 
   <div class="section">
-    <div class="section-title">Срок оказания услуг</div>
-    <p>Срок оказания услуг {{event_date}}.</p>
-    <p>По окончании оказания услуги сторонами составляется акт приемки оказанных услуг.</p>
+    <div class="section-title">4  Срок оказания услуг</div>
+    <p>4.1  Срок оказания услуг {{event_date}}.</p>
+    <p>4.2  По окончании оказания услуги сторонами составляется акт приемки оказанных услуг, 
+    в котором должно быть указано наименование оказанной услуги и ее стоимость.</p>
   </div>
 
   <div class="section">
-    <div class="section-title">Ответственность сторон</div>
-    <p>Стороны несут ответственность за нарушение условий настоящего Договора в соответствии с законодательством РФ.</p>
-    <p>Сторона, не исполнившая или ненадлежащим образом исполнившая свои обязательства, обязана возместить другой стороне причиненные убытки.</p>
+    <div class="section-title">5  Ответственность сторон</div>
+    <p>5.1  Стороны несут ответственность за нарушение условий настоящего Договора в соответствии с законодательством Российской Федерации.</p>
+    <p>5.2  Сторона, не исполнившая или ненадлежащим образом исполнившая свои обязательства по настоящему Договору, 
+    обязана возместить другой стороне причиненные убытки.</p>
+    <p>5.3  В случае повреждения предоставляемого Исполнителем звукового оборудования сотрудниками Заказчика и (или) зрителями мероприятия, 
+    Исполнитель вправе потребовать возмещения ущерба.</p>
   </div>
 
   <div class="section">
-    <div class="section-title">Адреса, банковские реквизиты и подписи сторон</div>
+    <div class="section-title">6  Порядок разрешения споров</div>
+    <p>6.1  Все споры или разногласия, возникающие между сторонами по настоящему Договору или в связи с ним, 
+    разрешаются путем переговоров между сторонами.</p>
+    <p>6.2  В случае невозможности разрешения споров или разногласий путем переговоров они подлежат разрешению судом 
+    в установленном законодательством порядке.</p>
+  </div>
+
+  <div class="section">
+    <div class="section-title">7  Срок действия договора</div>
+    <p>7.1  Настоящий договор вступает в силу с момента его подписания обеими Сторонами и действует до полного исполнения 
+    сторонами обязательств по настоящему договору.</p>
+  </div>
+
+  <div class="section">
+    <div class="section-title">8  Порядок изменения и дополнения договора</div>
+    <p>8.1  Любые изменения и дополнения к настоящему Договору имеют силу только в том случае, 
+    если они оформлены в письменном виде и подписаны обеими сторонами.</p>
+  </div>
+
+  <div class="section">
+    <div class="section-title">9  Прочие условия</div>
+    <p>9.1  Настоящий Договор составлен в двух экземплярах, имеющих одинаковую силу, по одному экземпляру для каждой из сторон.</p>
+  </div>
+
+  <div class="section">
+    <div class="section-title">10  Адреса, банковские реквизиты и подписи сторон</div>
     <table class="requisites-table">
       <tr>
         <td>
           <b>Исполнитель:</b><br><br>
-          {{executor_type}} {{executor_name}}<br>
+          {{executor_type_short}} {{executor_name}}<br>
           ИНН: {{executor_inn}}<br>
           ОГРНИП: {{executor_ogrn}}<br>
           Адрес: {{executor_address}}<br><br>
-          Расчётный счет: {{executor_bank_account}}<br>
+          Расчётный счёт: {{executor_bank_account}}<br>
           Банк: {{executor_bank_name}}<br>
           БИК: {{executor_bank_bik}}<br>
           Корр.счёт: {{executor_bank_corr_account}}<br><br>
@@ -635,11 +667,11 @@ function ContractTemplateForm({ companyId, editingTemplate, onCancel, onSave, on
         </td>
         <td>
           <b>Заказчик:</b><br><br>
-          {{customer_type}} {{customer_name}}<br>
+          {{customer_type_short}} {{customer_name}}<br>
           ИНН: {{customer_inn}}<br>
           ОГРНИП: {{customer_ogrn}}<br>
           Адрес: {{customer_address}}<br><br>
-          Расчётный счет: {{customer_bank_account}}<br>
+          Расчётный счёт: {{customer_bank_account}}<br>
           Банк: {{customer_bank_name}}<br>
           БИК: {{customer_bank_bik}}<br>
           Корр.счёт: {{customer_bank_corr_account}}<br><br>
@@ -654,7 +686,7 @@ function ContractTemplateForm({ companyId, editingTemplate, onCancel, onSave, on
 
   <div class="center" style="margin-bottom: 20px;">
     <div class="bold">Приложение № 1</div>
-    <div>к Договору о возмездном оказании услуг от {{contract_date}} № {{contract_number}}</div>
+    <div>к Договору возмездного оказания услуг № {{contract_number}} от {{contract_date}}</div>
     <div class="bold" style="margin-top: 15px;">СПЕЦИФИКАЦИЯ</div>
     <div>на оказание услуг по предоставлению оборудования и персонала</div>
   </div>
