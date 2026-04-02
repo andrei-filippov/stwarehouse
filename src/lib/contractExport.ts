@@ -1,6 +1,7 @@
 import { Document, Paragraph, TextRun, WidthType, AlignmentType } from 'docx';
 import type { Contract, ContractTemplateData, PDFSettings, CompanyBankAccount, Company } from '../types';
 import { numberToWords } from '../types/contracts';
+import { cleanEditedHtml } from '../lib/utils';
 
 // Генерация HTML для предпросмотра и печати
 export function generateContractHTML(contract: Contract, pdfSettings: PDFSettings, bankAccounts: CompanyBankAccount[] = [], company?: Company | null, includeHeader: boolean = false): string {
