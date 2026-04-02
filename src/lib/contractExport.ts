@@ -155,15 +155,38 @@ function prepareTemplateData(contract: Contract, pdfSettings: PDFSettings, bankA
     ip: 'Индивидуальный предприниматель',
     individual: 'Физическое лицо',
   };
+  
+  // Функция для получения короткого типа компании с проверкой на дублирование
+  const getCompanyTypeShort = (type: string, name: string): string => {
+    if (type === 'ip') {
+      return name.match(/^ИП\s+/i) ? '' : 'ИП';
+    }
+    if (type === 'company') {
+      if (name.match(/^(ООО|ОАО|ЗАО|ПАО|АО)\s*["']?/i)) return '';
+      return 'ООО';
+    }
+    return '';
+  };
+  
+  // Получаем полное наименование компании с проверкой дублирования
+  const getCompanyFullName = (type: string, name: string): string => {
+    if (type === 'ip') {
+      return name.match(/^ИП\s+/i) ? name : `ИП ${name}`;
+    }
+    if (type === 'company') {
+      return name.match(/^(ООО|ОАО|ЗАО|ПАО|АО)\s*["']?/i) ? name : `ООО "${name}"`;
+    }
+    return name;
+  };
 
   return {
     contract_number: contract.number,
     contract_date: formatDate(contract.date),
     contract_subject: contract.subject || '',
     
-    customer_name: customer?.name || '',
+    customer_name: customer?.name ? getCompanyFullName(customer.type, customer.name) : '',
     customer_type: customer ? (customerTypeLabels[customer.type] || customer.type) : '',
-    customer_type_short: customer?.type === 'ip' ? 'ИП' : customer?.type === 'company' ? 'ООО' : '',
+    customer_type_short: customer?.type ? getCompanyTypeShort(customer.type, customer.name || '') : '',
     customer_representative_short: getShortName(customer?.contact_person || ''),
     customer_inn: customer?.inn || '',
     customer_kpp: customer?.kpp || '',
@@ -177,8 +200,8 @@ function prepareTemplateData(contract: Contract, pdfSettings: PDFSettings, bankA
     customer_bank_corr_account: customer?.bank_corr_account || '',
     
     executor_type: company?.type === 'ip' ? 'Индивидуальный предприниматель' : 'Общество с ограниченной ответственностью',
-    executor_type_short: company?.type === 'ip' ? 'ИП' : 'ООО',
-    executor_name: contract.executor_name || company?.name || pdfSettings.companyName || '',
+    executor_type_short: company?.type ? getCompanyTypeShort(company.type, company.name || '') : '',
+    executor_name: contract.executor_name || (company?.name ? getCompanyFullName(company.type, company.name) : pdfSettings.companyName) || '',
     executor_representative: contract.executor_representative || pdfSettings.personName || '',
     executor_representative_short: getShortName(contract.executor_representative || pdfSettings.personName || ''),
     executor_basis: contract.executor_basis || 'Устава',

@@ -24,20 +24,22 @@ export function generateInvoiceHTML(invoice: Invoice, settings: PDFSettings, ban
   const account = executorAccount?.account || company?.bank_account || '40802810200005568272';
   
   // Формируем полное наименование поставщика
+  const rawSupplierName = company?.name || settings.companyName || '-';
   const supplierFullName = company?.type === 'ip' 
-    ? `ИП ${company?.name || settings.companyName || '-'}`
-    : `ООО "${company?.name || settings.companyName || '-'}"`;
+    ? (rawSupplierName.match(/^ИП\s+/i) ? rawSupplierName : `ИП ${rawSupplierName}`)
+    : (rawSupplierName.match(/^(ООО|ОАО|ЗАО|ПАО|АО)\s*["']?/i) ? rawSupplierName : `ООО "${rawSupplierName}"`);
   
   const supplierInn = company?.inn || settings.companyDetails?.match(/ИНН\s*(\d+)/)?.[1] || '-';
   const supplierKpp = company?.kpp || '-';
   const supplierAddress = company?.legal_address || settings.companyDetails || '-';
   
   // Формируем наименование покупателя
+  const rawBuyerName = customer?.name || '-';
   const buyerFullName = customer?.type === 'ip'
-    ? `ИП ${customer?.name || '-'}`
+    ? (rawBuyerName.match(/^ИП\s+/i) ? rawBuyerName : `ИП ${rawBuyerName}`)
     : customer?.type === 'company'
-      ? `ООО "${customer?.name || '-'}"`
-      : customer?.name || '-';
+      ? (rawBuyerName.match(/^(ООО|ОАО|ЗАО|ПАО|АО)\s*["']?/i) ? rawBuyerName : `ООО "${rawBuyerName}"`)
+      : rawBuyerName;
   
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);

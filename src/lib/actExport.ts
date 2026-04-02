@@ -7,6 +7,18 @@ import { numberToWords } from '../types';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 
+// Вспомогательная функция для форматирования названия компании
+function formatCompanyName(name: string, type?: string): string {
+  if (!name) return '-';
+  if (type === 'ip') {
+    return name.match(/^ИП\s+/i) ? name : `ИП ${name}`;
+  }
+  if (type === 'company' || !type) {
+    return name.match(/^(ООО|ОАО|ЗАО|ПАО|АО)\s*["']?/i) ? name : `ООО "${name}"`;
+  }
+  return name;
+}
+
 // Генерация HTML для предпросмотра акта
 export function generateActHTML(act: Act, settings: PDFSettings, bankAccounts: CompanyBankAccount[] = [], company?: Company | null): string {
   const customer = act.contract?.customer;
@@ -79,12 +91,12 @@ export function generateActHTML(act: Act, settings: PDFSettings, bankAccounts: C
 
   <div class="info-block">
     <div class="info-row">
-      <span class="info-label">Исполнитель:</span> ${settings.companyName}, 
+      <span class="info-label">Исполнитель:</span> ${formatCompanyName(settings.companyName, company?.type)}, 
       ИНН ${settings.companyDetails.includes('ИНН') ? settings.companyDetails.match(/ИНН\s*(\d+)/)?.[1] || '-' : '-'}, 
       ${settings.companyDetails}
     </div>
     <div class="info-row">
-      <span class="info-label">Заказчик:</span> ${customer?.name || '-'}, 
+      <span class="info-label">Заказчик:</span> ${formatCompanyName(customer?.name || '-', customer?.type)}, 
       ИНН ${customer?.inn || '-'}, КПП ${customer?.kpp || '-'}, 
       ${customer?.legal_address || '-'}
     </div>
@@ -168,7 +180,7 @@ export function generateActHTML(act: Act, settings: PDFSettings, bankAccounts: C
         <td style="border: none; width: 50%; vertical-align: top;">
           <div class="signature-block">
             <div class="signature-title">От Исполнителя:</div>
-            <div>${settings.companyName}</div>
+            <div>${formatCompanyName(settings.companyName, company?.type)}</div>
             <div style="margin-top: 10px;">${settings.position}</div>
             <div style="margin-top: 40px;">
               <span style="border-top: 1px solid #000; display: inline-block; width: 150px; margin-right: 10px;"></span>
@@ -182,7 +194,7 @@ export function generateActHTML(act: Act, settings: PDFSettings, bankAccounts: C
         <td style="border: none; width: 50%; vertical-align: top;">
           <div class="signature-block">
             <div class="signature-title">От Заказчика:</div>
-            <div>${customer?.name || '_______________________'}</div>
+            <div>${formatCompanyName(customer?.name || '_______________________', customer?.type)}</div>
             <div style="margin-top: 10px;">_______________________</div>
             <div style="margin-top: 40px;">
               <span style="border-top: 1px solid #000; display: inline-block; width: 150px; margin-right: 10px;"></span>
@@ -211,6 +223,10 @@ export async function exportActToDOCX(act: Act, settings: PDFSettings, bankAccou
   const periodText = act.period_start && act.period_end
     ? `${format(new Date(act.period_start), 'dd.MM.yyyy')} — ${format(new Date(act.period_end), 'dd.MM.yyyy')}`
     : '-';
+  
+  // Форматирование названий компаний
+  const companyNameFormatted = formatCompanyName(settings.companyName, company?.type);
+  const customerNameFormatted = formatCompanyName(customer?.name || '-', customer?.type);
 
   const doc = new Document({
     sections: [{
@@ -239,14 +255,14 @@ export async function exportActToDOCX(act: Act, settings: PDFSettings, bankAccou
           spacing: { after: 200 },
           children: [
             new TextRun({ text: 'Исполнитель: ', bold: true }),
-            new TextRun(`${settings.companyName}, ИНН ${settings.companyDetails.includes('ИНН') ? settings.companyDetails.match(/ИНН\s*(\d+)/)?.[1] || '-' : '-'}, ${settings.companyDetails}`),
+            new TextRun(`${companyNameFormatted}, ИНН ${settings.companyDetails.includes('ИНН') ? settings.companyDetails.match(/ИНН\s*(\d+)/)?.[1] || '-' : '-'}, ${settings.companyDetails}`),
           ],
         }),
         new Paragraph({
           spacing: { after: 300 },
           children: [
             new TextRun({ text: 'Заказчик: ', bold: true }),
-            new TextRun(`${customer?.name || '-'}, ИНН ${customer?.inn || '-'}, КПП ${customer?.kpp || '-'}, ${customer?.legal_address || '-'}`),
+            new TextRun(`${customerNameFormatted}, ИНН ${customer?.inn || '-'}, КПП ${customer?.kpp || '-'}, ${customer?.legal_address || '-'}`),
           ],
         }),
 
@@ -374,7 +390,7 @@ export async function exportActToDOCX(act: Act, settings: PDFSettings, bankAccou
                   width: { size: 50, type: 'pct' },
                   children: [
                     new Paragraph({ text: 'От Исполнителя:', bold: true }),
-                    new Paragraph(settings.companyName),
+                    new Paragraph(companyNameFormatted),
                     new Paragraph(settings.position),
                     new Paragraph({ text: '_'.repeat(30), spacing: { before: 400 } }),
                     new Paragraph(`/ ${settings.personName} /`),
@@ -384,7 +400,7 @@ export async function exportActToDOCX(act: Act, settings: PDFSettings, bankAccou
                   width: { size: 50, type: 'pct' },
                   children: [
                     new Paragraph({ text: 'От Заказчика:', bold: true }),
-                    new Paragraph(customer?.name || '_______________________'),
+                    new Paragraph(customerNameFormatted),
                     new Paragraph('_______________________'),
                     new Paragraph({ text: '_'.repeat(30), spacing: { before: 400 } }),
                     new Paragraph('/ _______________________ /'),

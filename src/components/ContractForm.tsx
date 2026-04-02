@@ -467,7 +467,7 @@ export function ContractForm({
                         <span>{account.name}</span>
                         <span className="text-muted-foreground">({account.currency})</span>
                         {account.is_default && (
-                          <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">по умолчанию</span>
+                          <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-1.5 py-0.5 rounded">по умолчанию</span>
                         )}
                       </div>
                     </SelectItem>
@@ -502,7 +502,7 @@ export function ContractForm({
             />
           </div>
 
-          <Card className="border-blue-200 bg-blue-50">
+          <Card className="border-blue-200 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-950/30">
             <CardContent className="pt-4 space-y-4">
               <h4 className="font-medium flex items-center gap-2">
                 <Briefcase className="w-4 h-4" />
@@ -559,10 +559,10 @@ export function ContractForm({
 
         {/* Сметы */}
         <TabsContent value="estimates" className="space-y-4">
-          <div className="text-sm text-gray-500 mb-2">Выберите сметы для включения в договор:</div>
+          <div className="text-sm text-muted-foreground mb-2">Выберите сметы для включения в договор:</div>
           
           {estimates.length === 0 ? (
-            <div className="text-center text-gray-500 py-8">Нет доступных смет. Сначала создайте сметы.</div>
+            <div className="text-center text-muted-foreground py-8">Нет доступных смет. Сначала создайте сметы.</div>
           ) : (
             <div className="space-y-2 max-h-96 overflow-y-auto">
               {estimates.map((estimate: any) => {
@@ -570,8 +570,10 @@ export function ContractForm({
                 return (
                   <div
                     key={estimate.id}
-                    className={`p-3 border rounded-lg transition-colors ${
-                      isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+                    className={`p-3 border rounded-lg transition-colors cursor-pointer ${
+                      isSelected 
+                        ? 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-950/40' 
+                        : 'border-border hover:border-muted-foreground/50'
                     }`}
                   >
                     <label className="flex items-start gap-3 cursor-pointer">
