@@ -65,7 +65,7 @@ export function ContractDetail({
     updateInvoice, 
     deleteInvoice,
     getNextNumber: getNextInvoiceNumber 
-} = useInvoices(contract.id);
+} = useInvoices(contract.id, company?.id);
   
   const { 
     acts, 
@@ -74,7 +74,7 @@ export function ContractDetail({
     updateAct, 
     deleteAct,
     getNextNumber: getNextActNumber 
-  } = useActs(contract.id);
+  } = useActs(contract.id, company?.id);
 
   // Состояния для модальных окон
   const [isInvoiceFormOpen, setIsInvoiceFormOpen] = useState(false);
