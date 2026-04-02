@@ -17,7 +17,7 @@ import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { CalendarIcon, Plus, Trash2, List, FileText } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { cn, dateToString } from '../lib/utils';
 import type { Act, ActItem, ActStatus, Contract, Invoice } from '../types';
 import { ACT_STATUS_LABELS } from '../types';
 
@@ -40,14 +40,14 @@ export function ActForm({
 }: ActFormProps) {
   const [formData, setFormData] = useState<Partial<Act>>({
     contract_id: contract.id,
-    date: new Date().toISOString().split('T')[0],
+    date: dateToString(new Date()) || '',
     status: 'draft' as ActStatus,
     vat_rate: 0,
     amount: contract.total_amount,
     vat_amount: 0,
     total_amount: contract.total_amount,
-    period_start: contract.event_start_date || new Date().toISOString().split('T')[0],
-    period_end: contract.event_end_date || new Date().toISOString().split('T')[0],
+    period_start: contract.event_start_date || dateToString(new Date()) || '',
+    period_end: contract.event_end_date || dateToString(new Date()) || '',
   });
   
   const [items, setItems] = useState<Partial<ActItem>[]>([]);
@@ -182,7 +182,7 @@ export function ActForm({
                 mode="single"
                 selected={formData.date ? new Date(formData.date) : undefined}
                 onSelect={(date) => {
-                  setFormData({ ...formData, date: date?.toISOString().split('T')[0] });
+                  setFormData({ ...formData, date: dateToString(date) || '' });
                   setDateOpen(false);
                 }}
                 initialFocus
@@ -252,7 +252,7 @@ export function ActForm({
               <Calendar
                 mode="single"
                 selected={formData.period_start ? new Date(formData.period_start) : undefined}
-                onSelect={(date) => setFormData({ ...formData, period_start: date?.toISOString().split('T')[0] })}
+                onSelect={(date) => setFormData({ ...formData, period_start: dateToString(date) || '' })}
                 initialFocus
               />
             </PopoverContent>
@@ -282,7 +282,7 @@ export function ActForm({
               <Calendar
                 mode="single"
                 selected={formData.period_end ? new Date(formData.period_end) : undefined}
-                onSelect={(date) => setFormData({ ...formData, period_end: date?.toISOString().split('T')[0] })}
+                onSelect={(date) => setFormData({ ...formData, period_end: dateToString(date) || '' })}
                 initialFocus
               />
             </PopoverContent>

@@ -16,7 +16,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { CalendarIcon, Calculator } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { cn, dateToString } from '../lib/utils';
 import type { Invoice, InvoiceStatus, Contract } from '../types';
 import { INVOICE_STATUS_LABELS } from '../types';
 
@@ -37,7 +37,7 @@ export function InvoiceForm({
 }: InvoiceFormProps) {
   const [formData, setFormData] = useState<Partial<Invoice>>({
     contract_id: contract.id,
-    date: new Date().toISOString().split('T')[0],
+    date: dateToString(new Date()) || '',
     status: 'draft' as InvoiceStatus,
     vat_rate: 0,
     amount: contract.total_amount,
@@ -134,7 +134,7 @@ export function InvoiceForm({
                 mode="single"
                 selected={formData.date ? new Date(formData.date) : undefined}
                 onSelect={(date) => {
-                  setFormData({ ...formData, date: date?.toISOString().split('T')[0] });
+                  setFormData({ ...formData, date: dateToString(date) || '' });
                   setDateOpen(false);
                 }}
                 initialFocus
@@ -245,7 +245,7 @@ export function InvoiceForm({
               mode="single"
               selected={formData.due_date ? new Date(formData.due_date) : undefined}
               onSelect={(date) => {
-                setFormData({ ...formData, due_date: date?.toISOString().split('T')[0] });
+                setFormData({ ...formData, due_date: dateToString(date) || '' });
                 setDueDateOpen(false);
               }}
               initialFocus
@@ -311,7 +311,7 @@ export function InvoiceForm({
               <Calendar
                 mode="single"
                 selected={formData.paid_date ? new Date(formData.paid_date) : undefined}
-                onSelect={(date) => setFormData({ ...formData, paid_date: date?.toISOString().split('T')[0] })}
+                onSelect={(date) => setFormData({ ...formData, paid_date: dateToString(date) })}
                 initialFocus
               />
             </PopoverContent>

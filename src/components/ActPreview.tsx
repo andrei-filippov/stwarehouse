@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from './ui/button';
-import { Download, FileText, Edit, Save, X, Printer, List, FileText as FileTextIcon } from 'lucide-react';
-import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
+import { Download, FileText, Edit, Save, X, Printer } from 'lucide-react';
+
 import type { Act, PDFSettings, CompanyBankAccount } from '../types';
 import { useCompanyContext } from '../contexts/CompanyContext';
 import { generateActHTML, exportActToDOCX } from '../lib/actExport';
@@ -25,10 +25,9 @@ export function ActPreview({
   const { company } = useCompanyContext();
   const [isEditing, setIsEditing] = useState(false);
   const [editedHtml, setEditedHtml] = useState<string>('');
-  const [showItems, setShowItems] = useState(true); // true - показывать позиции, false - предмет договора
   const editRef = useRef<HTMLDivElement>(null);
   
-  const htmlContent = generateActHTML(act, pdfSettings, bankAccounts, company, showItems);
+  const htmlContent = generateActHTML(act, pdfSettings, bankAccounts, company, true);
 
   useEffect(() => {
     if (isEditing && editRef.current) {
@@ -38,7 +37,7 @@ export function ActPreview({
 
   const handleExportDOCX = async () => {
     try {
-      await exportActToDOCX(act, pdfSettings, bankAccounts, company, showItems);
+      await exportActToDOCX(act, pdfSettings, bankAccounts, company, true);
     } catch (error) {
       console.error('Error exporting act:', error);
       alert('Ошибка при экспорта акта');
@@ -123,23 +122,6 @@ export function ActPreview({
               </Button>
             )
           )}
-          {/* Переключатель варианта отображения */}
-          <ToggleGroup
-            type="single"
-            value={showItems ? 'items' : 'subject'}
-            onValueChange={(value) => value && setShowItems(value === 'items')}
-            className="mr-2"
-          >
-            <ToggleGroupItem value="items" aria-label="Показать позиции">
-              <List className="w-4 h-4 mr-1" />
-              Позиции
-            </ToggleGroupItem>
-            <ToggleGroupItem value="subject" aria-label="Показать предмет договора">
-              <FileTextIcon className="w-4 h-4 mr-1" />
-              Предмет
-            </ToggleGroupItem>
-          </ToggleGroup>
-          
           <Button variant="outline" size="sm" onClick={handlePrint}>
             <Printer className="w-4 h-4 mr-1" />
             Печать

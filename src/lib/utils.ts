@@ -86,6 +86,16 @@ export function cleanEditedHtml(html: string): string {
   return tempDiv.innerHTML;
 }
 
+// Форматирование даты в строку YYYY-MM-DD без проблем с часовым поясом
+export function dateToString(date: Date | undefined | null): string | undefined {
+  if (!date) return undefined;
+  // Используем локальную дату, а не UTC
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 // Валидация email
 export function isValidEmail(email: string): boolean {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

@@ -12,8 +12,8 @@ export function generateContractHTML(contract: Contract, pdfSettings: PDFSetting
   // Используем отредактированный контент если есть, иначе генерируем из шаблона
   let html: string;
   if (contract.content) {
-    // Используем сохранённый отредактированный контент
-    html = contract.content;
+    // Очищаем отредактированный контент от браузерных стилей перед экспортом
+    html = cleanEditedHtml(contract.content);
   } else {
     // Генерируем из шаблона с заменой плейсхолдеров
     const data = prepareTemplateData(contract, pdfSettings, bankAccounts, company);
