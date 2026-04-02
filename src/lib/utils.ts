@@ -93,18 +93,24 @@ export function cleanEditedHtml(html: string): string {
   const tempDiv = document.createElement('div');
   tempDiv.innerHTML = html;
   
-  // === ВОССТАНОВЛЕНИЕ СТРУКТУРЫ ТАБЛИЦ ===
-  // Находим все таблицы и восстанавливаем их атрибуты
-  const tables = tempDiv.querySelectorAll('table');
-  tables.forEach(table => {
+  // === ВОССТАНОВЛЕНИЕ СТРУКТУРЫ ТАБЛИЦ СПЕЦИФИКАЦИЙ ===
+  // Находим только таблицы спецификаций (с классом 'spec') и восстанавливаем их атрибуты
+  const specTables = tempDiv.querySelectorAll('table.spec, table[class*="spec"]');
+  specTables.forEach(table => {
     // Устанавливаем атрибуты таблицы для границ
     table.setAttribute('border', '1');
     table.setAttribute('cellpadding', '4');
     table.setAttribute('cellspacing', '0');
     table.style.borderCollapse = 'collapse';
-    table.style.width = '100%';
+    if (!table.getAttribute('style')?.includes('width')) {
+      table.style.width = '100%';
+    }
     
-    // Добавляем границы ко всем ячейкам
+    // Подсчитываем максимальное количество колонок в таблице
+    const headerCells = table.querySelectorAll('thead tr:first-child th, thead tr:first-child td');
+    const maxCols = headerCells.length || 7; // По умолчанию 7 колонок для спецификации
+    
+    // Добавляем границы ко всем ячейкам и исправляем colspan
     const cells = table.querySelectorAll('td, th');
     cells.forEach(cell => {
       cell.setAttribute('border', '1');
@@ -113,6 +119,13 @@ export function cleanEditedHtml(html: string): string {
       const hasBorder = /border/.test(existingStyle);
       if (!hasBorder) {
         cell.style.border = '1px solid black';
+      }
+      
+      // Проверяем строки категорий (с background) - у них должен быть colspan
+      const bgStyle = cell.getAttribute('style') || '';
+      if (bgStyle.includes('background') && !cell.getAttribute('colspan')) {
+        // Это строка категории без colspan - добавляем
+        cell.setAttribute('colspan', String(maxCols));
       }
     });
   });

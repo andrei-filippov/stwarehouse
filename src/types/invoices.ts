@@ -9,6 +9,7 @@ export type ActStatus = 'draft' | 'signed' | 'approved';
 export type Invoice = {
   id: string;
   user_id?: string;
+  company_id?: string;
   contract_id: string;
   
   // Номер и дата
@@ -57,6 +58,7 @@ export type Invoice = {
 export type ActItem = {
   id?: string;
   act_id?: string;
+  company_id?: string;
   name: string;
   description?: string;
   quantity: number;
@@ -71,6 +73,7 @@ export type ActItem = {
 export type Act = {
   id: string;
   user_id?: string;
+  company_id?: string;
   contract_id: string;
   invoice_id?: string;
   
