@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
+import { Textarea } from './ui/textarea';
 import { Label } from './ui/label';
 import { Card, CardContent } from './ui/card';
 import { 
@@ -407,12 +408,12 @@ export function ActForm({
       {/* Примечания */}
       <div className="space-y-2">
         <Label htmlFor="notes">Примечания</Label>
-        <textarea
+        <Textarea
           id="notes"
           value={formData.notes || ''}
           onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
           placeholder="Дополнительная информация..."
-          className="w-full min-h-[80px] px-3 py-2 border rounded-md text-sm"
+          className="min-h-[80px]"
         />
       </div>
 

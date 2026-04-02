@@ -43,7 +43,7 @@ export function InvoiceForm({
     amount: contract.total_amount,
     vat_amount: 0,
     total_amount: contract.total_amount,
-    description: `Оплата по договору № ${contract.number} от ${format(new Date(contract.date), 'dd.MM.yyyy')}`,
+    description: `Оплата по договору № ${contract.number} от ${format(new Date(contract.date), 'dd.MM.yyyy')}${contract.subject ? ' (' + contract.subject + ')' : ''}`,
   });
   
   const [loading, setLoading] = useState(false);

@@ -20,8 +20,10 @@ function formatCompanyName(name: string, type?: string): string {
 }
 
 // Генерация HTML для предпросмотра акта
-export function generateActHTML(act: Act, settings: PDFSettings, bankAccounts: CompanyBankAccount[] = [], company?: Company | null): string {
+// showItems: true - показывать позиции из сметы, false - показывать предмет договора
+export function generateActHTML(act: Act, settings: PDFSettings, bankAccounts: CompanyBankAccount[] = [], company?: Company | null, showItems: boolean = true): string {
   const customer = act.contract?.customer;
+  const contractSubject = act.contract?.subject || '';
   const periodText = act.period_start && act.period_end
     ? `${format(new Date(act.period_start), 'dd.MM.yyyy')} — ${format(new Date(act.period_end), 'dd.MM.yyyy')}`
     : '-';
@@ -81,9 +83,36 @@ export function generateActHTML(act: Act, settings: PDFSettings, bankAccounts: C
       display: inline-block;
     }
     .page-break { page-break-after: always; }
+    
+    /* Шапка с логотипом */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 20px;
+      border-bottom: 2px solid #333;
+      padding-bottom: 15px;
+    }
+    .logo-section { width: 45%; }
+    .logo-section img { max-height: 80px; max-width: 100%; }
+    .company-section { width: 50%; text-align: right; font-size: 11px; }
+    .company-section h2 { margin: 0 0 5px 0; font-size: 14px; }
+    .company-section p { margin: 3px 0; }
   </style>
 </head>
 <body>
+  <!-- Шапка с логотипом -->
+  <div class="header">
+    <div class="logo-section">
+      ${settings.logo ? `<img src="${settings.logo}" alt="Логотип" />` : '<p>&nbsp;</p>'}
+    </div>
+    <div class="company-section">
+      ${company?.name ? `<h2>${company.name}</h2>` : settings.companyName ? `<h2>${settings.companyName}</h2>` : ''}
+      ${company?.inn || company?.kpp || company?.ogrn ? `<p>ИНН: ${company.inn || '-'} / КПП: ${company.kpp || '-'} / ОГРН: ${company.ogrn || '-'}</p>` : ''}
+      ${company?.legal_address ? `<p>${company.legal_address}</p>` : settings.companyDetails ? settings.companyDetails.split('\n').map(line => `<p>${line}</p>`).join('') : ''}
+    </div>
+  </div>
+
   <div class="title">Акт выполненных работ</div>
   <div class="subtitle">
     № ${act.number} от ${format(new Date(act.date), 'dd.MM.yyyy')}
@@ -118,25 +147,28 @@ export function generateActHTML(act: Act, settings: PDFSettings, bankAccounts: C
       </tr>
     </thead>
     <tbody>
-      ${act.items?.map((item, index) => `
-        <tr>
-          <td class="text-center">${index + 1}</td>
-          <td>${item.name}${item.description ? `<br><small>${item.description}</small>` : ''}</td>
-          <td class="text-center">${item.unit}</td>
-          <td class="text-right">${item.quantity}</td>
-          <td class="text-right">${item.price.toLocaleString('ru-RU')}</td>
-          <td class="text-right">${item.total.toLocaleString('ru-RU')}</td>
-        </tr>
-      `).join('') || `
-        <tr>
-          <td class="text-center">1</td>
-          <td>Оказание услуг по договору № ${act.contract?.number}</td>
-          <td class="text-center">шт</td>
-          <td class="text-right">1</td>
-          <td class="text-right">${act.amount.toLocaleString('ru-RU')}</td>
-          <td class="text-right">${act.amount.toLocaleString('ru-RU')}</td>
-        </tr>
-      `}
+      ${showItems && act.items && act.items.length > 0 
+        ? act.items.map((item, index) => `
+          <tr>
+            <td class="text-center">${index + 1}</td>
+            <td>${item.name}${item.description ? `<br><small>${item.description}</small>` : ''}</td>
+            <td class="text-center">${item.unit}</td>
+            <td class="text-right">${item.quantity}</td>
+            <td class="text-right">${item.price.toLocaleString('ru-RU')}</td>
+            <td class="text-right">${item.total.toLocaleString('ru-RU')}</td>
+          </tr>
+        `).join('')
+        : `
+          <tr>
+            <td class="text-center">1</td>
+            <td>${contractSubject || `Оказание услуг по договору № ${act.contract?.number}`}</td>
+            <td class="text-center">шт</td>
+            <td class="text-right">1</td>
+            <td class="text-right">${act.amount.toLocaleString('ru-RU')}</td>
+            <td class="text-right">${act.amount.toLocaleString('ru-RU')}</td>
+          </tr>
+        `
+      }
     </tbody>
     <tfoot>
       <tr class="total-row">
@@ -218,8 +250,10 @@ export function generateActHTML(act: Act, settings: PDFSettings, bankAccounts: C
 }
 
 // Экспорт акта в DOCX
-export async function exportActToDOCX(act: Act, settings: PDFSettings, bankAccounts: CompanyBankAccount[] = [], company?: Company | null): Promise<void> {
+// showItems: true - показывать позиции из сметы, false - показывать предмет договора
+export async function exportActToDOCX(act: Act, settings: PDFSettings, bankAccounts: CompanyBankAccount[] = [], company?: Company | null, showItems: boolean = true): Promise<void> {
   const customer = act.contract?.customer;
+  const contractSubject = act.contract?.subject || '';
   const periodText = act.period_start && act.period_end
     ? `${format(new Date(act.period_start), 'dd.MM.yyyy')} — ${format(new Date(act.period_end), 'dd.MM.yyyy')}`
     : '-';
@@ -236,6 +270,29 @@ export async function exportActToDOCX(act: Act, settings: PDFSettings, bankAccou
         },
       },
       children: [
+        // Шапка с названием компании и реквизитами
+        new Paragraph({
+          alignment: AlignmentType.RIGHT,
+          spacing: { after: 100 },
+          children: [
+            new TextRun({ text: company?.name || settings.companyName || '', bold: true, size: 24 }),
+          ],
+        }),
+        ...(company?.inn ? [new Paragraph({
+          alignment: AlignmentType.RIGHT,
+          children: [new TextRun({ text: `ИНН: ${company.inn}${company.kpp ? ' / КПП: ' + company.kpp : ''}${company.ogrn ? ' / ОГРН: ' + company.ogrn : ''}`, size: 20 })],
+        })] : []),
+        ...(company?.legal_address ? [new Paragraph({
+          alignment: AlignmentType.RIGHT,
+          spacing: { after: 200 },
+          children: [new TextRun({ text: company.legal_address, size: 20 })],
+        })] : settings.companyDetails ? settings.companyDetails.split('\n').map(line => new Paragraph({
+          alignment: AlignmentType.RIGHT,
+          spacing: { after: 50 },
+          children: [new TextRun({ text: line, size: 20 })],
+        })) : []),
+        new Paragraph({ spacing: { after: 300 } }),
+
         // Заголовок
         new Paragraph({
           text: 'Акт выполненных работ',
@@ -294,27 +351,30 @@ export async function exportActToDOCX(act: Act, settings: PDFSettings, bankAccou
               ],
             }),
             // Позиции
-            ...(act.items?.map((item, index) => new TableRow({
-              children: [
-                new TableCell({ children: [new Paragraph({ text: String(index + 1), alignment: AlignmentType.CENTER })] }),
-                new TableCell({ children: [new Paragraph(item.name)] }),
-                new TableCell({ children: [new Paragraph({ text: item.unit, alignment: AlignmentType.CENTER })] }),
-                new TableCell({ children: [new Paragraph({ text: String(item.quantity), alignment: AlignmentType.RIGHT })] }),
-                new TableCell({ children: [new Paragraph({ text: item.price.toLocaleString('ru-RU'), alignment: AlignmentType.RIGHT })] }),
-                new TableCell({ children: [new Paragraph({ text: item.total.toLocaleString('ru-RU'), alignment: AlignmentType.RIGHT })] }),
-              ],
-            })) || [
-              new TableRow({
-                children: [
-                  new TableCell({ children: [new Paragraph({ text: '1', alignment: AlignmentType.CENTER })] }),
-                  new TableCell({ children: [new Paragraph(`Оказание услуг по договору № ${act.contract?.number}`)] }),
-                  new TableCell({ children: [new Paragraph({ text: 'шт', alignment: AlignmentType.CENTER })] }),
-                  new TableCell({ children: [new Paragraph({ text: '1', alignment: AlignmentType.RIGHT })] }),
-                  new TableCell({ children: [new Paragraph({ text: act.amount.toLocaleString('ru-RU'), alignment: AlignmentType.RIGHT })] }),
-                  new TableCell({ children: [new Paragraph({ text: act.amount.toLocaleString('ru-RU'), alignment: AlignmentType.RIGHT })] }),
-                ],
-              }),
-            ]),
+            ...(showItems && act.items && act.items.length > 0
+              ? act.items.map((item, index) => new TableRow({
+                  children: [
+                    new TableCell({ children: [new Paragraph({ text: String(index + 1), alignment: AlignmentType.CENTER })] }),
+                    new TableCell({ children: [new Paragraph(item.name)] }),
+                    new TableCell({ children: [new Paragraph({ text: item.unit, alignment: AlignmentType.CENTER })] }),
+                    new TableCell({ children: [new Paragraph({ text: String(item.quantity), alignment: AlignmentType.RIGHT })] }),
+                    new TableCell({ children: [new Paragraph({ text: item.price.toLocaleString('ru-RU'), alignment: AlignmentType.RIGHT })] }),
+                    new TableCell({ children: [new Paragraph({ text: item.total.toLocaleString('ru-RU'), alignment: AlignmentType.RIGHT })] }),
+                  ],
+                }))
+              : [
+                  new TableRow({
+                    children: [
+                      new TableCell({ children: [new Paragraph({ text: '1', alignment: AlignmentType.CENTER })] }),
+                      new TableCell({ children: [new Paragraph(contractSubject || `Оказание услуг по договору № ${act.contract?.number}`)] }),
+                      new TableCell({ children: [new Paragraph({ text: 'шт', alignment: AlignmentType.CENTER })] }),
+                      new TableCell({ children: [new Paragraph({ text: '1', alignment: AlignmentType.RIGHT })] }),
+                      new TableCell({ children: [new Paragraph({ text: act.amount.toLocaleString('ru-RU'), alignment: AlignmentType.RIGHT })] }),
+                      new TableCell({ children: [new Paragraph({ text: act.amount.toLocaleString('ru-RU'), alignment: AlignmentType.RIGHT })] }),
+                    ],
+                  }),
+                ]
+            ),
             // Итого
             new TableRow({
               children: [

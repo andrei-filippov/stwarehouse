@@ -102,6 +102,7 @@ export type Act = {
     number: string;
     date: string;
     bank_account_id?: string;
+    subject?: string;
     customer?: {
       id: string;
       name: string;

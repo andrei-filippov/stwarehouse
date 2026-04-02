@@ -21,6 +21,7 @@ export function useActs(contractId?: string, companyId?: string) {
             number,
             date,
             bank_account_id,
+            subject,
             customer:customer_id (
               id,
               name,

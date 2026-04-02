@@ -161,9 +161,36 @@ export function generateInvoiceHTML(invoice: Invoice, settings: PDFSettings, ban
       width: 150px;
       margin-left: 10px;
     }
+    
+    /* Шапка с логотипом */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 20px;
+      border-bottom: 2px solid #333;
+      padding-bottom: 15px;
+    }
+    .logo-section { width: 45%; }
+    .logo-section img { max-height: 80px; max-width: 100%; }
+    .company-section { width: 50%; text-align: right; font-size: 11px; }
+    .company-section h2 { margin: 0 0 5px 0; font-size: 14px; }
+    .company-section p { margin: 3px 0; }
   </style>
 </head>
 <body>
+  <!-- Шапка с логотипом -->
+  <div class="header">
+    <div class="logo-section">
+      ${settings.logo ? `<img src="${settings.logo}" alt="Логотип" />` : '<p>&nbsp;</p>'}
+    </div>
+    <div class="company-section">
+      ${company?.name ? `<h2>${company.name}</h2>` : settings.companyName ? `<h2>${settings.companyName}</h2>` : ''}
+      ${company?.inn || company?.kpp || company?.ogrn ? `<p>ИНН: ${company.inn || '-'} / КПП: ${company.kpp || '-'} / ОГРН: ${company.ogrn || '-'}</p>` : ''}
+      ${company?.legal_address ? `<p>${company.legal_address}</p>` : settings.companyDetails ? settings.companyDetails.split('\n').map(line => `<p>${line}</p>`).join('') : ''}
+    </div>
+  </div>
+
   <!-- Таблица реквизитов банка -->
   <table class="bank-table">
     <tr>
@@ -292,12 +319,28 @@ export async function exportInvoiceToDOCX(invoice: Invoice, settings: PDFSetting
         },
       },
       children: [
-        // Заголовок с названием компании
+        // Шапка с названием компании и реквизитами
         new Paragraph({
-          text: settings.companyName,
+          alignment: AlignmentType.RIGHT,
+          spacing: { after: 100 },
+          children: [
+            new TextRun({ text: company?.name || settings.companyName || '', bold: true, size: 24 }),
+          ],
+        }),
+        ...(company?.inn ? [new Paragraph({
+          alignment: AlignmentType.RIGHT,
+          children: [new TextRun({ text: `ИНН: ${company.inn}${company.kpp ? ' / КПП: ' + company.kpp : ''}${company.ogrn ? ' / ОГРН: ' + company.ogrn : ''}`, size: 20 })],
+        })] : []),
+        ...(company?.legal_address ? [new Paragraph({
           alignment: AlignmentType.RIGHT,
           spacing: { after: 200 },
-        }),
+          children: [new TextRun({ text: company.legal_address, size: 20 })],
+        })] : settings.companyDetails ? settings.companyDetails.split('\n').map(line => new Paragraph({
+          alignment: AlignmentType.RIGHT,
+          spacing: { after: 50 },
+          children: [new TextRun({ text: line, size: 20 })],
+        })) : []),
+        new Paragraph({ spacing: { after: 200 } }),
 
         // Банковские реквизиты
         new Table({
