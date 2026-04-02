@@ -998,8 +998,8 @@ function TemplateForm({ categories, equipment, template, onSubmit, onCancel }: T
       <div className="border rounded-lg p-4 space-y-4 bg-muted">
         <h4 className="font-medium">Добавить оборудование в шаблон</h4>
         
-        <div className="grid grid-cols-12 gap-2">
-          <div className="col-span-4 space-y-2">
+        <div className="grid grid-cols-12 gap-3">
+          <div className="col-span-5 space-y-2">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground/70 w-4 h-4" />
               <Input
@@ -1009,21 +1009,27 @@ function TemplateForm({ categories, equipment, template, onSubmit, onCancel }: T
                 className="pl-9"
               />
             </div>
-            <select
-              className="w-full border border-border rounded-md px-3 py-2 text-sm bg-card text-foreground"
-              value={newItem.equipment_id}
-              onChange={(e) => handleEquipmentSelect(e.target.value)}
-              size={Math.min(5, filteredEquipment.length + 1) as number}
-            >
-              <option value="">Выберите оборудование</option>
-              {filteredEquipment.map(eq => (
-                <option key={eq.id} value={eq.id}>
-                  {eq.name} ({eq.category})
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                className="w-full border border-border rounded-md px-3 py-2 text-sm bg-card text-foreground overflow-y-auto"
+                value={newItem.equipment_id}
+                onChange={(e) => handleEquipmentSelect(e.target.value)}
+                style={{ maxHeight: '200px', minHeight: '120px' }}
+                size={Math.min(8, filteredEquipment.length + 1) as number}
+              >
+                <option value="">Выберите оборудование...</option>
+                {filteredEquipment.map(eq => (
+                  <option key={eq.id} value={eq.id}>
+                    {eq.name} ({eq.category})
+                  </option>
+                ))}
+              </select>
+            </div>
             {equipmentSearch && filteredEquipment.length === 0 && (
               <p className="text-xs text-muted-foreground">Ничего не найдено</p>
+            )}
+            {filteredEquipment.length > 0 && (
+              <p className="text-xs text-muted-foreground">Найдено: {filteredEquipment.length}</p>
             )}
           </div>
           <div className="col-span-3">
@@ -1033,11 +1039,12 @@ function TemplateForm({ categories, equipment, template, onSubmit, onCancel }: T
               onChange={(e) => setNewItem({ ...newItem, equipment_name: e.target.value, equipment_id: '', category: '' })}
               onKeyDown={handleKeyDown}
               disabled={!!newItem.equipment_id}
+              className="h-10"
             />
           </div>
           <div className="col-span-2">
             <select
-              className="w-full border border-border rounded-md px-3 py-2 text-sm bg-card text-foreground"
+              className="w-full border border-border rounded-md px-3 py-2 text-sm bg-card text-foreground h-10"
               value={newItem.category}
               onChange={(e) => setNewItem({ ...newItem, category: e.target.value })}
               disabled={!!newItem.equipment_id}
@@ -1048,7 +1055,7 @@ function TemplateForm({ categories, equipment, template, onSubmit, onCancel }: T
               ))}
             </select>
           </div>
-          <div className="col-span-2">
+          <div className="col-span-1">
             <Input
               type="text"
               min={1}
@@ -1056,13 +1063,14 @@ function TemplateForm({ categories, equipment, template, onSubmit, onCancel }: T
               value={quantityInput}
               onChange={(e) => handleQuantityChange(e.target.value)}
               onKeyDown={handleKeyDown}
+              className="h-10"
             />
           </div>
-          <div className="col-span-1">
+          <div className="col-span-1 flex items-end">
             <Button 
               onClick={addItem} 
               size="sm" 
-              className="w-full"
+              className="w-full h-10"
               disabled={!newItem.equipment_name}
             >
               <Plus className="w-4 h-4" />
