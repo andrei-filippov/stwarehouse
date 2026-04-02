@@ -2,13 +2,13 @@ import { Document, Paragraph, Table, TableCell, TableRow, TextRun, AlignmentType
          BorderStyle } from 'docx';
 import { downloadBlob } from './fileDownload';
 import { Packer } from 'docx';
-import type { Act, PDFSettings } from '../types';
+import type { Act, PDFSettings, CompanyBankAccount, Company } from '../types';
 import { numberToWords } from '../types';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 
 // Генерация HTML для предпросмотра акта
-export function generateActHTML(act: Act, settings: PDFSettings): string {
+export function generateActHTML(act: Act, settings: PDFSettings, bankAccounts: CompanyBankAccount[] = [], company?: Company | null): string {
   const customer = act.contract?.customer;
   const periodText = act.period_start && act.period_end
     ? `${format(new Date(act.period_start), 'dd.MM.yyyy')} — ${format(new Date(act.period_end), 'dd.MM.yyyy')}`
@@ -206,7 +206,7 @@ export function generateActHTML(act: Act, settings: PDFSettings): string {
 }
 
 // Экспорт акта в DOCX
-export async function exportActToDOCX(act: Act, settings: PDFSettings): Promise<void> {
+export async function exportActToDOCX(act: Act, settings: PDFSettings, bankAccounts: CompanyBankAccount[] = [], company?: Company | null): Promise<void> {
   const customer = act.contract?.customer;
   const periodText = act.period_start && act.period_end
     ? `${format(new Date(act.period_start), 'dd.MM.yyyy')} — ${format(new Date(act.period_end), 'dd.MM.yyyy')}`

@@ -2,12 +2,17 @@ import { Document, Paragraph, Table, TableCell, TableRow, TextRun, AlignmentType
          Header, Footer, PageNumber, BorderStyle } from 'docx';
 import { downloadBlob } from './fileDownload';
 import { Packer } from 'docx';
-import type { Invoice, PDFSettings } from '../types';
+import type { Invoice, PDFSettings, CompanyBankAccount, Company } from '../types';
 import { numberToWords } from '../types';
 
 // Генерация HTML для предпросмотра счета
-export function generateInvoiceHTML(invoice: Invoice, settings: PDFSettings): string {
+export function generateInvoiceHTML(invoice: Invoice, settings: PDFSettings, bankAccounts: CompanyBankAccount[] = [], company?: Company | null): string {
   const customer = invoice.contract?.customer;
+  
+  // Получаем банковский счёт исполнителя
+  const executorAccount = company?.id 
+    ? bankAccounts.find(a => a.is_default) || bankAccounts[0]
+    : null;
   
   return `
 <!DOCTYPE html>
@@ -70,19 +75,19 @@ export function generateInvoiceHTML(invoice: Invoice, settings: PDFSettings): st
   <div class="bank-details">
     <div class="bank-row">
       <div class="bank-label">Банк получателя:</div>
-      <div class="bank-value">${customer?.bank_name || 'АО "ТБАНК"'}</div>
+      <div class="bank-value">${executorAccount?.bank_name || company?.bank_name || '-'}</div>
     </div>
     <div class="bank-row">
       <div class="bank-label">БИК:</div>
-      <div class="bank-value">${customer?.bank_bik || '044525974'}</div>
+      <div class="bank-value">${executorAccount?.bik || company?.bank_bik || '-'}</div>
     </div>
     <div class="bank-row">
       <div class="bank-label">Р/с:</div>
-      <div class="bank-value">${customer?.bank_account || '40802810200005568272'}</div>
+      <div class="bank-value">${executorAccount?.account || company?.bank_account || '-'}</div>
     </div>
     <div class="bank-row">
       <div class="bank-label">К/с:</div>
-      <div class="bank-value">${customer?.bank_corr_account || '30101810145250000974'}</div>
+      <div class="bank-value">${executorAccount?.corr_account || company?.bank_corr_account || '-'}</div>
     </div>
   </div>
 
@@ -177,8 +182,13 @@ export function generateInvoiceHTML(invoice: Invoice, settings: PDFSettings): st
 }
 
 // Экспорт счета в DOCX
-export async function exportInvoiceToDOCX(invoice: Invoice, settings: PDFSettings): Promise<void> {
+export async function exportInvoiceToDOCX(invoice: Invoice, settings: PDFSettings, bankAccounts: CompanyBankAccount[] = [], company?: Company | null): Promise<void> {
   const customer = invoice.contract?.customer;
+  
+  // Получаем банковский счёт исполнителя
+  const executorAccount = company?.id 
+    ? bankAccounts.find(a => a.is_default) || bankAccounts[0]
+    : null;
   
   const doc = new Document({
     sections: [{
@@ -213,7 +223,7 @@ export async function exportInvoiceToDOCX(invoice: Invoice, settings: PDFSetting
                 }),
                 new TableCell({
                   width: { size: 70, type: 'pct' },
-                  children: [new Paragraph(customer?.bank_name || 'АО "ТБАНК"')],
+                  children: [new Paragraph(executorAccount?.bank_name || company?.bank_name || '-')],
                 }),
               ],
             }),
@@ -223,7 +233,7 @@ export async function exportInvoiceToDOCX(invoice: Invoice, settings: PDFSetting
                   children: [new Paragraph({ text: 'БИК:', bold: true })],
                 }),
                 new TableCell({
-                  children: [new Paragraph(customer?.bank_bik || '044525974')],
+                  children: [new Paragraph(executorAccount?.bik || company?.bank_bik || '-')],
                 }),
               ],
             }),
@@ -233,7 +243,7 @@ export async function exportInvoiceToDOCX(invoice: Invoice, settings: PDFSetting
                   children: [new Paragraph({ text: 'Р/с:', bold: true })],
                 }),
                 new TableCell({
-                  children: [new Paragraph(customer?.bank_account || '40802810200005568272')],
+                  children: [new Paragraph(executorAccount?.account || company?.bank_account || '-')],
                 }),
               ],
             }),
@@ -243,7 +253,7 @@ export async function exportInvoiceToDOCX(invoice: Invoice, settings: PDFSetting
                   children: [new Paragraph({ text: 'К/с:', bold: true })],
                 }),
                 new TableCell({
-                  children: [new Paragraph(customer?.bank_corr_account || '30101810145250000974')],
+                  children: [new Paragraph(executorAccount?.corr_account || company?.bank_corr_account || '-')],
                 }),
               ],
             }),

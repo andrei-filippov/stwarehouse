@@ -38,6 +38,8 @@ import { InvoicePreview } from './InvoicePreview';
 import { ActPreview } from './ActPreview';
 import { useInvoices } from '../hooks/useInvoices';
 import { useActs } from '../hooks/useActs';
+import { useCompanyBankAccounts } from '../hooks/useCompanyBankAccounts';
+import { useCompanyContext } from '../contexts/CompanyContext';
 import { supabase } from '../lib/supabase';
 
 interface ContractDetailProps {
@@ -53,6 +55,9 @@ export function ContractDetail({
   onBack,
   onEditContract 
 }: ContractDetailProps) {
+  const { company } = useCompanyContext();
+  const { data: bankAccounts = [] } = useCompanyBankAccounts(company?.id);
+  
   const { 
     invoices, 
     loading: invoicesLoading, 
@@ -487,6 +492,7 @@ export function ContractDetail({
               <InvoicePreview
                 invoice={previewInvoice}
                 pdfSettings={pdfSettings}
+                bankAccounts={bankAccounts}
                 onClose={() => setIsInvoicePreviewOpen(false)}
               />
             )}
@@ -505,6 +511,7 @@ export function ContractDetail({
               <ActPreview
                 act={previewAct}
                 pdfSettings={pdfSettings}
+                bankAccounts={bankAccounts}
                 onClose={() => setIsActPreviewOpen(false)}
               />
             )}

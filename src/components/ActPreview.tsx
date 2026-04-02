@@ -1,13 +1,15 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Download, FileText, Edit, Save, X, Printer } from 'lucide-react';
-import type { Act, PDFSettings } from '../types';
+import type { Act, PDFSettings, CompanyBankAccount } from '../types';
+import { useCompanyContext } from '../contexts/CompanyContext';
 import { generateActHTML, exportActToDOCX } from '../lib/actExport';
 import { sanitizeHtml } from '../lib/utils';
 
 interface ActPreviewProps {
   act: Act;
   pdfSettings: PDFSettings;
+  bankAccounts?: CompanyBankAccount[];
   onClose: () => void;
   onSaveContent?: (content: string) => void;
 }
@@ -15,14 +17,16 @@ interface ActPreviewProps {
 export function ActPreview({ 
   act, 
   pdfSettings, 
+  bankAccounts = [],
   onClose,
   onSaveContent 
 }: ActPreviewProps) {
+  const { company } = useCompanyContext();
   const [isEditing, setIsEditing] = useState(false);
   const [editedHtml, setEditedHtml] = useState<string>('');
   const editRef = useRef<HTMLDivElement>(null);
   
-  const htmlContent = generateActHTML(act, pdfSettings);
+  const htmlContent = generateActHTML(act, pdfSettings, bankAccounts, company);
 
   useEffect(() => {
     if (isEditing && editRef.current) {
@@ -32,7 +36,7 @@ export function ActPreview({
 
   const handleExportDOCX = async () => {
     try {
-      await exportActToDOCX(act, pdfSettings);
+      await exportActToDOCX(act, pdfSettings, bankAccounts, company);
     } catch (error) {
       console.error('Error exporting act:', error);
       alert('Ошибка при экспорта акта');

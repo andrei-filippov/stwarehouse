@@ -1,13 +1,15 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Download, FileText, Edit, Save, X, Printer } from 'lucide-react';
-import type { Invoice, PDFSettings } from '../types';
+import type { Invoice, PDFSettings, CompanyBankAccount } from '../types';
+import { useCompanyContext } from '../contexts/CompanyContext';
 import { generateInvoiceHTML, exportInvoiceToDOCX } from '../lib/invoiceExport';
 import { sanitizeHtml } from '../lib/utils';
 
 interface InvoicePreviewProps {
   invoice: Invoice;
   pdfSettings: PDFSettings;
+  bankAccounts?: CompanyBankAccount[];
   onClose: () => void;
   onSaveContent?: (content: string) => void;
 }
@@ -15,14 +17,16 @@ interface InvoicePreviewProps {
 export function InvoicePreview({ 
   invoice, 
   pdfSettings, 
+  bankAccounts = [],
   onClose,
   onSaveContent 
 }: InvoicePreviewProps) {
+  const { company } = useCompanyContext();
   const [isEditing, setIsEditing] = useState(false);
   const [editedHtml, setEditedHtml] = useState<string>('');
   const editRef = useRef<HTMLDivElement>(null);
   
-  const htmlContent = generateInvoiceHTML(invoice, pdfSettings);
+  const htmlContent = generateInvoiceHTML(invoice, pdfSettings, bankAccounts, company);
 
   useEffect(() => {
     if (isEditing && editRef.current) {
@@ -32,7 +36,7 @@ export function InvoicePreview({
 
   const handleExportDOCX = async () => {
     try {
-      await exportInvoiceToDOCX(invoice, pdfSettings);
+      await exportInvoiceToDOCX(invoice, pdfSettings, bankAccounts, company);
     } catch (error) {
       console.error('Error exporting invoice:', error);
       alert('Ошибка при экспорте счета');

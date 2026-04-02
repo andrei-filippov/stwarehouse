@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
+import { Textarea } from './ui/textarea';
 import { Label } from './ui/label';
 import { Card, CardContent } from './ui/card';
 import { 
@@ -255,12 +256,12 @@ export function InvoiceForm({
       {/* Назначение платежа */}
       <div className="space-y-2">
         <Label htmlFor="description">Назначение платежа</Label>
-        <textarea
+        <Textarea
           id="description"
           value={formData.description || ''}
           onChange={(e) => setFormData({ ...formData, description: e.target.value })}
           placeholder="Оплата по договору..."
-          className="w-full min-h-[80px] px-3 py-2 border rounded-md text-sm"
+          className="min-h-[80px]"
         />
       </div>
 
