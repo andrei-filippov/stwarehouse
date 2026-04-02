@@ -327,320 +327,180 @@ function htmlToDocxElements(html: string): (Paragraph | Table)[] {
   return elements;
 }
 
-// Экспорт в DOCX
+// Экспорт в DOCX - используем HTML с Word-специфичными тегами для лучшей совместимости
 export async function exportContractToDOCX(contract: Contract, pdfSettings: PDFSettings, bankAccounts: CompanyBankAccount[] = [], company?: Company | null): Promise<void> {
-  // Если есть отредактированный контент, используем его
-  if (contract.content) {
-    try {
-      const paragraphs: (Paragraph | Table)[] = htmlToDocxElements(contract.content);
-      
-      // Добавляем спецификацию если есть сметы
-      const estimates = contract.estimates || [];
-      if (estimates.length > 0) {
-        const data = prepareTemplateData(contract, pdfSettings, bankAccounts, company);
-        
-        // Добавляем разрыв страницы и спецификацию
-        paragraphs.push(new Paragraph({ text: '', pageBreakBefore: true }));
-        paragraphs.push(new Paragraph({
-          text: 'Приложение № 1',
-          alignment: AlignmentType.CENTER,
-          spacing: { after: 200 },
-        }));
-        paragraphs.push(new Paragraph({
-          text: `к Договору возмездного оказания услуг № ${data.contract_number} от ${data.contract_date}`,
-          alignment: AlignmentType.CENTER,
-          spacing: { after: 300 },
-        }));
-        paragraphs.push(new Paragraph({
-          text: 'СПЕЦИФИКАЦИЯ',
-          heading: HeadingLevel.HEADING_1,
-          alignment: AlignmentType.CENTER,
-          spacing: { after: 300 },
-        }));
-        
-        // Добавляем таблицу спецификации
-        const specRows: TableRow[] = [];
-        specRows.push(
-          new TableRow({
-            children: [
-              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: '№', bold: true })] })] }),
-              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Наименование', bold: true })] })] }),
-              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Кол-во', bold: true })] })] }),
-              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Ед.', bold: true })] })] }),
-              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Цена', bold: true })] })] }),
-              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Сумма', bold: true })] })] }),
-            ],
-          })
-        );
-        
-        // ... добавляем строки спецификации
-        let globalIndex = 1;
-        estimates.forEach(ce => {
-          const estimate = ce.estimate;
-          if (!estimate?.items || estimate.items.length === 0) return;
-          
-          const grouped = estimate.items.reduce((acc, item) => {
-            if (!acc[item.category]) acc[item.category] = [];
-            acc[item.category].push(item);
-            return acc;
-          }, {} as Record<string, typeof estimate.items>);
-          
-          const categoryOrder = estimate.category_order || [];
-          const allCategories = Object.keys(grouped);
-          const sortedCategories = [...allCategories].sort((a, b) => {
-            const indexA = categoryOrder.indexOf(a);
-            const indexB = categoryOrder.indexOf(b);
-            if (indexA !== -1 && indexB !== -1) return indexA - indexB;
-            if (indexA !== -1) return -1;
-            if (indexB !== -1) return 1;
-            return allCategories.indexOf(a) - allCategories.indexOf(b);
-          });
-          
-          sortedCategories.forEach(category => {
-            const items = grouped[category];
-            specRows.push(
-              new TableRow({
-                children: [
-                  new TableCell({
-                    columnSpan: 6,
-                    children: [new Paragraph({ children: [new TextRun({ text: category, bold: true })] })],
-                  }),
-                ],
-              })
-            );
-            
-            items?.forEach(item => {
-              const sum = item.price * item.quantity * (item.coefficient || 1);
-              const nameCellChildren: Paragraph[] = [
-                new Paragraph({ children: [new TextRun({ text: item.name })] })
-              ];
-              if (item.description?.trim()) {
-                nameCellChildren.push(
-                  new Paragraph({ children: [new TextRun({ text: item.description })] })
-                );
-              }
-              
-              specRows.push(
-                new TableRow({
-                  children: [
-                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(globalIndex++) })] })] }),
-                    new TableCell({ children: nameCellChildren }),
-                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(item.quantity) })] })] }),
-                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: item.unit })] })] }),
-                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: item.price.toLocaleString('ru-RU') })] })] }),
-                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: sum.toLocaleString('ru-RU') })] })] }),
-                  ],
-                })
-              );
-            });
-          });
-        });
-        
-        specRows.push(
-          new TableRow({
-            children: [
-              new TableCell({ columnSpan: 5, children: [new Paragraph({ children: [new TextRun({ text: 'Итого:', bold: true })], alignment: AlignmentType.RIGHT })] }),
-              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: data.total_amount, bold: true })] })] }),
-            ],
-          })
-        );
-        
-        paragraphs.push(
-          new Table({
-            width: { size: 100, type: WidthType.PERCENTAGE },
-            rows: specRows,
-          })
-        );
-      }
-      
-      // Создаём документ
-      const doc = new Document({
-        sections: [{
-          properties: {
-            page: {
-              margin: {
-                top: 1134,
-                right: 850,
-                bottom: 1134,
-                left: 1134,
-              },
-            },
-          },
-          children: paragraphs,
-        }],
-      });
-      
-      // Генерируем и скачиваем файл
-      const blob = await Packer.toBlob(doc);
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `Договор_${contract.number}_${contract.customer?.name || 'без_заказчика'}.docx`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      return;
-    } catch (error) {
-      console.error('Error converting HTML to DOCX:', error);
-      // Fallback to default generation
-    }
-  }
+  // Генерируем HTML как для DOC (без шапки)
+  const html = generateContractHTML(contract, pdfSettings, bankAccounts, company, false);
   
-  // Генерация из шаблона БД (без отредактированного контента)
-  const template = contract.template;
-  if (!template) {
-    console.error('Шаблон не найден');
-    return;
-  }
-
-  const data = prepareTemplateData(contract, pdfSettings, bankAccounts, company);
-  const estimates = contract.estimates || [];
-
-  // Заменяем плейсхолдеры в шаблоне
-  let html = template.content;
-  html = html.replace(/{{(\w+)}}/g, (match, key) => {
-    if (key === 'specification_table') return '<!--SPEC_TABLE-->';
-    return (data as Record<string, string>)[key] || '';
-  });
-
-  // Разбиваем HTML на части до и после маркера таблицы
-  const parts = html.split('<!--SPEC_TABLE-->');
-  const beforeTable = parts[0] || '';
-  const afterTable = parts[1] || '';
-
-  // Конвертируем HTML части в параграфы
-  const beforeParagraphs = htmlToDocxElements(beforeTable);
-  const afterParagraphs = htmlToDocxElements(afterTable);
-
-  // Собираем все элементы документа
-  const children: (Paragraph | Table)[] = [...beforeParagraphs];
-
-  // Добавляем таблицу спецификации, если есть сметы
-  if (estimates.length > 0) {
-    const specRows: TableRow[] = [];
+  // Добавляем Word-специфичные метатеги для корректного открытия в Word
+  const docHtml = `
+<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office" 
+      xmlns:w="urn:schemas-microsoft-com:office:word" 
+      xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+  <meta charset="UTF-8">
+  <meta name=ProgId content=Word.Document>
+  <meta name=Generator content="Microsoft Word 15">
+  <meta name=Originator content="Microsoft Word 15">
+  <title>Договор № ${contract.number}</title>
+  <!--[if gte mso 9]>
+  <xml>
+    <w:WordDocument>
+      <w:View>Print</w:View>
+      <w:Zoom>100</w:Zoom>
+      <w:DoNotOptimizeForBrowser/>
+    </w:WordDocument>
+  </xml>
+  <![endif]-->
+  <style>
+    /* Word-специфичные стили */
+    @page {
+      size: 21cm 29.7cm;
+      margin: 2cm 1.5cm 2cm 3cm;
+    }
+    @page Section1 {
+      mso-page-orientation: portrait;
+      mso-page-margin: 2cm 1.5cm 2cm 3cm;
+    }
+    div.Section1 { page: Section1; }
     
-    // Заголовок таблицы
-    specRows.push(
-      new TableRow({
-        children: [
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: '№', bold: true })] })] }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Наименование', bold: true })] })] }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Кол-во', bold: true })] })] }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Ед.', bold: true })] })] }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Цена', bold: true })] })] }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Сумма', bold: true })] })] }),
-        ],
-      })
-    );
-
-    let globalIndex = 1;
-    estimates.forEach(ce => {
-      const estimate = ce.estimate;
-      if (!estimate?.items || estimate.items.length === 0) return;
-
-      // Группируем по категориям
-      const grouped = estimate.items.reduce((acc, item) => {
-        if (!acc[item.category]) acc[item.category] = [];
-        acc[item.category].push(item);
-        return acc;
-      }, {} as Record<string, typeof estimate.items>);
-
-      // Определяем порядок категорий
-      const categoryOrder = estimate.category_order || [];
-      const allCategories = Object.keys(grouped);
-      
-      const sortedCategories = [...allCategories].sort((a, b) => {
-        const indexA = categoryOrder.indexOf(a);
-        const indexB = categoryOrder.indexOf(b);
-        if (indexA !== -1 && indexB !== -1) return indexA - indexB;
-        if (indexA !== -1) return -1;
-        if (indexB !== -1) return 1;
-        return allCategories.indexOf(a) - allCategories.indexOf(b);
-      });
-
-      sortedCategories.forEach(category => {
-        const items = grouped[category];
-        // Заголовок категории
-        specRows.push(
-          new TableRow({
-            children: [
-              new TableCell({
-                columnSpan: 6,
-                children: [new Paragraph({ children: [new TextRun({ text: category, bold: true })] })],
-              }),
-            ],
-          })
-        );
-
-        items?.forEach(item => {
-          const sum = item.price * item.quantity * (item.coefficient || 1);
-          const nameCellChildren: Paragraph[] = [
-            new Paragraph({ children: [new TextRun({ text: item.name })] })
-          ];
-          
-          if (item.description?.trim()) {
-            nameCellChildren.push(
-              new Paragraph({ children: [new TextRun({ text: item.description })] })
-            );
-          }
-          
-          specRows.push(
-            new TableRow({
-              children: [
-                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(globalIndex++) })] })] }),
-                new TableCell({ children: nameCellChildren }),
-                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(item.quantity) })] })] }),
-                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: item.unit })] })] }),
-                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: item.price.toLocaleString('ru-RU') })] })] }),
-                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: sum.toLocaleString('ru-RU') })] })] }),
-              ],
-            })
-          );
+    /* Основные стили для Word */
+    body {
+      font-family: "Times New Roman", Times, serif;
+      font-size: 12pt;
+      line-height: 1.5;
+      color: #000;
+      background: #fff;
+    }
+    
+    p {
+      margin: 0;
+      padding: 0;
+      text-align: justify;
+      text-indent: 0;
+    }
+    
+    p.MsoNormal {
+      mso-style-name: "Обычный";
+      mso-style-parent: "";
+      margin: 0;
+      margin-bottom: 6pt;
+      text-align: justify;
+      line-height: 150%;
+    }
+    
+    h1 {
+      mso-style-name: "Заголовок 1";
+      mso-style-next: "Обычный";
+      margin-top: 12pt;
+      margin-bottom: 6pt;
+      text-align: center;
+      page-break-after: avoid;
+      font-size: 14pt;
+      font-weight: bold;
+    }
+    
+    h2 {
+      mso-style-name: "Заголовок 2";
+      mso-style-next: "Обычный";
+      margin-top: 12pt;
+      margin-bottom: 6pt;
+      text-align: center;
+      page-break-after: avoid;
+      font-size: 12pt;
+      font-weight: bold;
+    }
+    
+    table {
+      mso-table-layout-alt: auto;
+      border-collapse: collapse;
+      width: 100%;
+    }
+    
+    table td, table th {
+      border: 1pt solid windowtext;
+      padding: 5pt;
+      mso-border-alt: solid windowtext .5pt;
+    }
+    
+    table.spec {
+      mso-table-layout-alt: auto;
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 10pt;
+    }
+    
+    table.spec th {
+      background: #f0f0f0;
+      font-weight: bold;
+      text-align: center;
+      border: 1pt solid windowtext;
+      mso-border-alt: solid windowtext .5pt;
+      padding: 5pt;
+    }
+    
+    table.spec td {
+      border: 1pt solid windowtext;
+      mso-border-alt: solid windowtext .5pt;
+      padding: 5pt;
+    }
+    
+    /* Таблица реквизитов - фиксированная ширина */
+    table.requisites {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20pt 0;
+    }
+    
+    table.requisites td {
+      width: 50%;
+      vertical-align: top;
+      padding: 15pt;
+      border: 1pt solid windowtext;
+      mso-border-alt: solid windowtext .5pt;
+    }
+    
+    .center { text-align: center; }
+    .bold { font-weight: bold; }
+    .section { margin: 15pt 0; }
+    .section-title { 
+      font-weight: bold; 
+      text-align: center; 
+      margin: 20pt 0 10pt 0;
+    }
+    .page-break { page-break-before: always; }
+  </style>
+</head>
+<body lang=RU>
+  <div class=Section1>
+    ${html.replace(/<body[^>]*>/, '').replace(/<\/body>/, '')}
+  </div>
+  <script>
+    // Автоматически ограничиваем ширину таблицы реквизитов
+    document.querySelectorAll('table').forEach(function(table) {
+      var text = table.textContent || '';
+      if (text.indexOf('Исполнитель') !== -1 && text.indexOf('Заказчик') !== -1) {
+        table.style.maxWidth = '100%';
+        table.style.width = 'auto';
+        table.style.margin = '20pt 0';
+        var cells = table.querySelectorAll('td');
+        cells.forEach(function(cell) {
+          cell.style.width = '50%';
+          cell.style.minWidth = '200pt';
         });
-      });
+      }
     });
+  </script>
+</body>
+</html>`;
 
-    // Итого
-    specRows.push(
-      new TableRow({
-        children: [
-          new TableCell({ columnSpan: 5, children: [new Paragraph({ children: [new TextRun({ text: 'Итого:', bold: true })], alignment: AlignmentType.RIGHT })] }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: data.total_amount, bold: true })] })] }),
-        ],
-      })
-    );
-
-    children.push(
-      new Table({
-        width: { size: 100, type: WidthType.PERCENTAGE },
-        rows: specRows,
-      })
-    );
-  }
-
-  // Добавляем оставшуюся часть документа
-  children.push(...afterParagraphs);
-
-  // Создаём документ
-  const doc = new Document({
-    sections: [{
-      properties: {
-        page: {
-          margin: {
-            top: 1134,
-            right: 850,
-            bottom: 1134,
-            left: 1134,
-          },
-        },
-      },
-      children,
-    }],
+  // Создаем Blob с MIME-типом для Word
+  const blob = new Blob([docHtml], { 
+    type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
   });
-
-  // Генерируем и скачиваем файл
-  const blob = await Packer.toBlob(doc);
+  
+  // Скачиваем файл
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
@@ -800,6 +660,22 @@ export function exportContractToDOC(contract: Contract, pdfSettings: PDFSettings
   <div class=Section1>
     ${html.replace(/<body[^>]*>/, '').replace(/<\/body>/, '')}
   </div>
+  <script>
+    // Автоматически ограничиваем ширину таблицы реквизитов
+    document.querySelectorAll('table').forEach(function(table) {
+      var text = table.textContent || '';
+      if (text.indexOf('Исполнитель') !== -1 && text.indexOf('Заказчик') !== -1) {
+        table.style.maxWidth = '100%';
+        table.style.width = 'auto';
+        table.style.margin = '20pt 0';
+        var cells = table.querySelectorAll('td');
+        cells.forEach(function(cell) {
+          cell.style.width = '50%';
+          cell.style.minWidth = '200pt';
+        });
+      }
+    });
+  </script>
 </body>
 </html>`;
 
