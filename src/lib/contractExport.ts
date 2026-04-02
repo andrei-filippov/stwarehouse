@@ -160,19 +160,19 @@ function prepareTemplateData(contract: Contract, pdfSettings: PDFSettings, bankA
   // Функция для получения короткого типа компании с проверкой на дублирование
   const getCompanyTypeShort = (type: string, name: string): string => {
     if (type === 'ip') {
-      // Проверяем и аббревиатуру, и полное название
-      if (name.match(/^ИП\s+/i)) return '';
-      if (name.match(/Индивидуальный\s+предприниматель/i)) return '';
+      // Проверяем и аббревиатуру, и полное название (в любом регистре)
+      if (/^ИП\s/i.test(name)) return '';
+      if (/индивидуальный\s+предприниматель/i.test(name)) return '';
       return 'ИП';
     }
     if (type === 'company') {
       // Проверяем аббревиатуры
-      if (name.match(/^(ООО|ОАО|ЗАО|ПАО|АО)\s*["']?/i)) return '';
+      if (/^(ООО|ОАО|ЗАО|ПАО|АО)\s*["']?/i.test(name)) return '';
       // Проверяем полные названия
-      if (name.match(/Общество\s+с\s+ограниченной\s+ответственностью/i)) return '';
-      if (name.match(/Акционерное\s+общество/i)) return '';
-      if (name.match(/Закрытое\s+акционерное\s+общество/i)) return '';
-      if (name.match(/Публичное\s+акционерное\s+общество/i)) return '';
+      if (/общество\s+с\s+ограниченной/i.test(name)) return '';
+      if (/акционерное\s+общество/i.test(name)) return '';
+      if (/закрытое\s+акционерное/i.test(name)) return '';
+      if (/публичное\s+акционерное/i.test(name)) return '';
       return 'ООО';
     }
     return '';
@@ -182,18 +182,18 @@ function prepareTemplateData(contract: Contract, pdfSettings: PDFSettings, bankA
   const getCompanyFullName = (type: string, name: string): string => {
     if (type === 'ip') {
       // Проверяем и аббревиатуру, и полное название
-      if (name.match(/^ИП\s+/i)) return name;
-      if (name.match(/Индивидуальный\s+предприниматель/i)) return name;
+      if (/^ИП\s/i.test(name)) return name;
+      if (/индивидуальный\s+предприниматель/i.test(name)) return name;
       return `ИП ${name}`;
     }
     if (type === 'company') {
       // Проверяем аббревиатуры
-      if (name.match(/^(ООО|ОАО|ЗАО|ПАО|АО)\s*["']?/i)) return name;
+      if (/^(ООО|ОАО|ЗАО|ПАО|АО)\s*["']?/i.test(name)) return name;
       // Проверяем полные названия
-      if (name.match(/Общество\s+с\s+ограниченной\s+ответственностью/i)) return name;
-      if (name.match(/Акционерное\s+общество/i)) return name;
-      if (name.match(/Закрытое\s+акционерное\s+общество/i)) return name;
-      if (name.match(/Публичное\s+акционерное\s+общество/i)) return name;
+      if (/общество\s+с\s+ограниченной/i.test(name)) return name;
+      if (/акционерное\s+общество/i.test(name)) return name;
+      if (/закрытое\s+акционерное/i.test(name)) return name;
+      if (/публичное\s+акционерное/i.test(name)) return name;
       return `ООО "${name}"`;
     }
     return name;

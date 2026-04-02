@@ -12,18 +12,18 @@ function formatCompanyName(name: string, type?: string): string {
   if (!name) return '-';
   if (type === 'ip') {
     // Проверяем и аббревиатуру, и полное название
-    if (name.match(/^ИП\s+/i)) return name;
-    if (name.match(/Индивидуальный\s+предприниматель/i)) return name;
+    if (/^ИП\s/i.test(name)) return name;
+    if (/индивидуальный\s+предприниматель/i.test(name)) return name;
     return `ИП ${name}`;
   }
   if (type === 'company' || !type) {
     // Проверяем аббревиатуры
-    if (name.match(/^(ООО|ОАО|ЗАО|ПАО|АО)\s*["']?/i)) return name;
-    // Проверяем полные названия
-    if (name.match(/Общество\s+с\s+ограниченной\s+ответственностью/i)) return name;
-    if (name.match(/Акционерное\s+общество/i)) return name;
-    if (name.match(/Закрытое\s+акционерное\s+общество/i)) return name;
-    if (name.match(/Публичное\s+акционерное\s+общество/i)) return name;
+    if (/^(ООО|ОАО|ЗАО|ПАО|АО)\s*["']?/i.test(name)) return name;
+    // Проверяем полные названия (упрощенные проверки)
+    if (/общество\s+с\s+ограниченной/i.test(name)) return name;
+    if (/акционерное\s+общество/i.test(name)) return name;
+    if (/закрытое\s+акционерное/i.test(name)) return name;
+    if (/публичное\s+акционерное/i.test(name)) return name;
     return `ООО "${name}"`;
   }
   return name;

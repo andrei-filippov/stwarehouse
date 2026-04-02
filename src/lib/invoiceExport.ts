@@ -26,13 +26,13 @@ export function generateInvoiceHTML(invoice: Invoice, settings: PDFSettings, ban
   // Формируем полное наименование поставщика
   const rawSupplierName = company?.name || settings.companyName || '-';
   const supplierFullName = company?.type === 'ip' 
-    ? (rawSupplierName.match(/^ИП\s+/i) || rawSupplierName.match(/Индивидуальный\s+предприниматель/i) 
+    ? (/^ИП\s/i.test(rawSupplierName) || /индивидуальный\s+предприниматель/i.test(rawSupplierName)
         ? rawSupplierName : `ИП ${rawSupplierName}`)
-    : (rawSupplierName.match(/^(ООО|ОАО|ЗАО|ПАО|АО)\s*["']?/i) 
-        || rawSupplierName.match(/Общество\s+с\s+ограниченной\s+ответственностью/i)
-        || rawSupplierName.match(/Акционерное\s+общество/i)
-        || rawSupplierName.match(/Закрытое\s+акционерное\s+общество/i)
-        || rawSupplierName.match(/Публичное\s+акционерное\s+общество/i)
+    : (/^(ООО|ОАО|ЗАО|ПАО|АО)\s*["']?/i.test(rawSupplierName) 
+        || /общество\s+с\s+ограниченной/i.test(rawSupplierName)
+        || /акционерное\s+общество/i.test(rawSupplierName)
+        || /закрытое\s+акционерное/i.test(rawSupplierName)
+        || /публичное\s+акционерное/i.test(rawSupplierName)
         ? rawSupplierName : `ООО "${rawSupplierName}"`);
   
   const supplierInn = company?.inn || settings.companyDetails?.match(/ИНН\s*(\d+)/)?.[1] || '-';
@@ -42,14 +42,14 @@ export function generateInvoiceHTML(invoice: Invoice, settings: PDFSettings, ban
   // Формируем наименование покупателя
   const rawBuyerName = customer?.name || '-';
   const buyerFullName = customer?.type === 'ip'
-    ? (rawBuyerName.match(/^ИП\s+/i) || rawBuyerName.match(/Индивидуальный\s+предприниматель/i) 
+    ? (/^ИП\s/i.test(rawBuyerName) || /индивидуальный\s+предприниматель/i.test(rawBuyerName)
         ? rawBuyerName : `ИП ${rawBuyerName}`)
     : customer?.type === 'company'
-      ? (rawBuyerName.match(/^(ООО|ОАО|ЗАО|ПАО|АО)\s*["']?/i)
-          || rawBuyerName.match(/Общество\s+с\s+ограниченной\s+ответственностью/i)
-          || rawBuyerName.match(/Акционерное\s+общество/i)
-          || rawBuyerName.match(/Закрытое\s+акционерное\s+общество/i)
-          || rawBuyerName.match(/Публичное\s+акционерное\s+общество/i)
+      ? (/^(ООО|ОАО|ЗАО|ПАО|АО)\s*["']?/i.test(rawBuyerName)
+          || /общество\s+с\s+ограниченной/i.test(rawBuyerName)
+          || /акционерное\s+общество/i.test(rawBuyerName)
+          || /закрытое\s+акционерное/i.test(rawBuyerName)
+          || /публичное\s+акционерное/i.test(rawBuyerName)
           ? rawBuyerName : `ООО "${rawBuyerName}"`)
       : rawBuyerName;
   
@@ -326,18 +326,18 @@ export async function exportInvoiceToDOCX(invoice: Invoice, settings: PDFSetting
     if (!name) return '-';
     if (type === 'ip') {
       // Проверяем и аббревиатуру, и полное название
-      if (name.match(/^ИП\s+/i)) return name;
-      if (name.match(/Индивидуальный\s+предприниматель/i)) return name;
+      if (/^ИП\s/i.test(name)) return name;
+      if (/индивидуальный\s+предприниматель/i.test(name)) return name;
       return `ИП ${name}`;
     }
     if (type === 'company' || !type) {
       // Проверяем аббревиатуры
-      if (name.match(/^(ООО|ОАО|ЗАО|ПАО|АО)\s*["']?/i)) return name;
-      // Проверяем полные названия
-      if (name.match(/Общество\s+с\s+ограниченной\s+ответственностью/i)) return name;
-      if (name.match(/Акционерное\s+общество/i)) return name;
-      if (name.match(/Закрытое\s+акционерное\s+общество/i)) return name;
-      if (name.match(/Публичное\s+акционерное\s+общество/i)) return name;
+      if (/^(ООО|ОАО|ЗАО|ПАО|АО)\s*["']?/i.test(name)) return name;
+      // Проверяем полные названия (упрощенные проверки)
+      if (/общество\s+с\s+ограниченной/i.test(name)) return name;
+      if (/акционерное\s+общество/i.test(name)) return name;
+      if (/закрытое\s+акционерное/i.test(name)) return name;
+      if (/публичное\s+акционерное/i.test(name)) return name;
       return `ООО "${name}"`;
     }
     return name;
