@@ -13,9 +13,10 @@ import {
 } from './ui/select';
 import { Calendar } from './ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import { CalendarIcon, Plus, Trash2 } from 'lucide-react';
+import { CalendarIcon, Plus, Trash2, List, FileText } from 'lucide-react';
 import { cn } from '../lib/utils';
 import type { Act, ActItem, ActStatus, Contract, Invoice } from '../types';
 import { ACT_STATUS_LABELS } from '../types';
@@ -50,6 +51,7 @@ export function ActForm({
   });
   
   const [items, setItems] = useState<Partial<ActItem>[]>([]);
+  const [useSubject, setUseSubject] = useState(false); // false - позиции, true - предмет договора
   const [loading, setLoading] = useState(false);
   const [dateOpen, setDateOpen] = useState(false);
 
@@ -107,7 +109,8 @@ export function ActForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    await onSave(formData, items);
+    // Если используем предмет договора, передаем пустой массив позиций
+    await onSave(formData, useSubject ? [] : items);
     setLoading(false);
   };
 
@@ -287,7 +290,35 @@ export function ActForm({
         </div>
       </div>
 
+      {/* Предмет договора */}
+      {contract.subject && (
+        <div className="space-y-2 p-3 border rounded-lg bg-muted/50">
+          <Label className="text-muted-foreground">Предмет договора</Label>
+          <p className="text-sm font-medium">{contract.subject}</p>
+        </div>
+      )}
+
+      {/* Переключатель: Позиции или Предмет */}
+      <div className="flex items-center justify-between">
+        <Label>Содержание акта</Label>
+        <ToggleGroup
+          type="single"
+          value={useSubject ? 'subject' : 'items'}
+          onValueChange={(value) => value && setUseSubject(value === 'subject')}
+        >
+          <ToggleGroupItem value="items" aria-label="Список позиций">
+            <List className="w-4 h-4 mr-1" />
+            Позиции
+          </ToggleGroupItem>
+          <ToggleGroupItem value="subject" aria-label="Предмет договора">
+            <FileText className="w-4 h-4 mr-1" />
+            Предмет
+          </ToggleGroupItem>
+        </ToggleGroup>
+      </div>
+
       {/* Позиции акта */}
+      {!useSubject && (
       <div className="space-y-2">
         <div className="flex justify-between items-center">
           <Label>Выполненные работы / оказанные услуги</Label>
@@ -353,6 +384,7 @@ export function ActForm({
           ))}
         </div>
       </div>
+      )}
 
       {/* Ставка НДС */}
       <div className="space-y-2">

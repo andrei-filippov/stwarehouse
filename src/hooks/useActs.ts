@@ -25,6 +25,7 @@ export function useActs(contractId?: string, companyId?: string) {
             customer:customer_id (
               id,
               name,
+              type,
               inn,
               kpp,
               legal_address

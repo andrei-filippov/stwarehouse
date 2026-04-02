@@ -38,6 +38,7 @@ export type Invoice = {
     customer?: {
       id: string;
       name: string;
+      type?: 'company' | 'ip' | 'individual';
       inn?: string;
       kpp?: string;
       legal_address?: string;
@@ -106,6 +107,7 @@ export type Act = {
     customer?: {
       id: string;
       name: string;
+      type?: 'company' | 'ip' | 'individual';
       inn?: string;
       kpp?: string;
       legal_address?: string;

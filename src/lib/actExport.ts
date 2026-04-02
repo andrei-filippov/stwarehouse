@@ -34,52 +34,53 @@ export function generateActHTML(act: Act, settings: PDFSettings, bankAccounts: C
 <head>
   <meta charset="UTF-8">
   <style>
-    @page { size: A4; margin: 20mm; }
+    @page { size: A4; margin: 15mm 20mm; }
     body { 
       font-family: "Times New Roman", Times, serif; 
-      font-size: 12pt; 
-      line-height: 1.5;
+      font-size: 10pt; 
+      line-height: 1.3;
       color: #000;
       max-width: 800px;
       margin: 0 auto;
-      padding: 20px;
+      padding: 0;
     }
     .title { 
       text-align: center; 
-      font-size: 14pt; 
+      font-size: 12pt; 
       font-weight: bold;
-      margin: 20px 0;
+      margin: 10px 0;
       text-transform: uppercase;
     }
     .subtitle {
       text-align: center;
-      margin-bottom: 30px;
+      margin-bottom: 15px;
+      font-size: 10pt;
     }
-    .info-block { margin-bottom: 20px; }
-    .info-row { margin-bottom: 10px; text-align: justify; }
+    .info-block { margin-bottom: 12px; }
+    .info-row { margin-bottom: 6px; text-align: justify; }
     .info-label { font-weight: bold; }
     table { 
       width: 100%; 
       border-collapse: collapse; 
-      margin: 20px 0;
-      font-size: 11pt;
+      margin: 10px 0;
+      font-size: 9pt;
     }
     th, td { 
       border: 1px solid #000; 
-      padding: 8px; 
+      padding: 5px 6px; 
       text-align: left;
     }
     th { background-color: #f0f0f0; font-weight: bold; text-align: center; }
     .text-right { text-align: right; }
     .text-center { text-align: center; }
     .total-row { font-weight: bold; background-color: #f5f5f5; }
-    .signatures { margin-top: 50px; }
-    .signature-block { margin-bottom: 30px; }
-    .signature-title { font-weight: bold; margin-bottom: 10px; }
+    .signatures { margin-top: 30px; }
+    .signature-block { margin-bottom: 20px; }
+    .signature-title { font-weight: bold; margin-bottom: 5px; }
     .signature-line { 
       border-top: 1px solid #000; 
-      width: 250px; 
-      margin-top: 40px;
+      width: 200px; 
+      margin-top: 30px;
       display: inline-block;
     }
     .page-break { page-break-after: always; }
@@ -89,13 +90,13 @@ export function generateActHTML(act: Act, settings: PDFSettings, bankAccounts: C
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      margin-bottom: 20px;
-      border-bottom: 2px solid #333;
-      padding-bottom: 15px;
+      margin-bottom: 10px;
+      border-bottom: 1px solid #333;
+      padding-bottom: 8px;
     }
     .logo-section { width: 45%; }
-    .logo-section img { max-height: 80px; max-width: 100%; }
-    .company-section { width: 50%; text-align: right; font-size: 11px; }
+    .logo-section img { max-height: 60px; max-width: 100%; }
+    .company-section { width: 50%; text-align: right; font-size: 9px; }
     .company-section h2 { margin: 0 0 5px 0; font-size: 14px; }
     .company-section p { margin: 3px 0; }
   </style>
@@ -131,7 +132,7 @@ export function generateActHTML(act: Act, settings: PDFSettings, bankAccounts: C
     </div>
   </div>
 
-  <div class="info-row" style="margin: 20px 0;">
+  <div class="info-row" style="margin: 10px 0;">
     К настоящему акту Исполнитель сдал, а Заказчик принял следующие работы (услуги):
   </div>
 
@@ -188,7 +189,7 @@ export function generateActHTML(act: Act, settings: PDFSettings, bankAccounts: C
     </tfoot>
   </table>
 
-  <div style="margin: 20px 0;">
+  <div style="margin: 10px 0; font-size: 9pt;">
     <strong>Всего оказано услуг на сумму:</strong> ${numberToWords(act.total_amount)}
   </div>
 
@@ -196,52 +197,36 @@ export function generateActHTML(act: Act, settings: PDFSettings, bankAccounts: C
     Настоящий акт составлен в двух экземплярах, по одному для каждой из сторон.
   </div>
 
-  <div class="info-row" style="margin: 20px 0;">
-    Заказчик претензий по объему, качеству и срокам оказанных услуг не имеет.
+  <div class="info-row" style="margin: 10px 0; font-size: 9pt;">
+    Вышеперечисленные услуги оказаны в полном объеме и в установленный срок. Заказчик претензий по объему, качеству и срокам оказанных услуг не имеет.
   </div>
 
   ${act.notes ? `
-  <div style="margin: 20px 0;">
+  <div style="margin: 10px 0; font-size: 9pt;">
     <strong>Примечания:</strong> ${act.notes}
   </div>
   ` : ''}
 
-  <div class="signatures">
-    <table style="border: none; margin-top: 40px;">
+  <div class="signatures" style="margin-top: 30px;">
+    <table style="border: none; width: 100%;">
       <tr style="border: none;">
-        <td style="border: none; width: 50%; vertical-align: top;">
-          <div class="signature-block">
-            <div class="signature-title">От Исполнителя:</div>
-            <div>${formatCompanyName(settings.companyName, company?.type)}</div>
-            <div style="margin-top: 10px;">${settings.position}</div>
-            <div style="margin-top: 40px;">
-              <span style="border-top: 1px solid #000; display: inline-block; width: 150px; margin-right: 10px;"></span>
-              / ${settings.personName} /
-            </div>
-            <div style="margin-top: 5px; font-size: 10pt; color: #666;">
-              подпись
-            </div>
+        <td style="border: none; width: 50%; vertical-align: top; padding-right: 20px;">
+          <div style="font-weight: bold; margin-bottom: 15px;">Исполнитель</div>
+          <div style="margin-top: 30px;">
+            <span style="border-top: 1px solid #000; display: inline-block; width: 180px;"></span>
           </div>
         </td>
-        <td style="border: none; width: 50%; vertical-align: top;">
-          <div class="signature-block">
-            <div class="signature-title">От Заказчика:</div>
-            <div>${formatCompanyName(customer?.name || '_______________________', customer?.type)}</div>
-            <div style="margin-top: 10px;">_______________________</div>
-            <div style="margin-top: 40px;">
-              <span style="border-top: 1px solid #000; display: inline-block; width: 150px; margin-right: 10px;"></span>
-              / _______________________ /
-            </div>
-            <div style="margin-top: 5px; font-size: 10pt; color: #666;">
-              подпись
-            </div>
+        <td style="border: none; width: 50%; vertical-align: top; padding-left: 20px;">
+          <div style="font-weight: bold; margin-bottom: 15px;">Заказчик</div>
+          <div style="margin-top: 30px;">
+            <span style="border-top: 1px solid #000; display: inline-block; width: 180px;"></span>
           </div>
         </td>
       </tr>
     </table>
   </div>
 
-  <div style="margin-top: 60px; text-align: center; font-size: 9pt; color: #666;">
+  <div style="margin-top: 20px; text-align: center; font-size: 8pt; color: #666;">
     М.П.
   </div>
 </body>
