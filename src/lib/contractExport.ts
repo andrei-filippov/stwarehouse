@@ -181,20 +181,23 @@ function prepareTemplateData(contract: Contract, pdfSettings: PDFSettings, bankA
   // Получаем полное наименование компании с проверкой дублирования
   const getCompanyFullName = (type: string, name: string): string => {
     if (type === 'ip') {
-      // Проверяем и аббревиатуру, и полное название
+      // Проверяем и аббревиатуру, и полное название - возвращаем как есть
       if (/^ИП\s/i.test(name)) return name;
       if (/индивидуальный\s+предприниматель/i.test(name)) return name;
-      return `ИП ${name}`;
+      // По умолчанию - только имя без ИП (тип добавляется отдельно)
+      return name;
     }
     if (type === 'company') {
-      // Проверяем аббревиатуры
+      const lowerName = name.toLowerCase();
+      // Проверяем аббревиатуры - возвращаем как есть
       if (/^(ООО|ОАО|ЗАО|ПАО|АО)\s*["']?/i.test(name)) return name;
-      // Проверяем полные названия
-      if (/общество\s+с\s+ограниченной/i.test(name)) return name;
-      if (/акционерное\s+общество/i.test(name)) return name;
-      if (/закрытое\s+акционерное/i.test(name)) return name;
-      if (/публичное\s+акционерное/i.test(name)) return name;
-      return `ООО "${name}"`;
+      // Проверяем полные названия - возвращаем как есть
+      if (lowerName.includes('общество с ограниченной')) return name;
+      if (lowerName.includes('акционерное общество')) return name;
+      if (lowerName.includes('закрытое акционерное')) return name;
+      if (lowerName.includes('публичное акционерное')) return name;
+      // По умолчанию - только название в кавычках без ООО (тип добавляется отдельно через customer_type)
+      return `"${name}"`;
     }
     return name;
   };
