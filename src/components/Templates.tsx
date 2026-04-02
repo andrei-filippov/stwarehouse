@@ -748,6 +748,7 @@ function ContractTemplateForm({ companyId, editingTemplate, onCancel, onSave, on
   const placeholders = [
     { key: '{{contract_number}}', desc: 'Номер договора' },
     { key: '{{contract_date}}', desc: 'Дата договора' },
+    { key: '{{contract_subject}}', desc: 'Предмет договора' },
     { key: '{{customer_name}}', desc: 'Наименование заказчика' },
     { key: '{{customer_type}}', desc: 'Тип заказчика (ИП/ООО)' },
     { key: '{{customer_type_short}}', desc: 'Тип коротко (ИП/ООО)' },

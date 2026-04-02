@@ -157,6 +157,7 @@ function prepareTemplateData(contract: Contract, pdfSettings: PDFSettings, bankA
   return {
     contract_number: contract.number,
     contract_date: formatDate(contract.date),
+    contract_subject: contract.subject || '',
     
     customer_name: customer?.name || '',
     customer_type: customer ? (customerTypeLabels[customer.type] || customer.type) : '',

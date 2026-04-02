@@ -124,6 +124,7 @@ export type ContractTemplateData = {
   // Договор
   contract_number: string;
   contract_date: string;
+  contract_subject?: string;
   
   // Заказчик
   customer_name: string;
