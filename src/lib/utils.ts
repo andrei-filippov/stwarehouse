@@ -63,43 +63,82 @@ export function sanitizeContractHtml(html: string): string {
   });
 }
 
+// Стили таблиц, которые нужно сохранять
+const TABLE_STYLES_TO_KEEP = [
+  'border', 'border-top', 'border-bottom', 'border-left', 'border-right',
+  'border-collapse', 'border-spacing', 'width', 'height',
+  'padding', 'padding-top', 'padding-bottom', 'padding-left', 'padding-right',
+  'text-align', 'vertical-align'
+];
+
+// "Грязные" стили, которые добавляет браузер и нужно удалить
+const DIRTY_STYLE_PATTERNS = [
+  /rgb\(\d+,\s*\d+,\s*\d+\)/,      // rgb(0, 0, 0)
+  /rgba\(/,                          // rgba(...)
+  /font-family:\s*[^;]*;?/i,        // font-family: Arial
+  /font-size:\s*\d+(\.\d+)?pt;?/i,  // font-size: 12pt
+  /font-size:\s*[^;]*;?/i,          // любой font-size
+  /background-color:\s*(?!transparent)[^;]*;?/i, // background-color (кроме transparent)
+  /color:\s*[^;]*;?/i,              // color
+  /mso-[^:]+:[^;]*;?/gi,            // MS Office стили
+  /margin[^:]*:[^;]*;?/gi,          // margin
+  /line-height[^:]*:[^;]*;?/gi,     // line-height
+];
+
 // Очистка HTML после редактирования (contentEditable)
-// Удаляет только браузерные "грязные" стили, сохраняя базовые стили таблиц
+// Сохраняет стили таблиц, удаляет браузерные "грязные" стили
 export function cleanEditedHtml(html: string): string {
   if (typeof window === 'undefined') return html;
   
-  // Создаем временный div для работы с DOM
   const tempDiv = document.createElement('div');
   tempDiv.innerHTML = html;
   
-  // Удаляем только "грязные" браузерные стили (начинающиеся с rgb, color с конкретными значениями и т.д.)
+  // Обрабатываем стили у всех элементов
   const elementsWithStyle = tempDiv.querySelectorAll('[style]');
   elementsWithStyle.forEach(el => {
-    const style = el.getAttribute('style') || '';
-    // Удаляем стили только если они содержат браузерные "грязные" значения
-    const dirtyPatterns = [
-      /rgb\(\d+,\s*\d+,\s*\d+\)/,  // rgb(0, 0, 0)
-      /rgba\(/,                      // rgba(...)
-      /font-family:\s*[^;]*;?/i,    // font-family: Arial
-      /font-size:\s*[^;]*;?/i,      // font-size: 12px
-      /background-color:\s*#?\w+;?/i, // background-color
-      /color:\s*#?\w+;?/i,          // color: black
-    ];
+    const originalStyle = el.getAttribute('style') || '';
     
-    let cleanedStyle = style;
-    dirtyPatterns.forEach(pattern => {
-      cleanedStyle = cleanedStyle.replace(pattern, '');
+    // Проверяем, есть ли "грязные" стили
+    let hasDirtyStyles = false;
+    DIRTY_STYLE_PATTERNS.forEach(pattern => {
+      if (pattern.test(originalStyle)) {
+        hasDirtyStyles = true;
+      }
     });
     
-    // Удаляем пустые style атрибуты
-    if (!cleanedStyle.trim() || cleanedStyle === style && style.match(/font|color|background/)) {
-      el.removeAttribute('style');
-    } else if (cleanedStyle !== style) {
-      el.setAttribute('style', cleanedStyle);
+    if (hasDirtyStyles) {
+      // Удаляем грязные стили
+      let cleanedStyle = originalStyle;
+      DIRTY_STYLE_PATTERNS.forEach(pattern => {
+        cleanedStyle = cleanedStyle.replace(pattern, '');
+      });
+      
+      // Оставляем только нужные стили таблиц
+      const styleParts = cleanedStyle.split(';');
+      const keptStyles: string[] = [];
+      
+      styleParts.forEach(part => {
+        const trimmed = part.trim();
+        if (!trimmed) return;
+        
+        const propName = trimmed.split(':')[0].trim().toLowerCase();
+        
+        // Сохраняем стили таблиц
+        if (TABLE_STYLES_TO_KEEP.includes(propName)) {
+          keptStyles.push(trimmed);
+        }
+      });
+      
+      if (keptStyles.length > 0) {
+        el.setAttribute('style', keptStyles.join('; '));
+      } else {
+        el.removeAttribute('style');
+      }
     }
+    // Если нет грязных стилей - оставляем как есть (для border и т.д.)
   });
   
-  // Удаляем пустые span (которые добавляет браузер)
+  // Удаляем пустые span
   const emptySpans = tempDiv.querySelectorAll('span:empty');
   emptySpans.forEach(el => {
     const parent = el.parentNode;
@@ -111,7 +150,7 @@ export function cleanEditedHtml(html: string): string {
     }
   });
   
-  // Удаляем атрибуты type="_moz" и подобные браузерные атрибуты
+  // Удаляем браузерные атрибуты
   const allElements = tempDiv.querySelectorAll('*');
   allElements.forEach(el => {
     const attrs = Array.from(el.attributes);
