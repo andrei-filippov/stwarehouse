@@ -160,10 +160,19 @@ function prepareTemplateData(contract: Contract, pdfSettings: PDFSettings, bankA
   // Функция для получения короткого типа компании с проверкой на дублирование
   const getCompanyTypeShort = (type: string, name: string): string => {
     if (type === 'ip') {
-      return name.match(/^ИП\s+/i) ? '' : 'ИП';
+      // Проверяем и аббревиатуру, и полное название
+      if (name.match(/^ИП\s+/i)) return '';
+      if (name.match(/Индивидуальный\s+предприниматель/i)) return '';
+      return 'ИП';
     }
     if (type === 'company') {
+      // Проверяем аббревиатуры
       if (name.match(/^(ООО|ОАО|ЗАО|ПАО|АО)\s*["']?/i)) return '';
+      // Проверяем полные названия
+      if (name.match(/Общество\s+с\s+ограниченной\s+ответственностью/i)) return '';
+      if (name.match(/Акционерное\s+общество/i)) return '';
+      if (name.match(/Закрытое\s+акционерное\s+общество/i)) return '';
+      if (name.match(/Публичное\s+акционерное\s+общество/i)) return '';
       return 'ООО';
     }
     return '';
@@ -172,10 +181,20 @@ function prepareTemplateData(contract: Contract, pdfSettings: PDFSettings, bankA
   // Получаем полное наименование компании с проверкой дублирования
   const getCompanyFullName = (type: string, name: string): string => {
     if (type === 'ip') {
-      return name.match(/^ИП\s+/i) ? name : `ИП ${name}`;
+      // Проверяем и аббревиатуру, и полное название
+      if (name.match(/^ИП\s+/i)) return name;
+      if (name.match(/Индивидуальный\s+предприниматель/i)) return name;
+      return `ИП ${name}`;
     }
     if (type === 'company') {
-      return name.match(/^(ООО|ОАО|ЗАО|ПАО|АО)\s*["']?/i) ? name : `ООО "${name}"`;
+      // Проверяем аббревиатуры
+      if (name.match(/^(ООО|ОАО|ЗАО|ПАО|АО)\s*["']?/i)) return name;
+      // Проверяем полные названия
+      if (name.match(/Общество\s+с\s+ограниченной\s+ответственностью/i)) return name;
+      if (name.match(/Акционерное\s+общество/i)) return name;
+      if (name.match(/Закрытое\s+акционерное\s+общество/i)) return name;
+      if (name.match(/Публичное\s+акционерное\s+общество/i)) return name;
+      return `ООО "${name}"`;
     }
     return name;
   };

@@ -11,10 +11,20 @@ import { ru } from 'date-fns/locale';
 function formatCompanyName(name: string, type?: string): string {
   if (!name) return '-';
   if (type === 'ip') {
-    return name.match(/^ИП\s+/i) ? name : `ИП ${name}`;
+    // Проверяем и аббревиатуру, и полное название
+    if (name.match(/^ИП\s+/i)) return name;
+    if (name.match(/Индивидуальный\s+предприниматель/i)) return name;
+    return `ИП ${name}`;
   }
   if (type === 'company' || !type) {
-    return name.match(/^(ООО|ОАО|ЗАО|ПАО|АО)\s*["']?/i) ? name : `ООО "${name}"`;
+    // Проверяем аббревиатуры
+    if (name.match(/^(ООО|ОАО|ЗАО|ПАО|АО)\s*["']?/i)) return name;
+    // Проверяем полные названия
+    if (name.match(/Общество\s+с\s+ограниченной\s+ответственностью/i)) return name;
+    if (name.match(/Акционерное\s+общество/i)) return name;
+    if (name.match(/Закрытое\s+акционерное\s+общество/i)) return name;
+    if (name.match(/Публичное\s+акционерное\s+общество/i)) return name;
+    return `ООО "${name}"`;
   }
   return name;
 }
