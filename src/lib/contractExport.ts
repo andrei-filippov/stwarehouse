@@ -93,9 +93,14 @@ function prepareTemplateData(contract: Contract, pdfSettings: PDFSettings, bankA
         tableHTML += `<tr style="background:#f5f5f5;"><td colspan="6"><strong>${category}</strong></td></tr>`;
         items?.forEach(item => {
           const sum = item.price * item.quantity * (item.coefficient || 1);
+          // Объединяем наименование и описание
+          let nameWithDescription = item.name;
+          if (item.description && item.description.trim()) {
+            nameWithDescription += `<br/>${item.description}`;
+          }
           tableHTML += `<tr>` +
             `<td>${globalIndex++}</td>` +
-            `<td>${item.name}</td>` +
+            `<td>${nameWithDescription}</td>` +
             `<td>${item.quantity}</td>` +
             `<td>${item.unit}</td>` +
             `<td>${item.price.toLocaleString('ru-RU')}</td>` +
@@ -473,11 +478,26 @@ export async function exportContractToDOCX(contract: Contract, pdfSettings: PDFS
 
         items?.forEach(item => {
           const sum = item.price * item.quantity * (item.coefficient || 1);
+          
+          // Создаем ячейку с наименованием и описанием
+          const nameCellChildren: Paragraph[] = [
+            new Paragraph({ children: [new TextRun({ text: item.name })] })
+          ];
+          
+          // Добавляем описание если есть
+          if (item.description && item.description.trim()) {
+            nameCellChildren.push(
+              new Paragraph({ 
+                children: [new TextRun({ text: item.description })] 
+              })
+            );
+          }
+          
           specRows.push(
             new TableRow({
               children: [
                 new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(globalIndex++) })] })] }),
-                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: item.name })] })] }),
+                new TableCell({ children: nameCellChildren }),
                 new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(item.quantity) })] })] }),
                 new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: item.unit })] })] }),
                 new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: item.price.toLocaleString('ru-RU') })] })] }),

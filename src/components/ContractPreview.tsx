@@ -265,30 +265,28 @@ export function ContractPreview({ contract, pdfSettings, bankAccounts = [], onCl
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="preview" className="flex-1 mt-2 px-4 pb-4 min-h-0">
+        <TabsContent value="preview" className="flex-1 mt-2 px-4 pb-4 min-h-0 overflow-hidden flex flex-col">
           {isEditing ? (
             // Режим редактирования - показываем HTML с таблицами
-            <div className="h-full flex flex-col">
-              <div className="text-sm text-muted-foreground mb-2">
+            <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+              <div className="text-sm text-muted-foreground mb-2 flex-shrink-0">
                 Режим редактирования. Вы можете изменить текст договора перед печатью или экспортом.
               </div>
               <div
                 ref={editRef}
-                className="flex-1 border rounded-lg p-4 bg-card overflow-auto font-serif text-sm leading-relaxed"
-                style={{ minHeight: '400px' }}
+                className="flex-1 border rounded-lg p-4 bg-white text-black overflow-auto font-serif text-sm leading-relaxed"
                 contentEditable
                 dangerouslySetInnerHTML={{ __html: currentContent }}
               />
             </div>
           ) : (
             // Режим предпросмотра - используем iframe для изоляции стилей
-            <div className="border rounded-lg bg-card overflow-hidden shadow-inner">
+            <div className="flex-1 border rounded-lg bg-white overflow-hidden shadow-inner min-h-0">
               <iframe
                 ref={previewRef as any}
                 srcDoc={currentContent}
+                className="w-full h-full"
                 style={{
-                  width: '100%',
-                  height: '500px',
                   border: 'none',
                 }}
                 title="Предпросмотр договора"
