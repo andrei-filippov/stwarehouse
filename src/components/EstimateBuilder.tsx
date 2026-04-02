@@ -164,9 +164,18 @@ export function EstimateBuilder({
     }
   }, [estimate?.id]); // Запускаем только при изменении сметы
 
-  // Загрузка items из выбранного шаблона
+  // Загрузка items из выбранного шаблона (только один раз при создании новой сметы)
+  const templateLoadedRef = useRef(false);
   useEffect(() => {
-    if (selectedTemplate?.items && selectedTemplate.items.length > 0) {
+    // Загружаем шаблон только если:
+    // 1. Есть selectedTemplate с items
+    // 2. Шаблон еще не был загружен (templateLoadedRef.current === false)
+    // 3. Это новая смета (estimate === null или estimate.id === 'new')
+    if (selectedTemplate?.items && 
+        selectedTemplate.items.length > 0 && 
+        !templateLoadedRef.current &&
+        (!estimate || estimate.id === 'new')) {
+      
       const templateItems: EstimateItem[] = selectedTemplate.items.map((item: any) => {
         // Ищем оборудование в каталоге по ID для получения актуальных данных
         const equipmentItem = item.equipment_id 
@@ -193,9 +202,19 @@ export function EstimateBuilder({
         setCategoryOrder(selectedTemplate.category_order);
       }
       
+      // Отмечаем что шаблон загружен
+      templateLoadedRef.current = true;
+      
       toast.success(`Загружено ${templateItems.length} позиций из шаблона "${selectedTemplate.name}"`);
     }
-  }, [selectedTemplate, equipment]);
+  }, [selectedTemplate, equipment, estimate]);
+  
+  // Сбрасываем флаг при закрытии/открытии новой сметы
+  useEffect(() => {
+    if (!selectedTemplate) {
+      templateLoadedRef.current = false;
+    }
+  }, [selectedTemplate]);
 
   const selectedCustomer = useMemo(() => 
     customers.find(c => c.id === customerId),

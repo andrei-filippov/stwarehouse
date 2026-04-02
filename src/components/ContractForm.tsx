@@ -94,18 +94,58 @@ export function ContractForm({
     contract?.bank_account_id || defaultAccount?.id || ''
   );
 
-  // Генерация номера при создании нового договора
+  // Обновление состояний при изменении contract (для редактирования существующего договора)
   useEffect(() => {
-    if (initializedRef.current) return;
-    initializedRef.current = true;
-
-    if (!isEditing && !number) {
+    if (contract) {
+      setNumber(contract.number || '');
+      setDate(contract.date ? new Date(contract.date) : new Date());
+      setType(contract.type || 'service');
+      setStatus(contract.status || 'draft');
+      setTemplateId(contract.template_id || '');
+      setCustomerId(contract.customer_id || '');
+      setEventName(contract.event_name || '');
+      setEventStartDate(contract.event_start_date ? new Date(contract.event_start_date) : undefined);
+      setEventEndDate(contract.event_end_date ? new Date(contract.event_end_date) : undefined);
+      setVenue(contract.venue || '');
+      setTotalAmount(contract.total_amount || 0);
+      setPaymentTerms(contract.payment_terms || '');
+      setExecutorName(contract.executor_name || pdfSettings.companyName || '');
+      setExecutorRepresentative(contract.executor_representative || pdfSettings.personName || '');
+      setExecutorBasis(contract.executor_basis || 'Устава');
+      setSubject(contract.subject || '');
+      setAdditionalTerms(contract.additional_terms || '');
+      setSelectedEstimateIds(contract.estimates?.map((e: any) => e.estimate_id) || []);
+      setSelectedBankAccountId(contract.bank_account_id || defaultAccount?.id || '');
+    } else {
+      // Сброс состояний при создании нового договора
+      setNumber('');
+      setDate(new Date());
+      setType('service');
+      setStatus('draft');
+      setTemplateId('');
+      setCustomerId('');
+      setEventName('');
+      setEventStartDate(undefined);
+      setEventEndDate(undefined);
+      setVenue('');
+      setTotalAmount(0);
+      setPaymentTerms('');
+      setExecutorName(pdfSettings.companyName || '');
+      setExecutorRepresentative(pdfSettings.personName || '');
+      setExecutorBasis('Устава');
+      setSubject('');
+      setAdditionalTerms('');
+      setSelectedEstimateIds([]);
+      setSelectedBankAccountId(defaultAccount?.id || '');
+      
+      // Генерация номера для нового договора
       getNextNumber('service', currentYear).then(setNumber);
-    }
-    if (!isEditing && !paymentTerms) {
       setPaymentTerms('Оплата в течение 15 банковских дней с даты подписания Акта сдачи-приемки услуг.');
     }
-  }, []);
+    
+    // Сбрасываем флаг инициализации
+    initializedRef.current = false;
+  }, [contract?.id]); // Запускаем при изменении ID договора
 
   // Пересчёт суммы при изменении выбранных смет
   useEffect(() => {
