@@ -1,4 +1,4 @@
-import { Document, Paragraph, TextRun, Table, TableCell, TableRow, WidthType, AlignmentType, HeadingLevel, Packer, BorderStyle } from 'docx';
+import { Document, Paragraph, TextRun, WidthType, AlignmentType } from 'docx';
 import type { Contract, ContractTemplateData, PDFSettings, CompanyBankAccount, Company } from '../types';
 import { numberToWords } from '../types/contracts';
 
@@ -76,7 +76,7 @@ function prepareTemplateData(contract: Contract, pdfSettings: PDFSettings, bankA
     }
 
     let tableHTML = '<table class="spec"><thead><tr>' +
-      '<th>№</th><th>Наименование</th><th>Кол-во</th><th>Ед.</th><th>Цена</th><th>Сумма</th>' +
+      '<th style="width:5%">№</th><th style="width:40%">Наименование</th><th style="width:8%">Кол-во</th><th style="width:7%">Ед.</th><th style="width:12%">Цена</th><th style="width:8%">Коэф.</th><th style="width:12%">Сумма</th>' +
       '</tr></thead><tbody>';
 
     let globalIndex = 1;
@@ -118,21 +118,23 @@ function prepareTemplateData(contract: Contract, pdfSettings: PDFSettings, bankA
 
       sortedCategories.forEach(category => {
         const items = grouped[category];
-        tableHTML += `<tr style="background:#f5f5f5;"><td colspan="6"><strong>${category}</strong></td></tr>`;
+        tableHTML += `<tr style="background:#f5f5f5;"><td colspan="7" style="padding:3pt 5pt;"><strong>${category}</strong></td></tr>`;
         items?.forEach(item => {
-          const sum = item.price * item.quantity * (item.coefficient || 1);
+          const coefficient = item.coefficient || 1;
+          const sum = item.price * item.quantity * coefficient;
           // Объединяем наименование и описание
           let nameWithDescription = item.name;
           if (item.description && item.description.trim()) {
-            nameWithDescription += `<br/>${item.description}`;
+            nameWithDescription += `<br/><span style="font-size:9pt;color:#555;">${item.description}</span>`;
           }
-          tableHTML += `<tr>` +
-            `<td>${globalIndex++}</td>` +
-            `<td>${nameWithDescription}</td>` +
-            `<td>${item.quantity}</td>` +
-            `<td>${item.unit}</td>` +
-            `<td>${item.price.toLocaleString('ru-RU')}</td>` +
-            `<td>${sum.toLocaleString('ru-RU')}</td>` +
+          tableHTML += `<tr style="font-size:10pt;">` +
+            `<td style="padding:2pt 5pt;text-align:center;">${globalIndex++}</td>` +
+            `<td style="padding:2pt 5pt;">${nameWithDescription}</td>` +
+            `<td style="padding:2pt 5pt;text-align:center;">${item.quantity}</td>` +
+            `<td style="padding:2pt 5pt;text-align:center;">${item.unit}</td>` +
+            `<td style="padding:2pt 5pt;text-align:right;">${item.price.toLocaleString('ru-RU')}</td>` +
+            `<td style="padding:2pt 5pt;text-align:center;">${coefficient !== 1 ? coefficient.toFixed(2).replace(/\.00$/, '') : '-'}</td>` +
+            `<td style="padding:2pt 5pt;text-align:right;">${sum.toLocaleString('ru-RU')}</td>` +
             `</tr>`;
         });
       });
@@ -223,296 +225,6 @@ function cleanText(text: string | undefined | null): string {
 }
 
 
-// Экспорт в DOCX - используем библиотеку docx для создания настоящего DOCX файла
-export async function exportContractToDOCX(contract: Contract, pdfSettings: PDFSettings, bankAccounts: CompanyBankAccount[] = [], company?: Company | null): Promise<void> {
-  const template = contract.template;
-  if (!template) {
-    console.error('Шаблон не найден');
-    return;
-  }
-
-  const data = prepareTemplateData(contract, pdfSettings, bankAccounts, company);
-  const estimates = contract.estimates || [];
-
-  // Заменяем плейсхолдеры в шаблоне
-  let html = template.content;
-  html = html.replace(/{{(\w+)}}/g, (match, key) => {
-    return (data as Record<string, string>)[key] || '';
-  });
-
-  // Парсим HTML и создаём элементы DOCX
-  const children = await convertHtmlToDocxElements(html, estimates, data.total_amount);
-
-  // Создаём документ
-  const doc = new Document({
-    sections: [{
-      properties: {
-        page: {
-          margin: {
-            top: 1134,   // 2cm
-            right: 850,  // 1.5cm  
-            bottom: 1134,// 2cm
-            left: 1701,  // 3cm
-          },
-        },
-      },
-      children,
-    }],
-  });
-
-  // Генерируем и скачиваем файл
-  const blob = await Packer.toBlob(doc);
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `Договор_${contract.number}_${contract.customer?.name || 'без_заказчика'}.docx`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-}
-
-// Конвертация HTML в элементы DOCX
-async function convertHtmlToDocxElements(html: string, estimates: any[], totalAmount: string): Promise<(Paragraph | Table)[]> {
-  const elements: (Paragraph | Table)[] = [];
-  
-  // Создаём временный div для парсинга
-  const tempDiv = document.createElement('div');
-  tempDiv.innerHTML = html;
-  
-  // Удаляем скрипты и стили
-  const scripts = tempDiv.querySelectorAll('script, style');
-  scripts.forEach(el => el.remove());
-  
-  // Обрабатываем дочерние элементы
-  for (const node of Array.from(tempDiv.childNodes)) {
-    const element = await processNode(node, estimates, totalAmount);
-    if (element) {
-      if (Array.isArray(element)) {
-        elements.push(...element);
-      } else {
-        elements.push(element);
-      }
-    }
-  }
-  
-  return elements;
-}
-
-// Обработка одного узла
-async function processNode(node: Node, estimates: any[], totalAmount: string): Promise<(Paragraph | Table)[] | Paragraph | Table | null> {
-  if (node.nodeType === Node.TEXT_NODE) {
-    const text = node.textContent?.trim();
-    if (text) {
-      return new Paragraph({
-        children: [new TextRun({ text, font: 'Times New Roman', size: 24 })], // 12pt = 24 half-points
-        spacing: { after: 120, line: 360 },
-      });
-    }
-    return null;
-  }
-  
-  if (node.nodeType === Node.ELEMENT_NODE) {
-    const el = node as HTMLElement;
-    const tagName = el.tagName.toLowerCase();
-    
-    // Заголовки
-    if (tagName === 'h1' || tagName === 'h2' || tagName === 'h3') {
-      const text = el.textContent?.trim() || '';
-      return new Paragraph({
-        children: [new TextRun({ text, bold: true, font: 'Times New Roman', size: tagName === 'h1' ? 28 : 24 })],
-        alignment: AlignmentType.CENTER,
-        spacing: { before: 240, after: 120 },
-      });
-    }
-    
-    // Параграфы
-    if (tagName === 'p') {
-      return convertParagraph(el);
-    }
-    
-    // Дивы с текстом
-    if (tagName === 'div') {
-      // Если div содержит только текст
-      if (el.children.length === 0) {
-        const text = el.textContent?.trim();
-        if (text) {
-          return new Paragraph({
-            children: [new TextRun({ text, font: 'Times New Roman', size: 24 })],
-            spacing: { after: 120, line: 360 },
-          });
-        }
-      }
-      // Иначе обрабатываем рекурсивно
-      const results: (Paragraph | Table)[] = [];
-      for (const child of Array.from(el.childNodes)) {
-        const result = await processNode(child, estimates, totalAmount);
-        if (result) {
-          if (Array.isArray(result)) results.push(...result);
-          else results.push(result);
-        }
-      }
-      return results;
-    }
-    
-    // Таблицы
-    if (tagName === 'table') {
-      return convertTable(el, estimates, totalAmount);
-    }
-    
-    // Списки
-    if (tagName === 'ul' || tagName === 'ol') {
-      const items: Paragraph[] = [];
-      el.querySelectorAll('li').forEach(li => {
-        const text = li.textContent?.trim();
-        if (text) {
-          items.push(new Paragraph({
-            children: [new TextRun({ text: '• ' + text, font: 'Times New Roman', size: 24 })],
-            indent: { left: 360 },
-            spacing: { after: 60 },
-          }));
-        }
-      });
-      return items;
-    }
-    
-    // Блочные элементы - обрабатываем рекурсивно
-    if (['section', 'article', 'main', 'header', 'footer'].includes(tagName)) {
-      const results: (Paragraph | Table)[] = [];
-      for (const child of Array.from(el.childNodes)) {
-        const result = await processNode(child, estimates, totalAmount);
-        if (result) {
-          if (Array.isArray(result)) results.push(...result);
-          else results.push(result);
-        }
-      }
-      return results;
-    }
-  }
-  
-  return null;
-}
-
-// Конвертация параграфа с inline-элементами
-function convertParagraph(el: HTMLElement): Paragraph {
-  const children: TextRun[] = [];
-  
-  function processInline(node: Node): void {
-    if (node.nodeType === Node.TEXT_NODE) {
-      const text = node.textContent || '';
-      if (text) {
-        children.push(new TextRun({ 
-          text, 
-          font: 'Times New Roman', 
-          size: 24 
-        }));
-      }
-    } else if (node.nodeType === Node.ELEMENT_NODE) {
-      const childEl = node as HTMLElement;
-      const tag = childEl.tagName.toLowerCase();
-      const text = childEl.textContent || '';
-      
-      if (tag === 'b' || tag === 'strong') {
-        children.push(new TextRun({ text, bold: true, font: 'Times New Roman', size: 24 }));
-      } else if (tag === 'i' || tag === 'em') {
-        children.push(new TextRun({ text, italics: true, font: 'Times New Roman', size: 24 }));
-      } else if (tag === 'u') {
-        children.push(new TextRun({ text, underline: { type: 'single' }, font: 'Times New Roman', size: 24 }));
-      } else if (tag === 'br') {
-        // Перенос строки - добавляем разрыв в последний TextRun или создаём новый
-        if (children.length > 0) {
-          const last = children[children.length - 1];
-          // Word понимает \n как разрыв строки
-          last.properties = { ...last.properties, text: last.properties?.text + '\n' };
-        }
-      } else if (tag === 'span') {
-        // Для span проверяем стили
-        const style = childEl.getAttribute('style') || '';
-        const isBold = style.includes('font-weight: bold') || style.includes('font-weight:bold');
-        children.push(new TextRun({ 
-          text, 
-          bold: isBold, 
-          font: 'Times New Roman', 
-          size: 24 
-        }));
-      } else {
-        // Рекурсивно обрабатываем другие элементы
-        Array.from(childEl.childNodes).forEach(processInline);
-      }
-    }
-  }
-  
-  Array.from(el.childNodes).forEach(processInline);
-  
-  return new Paragraph({
-    children: children.length > 0 ? children : [new TextRun({ text: '', font: 'Times New Roman', size: 24 })],
-    spacing: { after: 120, line: 360 },
-    alignment: getAlignment(el),
-  });
-}
-
-// Получение выравнивания из стилей
-function getAlignment(el: HTMLElement): AlignmentType | undefined {
-  const style = el.getAttribute('style') || '';
-  if (style.includes('text-align: center')) return AlignmentType.CENTER;
-  if (style.includes('text-align: right')) return AlignmentType.RIGHT;
-  if (style.includes('text-align: left')) return AlignmentType.LEFT;
-  if (style.includes('text-align: justify')) return AlignmentType.JUSTIFIED;
-  return undefined;
-}
-
-// Конвертация таблицы
-function convertTable(tableEl: HTMLElement, estimates: any[], totalAmount: string): Table {
-  const rows: TableRow[] = [];
-  const text = tableEl.textContent || '';
-  
-  // Определяем, является ли это таблица спецификации
-  const isSpecTable = text.includes('Наименование') && text.includes('Кол-во');
-  
-  // Обрабатываем существующие строки HTML таблицы
-  tableEl.querySelectorAll('tr').forEach(tr => {
-    const cells: TableCell[] = [];
-    
-    tr.querySelectorAll('td, th').forEach(cell => {
-      const cellText = cell.textContent?.trim() || '';
-      const colspan = parseInt(cell.getAttribute('colspan') || '1');
-      
-      cells.push(new TableCell({
-        children: [new Paragraph({
-          children: [new TextRun({ 
-            text: cellText, 
-            bold: cell.tagName.toLowerCase() === 'th',
-            font: 'Times New Roman', 
-            size: isSpecTable ? 20 : 24 
-          })],
-          alignment: cell.tagName.toLowerCase() === 'th' ? AlignmentType.CENTER : undefined,
-        })],
-        columnSpan: colspan > 1 ? colspan : undefined,
-      }));
-    });
-    
-    if (cells.length > 0) {
-      rows.push(new TableRow({ children: cells }));
-    }
-  });
-  
-  // Если это таблица реквизитов, ограничиваем ширину
-  const isRequisites = text.includes('Исполнитель') && text.includes('Заказчик');
-  
-  return new Table({
-    width: { 
-      size: isRequisites ? 90 : 100, 
-      type: WidthType.PERCENTAGE 
-    },
-    rows,
-    borders: {
-      top: { style: BorderStyle.SINGLE, size: 1 },
-      bottom: { style: BorderStyle.SINGLE, size: 1 },
-      left: { style: BorderStyle.SINGLE, size: 1 },
-      right: { style: BorderStyle.SINGLE, size: 1 },
-    },
-  });
-}
 
 // Экспорт в DOC формат (Word 97-2003)
 // На самом деле создаем HTML с Word-специфичными тегами, который Word откроет как DOC
@@ -613,10 +325,10 @@ export function exportContractToDOC(contract: Contract, pdfSettings: PDFSettings
     }
     
     table.spec {
-      mso-table-layout-alt: auto;
+      mso-table-layout-alt: fixed;
       border-collapse: collapse;
       width: 100%;
-      font-size: 10pt;
+      font-size: 9pt;
     }
     
     table.spec th {
@@ -625,13 +337,16 @@ export function exportContractToDOC(contract: Contract, pdfSettings: PDFSettings
       text-align: center;
       border: 1pt solid windowtext;
       mso-border-alt: solid windowtext .5pt;
-      padding: 5pt;
+      padding: 3pt 4pt;
+      font-size: 9pt;
     }
     
     table.spec td {
       border: 1pt solid windowtext;
       mso-border-alt: solid windowtext .5pt;
-      padding: 5pt;
+      padding: 2pt 4pt;
+      font-size: 9pt;
+      vertical-align: top;
     }
     
     .center { text-align: center; }

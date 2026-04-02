@@ -6,7 +6,6 @@ import { Badge } from './ui/badge';
 import { 
   Printer, 
   Download, 
-  FileText, 
   FileSpreadsheet,
   Loader2,
   Eye,
@@ -20,7 +19,7 @@ import {
 import type { Contract, PDFSettings, CompanyBankAccount } from '../types';
 import { useCompanyContext } from '../contexts/CompanyContext';
 import { CONTRACT_STATUS_LABELS, CONTRACT_STATUS_COLORS, CONTRACT_TYPE_LABELS } from '../types';
-import { generateContractHTML, exportContractToDOCX, exportContractToDOC, printContract } from '../lib/contractExport';
+import { generateContractHTML, exportContractToDOC, printContract } from '../lib/contractExport';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { sanitizeHtml, cleanEditedHtml } from '../lib/utils';
 
@@ -34,7 +33,7 @@ interface ContractPreviewProps {
 
 export function ContractPreview({ contract, pdfSettings, bankAccounts = [], onClose, onSaveContent }: ContractPreviewProps) {
   const { company } = useCompanyContext();
-  const [isExportingDOCX, setIsExportingDOCX] = useState(false);
+
   const [isExportingDOC, setIsExportingDOC] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -82,19 +81,6 @@ export function ContractPreview({ contract, pdfSettings, bankAccounts = [], onCl
     }
     return printStyles + sanitized;
   }, [editedHtml, htmlContent]);
-
-  // Обработчик экспорта в DOCX
-  const handleExportDOCX = async () => {
-    setIsExportingDOCX(true);
-    try {
-      await exportContractToDOCX(contract, pdfSettings, bankAccounts, company);
-    } catch (error) {
-      console.error('DOCX export error:', error);
-      alert('Ошибка при экспорте в DOCX');
-    } finally {
-      setIsExportingDOCX(false);
-    }
-  };
 
   // Обработчик экспорта в DOC
   const handleExportDOC = async () => {
@@ -210,19 +196,6 @@ export function ContractPreview({ contract, pdfSettings, bankAccounts = [], onCl
           Печать / PDF
         </Button>
         
-        <Button 
-          onClick={handleExportDOCX} 
-          disabled={isExportingDOCX || isEditing}
-          variant="outline"
-        >
-          {isExportingDOCX ? (
-            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-          ) : (
-            <FileText className="w-4 h-4 mr-2" />
-          )}
-          Скачать DOCX
-        </Button>
-
         <Button 
           onClick={handleExportDOC} 
           disabled={isExportingDOC || isEditing}
