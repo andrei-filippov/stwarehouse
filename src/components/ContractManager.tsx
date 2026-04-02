@@ -23,6 +23,7 @@ import { ContractPreview } from './ContractPreview';
 import { ContractDetail } from './ContractDetail';
 import { useCompanyBankAccounts } from '../hooks/useCompanyBankAccounts';
 import { useCompanyContext } from '../contexts/CompanyContext';
+import { toast } from 'sonner';
 
 interface ContractManagerProps {
   contracts: Contract[];
@@ -119,6 +120,16 @@ export const ContractManager = memo(function ContractManager({
     setIsFormOpen(false);
     setEditingContract(null);
   }, [editingContract, onCreate, onUpdate]);
+
+  // Сохранение отредактированного контента договора
+  const handleSaveContractContent = useCallback(async (content: string) => {
+    if (previewContract) {
+      await onUpdate(previewContract.id, { content }, [], previewContract.bank_account_id);
+      // Обновляем previewContract с новым контентом
+      setPreviewContract({ ...previewContract, content });
+      toast.success('Изменения договора сохранены');
+    }
+  }, [previewContract, onUpdate]);
 
   const handleDelete = useCallback(async (contract: Contract) => {
     if (confirm(`Удалить договор № ${contract.number}?`)) {
@@ -364,6 +375,7 @@ export const ContractManager = memo(function ContractManager({
                 pdfSettings={pdfSettings}
                 bankAccounts={bankAccounts}
                 onClose={handleClosePreview}
+                onSaveContent={handleSaveContractContent}
               />
             )}
           </div>

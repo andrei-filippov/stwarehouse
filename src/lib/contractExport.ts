@@ -9,13 +9,19 @@ export function generateContractHTML(contract: Contract, pdfSettings: PDFSetting
     return '<p>Шаблон не найден</p>';
   }
 
-  const data = prepareTemplateData(contract, pdfSettings, bankAccounts, company);
-  
-  // Замена плейсхолдеров
-  let html = template.content;
-  html = html.replace(/{{(\w+)}}/g, (match, key) => {
-    return (data as Record<string, string>)[key] || '';
-  });
+  // Используем отредактированный контент если есть, иначе генерируем из шаблона
+  let html: string;
+  if (contract.content) {
+    // Используем сохранённый отредактированный контент
+    html = contract.content;
+  } else {
+    // Генерируем из шаблона с заменой плейсхолдеров
+    const data = prepareTemplateData(contract, pdfSettings, bankAccounts, company);
+    html = template.content;
+    html = html.replace(/{{(\w+)}}/g, (match, key) => {
+      return (data as Record<string, string>)[key] || '';
+    });
+  }
 
   // Добавляем шапку с настройками PDF только если явно запрошено
   if (includeHeader) {

@@ -198,6 +198,8 @@ export function ContractForm({
       executor_basis: executorBasis || null,
       subject: subject || null,
       additional_terms: additionalTerms || null,
+      // Сохраняем отредактированный контент если он есть
+      content: contract?.content || null,
     };
 
     onSave(contractData, selectedEstimateIds, selectedBankAccountId);

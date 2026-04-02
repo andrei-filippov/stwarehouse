@@ -61,6 +61,9 @@ export type Contract = {
   // Дополнительно
   additional_terms?: string;
   
+  // Отредактированный контент договора (HTML)
+  content?: string;
+  
   // Связанные данные (при join)
   customer?: {
     id: string;
