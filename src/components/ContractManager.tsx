@@ -124,7 +124,12 @@ export const ContractManager = memo(function ContractManager({
   // Сохранение отредактированного контента договора
   const handleSaveContractContent = useCallback(async (content: string) => {
     if (previewContract) {
-      await onUpdate(previewContract.id, { content }, [], previewContract.bank_account_id);
+      // Сохраняем существующие связи с сметами
+      const estimateIds = previewContract.estimates?.map((ce: any) => 
+        typeof ce.estimate === 'string' ? ce.estimate : ce.estimate?.id
+      ).filter(Boolean) || [];
+      
+      await onUpdate(previewContract.id, { content }, estimateIds, previewContract.bank_account_id);
       // Обновляем previewContract с новым контентом
       setPreviewContract({ ...previewContract, content });
       toast.success('Изменения договора сохранены');

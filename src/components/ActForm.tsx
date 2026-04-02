@@ -55,20 +55,18 @@ export function ActForm({
   const [loading, setLoading] = useState(false);
   const [dateOpen, setDateOpen] = useState(false);
 
+  // При изменении договора обновляем суммы и позиции (только для нового акта)
   useEffect(() => {
-    if (act) {
-      setFormData({
-        ...act,
-      });
-      setItems(act.items || []);
-    } else {
-      // Генерируем номер для нового акта
-      const initNumber = async () => {
-        const year = new Date().getFullYear();
-        const number = await getNextNumber(year);
-        setFormData(prev => ({ ...prev, number }));
-      };
-      initNumber();
+    if (!act && contract) {
+      // Обновляем суммы из договора
+      setFormData(prev => ({
+        ...prev,
+        contract_id: contract.id,
+        amount: contract.total_amount ?? prev.amount ?? 0,
+        total_amount: contract.total_amount ?? prev.total_amount ?? 0,
+        period_start: contract.event_start_date || prev.period_start || dateToString(new Date()) || '',
+        period_end: contract.event_end_date || prev.period_end || dateToString(new Date()) || '',
+      }));
       
       // Инициализируем позиции из смет договора
       const estimateItems = contract.estimates?.flatMap(ee => 
@@ -84,12 +82,28 @@ export function ActForm({
       
       if (estimateItems.length > 0) {
         setItems(estimateItems);
-      } else {
-        // Добавляем одну пустую позицию
-        setItems([{ name: '', quantity: 1, unit: 'шт', price: 0, total: 0 }]);
       }
     }
-  }, [act, contract, getNextNumber]);
+  }, [contract, act]);
+
+  useEffect(() => {
+    if (act) {
+      setFormData({
+        ...act,
+      });
+      setItems(act.items || []);
+    } else {
+      // Генерируем номер для нового акта
+      const initNumber = async () => {
+        const year = new Date().getFullYear();
+        const number = await getNextNumber(year);
+        setFormData(prev => ({ ...prev, number }));
+      };
+      initNumber();
+      
+      // Позиции и суммы загружаются из useEffect выше когда contract загрузится
+    }
+  }, [act, getNextNumber]);
 
   // Пересчет сумм при изменении ставки НДС
   useEffect(() => {
@@ -138,8 +152,9 @@ export function ActForm({
 
   const vatOptions = [
     { value: 0, label: 'Без НДС' },
-    { value: 20, label: '20%' },
+    { value: 5, label: '5%' },
     { value: 10, label: '10%' },
+    { value: 20, label: '20%' },
   ];
 
   return (
