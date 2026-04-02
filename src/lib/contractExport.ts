@@ -178,25 +178,33 @@ function prepareTemplateData(contract: Contract, pdfSettings: PDFSettings, bankA
     return '';
   };
   
-  // Получаем полное наименование компании с проверкой дублирования
+  // Получаем название компании БЕЗ типа (тип добавляется отдельно через customer_type/executor_type)
   const getCompanyFullName = (type: string, name: string): string => {
+    const lowerName = name.toLowerCase();
+    
     if (type === 'ip') {
-      // Проверяем и аббревиатуру, и полное название - возвращаем как есть
-      if (/^ИП\s/i.test(name)) return name;
-      if (/индивидуальный\s+предприниматель/i.test(name)) return name;
-      // По умолчанию - только имя без ИП (тип добавляется отдельно)
+      // Убираем "ИП " если есть - тип добавляется отдельно
+      if (/^ИП\s/i.test(name)) return name.substring(3);
+      if (/индивидуальный предприниматель/i.test(name)) {
+        return name.replace(/индивидуальный предприниматель\s*/i, '');
+      }
       return name;
     }
+    
     if (type === 'company') {
-      const lowerName = name.toLowerCase();
-      // Проверяем аббревиатуры - возвращаем как есть
-      if (/^(ООО|ОАО|ЗАО|ПАО|АО)\s*["']?/i.test(name)) return name;
-      // Проверяем полные названия - возвращаем как есть
-      if (lowerName.includes('общество с ограниченной')) return name;
-      if (lowerName.includes('акционерное общество')) return name;
-      if (lowerName.includes('закрытое акционерное')) return name;
-      if (lowerName.includes('публичное акционерное')) return name;
-      // По умолчанию - только название в кавычках без ООО (тип добавляется отдельно через customer_type)
+      // Убираем "ООО " и другие префиксы если есть
+      if (/^(ООО|ОАО|ЗАО|ПАО|АО)\s+/i.test(name)) {
+        name = name.replace(/^(ООО|ОАО|ЗАО|ПАО|АО)\s+/i, '');
+      }
+      // Убираем полные названия если есть
+      if (lowerName.includes('общество с ограниченной')) {
+        name = name.replace(/общество\s+с\s+ограниченной\s+ответственностью\s*/i, '');
+      }
+      if (lowerName.includes('акционерное общество')) {
+        name = name.replace(/акционерное\s+общество\s*/i, '');
+      }
+      // Убираем кавычки если есть, потом добавляем
+      name = name.replace(/^["']|["']$/g, '');
       return `"${name}"`;
     }
     return name;
