@@ -221,8 +221,272 @@ function cleanText(text: string | undefined | null): string {
   return text.replace(/<[^>]*>/g, '').trim();
 }
 
+// Конвертация HTML в DOCX параграфы (простая версия)
+function htmlToDocxParagraphs(html: string): Paragraph[] {
+  const paragraphs: Paragraph[] = [];
+  
+  // Создаем временный div для парсинга HTML
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = html;
+  
+  // Удаляем скрипты и стили
+  const scripts = tempDiv.querySelectorAll('script, style');
+  scripts.forEach(el => el.remove());
+  
+  // Обрабатываем элементы
+  const processNode = (node: Node): void => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const text = node.textContent?.trim();
+      if (text) {
+        paragraphs.push(new Paragraph({
+          children: [new TextRun({ text })],
+        }));
+      }
+      return;
+    }
+    
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      const element = node as HTMLElement;
+      const tagName = element.tagName.toLowerCase();
+      
+      // Пропускаем таблицы - их обрабатываем отдельно
+      if (tagName === 'table') {
+        // Таблицы будут обработаны отдельно
+        return;
+      }
+      
+      // Заголовки
+      if (['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(tagName)) {
+        const text = element.textContent?.trim();
+        if (text) {
+          paragraphs.push(new Paragraph({
+            children: [new TextRun({ text, bold: true, size: 28 })],
+            alignment: AlignmentType.CENTER,
+            spacing: { before: 200, after: 200 },
+          }));
+        }
+        return;
+      }
+      
+      // Параграфы и div
+      if (tagName === 'p' || tagName === 'div') {
+        // Рекурсивно обрабатываем дочерние элементы
+        const children: (TextRun | any)[] = [];
+        element.childNodes.forEach(child => {
+          if (child.nodeType === Node.TEXT_NODE) {
+            const text = child.textContent?.trim();
+            if (text) children.push(new TextRun({ text }));
+          } else if (child.nodeType === Node.ELEMENT_NODE) {
+            const childEl = child as HTMLElement;
+            const childTag = childEl.tagName.toLowerCase();
+            const text = childEl.textContent?.trim();
+            if (!text) return;
+            
+            if (childTag === 'b' || childTag === 'strong') {
+              children.push(new TextRun({ text, bold: true }));
+            } else if (childTag === 'i' || childTag === 'em') {
+              children.push(new TextRun({ text, italics: true }));
+            } else if (childTag === 'u') {
+              children.push(new TextRun({ text, underline: { type: 'single' } }));
+            } else if (childTag === 'br') {
+              // Игнорируем br внутри параграфа
+            } else {
+              children.push(new TextRun({ text }));
+            }
+          }
+        });
+        
+        if (children.length > 0) {
+          paragraphs.push(new Paragraph({ children }));
+        }
+        return;
+      }
+      
+      // Списки
+      if (tagName === 'ul' || tagName === 'ol') {
+        element.querySelectorAll('li').forEach(li => {
+          const text = li.textContent?.trim();
+          if (text) {
+            paragraphs.push(new Paragraph({
+              children: [new TextRun({ text: '• ' + text })],
+              indent: { left: 360 },
+            }));
+          }
+        });
+        return;
+      }
+      
+      // Рекурсивно обрабатываем другие элементы
+      element.childNodes.forEach(processNode);
+    }
+  };
+  
+  tempDiv.childNodes.forEach(processNode);
+  
+  return paragraphs;
+}
+
 // Экспорт в DOCX
 export async function exportContractToDOCX(contract: Contract, pdfSettings: PDFSettings, bankAccounts: CompanyBankAccount[] = [], company?: Company | null): Promise<void> {
+  // Если есть отредактированный контент, используем его
+  if (contract.content) {
+    try {
+      const paragraphs = htmlToDocxParagraphs(contract.content);
+      
+      // Добавляем спецификацию если есть сметы
+      const estimates = contract.estimates || [];
+      if (estimates.length > 0) {
+        const data = prepareTemplateData(contract, pdfSettings, bankAccounts, company);
+        
+        // Добавляем разрыв страницы и спецификацию
+        paragraphs.push(new Paragraph({ text: '', pageBreakBefore: true }));
+        paragraphs.push(new Paragraph({
+          text: 'Приложение № 1',
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 200 },
+        }));
+        paragraphs.push(new Paragraph({
+          text: `к Договору возмездного оказания услуг № ${data.contract_number} от ${data.contract_date}`,
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 300 },
+        }));
+        paragraphs.push(new Paragraph({
+          text: 'СПЕЦИФИКАЦИЯ',
+          heading: HeadingLevel.HEADING_1,
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 300 },
+        }));
+        
+        // Добавляем таблицу спецификации
+        const specRows: TableRow[] = [];
+        specRows.push(
+          new TableRow({
+            children: [
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: '№', bold: true })] })] }),
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Наименование', bold: true })] })] }),
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Кол-во', bold: true })] })] }),
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Ед.', bold: true })] })] }),
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Цена', bold: true })] })] }),
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Сумма', bold: true })] })] }),
+            ],
+          })
+        );
+        
+        // ... добавляем строки спецификации
+        let globalIndex = 1;
+        estimates.forEach(ce => {
+          const estimate = ce.estimate;
+          if (!estimate?.items || estimate.items.length === 0) return;
+          
+          const grouped = estimate.items.reduce((acc, item) => {
+            if (!acc[item.category]) acc[item.category] = [];
+            acc[item.category].push(item);
+            return acc;
+          }, {} as Record<string, typeof estimate.items>);
+          
+          const categoryOrder = estimate.category_order || [];
+          const allCategories = Object.keys(grouped);
+          const sortedCategories = [...allCategories].sort((a, b) => {
+            const indexA = categoryOrder.indexOf(a);
+            const indexB = categoryOrder.indexOf(b);
+            if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+            if (indexA !== -1) return -1;
+            if (indexB !== -1) return 1;
+            return allCategories.indexOf(a) - allCategories.indexOf(b);
+          });
+          
+          sortedCategories.forEach(category => {
+            const items = grouped[category];
+            specRows.push(
+              new TableRow({
+                children: [
+                  new TableCell({
+                    columnSpan: 6,
+                    children: [new Paragraph({ children: [new TextRun({ text: category, bold: true })] })],
+                  }),
+                ],
+              })
+            );
+            
+            items?.forEach(item => {
+              const sum = item.price * item.quantity * (item.coefficient || 1);
+              const nameCellChildren: Paragraph[] = [
+                new Paragraph({ children: [new TextRun({ text: item.name })] })
+              ];
+              if (item.description?.trim()) {
+                nameCellChildren.push(
+                  new Paragraph({ children: [new TextRun({ text: item.description })] })
+                );
+              }
+              
+              specRows.push(
+                new TableRow({
+                  children: [
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(globalIndex++) })] })] }),
+                    new TableCell({ children: nameCellChildren }),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(item.quantity) })] })] }),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: item.unit })] })] }),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: item.price.toLocaleString('ru-RU') })] })] }),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: sum.toLocaleString('ru-RU') })] })] }),
+                  ],
+                })
+              );
+            });
+          });
+        });
+        
+        specRows.push(
+          new TableRow({
+            children: [
+              new TableCell({ columnSpan: 5, children: [new Paragraph({ children: [new TextRun({ text: 'Итого:', bold: true })], alignment: AlignmentType.RIGHT })] }),
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: data.total_amount, bold: true })] })] }),
+            ],
+          })
+        );
+        
+        paragraphs.push(
+          new Table({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            rows: specRows,
+          })
+        );
+      }
+      
+      // Создаём документ
+      const doc = new Document({
+        sections: [{
+          properties: {
+            page: {
+              margin: {
+                top: 1134,
+                right: 850,
+                bottom: 1134,
+                left: 1134,
+              },
+            },
+          },
+          children: paragraphs,
+        }],
+      });
+      
+      // Генерируем и скачиваем файл
+      const blob = await Packer.toBlob(doc);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Договор_${contract.number}_${contract.customer?.name || 'без_заказчика'}.docx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      return;
+    } catch (error) {
+      console.error('Error converting HTML to DOCX:', error);
+      // Fallback to default generation
+    }
+  }
+  
+  // Стандартная генерация из шаблона (если нет отредактированного контента или при ошибке)
   const data = prepareTemplateData(contract, pdfSettings, bankAccounts, company);
   const estimates = contract.estimates || [];
 

@@ -21,7 +21,7 @@ import { useCompanyContext } from '../contexts/CompanyContext';
 import { CONTRACT_STATUS_LABELS, CONTRACT_STATUS_COLORS, CONTRACT_TYPE_LABELS } from '../types';
 import { generateContractHTML, exportContractToDOCX, printContract } from '../lib/contractExport';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
-import { sanitizeHtml } from '../lib/utils';
+import { sanitizeHtml, cleanEditedHtml } from '../lib/utils';
 
 interface ContractPreviewProps {
   contract: Contract;
@@ -110,7 +110,9 @@ export function ContractPreview({ contract, pdfSettings, bankAccounts = [], onCl
   // Обработчик сохранения отредактированного текста
   const handleSaveEdit = () => {
     if (editRef.current) {
-      const newContent = sanitizeHtml(editRef.current.innerHTML);
+      // Сначала очищаем от браузерных стилей, затем санитизируем
+      const cleanedContent = cleanEditedHtml(editRef.current.innerHTML);
+      const newContent = sanitizeHtml(cleanedContent);
       setEditedHtml(newContent);
       // Вызываем callback если передан
       if (onSaveContent) {
