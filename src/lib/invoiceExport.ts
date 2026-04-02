@@ -5,7 +5,7 @@ import { Packer } from 'docx';
 import type { Invoice, PDFSettings, CompanyBankAccount, Company } from '../types';
 import { numberToWords } from '../types';
 
-// Генерация HTML для предпросмотра счета
+// Генерация HTML для предпросмотра счета (классический банковский формат)
 export function generateInvoiceHTML(invoice: Invoice, settings: PDFSettings, bankAccounts: CompanyBankAccount[] = [], company?: Company | null): string {
   const customer = invoice.contract?.customer;
   
@@ -13,6 +13,29 @@ export function generateInvoiceHTML(invoice: Invoice, settings: PDFSettings, ban
   const executorAccount = company?.id 
     ? bankAccounts.find(a => a.is_default) || bankAccounts[0]
     : null;
+  
+  // Формируем полное наименование поставщика
+  const supplierFullName = company?.type === 'ip' 
+    ? `ИП ${company?.name || settings.companyName || '-'}`
+    : `ООО "${company?.name || settings.companyName || '-'}"`;
+  
+  const supplierInn = company?.inn || settings.companyDetails?.match(/ИНН\s*(\d+)/)?.[1] || '-';
+  const supplierKpp = company?.kpp || '-';
+  const supplierAddress = company?.legal_address || settings.companyDetails || '-';
+  
+  // Формируем наименование покупателя
+  const buyerFullName = customer?.type === 'ip'
+    ? `ИП ${customer?.name || '-'}`
+    : customer?.type === 'company'
+      ? `ООО "${customer?.name || '-'}"`
+      : customer?.name || '-';
+  
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const months = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 
+                   'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+    return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()} г.`;
+  };
   
   return `
 <!DOCTYPE html>
@@ -23,158 +46,209 @@ export function generateInvoiceHTML(invoice: Invoice, settings: PDFSettings, ban
     @page { size: A4; margin: 15mm; }
     body { 
       font-family: Arial, sans-serif; 
-      font-size: 11pt; 
-      line-height: 1.4;
+      font-size: 10pt; 
+      line-height: 1.3;
       color: #000;
       max-width: 800px;
       margin: 0 auto;
-      padding: 20px;
+      padding: 10px;
     }
-    .header { margin-bottom: 20px; }
-    .bank-details { 
-      border: 1px solid #000; 
-      padding: 10px; 
+    
+    /* Таблица реквизитов банка */
+    .bank-table {
+      width: 100%;
+      border-collapse: collapse;
       margin-bottom: 20px;
-      font-size: 10pt;
+      font-size: 9pt;
     }
-    .bank-row { display: flex; margin-bottom: 5px; }
-    .bank-label { width: 150px; font-weight: bold; }
-    .bank-value { flex: 1; }
-    .title { 
-      text-align: center; 
-      font-size: 16pt; 
+    .bank-table td, .bank-table th {
+      border: 1px solid #000;
+      padding: 4px 6px;
+      vertical-align: middle;
+    }
+    .bank-table .label {
+      background-color: #f5f5f5;
       font-weight: bold;
-      margin: 20px 0;
+      width: 15%;
     }
-    .info-row { margin-bottom: 8px; }
-    .info-label { font-weight: bold; }
-    table { 
-      width: 100%; 
-      border-collapse: collapse; 
-      margin: 20px 0;
+    .bank-table .value {
+      width: 35%;
     }
-    th, td { 
-      border: 1px solid #000; 
-      padding: 8px; 
-      text-align: left;
+    
+    /* Заголовок счета */
+    .invoice-title {
+      font-size: 14pt;
+      font-weight: bold;
+      margin: 20px 0 15px 0;
     }
-    th { background-color: #f0f0f0; font-weight: bold; }
-    .text-right { text-align: right; }
-    .total-row { font-weight: bold; background-color: #f5f5f5; }
-    .signature { margin-top: 40px; }
-    .signature-line { border-top: 1px solid #000; width: 200px; margin-top: 30px; }
+    
+    /* Блоки поставщик/покупатель */
+    .party-block {
+      margin-bottom: 12px;
+      line-height: 1.4;
+    }
+    .party-label {
+      font-weight: bold;
+      display: inline;
+    }
+    .party-value {
+      display: inline;
+    }
+    
+    /* Таблица товаров */
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 15px 0;
+      font-size: 9pt;
+    }
+    .items-table th {
+      background-color: #f0f0f0;
+      border: 1px solid #000;
+      padding: 6px 4px;
+      font-weight: bold;
+      text-align: center;
+    }
+    .items-table td {
+      border: 1px solid #000;
+      padding: 6px 4px;
+      vertical-align: top;
+    }
+    .items-table .num { width: 5%; text-align: center; }
+    .items-table .name { width: 45%; text-align: left; }
+    .items-table .qty { width: 10%; text-align: center; }
+    .items-table .unit { width: 8%; text-align: center; }
+    .items-table .vat { width: 10%; text-align: center; }
+    .items-table .price { width: 11%; text-align: right; }
+    .items-table .sum { width: 11%; text-align: right; }
+    
+    /* Итоги */
+    .totals-block {
+      margin-top: 10px;
+    }
+    .totals-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 5px;
+    }
+    .totals-label {
+      font-weight: bold;
+    }
+    
+    /* Подписи */
+    .signatures {
+      margin-top: 40px;
+      display: flex;
+      justify-content: space-between;
+    }
+    .signature-block {
+      width: 45%;
+    }
+    .signature-line {
+      border-bottom: 1px solid #000;
+      display: inline-block;
+      width: 150px;
+      margin-left: 10px;
+    }
   </style>
 </head>
 <body>
-  <div class="header">
-    <div style="text-align: right; margin-bottom: 10px;">
-      <strong>${settings.companyName}</strong>
-    </div>
+  <!-- Таблица реквизитов банка -->
+  <table class="bank-table">
+    <tr>
+      <td colspan="2" rowspan="2" style="width: 50%;">
+        <strong>${executorAccount?.bank_name || company?.bank_name || 'АО "ТБанк"'}</strong><br>
+        <span style="font-size: 8pt;">Банк получателя</span>
+      </td>
+      <td class="label">БИК</td>
+      <td class="value">${executorAccount?.bik || company?.bank_bik || '044525974'}</td>
+    </tr>
+    <tr>
+      <td class="label">Сч. №</td>
+      <td class="value">${executorAccount?.corr_account || company?.bank_corr_account || '30101810145250000974'}</td>
+    </tr>
+    <tr>
+      <td class="label">ИНН</td>
+      <td class="value">${supplierInn}</td>
+      <td class="label" rowspan="2">Сч. №</td>
+      <td class="value" rowspan="2">${executorAccount?.account || company?.bank_account || '40802810200005568272'}</td>
+    </tr>
+    <tr>
+      <td class="label">Получатель</td>
+      <td class="value">${supplierFullName}</td>
+    </tr>
+  </table>
+
+  <!-- Заголовок -->
+  <div class="invoice-title">
+    Счет на оплату № ${invoice.number} от ${formatDate(invoice.date)}
   </div>
 
-  <div class="bank-details">
-    <div class="bank-row">
-      <div class="bank-label">Банк получателя:</div>
-      <div class="bank-value">${executorAccount?.bank_name || company?.bank_name || '-'}</div>
-    </div>
-    <div class="bank-row">
-      <div class="bank-label">БИК:</div>
-      <div class="bank-value">${executorAccount?.bik || company?.bank_bik || '-'}</div>
-    </div>
-    <div class="bank-row">
-      <div class="bank-label">Р/с:</div>
-      <div class="bank-value">${executorAccount?.account || company?.bank_account || '-'}</div>
-    </div>
-    <div class="bank-row">
-      <div class="bank-label">К/с:</div>
-      <div class="bank-value">${executorAccount?.corr_account || company?.bank_corr_account || '-'}</div>
-    </div>
+  <!-- Поставщик -->
+  <div class="party-block">
+    <span class="party-label">Поставщик:</span>
+    <span class="party-value">${supplierFullName}, ИНН ${supplierInn}${supplierKpp !== '-' ? ', КПП ' + supplierKpp : ''}, ${supplierAddress}</span>
   </div>
 
-  <div class="title">
-    Счет на оплату № ${invoice.number} от ${new Date(invoice.date).toLocaleDateString('ru-RU')}
+  <!-- Покупатель -->
+  <div class="party-block">
+    <span class="party-label">Покупатель:</span>
+    <span class="party-value">${buyerFullName}, ИНН ${customer?.inn || '-'}${customer?.kpp ? ', КПП ' + customer.kpp : ''}${customer?.legal_address ? ', ' + customer.legal_address : ''}</span>
   </div>
 
-  <div class="info-row">
-    <span class="info-label">Плательщик:</span> ${customer?.name || '-'}, 
-    ИНН ${customer?.inn || '-'}, КПП ${customer?.kpp || '-'}, 
-    ${customer?.legal_address || '-'}
-  </div>
-
-  <div class="info-row">
-    <span class="info-label">Грузополучатель:</span> ${customer?.name || '-'}
-  </div>
-
-  <table>
+  <!-- Таблица товаров/услуг -->
+  <table class="items-table">
     <thead>
       <tr>
-        <th>№</th>
-        <th>Наименование</th>
-        <th>Ед.</th>
-        <th class="text-right">Кол-во</th>
-        <th class="text-right">Цена</th>
-        <th class="text-right">Сумма</th>
+        <th class="num">№</th>
+        <th class="name">Товары (работы, услуги)</th>
+        <th class="qty">Кол-во</th>
+        <th class="unit">Ед.</th>
+        <th class="vat">НДС</th>
+        <th class="price">Цена</th>
+        <th class="sum">Сумма</th>
       </tr>
     </thead>
     <tbody>
       <tr>
-        <td>1</td>
-        <td>${invoice.description || `Оплата по договору № ${invoice.contract?.number}`}</td>
-        <td>шт</td>
-        <td class="text-right">1</td>
-        <td class="text-right">${invoice.amount.toLocaleString('ru-RU')}</td>
-        <td class="text-right">${invoice.amount.toLocaleString('ru-RU')}</td>
+        <td class="num">1</td>
+        <td class="name">${invoice.description || `Оплата по договору № ${invoice.contract?.number} от ${invoice.contract?.date ? formatDate(invoice.contract.date) : ''}`}</td>
+        <td class="qty">1</td>
+        <td class="unit">шт</td>
+        <td class="vat">${invoice.vat_rate > 0 ? invoice.vat_rate + '%' : 'Без НДС'}</td>
+        <td class="price">${invoice.amount.toLocaleString('ru-RU', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+        <td class="sum">${invoice.amount.toLocaleString('ru-RU', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
       </tr>
     </tbody>
-    <tfoot>
-      <tr class="total-row">
-        <td colspan="5" class="text-right">Итого:</td>
-        <td class="text-right">${invoice.amount.toLocaleString('ru-RU')}</td>
-      </tr>
-      ${invoice.vat_rate > 0 ? `
-      <tr class="total-row">
-        <td colspan="5" class="text-right">В том числе НДС (${invoice.vat_rate}%):</td>
-        <td class="text-right">${invoice.vat_amount.toLocaleString('ru-RU')}</td>
-      </tr>
-      ` : `
-      <tr class="total-row">
-        <td colspan="5" class="text-right">НДС не облагается:</td>
-        <td class="text-right">—</td>
-      </tr>
-      `}
-      <tr class="total-row">
-        <td colspan="5" class="text-right"><strong>Всего к оплате:</strong></td>
-        <td class="text-right"><strong>${invoice.total_amount.toLocaleString('ru-RU')}</strong></td>
-      </tr>
-    </tfoot>
   </table>
 
-  <div style="margin-top: 20px;">
-    <strong>Всего наименований 1, на сумму ${invoice.total_amount.toLocaleString('ru-RU')} руб.</strong><br>
-    <em>${numberToWords(invoice.total_amount)}</em>
-  </div>
-
-  ${invoice.due_date ? `
-  <div style="margin-top: 20px;">
-    <strong>Срок оплаты:</strong> ${new Date(invoice.due_date).toLocaleDateString('ru-RU')}
-  </div>
-  ` : ''}
-
-  <div class="signature">
-    <div style="display: flex; justify-content: space-between; margin-top: 40px;">
-      <div>
-        <div>Руководитель</div>
-        <div style="margin-top: 30px; border-top: 1px solid #000; width: 150px;"></div>
-      </div>
-      <div>
-        <div>Бухгалтер</div>
-        <div style="margin-top: 30px; border-top: 1px solid #000; width: 150px;"></div>
-      </div>
+  <!-- Итоги -->
+  <div class="totals-block">
+    <div class="totals-row">
+      <span>Всего наименований 1, на сумму ${invoice.total_amount.toLocaleString('ru-RU', {minimumFractionDigits: 2, maximumFractionDigits: 2})} руб.</span>
+      <span><strong>Итого к оплате:</strong> ${invoice.total_amount.toLocaleString('ru-RU', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+    </div>
+    <div style="margin-top: 10px; font-style: italic;">
+      ${numberToWords(invoice.total_amount)}
     </div>
   </div>
 
-  <div style="margin-top: 40px; text-align: center; font-size: 9pt; color: #666;">
-    Оплатить по QR-коду: business.tbank.ru
+  ${invoice.due_date ? `
+  <div style="margin-top: 15px;">
+    <strong>Срок оплаты:</strong> ${formatDate(invoice.due_date)}
+  </div>
+  ` : ''}
+
+  <!-- Подписи -->
+  <div class="signatures">
+    <div class="signature-block">
+      <span class="party-label">Руководитель</span>
+      <span class="signature-line"></span>
+    </div>
+    <div class="signature-block">
+      <span class="party-label">Бухгалтер</span>
+      <span class="signature-line"></span>
+    </div>
   </div>
 </body>
 </html>
