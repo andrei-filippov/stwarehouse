@@ -8,11 +8,18 @@ import { numberToWords } from '../types';
 // Генерация HTML для предпросмотра счета (классический банковский формат)
 export function generateInvoiceHTML(invoice: Invoice, settings: PDFSettings, bankAccounts: CompanyBankAccount[] = [], company?: Company | null): string {
   const customer = invoice.contract?.customer;
+  const contract = invoice.contract;
   
-  // Получаем банковский счёт исполнителя
+  // Получаем банковский счёт исполнителя из таблицы company_bank_accounts (fallback)
   const executorAccount = company?.id 
     ? bankAccounts.find(a => a.is_default) || bankAccounts[0]
     : null;
+  
+  // Реквизиты исполнителя: приоритет - из договора, затем из таблицы счетов, затем из компании
+  const bankName = contract?.executor_bank_name || executorAccount?.bank_name || company?.bank_name || 'АО "ТБанк"';
+  const bik = contract?.executor_bik || executorAccount?.bik || company?.bank_bik || '044525974';
+  const corrAccount = contract?.executor_bank_corr_account || executorAccount?.corr_account || company?.bank_corr_account || '30101810145250000974';
+  const account = contract?.executor_bank_account || executorAccount?.account || company?.bank_account || '40802810200005568272';
   
   // Формируем полное наименование поставщика
   const supplierFullName = company?.type === 'ip' 
@@ -157,21 +164,21 @@ export function generateInvoiceHTML(invoice: Invoice, settings: PDFSettings, ban
   <table class="bank-table">
     <tr>
       <td colspan="2" rowspan="2" style="width: 50%;">
-        <strong>${executorAccount?.bank_name || company?.bank_name || 'АО "ТБанк"'}</strong><br>
+        <strong>${bankName}</strong><br>
         <span style="font-size: 8pt;">Банк получателя</span>
       </td>
       <td class="label">БИК</td>
-      <td class="value">${executorAccount?.bik || company?.bank_bik || '044525974'}</td>
+      <td class="value">${bik}</td>
     </tr>
     <tr>
       <td class="label">Сч. №</td>
-      <td class="value">${executorAccount?.corr_account || company?.bank_corr_account || '30101810145250000974'}</td>
+      <td class="value">${corrAccount}</td>
     </tr>
     <tr>
       <td class="label">ИНН</td>
       <td class="value">${supplierInn}</td>
       <td class="label" rowspan="2">Сч. №</td>
-      <td class="value" rowspan="2">${executorAccount?.account || company?.bank_account || '40802810200005568272'}</td>
+      <td class="value" rowspan="2">${account}</td>
     </tr>
     <tr>
       <td class="label">Получатель</td>
@@ -258,11 +265,18 @@ export function generateInvoiceHTML(invoice: Invoice, settings: PDFSettings, ban
 // Экспорт счета в DOCX
 export async function exportInvoiceToDOCX(invoice: Invoice, settings: PDFSettings, bankAccounts: CompanyBankAccount[] = [], company?: Company | null): Promise<void> {
   const customer = invoice.contract?.customer;
+  const contract = invoice.contract;
   
-  // Получаем банковский счёт исполнителя
+  // Получаем банковский счёт исполнителя из таблицы company_bank_accounts (fallback)
   const executorAccount = company?.id 
     ? bankAccounts.find(a => a.is_default) || bankAccounts[0]
     : null;
+  
+  // Реквизиты исполнителя: приоритет - из договора, затем из таблицы счетов, затем из компании
+  const bankName = contract?.executor_bank_name || executorAccount?.bank_name || company?.bank_name || '-';
+  const bik = contract?.executor_bik || executorAccount?.bik || company?.bank_bik || '-';
+  const corrAccount = contract?.executor_bank_corr_account || executorAccount?.corr_account || company?.bank_corr_account || '-';
+  const account = contract?.executor_bank_account || executorAccount?.account || company?.bank_account || '-';
   
   const doc = new Document({
     sections: [{
@@ -297,7 +311,7 @@ export async function exportInvoiceToDOCX(invoice: Invoice, settings: PDFSetting
                 }),
                 new TableCell({
                   width: { size: 70, type: 'pct' },
-                  children: [new Paragraph(executorAccount?.bank_name || company?.bank_name || '-')],
+                  children: [new Paragraph(bankName)],
                 }),
               ],
             }),
@@ -307,7 +321,7 @@ export async function exportInvoiceToDOCX(invoice: Invoice, settings: PDFSetting
                   children: [new Paragraph({ text: 'БИК:', bold: true })],
                 }),
                 new TableCell({
-                  children: [new Paragraph(executorAccount?.bik || company?.bank_bik || '-')],
+                  children: [new Paragraph(bik)],
                 }),
               ],
             }),
@@ -317,7 +331,7 @@ export async function exportInvoiceToDOCX(invoice: Invoice, settings: PDFSetting
                   children: [new Paragraph({ text: 'Р/с:', bold: true })],
                 }),
                 new TableCell({
-                  children: [new Paragraph(executorAccount?.account || company?.bank_account || '-')],
+                  children: [new Paragraph(account)],
                 }),
               ],
             }),
@@ -327,7 +341,7 @@ export async function exportInvoiceToDOCX(invoice: Invoice, settings: PDFSetting
                   children: [new Paragraph({ text: 'К/с:', bold: true })],
                 }),
                 new TableCell({
-                  children: [new Paragraph(executorAccount?.corr_account || company?.bank_corr_account || '-')],
+                  children: [new Paragraph(corrAccount)],
                 }),
               ],
             }),

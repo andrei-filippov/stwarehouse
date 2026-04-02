@@ -18,6 +18,7 @@ export function useInvoices(contractId?: string, companyId?: string) {
           contract:contract_id (
             id,
             number,
+            date,
             customer:customer_id (
               id,
               name,
@@ -28,7 +29,11 @@ export function useInvoices(contractId?: string, companyId?: string) {
               bank_bik,
               bank_account,
               bank_corr_account
-            )
+            ),
+            executor_bank_name,
+            executor_bik,
+            executor_bank_account,
+            executor_bank_corr_account
           )
         `)
         .eq('company_id', companyId)

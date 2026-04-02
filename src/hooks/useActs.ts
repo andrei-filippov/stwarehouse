@@ -26,7 +26,11 @@ export function useActs(contractId?: string, companyId?: string) {
               inn,
               kpp,
               legal_address
-            )
+            ),
+            executor_bank_name,
+            executor_bik,
+            executor_bank_account,
+            executor_bank_corr_account
           ),
           invoice:invoice_id (
             id,

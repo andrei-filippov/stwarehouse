@@ -56,7 +56,7 @@ export function ContractDetail({
   onEditContract 
 }: ContractDetailProps) {
   const { company } = useCompanyContext();
-  const { data: bankAccounts = [] } = useCompanyBankAccounts(company?.id);
+  const { accounts: bankAccounts = [] } = useCompanyBankAccounts(company?.id);
   
   const { 
     invoices, 
@@ -111,8 +111,22 @@ export function ContractDetail({
         return;
       }
       
-      // Добавляем user_id к данным
-      const invoiceData = { ...data, user_id: user.id };
+      // Фильтруем только разрешенные поля для сохранения
+      // (исключаем связанные объекты contract и другие вычисляемые поля)
+      const invoiceData = {
+        contract_id: data.contract_id,
+        number: data.number,
+        date: data.date,
+        amount: data.amount,
+        vat_rate: data.vat_rate,
+        vat_amount: data.vat_amount,
+        total_amount: data.total_amount,
+        status: data.status,
+        paid_date: data.paid_date,
+        description: data.description,
+        due_date: data.due_date,
+        user_id: user.id,
+      };
       
       let result;
       if (editingInvoice) {
@@ -166,8 +180,23 @@ export function ContractDetail({
         return;
       }
       
-      // Добавляем user_id к данным
-      const actData = { ...data, user_id: user.id };
+      // Фильтруем только разрешенные поля для сохранения
+      // (исключаем связанные объекты contract, invoice и другие вычисляемые поля)
+      const actData = {
+        contract_id: data.contract_id,
+        invoice_id: data.invoice_id,
+        number: data.number,
+        date: data.date,
+        period_start: data.period_start,
+        period_end: data.period_end,
+        amount: data.amount,
+        vat_rate: data.vat_rate,
+        vat_amount: data.vat_amount,
+        total_amount: data.total_amount,
+        status: data.status,
+        notes: data.notes,
+        user_id: user.id,
+      };
       
       let result;
       if (editingAct) {
