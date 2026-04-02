@@ -164,6 +164,39 @@ export function EstimateBuilder({
     }
   }, [estimate?.id]); // Запускаем только при изменении сметы
 
+  // Загрузка items из выбранного шаблона
+  useEffect(() => {
+    if (selectedTemplate?.items && selectedTemplate.items.length > 0) {
+      const templateItems: EstimateItem[] = selectedTemplate.items.map((item: any) => {
+        // Ищем оборудование в каталоге по ID для получения актуальных данных
+        const equipmentItem = item.equipment_id 
+          ? equipment.find(eq => eq.id === item.equipment_id)
+          : null;
+        
+        return {
+          id: crypto.randomUUID(),
+          name: equipmentItem?.name || item.equipment_name,
+          description: equipmentItem?.description || '',
+          category: item.category || equipmentItem?.category || 'Без категории',
+          quantity: item.default_quantity || 1,
+          price: equipmentItem?.price || 0,
+          unit: equipmentItem?.unit || 'шт',
+          coefficient: 1,
+          equipment_id: item.equipment_id || equipmentItem?.id
+        };
+      });
+      
+      setItems(templateItems);
+      
+      // Загружаем порядок категорий из шаблона если есть
+      if (selectedTemplate.category_order && selectedTemplate.category_order.length > 0) {
+        setCategoryOrder(selectedTemplate.category_order);
+      }
+      
+      toast.success(`Загружено ${templateItems.length} позиций из шаблона "${selectedTemplate.name}"`);
+    }
+  }, [selectedTemplate, equipment]);
+
   const selectedCustomer = useMemo(() => 
     customers.find(c => c.id === customerId),
     [customers, customerId]

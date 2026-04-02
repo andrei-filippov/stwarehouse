@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, memo, useRef, ChangeEvent } from 'react';
+import { useState, useEffect, useCallback, memo, useRef, ChangeEvent, useMemo } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { Plus, Trash2, Edit, Copy, FileText, Upload, Download, FileCode } from 'lucide-react';
+import { Plus, Trash2, Edit, Copy, FileText, Upload, Download, FileCode, Search } from 'lucide-react';
 import type { Template, TemplateItem, ContractTemplate, ContractType } from '../types';
 import { CONTRACT_TYPE_LABELS } from '../types';
 import { useContractTemplates } from '../hooks/useContractTemplates';
@@ -897,6 +897,17 @@ function TemplateForm({ categories, equipment, template, onSubmit, onCancel }: T
     default_quantity: 1
   });
   const [quantityInput, setQuantityInput] = useState('1');
+  const [equipmentSearch, setEquipmentSearch] = useState('');
+
+  // Фильтрация оборудования по поиску
+  const filteredEquipment = useMemo(() => {
+    if (!equipmentSearch.trim()) return equipment;
+    const query = equipmentSearch.toLowerCase();
+    return equipment.filter(eq => 
+      eq.name.toLowerCase().includes(query) ||
+      eq.category.toLowerCase().includes(query)
+    );
+  }, [equipment, equipmentSearch]);
 
   useEffect(() => {
     if (template) {
@@ -924,6 +935,7 @@ function TemplateForm({ categories, equipment, template, onSubmit, onCancel }: T
     setItems([...items, itemToAdd]);
     setNewItem({ category: '', equipment_id: '', equipment_name: '', default_quantity: 1 });
     setQuantityInput('1');
+    setEquipmentSearch(''); // Сбрасываем поиск
   }, [newItem, quantityInput, items]);
 
   const removeItem = useCallback((index: number) => {
@@ -987,19 +999,32 @@ function TemplateForm({ categories, equipment, template, onSubmit, onCancel }: T
         <h4 className="font-medium">Добавить оборудование в шаблон</h4>
         
         <div className="grid grid-cols-12 gap-2">
-          <div className="col-span-4">
+          <div className="col-span-4 space-y-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground/70 w-4 h-4" />
+              <Input
+                placeholder="Поиск оборудования..."
+                value={equipmentSearch}
+                onChange={(e) => setEquipmentSearch(e.target.value)}
+                className="pl-9"
+              />
+            </div>
             <select
               className="w-full border border-border rounded-md px-3 py-2 text-sm bg-card text-foreground"
               value={newItem.equipment_id}
               onChange={(e) => handleEquipmentSelect(e.target.value)}
+              size={Math.min(5, filteredEquipment.length + 1) as number}
             >
               <option value="">Выберите оборудование</option>
-              {equipment.map(eq => (
+              {filteredEquipment.map(eq => (
                 <option key={eq.id} value={eq.id}>
                   {eq.name} ({eq.category})
                 </option>
               ))}
             </select>
+            {equipmentSearch && filteredEquipment.length === 0 && (
+              <p className="text-xs text-muted-foreground">Ничего не найдено</p>
+            )}
           </div>
           <div className="col-span-3">
             <Input
