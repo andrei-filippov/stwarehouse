@@ -21,7 +21,7 @@ import { useCompanyContext } from '../contexts/CompanyContext';
 import { CONTRACT_STATUS_LABELS, CONTRACT_STATUS_COLORS, CONTRACT_TYPE_LABELS } from '../types';
 import { generateContractHTML, exportContractToDOC, printContract } from '../lib/contractExport';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
-import { sanitizeHtml, cleanEditedHtml } from '../lib/utils';
+import { sanitizeContractHtml, cleanEditedHtml } from '../lib/utils';
 
 interface ContractPreviewProps {
   contract: Contract;
@@ -51,7 +51,7 @@ export function ContractPreview({ contract, pdfSettings, bankAccounts = [], onCl
   // Всегда используем светлый фон для документов (независимо от темы приложения)
   const currentContent = useMemo(() => {
     const content = editedHtml || htmlContent;
-    const sanitized = sanitizeHtml(content);
+    const sanitized = sanitizeContractHtml(content);
     
     // Стили для печатного документа - всегда светлые
     const printStyles = `
@@ -113,7 +113,7 @@ export function ContractPreview({ contract, pdfSettings, bankAccounts = [], onCl
     if (editRef.current) {
       // Сначала очищаем от браузерных стилей, затем санитизируем
       const cleanedContent = cleanEditedHtml(editRef.current.innerHTML);
-      const newContent = sanitizeHtml(cleanedContent);
+      const newContent = sanitizeContractHtml(cleanedContent);
       setEditedHtml(newContent);
       // Вызываем callback если передан
       if (onSaveContent) {

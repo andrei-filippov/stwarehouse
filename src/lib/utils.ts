@@ -21,7 +21,7 @@ export function debugError(...args: any[]) {
   }
 }
 
-// Санитизация HTML для предотвращения XSS
+// Санитизация HTML для предотвращения XSS (для общего использования, без стилей)
 export function sanitizeHtml(html: string): string {
   if (typeof window === 'undefined') return html;
   return DOMPurify.sanitize(html, {
@@ -35,7 +35,6 @@ export function sanitizeHtml(html: string): string {
     ALLOWED_ATTR: [
       'src', 'alt', 'title', 'width', 'height',
       'class', 'id'
-      // Убран 'style' - браузерные стили портят вёрстку
     ],
     ALLOW_DATA_ATTR: false,
     FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onmouseout', 'style'],
@@ -43,8 +42,29 @@ export function sanitizeHtml(html: string): string {
   });
 }
 
+// Санитизация HTML для договоров (с сохранением стилей таблиц)
+export function sanitizeContractHtml(html: string): string {
+  if (typeof window === 'undefined') return html;
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: [
+      'p', 'br', 'strong', 'b', 'em', 'i', 'u', 's', 'strike',
+      'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+      'ul', 'ol', 'li',
+      'table', 'thead', 'tbody', 'tr', 'td', 'th',
+      'div', 'span', 'img'
+    ],
+    ALLOWED_ATTR: [
+      'src', 'alt', 'title', 'width', 'height',
+      'class', 'id', 'style'  // Разрешаем style для договоров
+    ],
+    ALLOW_DATA_ATTR: false,
+    FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onmouseout'],
+    FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input']
+  });
+}
+
 // Очистка HTML после редактирования (contentEditable)
-// Удаляет браузерные стили и ненужные атрибуты
+// Удаляет только браузерные "грязные" стили, сохраняя базовые стили таблиц
 export function cleanEditedHtml(html: string): string {
   if (typeof window === 'undefined') return html;
   
@@ -52,9 +72,32 @@ export function cleanEditedHtml(html: string): string {
   const tempDiv = document.createElement('div');
   tempDiv.innerHTML = html;
   
-  // Удаляем все style атрибуты
+  // Удаляем только "грязные" браузерные стили (начинающиеся с rgb, color с конкретными значениями и т.д.)
   const elementsWithStyle = tempDiv.querySelectorAll('[style]');
-  elementsWithStyle.forEach(el => el.removeAttribute('style'));
+  elementsWithStyle.forEach(el => {
+    const style = el.getAttribute('style') || '';
+    // Удаляем стили только если они содержат браузерные "грязные" значения
+    const dirtyPatterns = [
+      /rgb\(\d+,\s*\d+,\s*\d+\)/,  // rgb(0, 0, 0)
+      /rgba\(/,                      // rgba(...)
+      /font-family:\s*[^;]*;?/i,    // font-family: Arial
+      /font-size:\s*[^;]*;?/i,      // font-size: 12px
+      /background-color:\s*#?\w+;?/i, // background-color
+      /color:\s*#?\w+;?/i,          // color: black
+    ];
+    
+    let cleanedStyle = style;
+    dirtyPatterns.forEach(pattern => {
+      cleanedStyle = cleanedStyle.replace(pattern, '');
+    });
+    
+    // Удаляем пустые style атрибуты
+    if (!cleanedStyle.trim() || cleanedStyle === style && style.match(/font|color|background/)) {
+      el.removeAttribute('style');
+    } else if (cleanedStyle !== style) {
+      el.setAttribute('style', cleanedStyle);
+    }
+  });
   
   // Удаляем пустые span (которые добавляет браузер)
   const emptySpans = tempDiv.querySelectorAll('span:empty');
@@ -71,7 +114,6 @@ export function cleanEditedHtml(html: string): string {
   // Удаляем атрибуты type="_moz" и подобные браузерные атрибуты
   const allElements = tempDiv.querySelectorAll('*');
   allElements.forEach(el => {
-    // Удаляем data- атрибуты
     const attrs = Array.from(el.attributes);
     attrs.forEach(attr => {
       if (attr.name.startsWith('data-') || 
