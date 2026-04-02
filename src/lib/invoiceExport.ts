@@ -10,16 +10,18 @@ export function generateInvoiceHTML(invoice: Invoice, settings: PDFSettings, ban
   const customer = invoice.contract?.customer;
   const contract = invoice.contract;
   
-  // Получаем банковский счёт исполнителя из таблицы company_bank_accounts (fallback)
-  const executorAccount = company?.id 
-    ? bankAccounts.find(a => a.is_default) || bankAccounts[0]
-    : null;
+  // Получаем банковский счёт исполнителя:
+  // 1. Если в договоре указан bank_account_id — ищем этот счёт
+  // 2. Иначе берём is_default или первый доступный
+  const executorAccount = contract?.bank_account_id && bankAccounts.length > 0
+    ? bankAccounts.find(a => a.id === contract.bank_account_id) || bankAccounts.find(a => a.is_default) || bankAccounts[0]
+    : bankAccounts.find(a => a.is_default) || bankAccounts[0] || null;
   
-  // Реквизиты исполнителя: приоритет - из договора, затем из таблицы счетов, затем из компании
-  const bankName = contract?.executor_bank_name || executorAccount?.bank_name || company?.bank_name || 'АО "ТБанк"';
-  const bik = contract?.executor_bik || executorAccount?.bik || company?.bank_bik || '044525974';
-  const corrAccount = contract?.executor_bank_corr_account || executorAccount?.corr_account || company?.bank_corr_account || '30101810145250000974';
-  const account = contract?.executor_bank_account || executorAccount?.account || company?.bank_account || '40802810200005568272';
+  // Реквизиты исполнителя: приоритет — указанный счёт в договоре, затем из компании
+  const bankName = executorAccount?.bank_name || company?.bank_name || 'АО "ТБанк"';
+  const bik = executorAccount?.bik || company?.bank_bik || '044525974';
+  const corrAccount = executorAccount?.corr_account || company?.bank_corr_account || '30101810145250000974';
+  const account = executorAccount?.account || company?.bank_account || '40802810200005568272';
   
   // Формируем полное наименование поставщика
   const supplierFullName = company?.type === 'ip' 
@@ -267,16 +269,18 @@ export async function exportInvoiceToDOCX(invoice: Invoice, settings: PDFSetting
   const customer = invoice.contract?.customer;
   const contract = invoice.contract;
   
-  // Получаем банковский счёт исполнителя из таблицы company_bank_accounts (fallback)
-  const executorAccount = company?.id 
-    ? bankAccounts.find(a => a.is_default) || bankAccounts[0]
-    : null;
+  // Получаем банковский счёт исполнителя:
+  // 1. Если в договоре указан bank_account_id — ищем этот счёт
+  // 2. Иначе берём is_default или первый доступный
+  const executorAccount = contract?.bank_account_id && bankAccounts.length > 0
+    ? bankAccounts.find(a => a.id === contract.bank_account_id) || bankAccounts.find(a => a.is_default) || bankAccounts[0]
+    : bankAccounts.find(a => a.is_default) || bankAccounts[0] || null;
   
-  // Реквизиты исполнителя: приоритет - из договора, затем из таблицы счетов, затем из компании
-  const bankName = contract?.executor_bank_name || executorAccount?.bank_name || company?.bank_name || '-';
-  const bik = contract?.executor_bik || executorAccount?.bik || company?.bank_bik || '-';
-  const corrAccount = contract?.executor_bank_corr_account || executorAccount?.corr_account || company?.bank_corr_account || '-';
-  const account = contract?.executor_bank_account || executorAccount?.account || company?.bank_account || '-';
+  // Реквизиты исполнителя: приоритет — указанный счёт в договоре, затем из компании
+  const bankName = executorAccount?.bank_name || company?.bank_name || '-';
+  const bik = executorAccount?.bik || company?.bank_bik || '-';
+  const corrAccount = executorAccount?.corr_account || company?.bank_corr_account || '-';
+  const account = executorAccount?.account || company?.bank_account || '-';
   
   const doc = new Document({
     sections: [{

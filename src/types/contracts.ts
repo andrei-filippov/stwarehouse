@@ -55,6 +55,12 @@ export type Contract = {
   // Банковский счёт
   bank_account_id?: string;
   
+  // Реквизиты исполнителя (для счетов/актов)
+  executor_bank_name?: string;
+  executor_bik?: string;
+  executor_bank_account?: string;
+  executor_bank_corr_account?: string;
+  
   // Статус
   status: ContractStatus;
   

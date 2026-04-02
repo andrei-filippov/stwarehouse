@@ -34,6 +34,7 @@ export type Invoice = {
     id: string;
     number: string;
     date?: string;
+    bank_account_id?: string;
     customer?: {
       id: string;
       name: string;
@@ -45,11 +46,6 @@ export type Invoice = {
       bank_account?: string;
       bank_corr_account?: string;
     };
-    // Реквизиты исполнителя (из договора)
-    executor_bank_name?: string;
-    executor_bik?: string;
-    executor_bank_account?: string;
-    executor_bank_corr_account?: string;
   };
   
   created_at?: string;
@@ -105,6 +101,7 @@ export type Act = {
     id: string;
     number: string;
     date: string;
+    bank_account_id?: string;
     customer?: {
       id: string;
       name: string;
@@ -112,11 +109,6 @@ export type Act = {
       kpp?: string;
       legal_address?: string;
     };
-    // Реквизиты исполнителя (из договора)
-    executor_bank_name?: string;
-    executor_bik?: string;
-    executor_bank_account?: string;
-    executor_bank_corr_account?: string;
   };
   
   invoice?: {
