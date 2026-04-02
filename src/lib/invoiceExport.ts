@@ -298,99 +298,161 @@ export async function exportInvoiceToDOCX(invoice: Invoice, settings: PDFSetting
   const customer = invoice.contract?.customer;
   const contract = invoice.contract;
   
-  // Получаем банковский счёт исполнителя:
-  // 1. Если в договоре указан bank_account_id — ищем этот счёт
-  // 2. Иначе берём is_default или первый доступный
+  // Получаем банковский счёт исполнителя
   const executorAccount = contract?.bank_account_id && bankAccounts.length > 0
     ? bankAccounts.find(a => a.id === contract.bank_account_id) || bankAccounts.find(a => a.is_default) || bankAccounts[0]
     : bankAccounts.find(a => a.is_default) || bankAccounts[0] || null;
   
-  // Реквизиты исполнителя: приоритет — указанный счёт в договоре, затем из компании
+  // Реквизиты исполнителя
   const bankName = executorAccount?.bank_name || company?.bank_name || '-';
   const bik = executorAccount?.bik || company?.bank_bik || '-';
   const corrAccount = executorAccount?.corr_account || company?.bank_corr_account || '-';
   const account = executorAccount?.account || company?.bank_account || '-';
   
+  // Форматирование названия компании
+  const formatCompanyNameDocx = (name: string, type?: string): string => {
+    if (!name) return '-';
+    if (type === 'ip') {
+      return name.match(/^ИП\s+/i) ? name : `ИП ${name}`;
+    }
+    if (type === 'company' || !type) {
+      return name.match(/^(ООО|ОАО|ЗАО|ПАО|АО)\s*["']?/i) ? name : `ООО "${name}"`;
+    }
+    return name;
+  };
+  
+  // Формирование реквизитов
+  const formatRequisitesDocx = (
+    name: string,
+    type: string | undefined,
+    inn?: string,
+    kpp?: string,
+    ogrn?: string,
+    address?: string
+  ): string => {
+    const parts: string[] = [];
+    parts.push(formatCompanyNameDocx(name, type));
+    if (inn) parts.push(`ИНН ${inn}`);
+    if (kpp && type !== 'ip') parts.push(`КПП ${kpp}`);
+    if (ogrn) parts.push(type === 'ip' ? `ОГРНИП ${ogrn}` : `ОГРН ${ogrn}`);
+    if (address) parts.push(address);
+    return parts.join(', ');
+  };
+  
   const doc = new Document({
     sections: [{
       properties: {
         page: {
-          margin: { top: 1134, right: 850, bottom: 1134, left: 1701 },
+          margin: { top: 720, right: 850, bottom: 720, left: 1134 },
         },
       },
       children: [
-        // Шапка с названием компании и реквизитами
+        // Шапка с названием компании
         new Paragraph({
           alignment: AlignmentType.RIGHT,
-          spacing: { after: 100 },
+          spacing: { after: 50 },
           children: [
-            new TextRun({ text: company?.name || settings.companyName || '', bold: true, size: 24 }),
+            new TextRun({ text: formatCompanyNameDocx(settings.companyName, company?.type), bold: true, size: 24 }),
           ],
         }),
-        ...(company?.inn ? [new Paragraph({
-          alignment: AlignmentType.RIGHT,
-          children: [new TextRun({ text: `ИНН: ${company.inn}${company.kpp ? ' / КПП: ' + company.kpp : ''}${company.ogrn ? ' / ОГРН: ' + company.ogrn : ''}`, size: 20 })],
-        })] : []),
-        ...(company?.legal_address ? [new Paragraph({
-          alignment: AlignmentType.RIGHT,
-          spacing: { after: 200 },
-          children: [new TextRun({ text: company.legal_address, size: 20 })],
-        })] : settings.companyDetails ? settings.companyDetails.split('\n').map(line => new Paragraph({
+        new Paragraph({
           alignment: AlignmentType.RIGHT,
           spacing: { after: 50 },
-          children: [new TextRun({ text: line, size: 20 })],
-        })) : []),
-        new Paragraph({ spacing: { after: 200 } }),
+          children: [
+            new TextRun({ 
+              text: `ИНН: ${company?.inn || ''}${(company?.kpp && company?.type !== 'ip') ? ' / КПП: ' + company.kpp : ''}${company?.ogrn ? ' / ОГРН: ' + company.ogrn : ''}`, 
+              size: 18 
+            }),
+          ],
+        }),
+        ...(company?.legal_address ? [new Paragraph({
+          alignment: AlignmentType.RIGHT,
+          spacing: { after: 150 },
+          children: [new TextRun({ text: company.legal_address, size: 18 })],
+        })] : []),
 
-        // Банковские реквизиты
+        // Разделительная линия
+        new Paragraph({
+          border: {
+            bottom: {
+              color: "000000",
+              space: 1,
+              style: BorderStyle.SINGLE,
+              size: 6,
+            },
+          },
+          spacing: { after: 150 },
+        }),
+
+        // Банковская таблица (как в PDF)
         new Table({
           width: { size: 100, type: 'pct' },
           borders: {
-            top: { style: BorderStyle.SINGLE, size: 1 },
-            bottom: { style: BorderStyle.SINGLE, size: 1 },
-            left: { style: BorderStyle.SINGLE, size: 1 },
-            right: { style: BorderStyle.SINGLE, size: 1 },
+            top: { style: BorderStyle.SINGLE, size: 8 },
+            bottom: { style: BorderStyle.SINGLE, size: 8 },
+            left: { style: BorderStyle.SINGLE, size: 8 },
+            right: { style: BorderStyle.SINGLE, size: 8 },
+            insideHorizontal: { style: BorderStyle.SINGLE, size: 8 },
+            insideVertical: { style: BorderStyle.SINGLE, size: 8 },
           },
           rows: [
+            // Первая строка: Банк получателя (2 ячейки объединены) + БИК
             new TableRow({
               children: [
                 new TableCell({
-                  width: { size: 30, type: 'pct' },
-                  children: [new Paragraph({ text: 'Банк получателя:', bold: true })],
+                  columnSpan: 2,
+                  rowSpan: 2,
+                  children: [
+                    new Paragraph({ text: bankName, bold: true, size: 18 }),
+                    new Paragraph({ text: 'Банк получателя', size: 16, color: '666666' }),
+                  ],
                 }),
                 new TableCell({
-                  width: { size: 70, type: 'pct' },
-                  children: [new Paragraph(bankName)],
+                  children: [new Paragraph({ text: 'БИК', bold: true, size: 18 })],
+                }),
+                new TableCell({
+                  children: [new Paragraph({ text: bik, size: 18 })],
                 }),
               ],
             }),
+            // Вторая строка: Сч. № (к/с)
             new TableRow({
               children: [
                 new TableCell({
-                  children: [new Paragraph({ text: 'БИК:', bold: true })],
+                  children: [new Paragraph({ text: 'Сч. №', bold: true, size: 18 })],
                 }),
                 new TableCell({
-                  children: [new Paragraph(bik)],
+                  children: [new Paragraph({ text: corrAccount, size: 18 })],
                 }),
               ],
             }),
+            // Третья строка: ИНН + Сч. № (р/с)
             new TableRow({
               children: [
                 new TableCell({
-                  children: [new Paragraph({ text: 'Р/с:', bold: true })],
+                  children: [new Paragraph({ text: 'ИНН', bold: true, size: 18 })],
                 }),
                 new TableCell({
-                  children: [new Paragraph(account)],
+                  children: [new Paragraph({ text: company?.inn || '-', size: 18 })],
+                }),
+                new TableCell({
+                  rowSpan: 2,
+                  children: [new Paragraph({ text: 'Сч. №', bold: true, size: 18 })],
+                }),
+                new TableCell({
+                  rowSpan: 2,
+                  children: [new Paragraph({ text: account, size: 18 })],
                 }),
               ],
             }),
+            // Четвертая строка: Получатель
             new TableRow({
               children: [
                 new TableCell({
-                  children: [new Paragraph({ text: 'К/с:', bold: true })],
+                  children: [new Paragraph({ text: 'Получатель', bold: true, size: 18 })],
                 }),
                 new TableCell({
-                  children: [new Paragraph(corrAccount)],
+                  children: [new Paragraph({ text: formatCompanyNameDocx(settings.companyName, company?.type), size: 18 })],
                 }),
               ],
             }),
@@ -399,121 +461,114 @@ export async function exportInvoiceToDOCX(invoice: Invoice, settings: PDFSetting
 
         // Заголовок счета
         new Paragraph({
-          text: `Счет на оплату № ${invoice.number} от ${new Date(invoice.date).toLocaleDateString('ru-RU')}`,
-          heading: 1,
-          alignment: AlignmentType.CENTER,
-          spacing: { before: 400, after: 200 },
+          text: `Счет на оплату № ${invoice.number} от ${new Date(invoice.date).toLocaleDateString('ru-RU')} г.`,
+          alignment: AlignmentType.LEFT,
+          spacing: { before: 300, after: 200 },
           bold: true,
+          size: 22,
         }),
 
-        // Плательщик
+        // Поставщик
         new Paragraph({
-          spacing: { before: 200, after: 100 },
+          spacing: { after: 100 },
           children: [
-            new TextRun({ text: 'Плательщик: ', bold: true }),
-            new TextRun(`${customer?.name || '-'}, ИНН ${customer?.inn || '-'}, КПП ${customer?.kpp || '-'}, ${customer?.legal_address || '-'}`),
+            new TextRun({ text: 'Поставщик: ', bold: true, size: 18 }),
+            new TextRun({ 
+              text: formatRequisitesDocx(
+                settings.companyName, 
+                company?.type, 
+                company?.inn, 
+                company?.kpp, 
+                company?.ogrn, 
+                company?.legal_address || settings.companyDetails
+              ),
+              size: 18 
+            }),
           ],
         }),
 
-        // Грузополучатель
+        // Покупатель
         new Paragraph({
           spacing: { after: 200 },
           children: [
-            new TextRun({ text: 'Грузополучатель: ', bold: true }),
-            new TextRun(customer?.name || '-'),
+            new TextRun({ text: 'Покупатель: ', bold: true, size: 18 }),
+            new TextRun({ 
+              text: customer ? formatRequisitesDocx(
+                customer.name,
+                customer.type,
+                customer.inn,
+                customer.kpp,
+                customer.ogrn,
+                customer.legal_address
+              ) : '-',
+              size: 18 
+            }),
           ],
         }),
 
-        // Таблица с позициями
+        // Таблица с позициями (как в PDF)
         new Table({
           width: { size: 100, type: 'pct' },
           borders: {
-            top: { style: BorderStyle.SINGLE, size: 1 },
-            bottom: { style: BorderStyle.SINGLE, size: 1 },
-            left: { style: BorderStyle.SINGLE, size: 1 },
-            right: { style: BorderStyle.SINGLE, size: 1 },
+            top: { style: BorderStyle.SINGLE, size: 8 },
+            bottom: { style: BorderStyle.SINGLE, size: 8 },
+            left: { style: BorderStyle.SINGLE, size: 8 },
+            right: { style: BorderStyle.SINGLE, size: 8 },
+            insideHorizontal: { style: BorderStyle.SINGLE, size: 8 },
+            insideVertical: { style: BorderStyle.SINGLE, size: 8 },
           },
           rows: [
             // Заголовок таблицы
             new TableRow({
               children: [
-                new TableCell({ children: [new Paragraph({ text: '№', bold: true })] }),
-                new TableCell({ children: [new Paragraph({ text: 'Наименование', bold: true })] }),
-                new TableCell({ children: [new Paragraph({ text: 'Ед.', bold: true })] }),
-                new TableCell({ children: [new Paragraph({ text: 'Кол-во', bold: true, alignment: AlignmentType.RIGHT })] }),
-                new TableCell({ children: [new Paragraph({ text: 'Цена', bold: true, alignment: AlignmentType.RIGHT })] }),
-                new TableCell({ children: [new Paragraph({ text: 'Сумма', bold: true, alignment: AlignmentType.RIGHT })] }),
+                new TableCell({ children: [new Paragraph({ text: '№', bold: true, alignment: AlignmentType.CENTER, size: 18 })] }),
+                new TableCell({ children: [new Paragraph({ text: 'Товары (работы, услуги)', bold: true, size: 18 })] }),
+                new TableCell({ children: [new Paragraph({ text: 'Кол-во', bold: true, alignment: AlignmentType.CENTER, size: 18 })] }),
+                new TableCell({ children: [new Paragraph({ text: 'Ед.', bold: true, alignment: AlignmentType.CENTER, size: 18 })] }),
+                new TableCell({ children: [new Paragraph({ text: 'НДС', bold: true, alignment: AlignmentType.CENTER, size: 18 })] }),
+                new TableCell({ children: [new Paragraph({ text: 'Цена', bold: true, alignment: AlignmentType.RIGHT, size: 18 })] }),
+                new TableCell({ children: [new Paragraph({ text: 'Сумма', bold: true, alignment: AlignmentType.RIGHT, size: 18 })] }),
               ],
             }),
             // Позиция
             new TableRow({
               children: [
-                new TableCell({ children: [new Paragraph('1')] }),
-                new TableCell({ children: [new Paragraph(invoice.description || `Оплата по договору № ${invoice.contract?.number}`)] }),
-                new TableCell({ children: [new Paragraph('шт')] }),
-                new TableCell({ children: [new Paragraph({ text: '1', alignment: AlignmentType.RIGHT })] }),
-                new TableCell({ children: [new Paragraph({ text: invoice.amount.toLocaleString('ru-RU'), alignment: AlignmentType.RIGHT })] }),
-                new TableCell({ children: [new Paragraph({ text: invoice.amount.toLocaleString('ru-RU'), alignment: AlignmentType.RIGHT })] }),
+                new TableCell({ children: [new Paragraph({ text: '1', alignment: AlignmentType.CENTER, size: 18 })] }),
+                new TableCell({ children: [new Paragraph({ text: invoice.description || `Оплата по договору № ${invoice.contract?.number}`, size: 18 })] }),
+                new TableCell({ children: [new Paragraph({ text: '1', alignment: AlignmentType.CENTER, size: 18 })] }),
+                new TableCell({ children: [new Paragraph({ text: 'шт', alignment: AlignmentType.CENTER, size: 18 })] }),
+                new TableCell({ children: [new Paragraph({ text: invoice.vat_rate > 0 ? `${invoice.vat_rate}%` : 'Без НДС', alignment: AlignmentType.CENTER, size: 18 })] }),
+                new TableCell({ children: [new Paragraph({ text: invoice.amount.toLocaleString('ru-RU'), alignment: AlignmentType.RIGHT, size: 18 })] }),
+                new TableCell({ children: [new Paragraph({ text: invoice.amount.toLocaleString('ru-RU'), alignment: AlignmentType.RIGHT, size: 18 })] }),
               ],
             }),
-            // Итого
-            new TableRow({
-              children: [
-                new TableCell({ columnSpan: 5, children: [new Paragraph({ text: 'Итого:', bold: true, alignment: AlignmentType.RIGHT })] }),
-                new TableCell({ children: [new Paragraph({ text: invoice.amount.toLocaleString('ru-RU'), bold: true, alignment: AlignmentType.RIGHT })] }),
-              ],
-            }),
-            // НДС
-            invoice.vat_rate > 0
-              ? new TableRow({
-                  children: [
-                    new TableCell({ columnSpan: 5, children: [new Paragraph({ text: `В том числе НДС (${invoice.vat_rate}%):`, bold: true, alignment: AlignmentType.RIGHT })] }),
-                    new TableCell({ children: [new Paragraph({ text: invoice.vat_amount.toLocaleString('ru-RU'), bold: true, alignment: AlignmentType.RIGHT })] }),
-                  ],
-                })
-              : new TableRow({
-                  children: [
-                    new TableCell({ columnSpan: 5, children: [new Paragraph({ text: 'НДС не облагается:', bold: true, alignment: AlignmentType.RIGHT })] }),
-                    new TableCell({ children: [new Paragraph({ text: '—', bold: true, alignment: AlignmentType.RIGHT })] }),
-                  ],
-                }),
-            // Всего
-            new TableRow({
-              children: [
-                new TableCell({ columnSpan: 5, children: [new Paragraph({ text: 'Всего к оплате:', bold: true, alignment: AlignmentType.RIGHT })] }),
-                new TableCell({ children: [new Paragraph({ text: invoice.total_amount.toLocaleString('ru-RU'), bold: true, alignment: AlignmentType.RIGHT })] }),
-              ],
-            }),
+          ],
+        }),
+
+        // Итоговый блок
+        new Paragraph({
+          spacing: { before: 100 },
+          children: [
+            new TextRun({ text: `Всего наименований 1, на сумму ${invoice.total_amount.toLocaleString('ru-RU')} руб.`, size: 18 }),
+          ],
+        }),
+        new Paragraph({
+          alignment: AlignmentType.RIGHT,
+          spacing: { after: 100 },
+          children: [
+            new TextRun({ text: `Итого к оплате: ${invoice.total_amount.toLocaleString('ru-RU')} руб.`, bold: true, size: 18 }),
           ],
         }),
 
         // Сумма прописью
         new Paragraph({
-          spacing: { before: 200 },
+          spacing: { after: 300 },
           children: [
-            new TextRun({ text: `Всего наименований 1, на сумму ${invoice.total_amount.toLocaleString('ru-RU')} руб.`, bold: true }),
+            new TextRun({ text: numberToWords(invoice.total_amount), italics: true, size: 18 }),
           ],
         }),
-        new Paragraph({
-          spacing: { after: 200 },
-          italics: true,
-          text: numberToWords(invoice.total_amount),
-        }),
 
-        // Срок оплаты
-        ...(invoice.due_date
-          ? [
-              new Paragraph({
-                spacing: { before: 100, after: 200 },
-                children: [
-                  new TextRun({ text: 'Срок оплаты: ', bold: true }),
-                  new TextRun(new Date(invoice.due_date).toLocaleDateString('ru-RU')),
-                ],
-              }),
-            ]
-          : []),
-
-        // Подписи
+        // Подписи (как в PDF)
         new Paragraph({ spacing: { before: 400 } }),
         new Table({
           width: { size: 100, type: 'pct' },
@@ -524,15 +579,35 @@ export async function exportInvoiceToDOCX(invoice: Invoice, settings: PDFSetting
                 new TableCell({
                   width: { size: 50, type: 'pct' },
                   children: [
-                    new Paragraph('Руководитель'),
-                    new Paragraph({ text: '_'.repeat(30), spacing: { before: 400 } }),
+                    new Paragraph({ text: 'Руководитель', size: 18 }),
+                    new Paragraph({ text: '', spacing: { before: 300 } }),
+                    new Paragraph({ 
+                      border: {
+                        bottom: {
+                          color: "000000",
+                          space: 1,
+                          style: BorderStyle.SINGLE,
+                          size: 6,
+                        },
+                      },
+                    }),
                   ],
                 }),
                 new TableCell({
                   width: { size: 50, type: 'pct' },
                   children: [
-                    new Paragraph('Бухгалтер'),
-                    new Paragraph({ text: '_'.repeat(30), spacing: { before: 400 } }),
+                    new Paragraph({ text: 'Бухгалтер', size: 18 }),
+                    new Paragraph({ text: '', spacing: { before: 300 } }),
+                    new Paragraph({ 
+                      border: {
+                        bottom: {
+                          color: "000000",
+                          space: 1,
+                          style: BorderStyle.SINGLE,
+                          size: 6,
+                        },
+                      },
+                    }),
                   ],
                 }),
               ],
