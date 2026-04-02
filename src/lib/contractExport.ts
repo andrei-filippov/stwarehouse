@@ -870,6 +870,174 @@ export async function exportContractToDOCX(contract: Contract, pdfSettings: PDFS
   URL.revokeObjectURL(url);
 }
 
+// Экспорт в DOC формат (Word 97-2003)
+// На самом деле создаем HTML с Word-специфичными тегами, который Word откроет как DOC
+export function exportContractToDOC(contract: Contract, pdfSettings: PDFSettings, bankAccounts: CompanyBankAccount[] = [], company?: Company | null): void {
+  const html = generateContractHTML(contract, pdfSettings, bankAccounts, company, true);
+  
+  // Добавляем Word-специфичные метатеги для корректного открытия в Word
+  const docHtml = `
+<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office" 
+      xmlns:w="urn:schemas-microsoft-com:office:word" 
+      xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+  <meta charset="UTF-8">
+  <meta name=ProgId content=Word.Document>
+  <meta name=Generator content="Microsoft Word 15">
+  <meta name=Originator content="Microsoft Word 15">
+  <link rel=File-List href="filelist.xml">
+  <title>Договор № ${contract.number}</title>
+  <!--[if gte mso 9]>
+  <xml>
+    <w:WordDocument>
+      <w:View>Print</w:View>
+      <w:Zoom>100</w:Zoom>
+      <w:DoNotOptimizeForBrowser/>
+    </w:WordDocument>
+  </xml>
+  <![endif]-->
+  <style>
+    /* Word-специфичные стили */
+    @page {
+      size: 21cm 29.7cm;
+      margin: 2cm 1.5cm 2cm 3cm;
+    }
+    @page Section1 {
+      mso-page-orientation: portrait;
+      mso-page-margin: 2cm 1.5cm 2cm 3cm;
+    }
+    div.Section1 { page: Section1; }
+    
+    /* Основные стили для Word */
+    body {
+      font-family: "Times New Roman", Times, serif;
+      font-size: 12pt;
+      line-height: 1.5;
+      color: #000;
+      background: #fff;
+    }
+    
+    p {
+      margin: 0;
+      padding: 0;
+      text-align: justify;
+      text-indent: 0;
+    }
+    
+    p.MsoNormal {
+      mso-style-name: "Обычный";
+      mso-style-parent: "";
+      margin: 0;
+      margin-bottom: 6pt;
+      text-align: justify;
+      line-height: 150%;
+    }
+    
+    h1 {
+      mso-style-name: "Заголовок 1";
+      mso-style-next: "Обычный";
+      margin-top: 12pt;
+      margin-bottom: 6pt;
+      text-align: center;
+      page-break-after: avoid;
+      font-size: 14pt;
+      font-weight: bold;
+    }
+    
+    h2 {
+      mso-style-name: "Заголовок 2";
+      mso-style-next: "Обычный";
+      margin-top: 12pt;
+      margin-bottom: 6pt;
+      text-align: center;
+      page-break-after: avoid;
+      font-size: 12pt;
+      font-weight: bold;
+    }
+    
+    table {
+      mso-table-layout-alt: auto;
+      border-collapse: collapse;
+      width: 100%;
+    }
+    
+    table td, table th {
+      border: 1pt solid windowtext;
+      padding: 5pt;
+      mso-border-alt: solid windowtext .5pt;
+    }
+    
+    table.spec {
+      mso-table-layout-alt: auto;
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 10pt;
+    }
+    
+    table.spec th {
+      background: #f0f0f0;
+      font-weight: bold;
+      text-align: center;
+      border: 1pt solid windowtext;
+      mso-border-alt: solid windowtext .5pt;
+      padding: 5pt;
+    }
+    
+    table.spec td {
+      border: 1pt solid windowtext;
+      mso-border-alt: solid windowtext .5pt;
+      padding: 5pt;
+    }
+    
+    .center { text-align: center; }
+    .bold { font-weight: bold; }
+    .section { margin: 15pt 0; }
+    .section-title { 
+      font-weight: bold; 
+      text-align: center; 
+      margin: 20pt 0 10pt 0;
+    }
+    .page-break { page-break-before: always; }
+    
+    /* Реквизиты */
+    .requisites-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20pt 0;
+    }
+    .requisites-table td {
+      width: 50%;
+      vertical-align: top;
+      padding: 15pt;
+      border: 1pt solid windowtext;
+      mso-border-alt: solid windowtext .5pt;
+    }
+  </style>
+</head>
+<body lang=RU>
+  <div class=Section1>
+    ${html.replace(/<body[^>]*>/, '').replace(/<\/body>/, '')}
+  </div>
+</body>
+</html>`;
+
+  // Создаем Blob с MIME-типом для Word
+  const blob = new Blob([docHtml], { 
+    type: 'application/msword' 
+  });
+  
+  // Скачиваем файл
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `Договор_${contract.number}_${contract.customer?.name || 'без_заказчика'}.doc`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
 // Печать договора (открытие окна печати)
 export function printContract(contract: Contract, pdfSettings: PDFSettings, bankAccounts: CompanyBankAccount[] = [], company?: Company | null): void {
   const html = generateContractHTML(contract, pdfSettings, bankAccounts, company);

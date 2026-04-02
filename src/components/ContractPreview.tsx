@@ -14,12 +14,13 @@ import {
   Save,
   X,
   Maximize2,
-  Minimize2
+  Minimize2,
+  FileType
 } from 'lucide-react';
 import type { Contract, PDFSettings, CompanyBankAccount } from '../types';
 import { useCompanyContext } from '../contexts/CompanyContext';
 import { CONTRACT_STATUS_LABELS, CONTRACT_STATUS_COLORS, CONTRACT_TYPE_LABELS } from '../types';
-import { generateContractHTML, exportContractToDOCX, printContract } from '../lib/contractExport';
+import { generateContractHTML, exportContractToDOCX, exportContractToDOC, printContract } from '../lib/contractExport';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { sanitizeHtml, cleanEditedHtml } from '../lib/utils';
 
@@ -34,6 +35,7 @@ interface ContractPreviewProps {
 export function ContractPreview({ contract, pdfSettings, bankAccounts = [], onClose, onSaveContent }: ContractPreviewProps) {
   const { company } = useCompanyContext();
   const [isExportingDOCX, setIsExportingDOCX] = useState(false);
+  const [isExportingDOC, setIsExportingDOC] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -91,6 +93,19 @@ export function ContractPreview({ contract, pdfSettings, bankAccounts = [], onCl
       alert('Ошибка при экспорте в DOCX');
     } finally {
       setIsExportingDOCX(false);
+    }
+  };
+
+  // Обработчик экспорта в DOC
+  const handleExportDOC = async () => {
+    setIsExportingDOC(true);
+    try {
+      exportContractToDOC(contract, pdfSettings, bankAccounts, company);
+    } catch (error) {
+      console.error('DOC export error:', error);
+      alert('Ошибка при экспорте в DOC');
+    } finally {
+      setIsExportingDOC(false);
     }
   };
 
@@ -206,6 +221,19 @@ export function ContractPreview({ contract, pdfSettings, bankAccounts = [], onCl
             <FileText className="w-4 h-4 mr-2" />
           )}
           Скачать DOCX
+        </Button>
+
+        <Button 
+          onClick={handleExportDOC} 
+          disabled={isExportingDOC || isEditing}
+          variant="outline"
+        >
+          {isExportingDOC ? (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          ) : (
+            <FileType className="w-4 h-4 mr-2" />
+          )}
+          Скачать DOC
         </Button>
 
         <div className="flex-1"></div>
