@@ -93,6 +93,30 @@ export function cleanEditedHtml(html: string): string {
   const tempDiv = document.createElement('div');
   tempDiv.innerHTML = html;
   
+  // === ВОССТАНОВЛЕНИЕ СТРУКТУРЫ ТАБЛИЦ ===
+  // Находим все таблицы и восстанавливаем их атрибуты
+  const tables = tempDiv.querySelectorAll('table');
+  tables.forEach(table => {
+    // Устанавливаем атрибуты таблицы для границ
+    table.setAttribute('border', '1');
+    table.setAttribute('cellpadding', '4');
+    table.setAttribute('cellspacing', '0');
+    table.style.borderCollapse = 'collapse';
+    table.style.width = '100%';
+    
+    // Добавляем границы ко всем ячейкам
+    const cells = table.querySelectorAll('td, th');
+    cells.forEach(cell => {
+      cell.setAttribute('border', '1');
+      // Сохраняем существующие стили если они есть
+      const existingStyle = cell.getAttribute('style') || '';
+      const hasBorder = /border/.test(existingStyle);
+      if (!hasBorder) {
+        cell.style.border = '1px solid black';
+      }
+    });
+  });
+  
   // Обрабатываем стили у всех элементов
   const elementsWithStyle = tempDiv.querySelectorAll('[style]');
   elementsWithStyle.forEach(el => {
