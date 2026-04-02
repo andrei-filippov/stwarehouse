@@ -1,4 +1,4 @@
-import { Document, Paragraph, TextRun, Table, TableCell, TableRow, WidthType, AlignmentType, HeadingLevel, Packer } from 'docx';
+import { Document, Paragraph, TextRun, Table, TableCell, TableRow, WidthType, AlignmentType, HeadingLevel, Packer, BorderStyle } from 'docx';
 import type { Contract, ContractTemplateData, PDFSettings, CompanyBankAccount, Company } from '../types';
 import { numberToWords } from '../types/contracts';
 
@@ -222,285 +222,46 @@ function cleanText(text: string | undefined | null): string {
   return text.replace(/<[^>]*>/g, '').trim();
 }
 
-// Конвертация HTML в DOCX элементы (Paragraph | Table)
-function htmlToDocxElements(html: string): (Paragraph | Table)[] {
-  const elements: (Paragraph | Table)[] = [];
-  
-  // Создаем временный div для парсинга HTML
-  const tempDiv = document.createElement('div');
-  tempDiv.innerHTML = html;
-  
-  // Удаляем скрипты и стили
-  const scripts = tempDiv.querySelectorAll('script, style');
-  scripts.forEach(el => el.remove());
-  
-  // Обрабатываем элементы
-  const processNode = (node: Node): void => {
-    if (node.nodeType === Node.TEXT_NODE) {
-      const text = node.textContent?.trim();
-      if (text) {
-        paragraphs.push(new Paragraph({
-          children: [new TextRun({ text })],
-        }));
-      }
-      return;
-    }
-    
-    if (node.nodeType === Node.ELEMENT_NODE) {
-      const element = node as HTMLElement;
-      const tagName = element.tagName.toLowerCase();
-      
-      // Пропускаем таблицы - их обрабатываем отдельно
-      if (tagName === 'table') {
-        // Таблицы будут обработаны отдельно
-        return;
-      }
-      
-      // Заголовки
-      if (['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(tagName)) {
-        const text = element.textContent?.trim();
-        if (text) {
-          elements.push(new Paragraph({
-            children: [new TextRun({ text, bold: true, size: 28 })],
-            alignment: AlignmentType.CENTER,
-            spacing: { before: 200, after: 200 },
-          }));
-        }
-        return;
-      }
-      
-      // Параграфы и div
-      if (tagName === 'p' || tagName === 'div') {
-        // Рекурсивно обрабатываем дочерние элементы
-        const children: (TextRun | any)[] = [];
-        element.childNodes.forEach(child => {
-          if (child.nodeType === Node.TEXT_NODE) {
-            const text = child.textContent?.trim();
-            if (text) children.push(new TextRun({ text }));
-          } else if (child.nodeType === Node.ELEMENT_NODE) {
-            const childEl = child as HTMLElement;
-            const childTag = childEl.tagName.toLowerCase();
-            const text = childEl.textContent?.trim();
-            if (!text) return;
-            
-            if (childTag === 'b' || childTag === 'strong') {
-              children.push(new TextRun({ text, bold: true }));
-            } else if (childTag === 'i' || childTag === 'em') {
-              children.push(new TextRun({ text, italics: true }));
-            } else if (childTag === 'u') {
-              children.push(new TextRun({ text, underline: { type: 'single' } }));
-            } else if (childTag === 'br') {
-              // Игнорируем br внутри параграфа
-            } else {
-              children.push(new TextRun({ text }));
-            }
-          }
-        });
-        
-        if (children.length > 0) {
-          elements.push(new Paragraph({ children }));
-        }
-        return;
-      }
-      
-      // Списки
-      if (tagName === 'ul' || tagName === 'ol') {
-        element.querySelectorAll('li').forEach(li => {
-          const text = li.textContent?.trim();
-          if (text) {
-            elements.push(new Paragraph({
-              children: [new TextRun({ text: '• ' + text })],
-              indent: { left: 360 },
-            }));
-          }
-        });
-        return;
-      }
-      
-      // Рекурсивно обрабатываем другие элементы
-      element.childNodes.forEach(processNode);
-    }
-  };
-  
-  tempDiv.childNodes.forEach(processNode);
-  
-  return elements;
-}
 
-// Экспорт в DOCX - используем HTML с Word-специфичными тегами для лучшей совместимости
+// Экспорт в DOCX - используем библиотеку docx для создания настоящего DOCX файла
 export async function exportContractToDOCX(contract: Contract, pdfSettings: PDFSettings, bankAccounts: CompanyBankAccount[] = [], company?: Company | null): Promise<void> {
-  // Генерируем HTML как для DOC (без шапки)
-  const html = generateContractHTML(contract, pdfSettings, bankAccounts, company, false);
-  
-  // Добавляем Word-специфичные метатеги для корректного открытия в Word
-  const docHtml = `
-<!DOCTYPE html>
-<html xmlns:o="urn:schemas-microsoft-com:office:office" 
-      xmlns:w="urn:schemas-microsoft-com:office:word" 
-      xmlns="http://www.w3.org/TR/REC-html40">
-<head>
-  <meta charset="UTF-8">
-  <meta name=ProgId content=Word.Document>
-  <meta name=Generator content="Microsoft Word 15">
-  <meta name=Originator content="Microsoft Word 15">
-  <title>Договор № ${contract.number}</title>
-  <!--[if gte mso 9]>
-  <xml>
-    <w:WordDocument>
-      <w:View>Print</w:View>
-      <w:Zoom>100</w:Zoom>
-      <w:DoNotOptimizeForBrowser/>
-    </w:WordDocument>
-  </xml>
-  <![endif]-->
-  <style>
-    /* Word-специфичные стили */
-    @page {
-      size: 21cm 29.7cm;
-      margin: 2cm 1.5cm 2cm 3cm;
-    }
-    @page Section1 {
-      mso-page-orientation: portrait;
-      mso-page-margin: 2cm 1.5cm 2cm 3cm;
-    }
-    div.Section1 { page: Section1; }
-    
-    /* Основные стили для Word */
-    body {
-      font-family: "Times New Roman", Times, serif;
-      font-size: 12pt;
-      line-height: 1.5;
-      color: #000;
-      background: #fff;
-    }
-    
-    p {
-      margin: 0;
-      padding: 0;
-      text-align: justify;
-      text-indent: 0;
-    }
-    
-    p.MsoNormal {
-      mso-style-name: "Обычный";
-      mso-style-parent: "";
-      margin: 0;
-      margin-bottom: 6pt;
-      text-align: justify;
-      line-height: 150%;
-    }
-    
-    h1 {
-      mso-style-name: "Заголовок 1";
-      mso-style-next: "Обычный";
-      margin-top: 12pt;
-      margin-bottom: 6pt;
-      text-align: center;
-      page-break-after: avoid;
-      font-size: 14pt;
-      font-weight: bold;
-    }
-    
-    h2 {
-      mso-style-name: "Заголовок 2";
-      mso-style-next: "Обычный";
-      margin-top: 12pt;
-      margin-bottom: 6pt;
-      text-align: center;
-      page-break-after: avoid;
-      font-size: 12pt;
-      font-weight: bold;
-    }
-    
-    table {
-      mso-table-layout-alt: auto;
-      border-collapse: collapse;
-      width: 100%;
-    }
-    
-    table td, table th {
-      border: 1pt solid windowtext;
-      padding: 5pt;
-      mso-border-alt: solid windowtext .5pt;
-    }
-    
-    table.spec {
-      mso-table-layout-alt: auto;
-      border-collapse: collapse;
-      width: 100%;
-      font-size: 10pt;
-    }
-    
-    table.spec th {
-      background: #f0f0f0;
-      font-weight: bold;
-      text-align: center;
-      border: 1pt solid windowtext;
-      mso-border-alt: solid windowtext .5pt;
-      padding: 5pt;
-    }
-    
-    table.spec td {
-      border: 1pt solid windowtext;
-      mso-border-alt: solid windowtext .5pt;
-      padding: 5pt;
-    }
-    
-    /* Таблица реквизитов - фиксированная ширина */
-    table.requisites {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 20pt 0;
-    }
-    
-    table.requisites td {
-      width: 50%;
-      vertical-align: top;
-      padding: 15pt;
-      border: 1pt solid windowtext;
-      mso-border-alt: solid windowtext .5pt;
-    }
-    
-    .center { text-align: center; }
-    .bold { font-weight: bold; }
-    .section { margin: 15pt 0; }
-    .section-title { 
-      font-weight: bold; 
-      text-align: center; 
-      margin: 20pt 0 10pt 0;
-    }
-    .page-break { page-break-before: always; }
-  </style>
-</head>
-<body lang=RU>
-  <div class=Section1>
-    ${html.replace(/<body[^>]*>/, '').replace(/<\/body>/, '')}
-  </div>
-  <script>
-    // Автоматически ограничиваем ширину таблицы реквизитов
-    document.querySelectorAll('table').forEach(function(table) {
-      var text = table.textContent || '';
-      if (text.indexOf('Исполнитель') !== -1 && text.indexOf('Заказчик') !== -1) {
-        table.style.maxWidth = '100%';
-        table.style.width = 'auto';
-        table.style.margin = '20pt 0';
-        var cells = table.querySelectorAll('td');
-        cells.forEach(function(cell) {
-          cell.style.width = '50%';
-          cell.style.minWidth = '200pt';
-        });
-      }
-    });
-  </script>
-</body>
-</html>`;
+  const template = contract.template;
+  if (!template) {
+    console.error('Шаблон не найден');
+    return;
+  }
 
-  // Создаем Blob с MIME-типом для Word
-  const blob = new Blob([docHtml], { 
-    type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
+  const data = prepareTemplateData(contract, pdfSettings, bankAccounts, company);
+  const estimates = contract.estimates || [];
+
+  // Заменяем плейсхолдеры в шаблоне
+  let html = template.content;
+  html = html.replace(/{{(\w+)}}/g, (match, key) => {
+    return (data as Record<string, string>)[key] || '';
   });
-  
-  // Скачиваем файл
+
+  // Парсим HTML и создаём элементы DOCX
+  const children = await convertHtmlToDocxElements(html, estimates, data.total_amount);
+
+  // Создаём документ
+  const doc = new Document({
+    sections: [{
+      properties: {
+        page: {
+          margin: {
+            top: 1134,   // 2cm
+            right: 850,  // 1.5cm  
+            bottom: 1134,// 2cm
+            left: 1701,  // 3cm
+          },
+        },
+      },
+      children,
+    }],
+  });
+
+  // Генерируем и скачиваем файл
+  const blob = await Packer.toBlob(doc);
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
@@ -509,6 +270,248 @@ export async function exportContractToDOCX(contract: Contract, pdfSettings: PDFS
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
+}
+
+// Конвертация HTML в элементы DOCX
+async function convertHtmlToDocxElements(html: string, estimates: any[], totalAmount: string): Promise<(Paragraph | Table)[]> {
+  const elements: (Paragraph | Table)[] = [];
+  
+  // Создаём временный div для парсинга
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = html;
+  
+  // Удаляем скрипты и стили
+  const scripts = tempDiv.querySelectorAll('script, style');
+  scripts.forEach(el => el.remove());
+  
+  // Обрабатываем дочерние элементы
+  for (const node of Array.from(tempDiv.childNodes)) {
+    const element = await processNode(node, estimates, totalAmount);
+    if (element) {
+      if (Array.isArray(element)) {
+        elements.push(...element);
+      } else {
+        elements.push(element);
+      }
+    }
+  }
+  
+  return elements;
+}
+
+// Обработка одного узла
+async function processNode(node: Node, estimates: any[], totalAmount: string): Promise<(Paragraph | Table)[] | Paragraph | Table | null> {
+  if (node.nodeType === Node.TEXT_NODE) {
+    const text = node.textContent?.trim();
+    if (text) {
+      return new Paragraph({
+        children: [new TextRun({ text, font: 'Times New Roman', size: 24 })], // 12pt = 24 half-points
+        spacing: { after: 120, line: 360 },
+      });
+    }
+    return null;
+  }
+  
+  if (node.nodeType === Node.ELEMENT_NODE) {
+    const el = node as HTMLElement;
+    const tagName = el.tagName.toLowerCase();
+    
+    // Заголовки
+    if (tagName === 'h1' || tagName === 'h2' || tagName === 'h3') {
+      const text = el.textContent?.trim() || '';
+      return new Paragraph({
+        children: [new TextRun({ text, bold: true, font: 'Times New Roman', size: tagName === 'h1' ? 28 : 24 })],
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 240, after: 120 },
+      });
+    }
+    
+    // Параграфы
+    if (tagName === 'p') {
+      return convertParagraph(el);
+    }
+    
+    // Дивы с текстом
+    if (tagName === 'div') {
+      // Если div содержит только текст
+      if (el.children.length === 0) {
+        const text = el.textContent?.trim();
+        if (text) {
+          return new Paragraph({
+            children: [new TextRun({ text, font: 'Times New Roman', size: 24 })],
+            spacing: { after: 120, line: 360 },
+          });
+        }
+      }
+      // Иначе обрабатываем рекурсивно
+      const results: (Paragraph | Table)[] = [];
+      for (const child of Array.from(el.childNodes)) {
+        const result = await processNode(child, estimates, totalAmount);
+        if (result) {
+          if (Array.isArray(result)) results.push(...result);
+          else results.push(result);
+        }
+      }
+      return results;
+    }
+    
+    // Таблицы
+    if (tagName === 'table') {
+      return convertTable(el, estimates, totalAmount);
+    }
+    
+    // Списки
+    if (tagName === 'ul' || tagName === 'ol') {
+      const items: Paragraph[] = [];
+      el.querySelectorAll('li').forEach(li => {
+        const text = li.textContent?.trim();
+        if (text) {
+          items.push(new Paragraph({
+            children: [new TextRun({ text: '• ' + text, font: 'Times New Roman', size: 24 })],
+            indent: { left: 360 },
+            spacing: { after: 60 },
+          }));
+        }
+      });
+      return items;
+    }
+    
+    // Блочные элементы - обрабатываем рекурсивно
+    if (['section', 'article', 'main', 'header', 'footer'].includes(tagName)) {
+      const results: (Paragraph | Table)[] = [];
+      for (const child of Array.from(el.childNodes)) {
+        const result = await processNode(child, estimates, totalAmount);
+        if (result) {
+          if (Array.isArray(result)) results.push(...result);
+          else results.push(result);
+        }
+      }
+      return results;
+    }
+  }
+  
+  return null;
+}
+
+// Конвертация параграфа с inline-элементами
+function convertParagraph(el: HTMLElement): Paragraph {
+  const children: TextRun[] = [];
+  
+  function processInline(node: Node): void {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const text = node.textContent || '';
+      if (text) {
+        children.push(new TextRun({ 
+          text, 
+          font: 'Times New Roman', 
+          size: 24 
+        }));
+      }
+    } else if (node.nodeType === Node.ELEMENT_NODE) {
+      const childEl = node as HTMLElement;
+      const tag = childEl.tagName.toLowerCase();
+      const text = childEl.textContent || '';
+      
+      if (tag === 'b' || tag === 'strong') {
+        children.push(new TextRun({ text, bold: true, font: 'Times New Roman', size: 24 }));
+      } else if (tag === 'i' || tag === 'em') {
+        children.push(new TextRun({ text, italics: true, font: 'Times New Roman', size: 24 }));
+      } else if (tag === 'u') {
+        children.push(new TextRun({ text, underline: { type: 'single' }, font: 'Times New Roman', size: 24 }));
+      } else if (tag === 'br') {
+        // Перенос строки - добавляем разрыв в последний TextRun или создаём новый
+        if (children.length > 0) {
+          const last = children[children.length - 1];
+          // Word понимает \n как разрыв строки
+          last.properties = { ...last.properties, text: last.properties?.text + '\n' };
+        }
+      } else if (tag === 'span') {
+        // Для span проверяем стили
+        const style = childEl.getAttribute('style') || '';
+        const isBold = style.includes('font-weight: bold') || style.includes('font-weight:bold');
+        children.push(new TextRun({ 
+          text, 
+          bold: isBold, 
+          font: 'Times New Roman', 
+          size: 24 
+        }));
+      } else {
+        // Рекурсивно обрабатываем другие элементы
+        Array.from(childEl.childNodes).forEach(processInline);
+      }
+    }
+  }
+  
+  Array.from(el.childNodes).forEach(processInline);
+  
+  return new Paragraph({
+    children: children.length > 0 ? children : [new TextRun({ text: '', font: 'Times New Roman', size: 24 })],
+    spacing: { after: 120, line: 360 },
+    alignment: getAlignment(el),
+  });
+}
+
+// Получение выравнивания из стилей
+function getAlignment(el: HTMLElement): AlignmentType | undefined {
+  const style = el.getAttribute('style') || '';
+  if (style.includes('text-align: center')) return AlignmentType.CENTER;
+  if (style.includes('text-align: right')) return AlignmentType.RIGHT;
+  if (style.includes('text-align: left')) return AlignmentType.LEFT;
+  if (style.includes('text-align: justify')) return AlignmentType.JUSTIFIED;
+  return undefined;
+}
+
+// Конвертация таблицы
+function convertTable(tableEl: HTMLElement, estimates: any[], totalAmount: string): Table {
+  const rows: TableRow[] = [];
+  const text = tableEl.textContent || '';
+  
+  // Определяем, является ли это таблица спецификации
+  const isSpecTable = text.includes('Наименование') && text.includes('Кол-во');
+  
+  // Обрабатываем существующие строки HTML таблицы
+  tableEl.querySelectorAll('tr').forEach(tr => {
+    const cells: TableCell[] = [];
+    
+    tr.querySelectorAll('td, th').forEach(cell => {
+      const cellText = cell.textContent?.trim() || '';
+      const colspan = parseInt(cell.getAttribute('colspan') || '1');
+      
+      cells.push(new TableCell({
+        children: [new Paragraph({
+          children: [new TextRun({ 
+            text: cellText, 
+            bold: cell.tagName.toLowerCase() === 'th',
+            font: 'Times New Roman', 
+            size: isSpecTable ? 20 : 24 
+          })],
+          alignment: cell.tagName.toLowerCase() === 'th' ? AlignmentType.CENTER : undefined,
+        })],
+        columnSpan: colspan > 1 ? colspan : undefined,
+      }));
+    });
+    
+    if (cells.length > 0) {
+      rows.push(new TableRow({ children: cells }));
+    }
+  });
+  
+  // Если это таблица реквизитов, ограничиваем ширину
+  const isRequisites = text.includes('Исполнитель') && text.includes('Заказчик');
+  
+  return new Table({
+    width: { 
+      size: isRequisites ? 90 : 100, 
+      type: WidthType.PERCENTAGE 
+    },
+    rows,
+    borders: {
+      top: { style: BorderStyle.SINGLE, size: 1 },
+      bottom: { style: BorderStyle.SINGLE, size: 1 },
+      left: { style: BorderStyle.SINGLE, size: 1 },
+      right: { style: BorderStyle.SINGLE, size: 1 },
+    },
+  });
 }
 
 // Экспорт в DOC формат (Word 97-2003)
