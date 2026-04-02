@@ -204,7 +204,7 @@ export function Sidebar(props: SidebarProps) {
                 <DropdownMenuItem 
                   key={company.id}
                   onClick={() => onSwitchCompany(company.id)}
-                  className={company.id === currentCompany?.id ? 'bg-blue-50 text-blue-700' : ''}
+                  className={company.id === currentCompany?.id ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400' : ''}
                 >
                   <Building2 className="w-4 h-4 mr-2" />
                   {company.name}
