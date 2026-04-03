@@ -180,10 +180,8 @@ function prepareTemplateData(contract: Contract, pdfSettings: PDFSettings, bankA
   
   // Получаем название компании БЕЗ типа (тип добавляется отдельно через customer_type/executor_type)
   const getCompanyFullName = (type: string, name: string): string => {
-    const lowerName = name.toLowerCase();
-    
     if (type === 'ip') {
-      // Убираем "ИП " если есть - тип добавляется отдельно
+      // Убираем "ИП " если есть
       if (/^ИП\s/i.test(name)) return name.substring(3);
       if (/индивидуальный предприниматель/i.test(name)) {
         return name.replace(/индивидуальный предприниматель\s*/i, '');
@@ -192,20 +190,23 @@ function prepareTemplateData(contract: Contract, pdfSettings: PDFSettings, bankA
     }
     
     if (type === 'company') {
-      // Убираем "ООО " и другие префиксы если есть
-      if (/^(ООО|ОАО|ЗАО|ПАО|АО)\s+/i.test(name)) {
-        name = name.replace(/^(ООО|ОАО|ЗАО|ПАО|АО)\s+/i, '');
-      }
-      // Убираем полные названия если есть
-      if (lowerName.includes('общество с ограниченной')) {
-        name = name.replace(/общество\s+с\s+ограниченной\s+ответственностью\s*/i, '');
-      }
-      if (lowerName.includes('акционерное общество')) {
-        name = name.replace(/акционерное\s+общество\s*/i, '');
-      }
-      // Убираем кавычки если есть, потом добавляем
-      name = name.replace(/^["']|["']$/g, '');
-      return `"${name}"`;
+      let cleanName = name;
+      const lowerName = cleanName.toLowerCase();
+      
+      // Убираем "ООО " и другие префиксы
+      cleanName = cleanName.replace(/^(ООО|ОАО|ЗАО|ПАО|АО)\s+/i, '');
+      
+      // Убираем полные названия типов компаний
+      cleanName = cleanName.replace(/общество\s+с\s+ограниченной\s+ответственностью\s*/i, '');
+      cleanName = cleanName.replace(/акционерное\s+общество\s*/i, '');
+      cleanName = cleanName.replace(/закрытое\s+акционерное\s+общество\s*/i, '');
+      cleanName = cleanName.replace(/публичное\s+акционерное\s+общество\s*/i, '');
+      
+      // Убираем кавычки по краям
+      cleanName = cleanName.replace(/^["']+|["']+$/g, '');
+      cleanName = cleanName.trim();
+      
+      return `"${cleanName}"`;
     }
     return name;
   };
@@ -232,7 +233,10 @@ function prepareTemplateData(contract: Contract, pdfSettings: PDFSettings, bankA
     
     executor_type: company?.type === 'ip' ? 'Индивидуальный предприниматель' : 'Общество с ограниченной ответственностью',
     executor_type_short: company?.type ? getCompanyTypeShort(company.type, company.name || '') : '',
-    executor_name: contract.executor_name || (company?.name ? getCompanyFullName(company.type, company.name) : pdfSettings.companyName) || '',
+    executor_name: getCompanyFullName(
+      company?.type || (contract.executor_name?.match(/^(ИП|Индивидуальный)/i) ? 'ip' : 'company'),
+      company?.name || contract.executor_name || pdfSettings.companyName || ''
+    ),
     executor_representative: contract.executor_representative || pdfSettings.personName || '',
     executor_representative_short: getShortName(contract.executor_representative || pdfSettings.personName || ''),
     executor_basis: contract.executor_basis || 'Устава',
