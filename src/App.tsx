@@ -176,8 +176,11 @@ function AppContent({ user, profile, permissions, signOut }: any) {
         console.log('[App] Found scanCode, setting state:', scanCode);
         hasProcessedQR.current = true;
         setInitialScanCode(scanCode);
-        // Очищаем URL
-        window.history.replaceState({}, '', window.location.pathname);
+        // Очищаем URL с задержкой чтобы MainApp успел получить код
+        setTimeout(() => {
+          window.history.replaceState({}, '', window.location.pathname);
+          console.log('[App] URL cleaned');
+        }, 2000);
       }
     }
   }, []);
@@ -283,6 +286,14 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
     console.log('[App] Mount check - initialScanCode:', initialScanCode, 'companyId:', companyId);
     if (initialScanCode && companyId) {
       console.log('[App] Mount: Switching to qr-scan tab');
+      setActiveTab('qr-scan');
+      return;
+    }
+    
+    // Резервная проверка URL напрямую
+    const fullUrl = window.location.href;
+    if (fullUrl.toLowerCase().includes('?scan=') || fullUrl.toLowerCase().includes('&scan=')) {
+      console.log('[App] Mount: Found scan in URL, switching to qr-scan');
       setActiveTab('qr-scan');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
