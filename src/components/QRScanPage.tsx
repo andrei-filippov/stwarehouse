@@ -143,27 +143,32 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
     try {
       const url = new URL(input);
       const scanCode = url.searchParams.get('scan');
-      if (scanCode) return scanCode;
+      if (scanCode) return scanCode.toUpperCase();
     } catch {
       // Не URL, используем как есть
     }
-    return input;
+    return input.toUpperCase();
   };
 
   const handleScan = useCallback(async (qrCode: string) => {
+    console.log('[QRScan] Raw input:', qrCode);
+    
     // Извлекаем код из URL если нужно
     const cleanCode = extractQRCode(qrCode);
+    console.log('[QRScan] Clean code:', cleanCode);
     
-    // Ищем комплект
-    const kit = kits.find(k => k.qr_code === cleanCode);
+    // Ищем комплект (case-insensitive)
+    const kit = kits.find(k => k.qr_code?.toUpperCase() === cleanCode);
     if (kit) {
+      console.log('[QRScan] Found kit:', kit.name);
       setScanResult({ type: 'kit', data: kit });
       setIsScanning(false);
       return;
     }
     
-    // Ищем оборудование
-    const item = inventory.find(i => i.qr_code === cleanCode);
+    // Ищем оборудование (case-insensitive)
+    const item = inventory.find(i => i.qr_code?.toUpperCase() === cleanCode);
+    console.log('[QRScan] Inventory search:', { found: !!item, totalItems: inventory.length });
     if (item) {
       const category = categories.find(c => c.id === item.category_id);
       
@@ -200,6 +205,10 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
     }
     
     // Не найдено
+    console.log('[QRScan] Not found. Available codes:', {
+      kits: kits.map(k => k.qr_code),
+      inventory: inventory.map(i => i.qr_code)
+    });
     setScanResult({ type: 'not_found', qrCode: cleanCode });
     setIsScanning(false);
     toast.error('QR-код не найден', { 

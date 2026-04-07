@@ -105,7 +105,10 @@ export function QRScanner({ isOpen, onClose, onScan, title = 'Сканирова
 
   const handleManualSubmit = () => {
     if (manualCode.trim()) {
-      onScan(manualCode.trim().toUpperCase());
+      const code = manualCode.trim();
+      // Если это не URL (не содержит ://), переводим в верхний регистр
+      const isUrl = code.includes('://') || code.startsWith('http');
+      onScan(isUrl ? code : code.toUpperCase());
       setManualCode('');
       onClose();
     }
