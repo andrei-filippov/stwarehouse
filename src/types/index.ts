@@ -281,13 +281,15 @@ export type {
   CompanyContextType,
   CompanyPlan,
   CompanyRole,
-  MemberStatus
+  MemberStatus,
+  CompanyType
 } from './company';
 export { 
   COMPANY_ROLE_LABELS,
   MEMBER_STATUS_LABELS,
   COMPANY_PLAN_LABELS,
   COMPANY_ROLE_COLORS,
+  COMPANY_TYPE_LABELS,
   ROLE_PERMISSIONS,
   hasPermission,
   getCompanyRoleLabel,
