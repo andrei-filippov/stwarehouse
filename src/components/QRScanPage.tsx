@@ -24,6 +24,7 @@ interface QRScanPageProps {
   categories?: CableCategory[];
   checklists?: ChecklistV2[];
   onTabChange?: (tab: string) => void;
+  initialCode?: string | null; // QR-код из URL
 }
 
 type ScanResult = 
@@ -32,8 +33,8 @@ type ScanResult =
   | { type: 'not_found'; qrCode: string }
   | null;
 
-export function QRScanPage({ companyId, categories = [], checklists = [], onTabChange }: QRScanPageProps) {
-  const [isScanning, setIsScanning] = useState(true);
+export function QRScanPage({ companyId, categories = [], checklists = [], onTabChange, initialCode }: QRScanPageProps) {
+  const [isScanning, setIsScanning] = useState(!initialCode); // Если есть initialCode - не сканируем
   const [scanResult, setScanResult] = useState<ScanResult>(null);
   const [inventory, setInventory] = useState<CableInventory[]>([]);
   const [kits, setKits] = useState<EquipmentKit[]>([]);
@@ -57,6 +58,13 @@ export function QRScanPage({ companyId, categories = [], checklists = [], onTabC
     
     fetchData();
   }, [companyId]);
+
+  // Обработка initialCode из URL
+  useEffect(() => {
+    if (initialCode && inventory.length > 0) {
+      handleScan(initialCode);
+    }
+  }, [initialCode, inventory]);
 
   const handleScan = useCallback((qrCode: string) => {
     // Ищем комплект

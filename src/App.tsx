@@ -146,6 +146,19 @@ function AppContent({ user, profile, permissions, signOut }: any) {
     }
   }, []);
 
+  // Обработка QR-сканирования из URL (?scan=EQ-XXX)
+  const [initialScanCode, setInitialScanCode] = useState<string | null>(null);
+  
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const scanCode = params.get('scan');
+    if (scanCode) {
+      setInitialScanCode(scanCode);
+      // Очищаем параметр из URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
   useEffect(() => {
     setHasCompany(!!company);
   }, [company]);
@@ -222,14 +235,23 @@ function AppContent({ user, profile, permissions, signOut }: any) {
       myRole={companyContext.myRole}
       signOut={signOut}
       onSwitchCompany={() => setShowCompanySelector(true)}
+      initialScanCode={initialScanCode}
     />
   );
 }
 
 // Основной компонент с хуками
-function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitchCompany }: any) {
+function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitchCompany, initialScanCode }: any) {
   const companyId = company?.id;
   const userRole = (myRole || profile?.role || 'manager') as UserRole;
+  const [activeTab, setActiveTab] = useState<Tab>('dashboard');
+
+  // Если есть QR-код из URL - сразу открываем сканер
+  useEffect(() => {
+    if (initialScanCode && companyId) {
+      setActiveTab('qr-scan');
+    }
+  }, [initialScanCode, companyId]);
 
   // Хуки с companyId
   const { equipment, categories, loading: equipmentLoading, addEquipment, updateEquipment, deleteEquipment, bulkInsert, addCategory, deleteCategory, refresh: refreshEquipment } = useEquipment(companyId);
@@ -267,7 +289,6 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
   const { contracts, templates: contractTemplates, loading: contractsLoading, createContract, updateContract, deleteContract, getNextContractNumber } = useContracts(companyId);
   const { accounts: bankAccounts } = useCompanyBankAccounts(companyId);
 
-  const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [fabAction, setFabAction] = useState(0);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [pdfSettings, setPdfSettings] = useState<PDFSettingsType>({
@@ -693,6 +714,7 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
                 categories={cableCategories}
                 checklists={checklistsV2}
                 onTabChange={setActiveTab}
+                initialCode={initialScanCode}
               />
             </LazyComponent>
           )}

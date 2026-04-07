@@ -2,24 +2,29 @@ import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
-import { Printer, Download } from 'lucide-react';
+import { Printer, Download, ExternalLink } from 'lucide-react';
+import { generateQRScanUrl } from '../lib/qrUtils';
 
 interface QRCodeDisplayProps {
   value: string;
   title?: string;
   size?: number;
   showText?: boolean;
+  isScanUrl?: boolean; // Если true - QR-код будет содержать URL для сканирования
 }
 
-export function QRCodeDisplay({ value, title, size = 200, showText = true }: QRCodeDisplayProps) {
+export function QRCodeDisplay({ value, title, size = 200, showText = true, isScanUrl = false }: QRCodeDisplayProps) {
   const [dataUrl, setDataUrl] = useState<string>('');
+  
+  // Генерируем URL для сканирования если нужно
+  const qrValue = isScanUrl ? generateQRScanUrl(value) : value;
 
   useEffect(() => {
-    if (!value || value.trim() === '') {
+    if (!qrValue || qrValue.trim() === '') {
       setDataUrl('');
       return;
     }
-    QRCode.toDataURL(value, { 
+    QRCode.toDataURL(qrValue, { 
       width: size,
       margin: 2,
       color: {
@@ -29,7 +34,7 @@ export function QRCodeDisplay({ value, title, size = 200, showText = true }: QRC
     })
       .then(url => setDataUrl(url))
       .catch(err => console.error('QR generation error:', err));
-  }, [value, size]);
+  }, [qrValue, size]);
 
   if (!dataUrl) return null;
 
@@ -57,9 +62,10 @@ interface QRCodeDialogProps {
   value: string;
   title?: string;
   equipmentName?: string;
+  isScanUrl?: boolean; // QR-код как URL для сканирования
 }
 
-export function QRCodeDialog({ isOpen, onClose, value, title, equipmentName }: QRCodeDialogProps) {
+export function QRCodeDialog({ isOpen, onClose, value, title, equipmentName, isScanUrl = false }: QRCodeDialogProps) {
   const handlePrint = () => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
@@ -130,7 +136,21 @@ export function QRCodeDialog({ isOpen, onClose, value, title, equipmentName }: Q
         </DialogHeader>
         
         <div id="qr-print-area" className="flex flex-col items-center gap-4 py-4">
-          <QRCodeDisplay value={value} title={equipmentName} size={200} />
+          <QRCodeDisplay value={value} title={equipmentName} size={200} isScanUrl={isScanUrl} />
+          
+          {isScanUrl && (
+            <div className="text-center space-y-2">
+              <p className="text-sm text-blue-600 font-medium">
+                📱 Сканируйте камерой телефона
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Для быстрого доступа к оборудованию
+              </p>
+              <div className="text-xs text-muted-foreground break-all max-w-[250px]">
+                {generateQRScanUrl(value)}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex gap-2 justify-center">
