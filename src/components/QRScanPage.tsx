@@ -73,6 +73,63 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
     fetchData();
   }, [companyId]);
 
+  // Real-time подписка на изменения инвентаря
+  useEffect(() => {
+    if (!companyId) return;
+    
+    const inventoryChannel = supabase
+      .channel('qr_scan_inventory_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'cable_inventory',
+          filter: `company_id=eq.${companyId}`,
+        },
+        (payload) => {
+          // Обновляем инвентарь
+          setInventory((prev) => {
+            const newInventory = [...prev];
+            const index = newInventory.findIndex((item) => item.id === payload.new.id);
+            
+            if (payload.eventType === 'DELETE') {
+              return newInventory.filter((item) => item.id !== payload.old.id);
+            }
+            
+            if (index >= 0) {
+              newInventory[index] = payload.new as CableInventory;
+            } else {
+              newInventory.push(payload.new as CableInventory);
+            }
+            
+            // Если это отсканированное оборудование — показываем уведомление
+            if (scanResult?.type === 'inventory' && scanResult.data.id === payload.new.id) {
+              const oldQty = scanResult.data.quantity;
+              const newQty = payload.new.quantity;
+              if (oldQty !== newQty) {
+                toast.info(`Количество обновлено: ${newQty} шт`, {
+                  description: 'Другой пользователь изменил остаток',
+                });
+                // Обновляем scanResult
+                setScanResult({
+                  ...scanResult,
+                  data: { ...scanResult.data, quantity: newQty },
+                });
+              }
+            }
+            
+            return newInventory;
+          });
+        }
+      )
+      .subscribe();
+    
+    return () => {
+      inventoryChannel.unsubscribe();
+    };
+  }, [companyId, scanResult]);
+
   // Обработка initialCode из URL
   useEffect(() => {
     if (initialCode && inventory.length > 0) {
