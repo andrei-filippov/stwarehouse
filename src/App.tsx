@@ -141,8 +141,7 @@ function AppContent({ user, profile, permissions, signOut }: any) {
     const params = new URLSearchParams(window.location.search);
     if (params.get('createCompany') === '1') {
       setShowRegister(true);
-      // Очищаем параметр
-      window.history.replaceState({}, '', window.location.pathname);
+      // НЕ очищаем URL - это сломает QR сканирование
     }
   }, []);
 
