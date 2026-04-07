@@ -6,6 +6,8 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { toast } from 'sonner';
 import { useCompanyContext } from '../contexts/CompanyContext';
+import type { CompanyType } from '../types';
+import { COMPANY_TYPE_LABELS } from '../types';
 import { useCompanyBankAccounts } from '../hooks/useCompanyBankAccounts';
 import { Spinner } from './ui/spinner';
 import { Badge } from './ui/badge';
@@ -97,6 +99,7 @@ export function CompanySettings() {
     if (company) {
       setFormData({
         name: company.name || '',
+        type: company.type || 'company',
         inn: company.inn || '',
         kpp: company.kpp || '',
         ogrn: company.ogrn || '',
@@ -281,6 +284,19 @@ export function CompanySettings() {
                     disabled={!canManage}
                     placeholder="ООО Ромашка"
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label>Тип компании</Label>
+                  <select
+                    className="w-full border rounded-md px-3 py-2 bg-card"
+                    value={formData.type || 'company'}
+                    onChange={(e) => handleChange('type', e.target.value)}
+                    disabled={!canManage}
+                  >
+                    {Object.entries(COMPANY_TYPE_LABELS).map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className="space-y-2">
                   <Label>Email</Label>

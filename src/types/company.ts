@@ -5,11 +5,13 @@
 export type CompanyPlan = 'free' | 'basic' | 'pro' | 'enterprise';
 export type CompanyRole = 'owner' | 'admin' | 'manager' | 'accountant' | 'viewer';
 export type MemberStatus = 'pending' | 'active' | 'suspended' | 'removed';
+export type CompanyType = 'company' | 'ip' | 'individual';
 
 // Компания
 export type Company = {
   id: string;
   name: string;
+  type?: CompanyType;
   inn?: string;
   kpp?: string;
   ogrn?: string;
@@ -110,6 +112,13 @@ export const COMPANY_PLAN_LABELS: Record<CompanyPlan, string> = {
   basic: 'Базовый',
   pro: 'Профессиональный',
   enterprise: 'Enterprise',
+};
+
+// Метки для типов компаний
+export const COMPANY_TYPE_LABELS: Record<CompanyType, string> = {
+  company: 'ООО (Общество с ограниченной ответственностью)',
+  ip: 'ИП (Индивидуальный предприниматель)',
+  individual: 'Физическое лицо',
 };
 
 // Цвета для ролей
