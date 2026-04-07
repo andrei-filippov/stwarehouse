@@ -179,39 +179,63 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
     
     // Ищем оборудование (case-insensitive)
     const item = inventory.find(i => i.qr_code?.toUpperCase() === cleanCode);
-    console.log('[QRScan] Inventory search:', { found: !!item, totalItems: inventory.length });
+    console.log('[QRScan] Inventory search:', { found: !!item, totalItems: inventory.length, itemId: item?.id });
     if (item) {
+      console.log('[QRScan] Found item:', item.name, 'category_id:', item.category_id);
       const category = categories.find(c => c.id === item.category_id);
+      console.log('[QRScan] Category:', category?.name || 'not found');
       
       // Получаем статистику по оборудованию
-      const [{ data: movements }, { data: repairs }] = await Promise.all([
-        supabase
-          .from('cable_movements')
-          .select('quantity')
-          .eq('inventory_id', item.id)
-          .eq('type', 'issue'),
-        supabase
-          .from('equipment_repairs')
-          .select('quantity')
-          .eq('inventory_id', item.id)
-          .not('status', 'eq', 'returned')
-      ]);
-      
-      const issuedQty = movements?.reduce((sum, m) => sum + (m.quantity || 0), 0) || 0;
-      const repairQty = repairs?.reduce((sum, r) => sum + (r.quantity || 0), 0) || 0;
-      
-      setScanResult({ 
-        type: 'inventory', 
-        data: item, 
-        category,
-        stats: {
-          total: item.quantity + issuedQty + repairQty,
-          inStock: item.quantity,
-          issued: issuedQty,
-          inRepair: repairQty
-        }
-      });
-      setIsScanning(false);
+      console.log('[QRScan] Fetching stats from supabase...');
+      try {
+        const [{ data: movements }, { data: repairs }] = await Promise.all([
+          supabase
+            .from('cable_movements')
+            .select('quantity')
+            .eq('inventory_id', item.id)
+            .eq('type', 'issue'),
+          supabase
+            .from('equipment_repairs')
+            .select('quantity')
+            .eq('inventory_id', item.id)
+            .not('status', 'eq', 'returned')
+        ]);
+        
+        console.log('[QRScan] Stats received:', { movements: movements?.length || 0, repairs: repairs?.length || 0 });
+        
+        const issuedQty = movements?.reduce((sum, m) => sum + (m.quantity || 0), 0) || 0;
+        const repairQty = repairs?.reduce((sum, r) => sum + (r.quantity || 0), 0) || 0;
+        
+        console.log('[QRScan] Setting scan result...');
+        setScanResult({ 
+          type: 'inventory', 
+          data: item, 
+          category,
+          stats: {
+            total: item.quantity + issuedQty + repairQty,
+            inStock: item.quantity,
+            issued: issuedQty,
+            inRepair: repairQty
+          }
+        });
+        console.log('[QRScan] Setting isScanning to false');
+        setIsScanning(false);
+      } catch (err) {
+        console.error('[QRScan] Error fetching stats:', err);
+        // Показываем без статистики
+        setScanResult({ 
+          type: 'inventory', 
+          data: item, 
+          category,
+          stats: {
+            total: item.quantity,
+            inStock: item.quantity,
+            issued: 0,
+            inRepair: 0
+          }
+        });
+        setIsScanning(false);
+      }
       return;
     }
     
@@ -225,7 +249,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
     toast.error('QR-код не найден', { 
       description: `${cleanCode} не найден в базе` 
     });
-  }, [inventory, kits, categories]);
+  }, [inventory, kits, categories, companyId]);
 
   const handleScanAgain = () => {
     setScanResult(null);
