@@ -139,13 +139,24 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
 
   // Извлекаем QR-код из URL или возвращаем как есть
   const extractQRCode = (input: string): string => {
-    // Если это URL с параметром scan
+    // Приводим к нижнему регистру для case-insensitive поиска
+    const lowerInput = input.toLowerCase();
+    
+    // Если это URL с параметром scan (поддержка ?scan= и ?SCAN=)
     try {
       const url = new URL(input);
-      const scanCode = url.searchParams.get('scan');
-      if (scanCode) return scanCode.toUpperCase();
+      // Ищем параметр scan без учета регистра
+      for (const [key, value] of url.searchParams) {
+        if (key.toLowerCase() === 'scan') {
+          return value.toUpperCase();
+        }
+      }
     } catch {
-      // Не URL, используем как есть
+      // Не URL, пробуем найти ?scan= вручную
+      const scanMatch = lowerInput.match(/[?&]scan=([^&]+)/);
+      if (scanMatch) {
+        return scanMatch[1].toUpperCase();
+      }
     }
     return input.toUpperCase();
   };
