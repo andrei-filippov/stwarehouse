@@ -137,48 +137,33 @@ function AppContent({ user, profile, permissions, signOut }: any) {
     if (slugFromPath) {
       saveSelectedCompany(slugFromPath);
     }
-    // Проверяем query параметр createCompany
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('createCompany') === '1') {
-      setShowRegister(true);
-      // НЕ очищаем URL - это сломает QR сканирование
-    }
-  }, []);
-
-  // Обработка QR-сканирования из URL (?scan=EQ-XXX)
-  const [initialScanCode, setInitialScanCode] = useState<string | null>(null);
-  const hasProcessedQR = useRef(false);
-  
-  useEffect(() => {
-    if (hasProcessedQR.current) return;
     
-    // Читаем URL напрямую из window.location
+    // Читаем ВСЕ query параметры ОДНОВРЕМЕННО
     const fullUrl = window.location.href;
     const searchIndex = fullUrl.indexOf('?');
-    
-    console.log('[App] Current URL:', fullUrl);
     
     if (searchIndex !== -1) {
       const searchString = fullUrl.substring(searchIndex + 1);
       const params = new URLSearchParams(searchString);
       
-      let scanCode: string | null = null;
+      // Проверяем createCompany
+      if (params.get('createCompany') === '1') {
+        setShowRegister(true);
+      }
+      
+      // Проверяем scan (case-insensitive)
       for (const [key, value] of params) {
-        console.log('[App] Param:', key, '=', value);
         if (key.toLowerCase() === 'scan') {
-          scanCode = value;
+          console.log('[App] Found scanCode:', value);
+          setInitialScanCode(value);
           break;
         }
       }
-      
-      if (scanCode) {
-        console.log('[App] Found scanCode, setting state:', scanCode);
-        hasProcessedQR.current = true;
-        setInitialScanCode(scanCode);
-        // НЕ очищаем URL - QRScanPage сам обработает параметр
-      }
     }
   }, []);
+
+  // Обработка QR-сканирования из URL (?scan=EQ-XXX)
+  const [initialScanCode, setInitialScanCode] = useState<string | null>(null);
 
   useEffect(() => {
     setHasCompany(!!company);
