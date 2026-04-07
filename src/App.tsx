@@ -176,11 +176,7 @@ function AppContent({ user, profile, permissions, signOut }: any) {
         console.log('[App] Found scanCode, setting state:', scanCode);
         hasProcessedQR.current = true;
         setInitialScanCode(scanCode);
-        // Очищаем URL с задержкой чтобы MainApp успел получить код
-        setTimeout(() => {
-          window.history.replaceState({}, '', window.location.pathname);
-          console.log('[App] URL cleaned');
-        }, 2000);
+        // НЕ очищаем URL - QRScanPage сам обработает параметр
       }
     }
   }, []);
