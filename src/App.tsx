@@ -152,19 +152,27 @@ function AppContent({ user, profile, permissions, signOut }: any) {
   useEffect(() => {
     // Case-insensitive поиск параметра scan
     const params = new URLSearchParams(window.location.search);
+    const fullUrl = window.location.href;
+    console.log('[App] Reading URL:', fullUrl);
+    
     let scanCode: string | null = null;
     
     for (const [key, value] of params) {
+      console.log('[App] URL param:', key, '=', value);
       if (key.toLowerCase() === 'scan') {
         scanCode = value;
         break;
       }
     }
     
+    console.log('[App] Found scanCode:', scanCode);
+    
     if (scanCode) {
       setInitialScanCode(scanCode);
-      // Очищаем параметр из URL
-      window.history.replaceState({}, '', window.location.pathname);
+      // Не очищаем URL сразу - дадим MainApp время получить initialScanCode
+      setTimeout(() => {
+        window.history.replaceState({}, '', window.location.pathname);
+      }, 500);
     }
   }, []);
 
