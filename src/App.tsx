@@ -136,6 +136,7 @@ function AppContent({ user, profile, permissions, signOut }: any) {
 
   // Обработка пути /c/company-slug и query параметров
   useEffect(() => {
+    console.log('[App] useEffect started, reading URL...');
     const slugFromPath = getSlugFromPath();
     if (slugFromPath) {
       saveSelectedCompany(slugFromPath);
@@ -143,11 +144,18 @@ function AppContent({ user, profile, permissions, signOut }: any) {
     
     // Читаем ВСЕ query параметры ОДНОВРЕМЕННО
     const fullUrl = window.location.href;
+    console.log('[App] Full URL:', fullUrl);
     const searchIndex = fullUrl.indexOf('?');
     
     if (searchIndex !== -1) {
       const searchString = fullUrl.substring(searchIndex + 1);
+      console.log('[App] Search string:', searchString);
       const params = new URLSearchParams(searchString);
+      
+      // Логируем все параметры
+      for (const [key, value] of params) {
+        console.log('[App] Param found:', key, '=', value);
+      }
       
       // Проверяем createCompany
       if (params.get('createCompany') === '1') {
@@ -162,6 +170,8 @@ function AppContent({ user, profile, permissions, signOut }: any) {
           break;
         }
       }
+    } else {
+      console.log('[App] No query params found');
     }
   }, []);
 
