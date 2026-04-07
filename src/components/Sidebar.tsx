@@ -20,7 +20,8 @@ import {
   UserPlus,
   Sun,
   Moon,
-  Cloud
+  Cloud,
+  Scan
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -81,7 +82,7 @@ export function Sidebar(props: SidebarProps) {
   }, [ctx.company?.id]);
 
   const mainTabs = availableTabs.filter(tab => 
-    ['equipment', 'estimates', 'calendar', 'customers', 'contracts'].includes(tab.id)
+    ['qr-scan', 'equipment', 'estimates', 'calendar', 'customers', 'contracts'].includes(tab.id)
   );
   
   const financeTabs = availableTabs.filter(tab => 

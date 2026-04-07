@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Package, FileText, Calendar, Users, Menu, Plus, Wifi, WifiOff, Sun, Moon } from 'lucide-react';
+import { Package, FileText, Calendar, Users, Menu, Plus, Wifi, WifiOff, Sun, Moon, Scan } from 'lucide-react';
 import { Button } from './ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './ui/sheet';
 import { SyncDialog } from './SyncDialog';
@@ -53,6 +53,7 @@ export function BottomNav({
 
   // Основные вкладки для Bottom Nav (максимум 4 + меню)
   const mainTabs = [
+    { id: 'qr-scan' as TabId, label: 'QR', icon: Scan },
     { id: 'equipment' as TabId, label: 'Склад', icon: Package },
     { id: 'estimates' as TabId, label: 'Сметы', icon: FileText },
     { id: 'calendar' as TabId, label: 'Календарь', icon: Calendar },
