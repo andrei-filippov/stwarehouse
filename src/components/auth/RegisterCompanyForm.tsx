@@ -8,6 +8,7 @@ import { supabase } from '../../lib/supabase';
 import { generateSlug } from '../../lib/subdomain';
 import { getCompanyPath, saveSelectedCompany } from '../../lib/companyUrl';
 import { toast } from 'sonner';
+import { COMPANY_TYPE_LABELS } from '../../types';
 
 interface RegisterCompanyFormProps {
   onSuccess: () => void;
@@ -20,6 +21,7 @@ export function RegisterCompanyForm({ onSuccess, onLogin }: RegisterCompanyFormP
 
   const [formData, setFormData] = useState({
     companyName: '',
+    companyType: 'company' as const,
     email: '',
     password: '',
     confirmPassword: '',
@@ -94,6 +96,7 @@ export function RegisterCompanyForm({ onSuccess, onLogin }: RegisterCompanyFormP
         p_slug: slug,
         p_email: formData.email,
         p_plan: 'free',
+        p_type: formData.companyType,
       });
 
       if (rpcError) {
@@ -146,6 +149,21 @@ export function RegisterCompanyForm({ onSuccess, onLogin }: RegisterCompanyFormP
               placeholder="ООО Ромашка"
               required
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="companyType">Тип компании *</Label>
+            <select
+              id="companyType"
+              className="w-full border rounded-md px-3 py-2 bg-background"
+              value={formData.companyType}
+              onChange={(e) => setFormData({ ...formData, companyType: e.target.value as 'company' | 'ip' | 'individual' })}
+              required
+            >
+              {Object.entries(COMPANY_TYPE_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
           </div>
 
           <div className="space-y-2">
