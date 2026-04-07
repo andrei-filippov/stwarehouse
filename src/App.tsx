@@ -25,6 +25,7 @@ const ContractManager = lazy(() => import('./components/ContractManager'));
 const AdminPanel = lazy(() => import('./components/AdminPanel'));
 const EquipmentKits = lazy(() => import('./components/EquipmentKits').then(m => ({ default: m.EquipmentKits })));
 const YandexDiskFileManager = lazy(() => import('./components/YandexDiskFileManager').then(m => ({ default: m.YandexDiskFileManager })));
+const QRScanPage = lazy(() => import('./components/QRScanPage'));
 
 import { AccessDenied } from './components/AccessDenied';
 import { BottomNav } from './components/BottomNav';
@@ -74,7 +75,8 @@ import {
   Shield,
   Cable,
   FileSignature,
-  DollarSign
+  DollarSign,
+  Scan
 } from 'lucide-react';
 import type { PDFSettings as PDFSettingsType } from './types';
 import { hasAccess, getRoleLabel, type UserRole, type TabId } from './lib/permissions';
@@ -344,6 +346,7 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
   // Список вкладок
   const allNavItems = useMemo(() => [
     { id: 'dashboard' as Tab, label: 'Дашборд', icon: BarChart3 },
+    { id: 'qr-scan' as Tab, label: 'QR Сканер', icon: Scan },
     { id: 'equipment' as Tab, label: 'Оборудование', icon: Package },
     { id: 'estimates' as Tab, label: 'Сметы', icon: FileText },
     { id: 'templates' as Tab, label: 'Шаблоны', icon: Layout },
@@ -682,6 +685,16 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
             ) : (
               <AccessDenied role={userRole} requiredRole="Администратор" />
             )
+          )}
+          {activeTab === 'qr-scan' && (
+            <LazyComponent>
+              <QRScanPage
+                companyId={companyId}
+                categories={cableCategories}
+                checklists={checklistsV2}
+                onTabChange={setActiveTab}
+              />
+            </LazyComponent>
           )}
         </div>
       </main>
