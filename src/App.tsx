@@ -130,6 +130,9 @@ function AppContent({ user, profile, permissions, signOut }: any) {
 
   const [hasCompany, setHasCompany] = useState(false);
   const companyLoadAttempted = useRef(false);
+  
+  // Обработка QR-сканирования из URL (?scan=EQ-XXX) - объявляем ДО useEffect
+  const [initialScanCode, setInitialScanCode] = useState<string | null>(null);
 
   // Обработка пути /c/company-slug и query параметров
   useEffect(() => {
@@ -161,9 +164,6 @@ function AppContent({ user, profile, permissions, signOut }: any) {
       }
     }
   }, []);
-
-  // Обработка QR-сканирования из URL (?scan=EQ-XXX)
-  const [initialScanCode, setInitialScanCode] = useState<string | null>(null);
 
   useEffect(() => {
     setHasCompany(!!company);
