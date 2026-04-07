@@ -130,13 +130,18 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
     };
   }, [companyId, scanResult]);
 
-  // Обработка initialCode из URL
+  // Обработка initialCode из URL - вызываем только один раз при загрузке данных
   useEffect(() => {
     if (initialCode && inventory.length > 0 && !scanResult) {
       console.log('[QRScan] Processing initialCode:', initialCode);
-      handleScan(initialCode);
+      // Небольшая задержка чтобы убедиться что handleScan инициализирован
+      const timer = setTimeout(() => {
+        handleScan(initialCode);
+      }, 100);
+      return () => clearTimeout(timer);
     }
-  }, [initialCode, inventory, kits, categories, handleScan, scanResult]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialCode, inventory]);
 
   // Извлекаем QR-код из URL или возвращаем как есть
   const extractQRCode = (input: string): string => {
