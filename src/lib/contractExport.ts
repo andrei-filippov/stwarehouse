@@ -231,10 +231,17 @@ function prepareTemplateData(contract: Contract, pdfSettings: PDFSettings, bankA
     customer_bank_account: customer?.bank_account || '',
     customer_bank_corr_account: customer?.bank_corr_account || '',
     
-    executor_type: company?.type === 'ip' ? 'Индивидуальный предприниматель' : 'Общество с ограниченной ответственностью',
-    executor_type_short: company?.type ? getCompanyTypeShort(company.type, company.name || '') : '',
+    // Определяем тип компании: сначала из company.type, затем по названию
+    executor_type: (company?.type === 'ip' || 
+      (!company?.type && /^(ИП|Индивидуальный)/i.test(company?.name || contract.executor_name || pdfSettings.companyName || '')))
+      ? 'Индивидуальный предприниматель' 
+      : 'Общество с ограниченной ответственностью',
+    executor_type_short: getCompanyTypeShort(
+      company?.type || (/^(ИП|Индивидуальный)/i.test(company?.name || contract.executor_name || pdfSettings.companyName || '') ? 'ip' : 'company'),
+      company?.name || contract.executor_name || pdfSettings.companyName || ''
+    ),
     executor_name: getCompanyFullName(
-      company?.type || (contract.executor_name?.match(/^(ИП|Индивидуальный)/i) ? 'ip' : 'company'),
+      company?.type || (/^(ИП|Индивидуальный)/i.test(company?.name || contract.executor_name || pdfSettings.companyName || '') ? 'ip' : 'company'),
       company?.name || contract.executor_name || pdfSettings.companyName || ''
     ),
     executor_representative: contract.executor_representative || pdfSettings.personName || '',
