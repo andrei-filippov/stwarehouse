@@ -34,7 +34,7 @@ interface QRScanPageProps {
 }
 
 type ScanResult = 
-  | { type: 'inventory'; data: CableInventory; category?: CableCategory }
+  | { type: 'inventory'; data: CableInventory; category?: CableCategory; stats?: { total: number; inStock: number; issued: number; inRepair: number } }
   | { type: 'kit'; data: EquipmentKit }
   | { type: 'not_found'; qrCode: string }
   | null;
@@ -137,9 +137,25 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
     }
   }, [initialCode, inventory]);
 
-  const handleScan = useCallback((qrCode: string) => {
+  // Извлекаем QR-код из URL или возвращаем как есть
+  const extractQRCode = (input: string): string => {
+    // Если это URL с параметром scan
+    try {
+      const url = new URL(input);
+      const scanCode = url.searchParams.get('scan');
+      if (scanCode) return scanCode;
+    } catch {
+      // Не URL, используем как есть
+    }
+    return input;
+  };
+
+  const handleScan = useCallback(async (qrCode: string) => {
+    // Извлекаем код из URL если нужно
+    const cleanCode = extractQRCode(qrCode);
+    
     // Ищем комплект
-    const kit = kits.find(k => k.qr_code === qrCode);
+    const kit = kits.find(k => k.qr_code === cleanCode);
     if (kit) {
       setScanResult({ type: 'kit', data: kit });
       setIsScanning(false);
@@ -147,19 +163,47 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
     }
     
     // Ищем оборудование
-    const item = inventory.find(i => i.qr_code === qrCode);
+    const item = inventory.find(i => i.qr_code === cleanCode);
     if (item) {
       const category = categories.find(c => c.id === item.category_id);
-      setScanResult({ type: 'inventory', data: item, category });
+      
+      // Получаем статистику по оборудованию
+      const [{ data: movements }, { data: repairs }] = await Promise.all([
+        supabase
+          .from('cable_movements')
+          .select('quantity')
+          .eq('inventory_id', item.id)
+          .eq('type', 'issue'),
+        supabase
+          .from('equipment_repairs')
+          .select('quantity')
+          .eq('inventory_id', item.id)
+          .not('status', 'eq', 'returned')
+      ]);
+      
+      const issuedQty = movements?.reduce((sum, m) => sum + (m.quantity || 0), 0) || 0;
+      const repairQty = repairs?.reduce((sum, r) => sum + (r.quantity || 0), 0) || 0;
+      
+      setScanResult({ 
+        type: 'inventory', 
+        data: item, 
+        category,
+        stats: {
+          total: item.quantity + issuedQty + repairQty,
+          inStock: item.quantity,
+          issued: issuedQty,
+          inRepair: repairQty
+        }
+      });
       setIsScanning(false);
       return;
     }
     
     // Не найдено
-    setScanResult({ type: 'not_found', qrCode });
+    setScanResult({ type: 'not_found', qrCode: cleanCode });
     setIsScanning(false);
     toast.error('QR-код не найден', { 
-      description: `${qrCode} не найден в базе` 
+      description: `${cleanCode} не найден в базе` 
     });
   }, [inventory, kits, categories]);
 
@@ -415,23 +459,39 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-3 bg-muted rounded-lg text-center">
-                <p className="text-sm text-muted-foreground">На складе</p>
-                <p className="text-2xl font-bold">{item.quantity}</p>
-                <p className="text-xs text-muted-foreground">шт</p>
+            {/* Статистика по оборудованию */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-3 bg-blue-50 dark:bg-blue-950 rounded-lg text-center">
+                <p className="text-xs text-blue-600 dark:text-blue-400">Всего</p>
+                <p className="text-xl font-bold text-blue-700 dark:text-blue-300">{scanResult.stats?.total || item.quantity}</p>
+                <p className="text-xs text-blue-500">шт</p>
               </div>
-              {item.length && (
-                <div className="p-3 bg-muted rounded-lg text-center">
-                  <p className="text-sm text-muted-foreground">Длина</p>
-                  <p className="text-2xl font-bold">{item.length}</p>
-                  <p className="text-xs text-muted-foreground">м</p>
-                </div>
-              )}
+              <div className="p-3 bg-green-50 dark:bg-green-950 rounded-lg text-center">
+                <p className="text-xs text-green-600 dark:text-green-400">На складе</p>
+                <p className="text-xl font-bold text-green-700 dark:text-green-300">{scanResult.stats?.inStock || item.quantity}</p>
+                <p className="text-xs text-green-500">шт</p>
+              </div>
+              <div className="p-3 bg-amber-50 dark:bg-amber-950 rounded-lg text-center">
+                <p className="text-xs text-amber-600 dark:text-amber-400">Выдано</p>
+                <p className="text-xl font-bold text-amber-700 dark:text-amber-300">{scanResult.stats?.issued || 0}</p>
+                <p className="text-xs text-amber-500">шт</p>
+              </div>
+              <div className="p-3 bg-red-50 dark:bg-red-950 rounded-lg text-center">
+                <p className="text-xs text-red-600 dark:text-red-400">В ремонте</p>
+                <p className="text-xl font-bold text-red-700 dark:text-red-300">{scanResult.stats?.inRepair || 0}</p>
+                <p className="text-xs text-red-500">шт</p>
+              </div>
             </div>
             
+            {item.length && (
+              <div className="p-3 bg-muted rounded-lg text-center">
+                <p className="text-sm text-muted-foreground">Длина</p>
+                <p className="text-xl font-bold">{item.length} м</p>
+              </div>
+            )}
+            
             {item.qr_code && (
-              <div className="text-sm text-muted-foreground">
+              <div className="text-sm text-muted-foreground text-center">
                 QR: <code className="bg-muted px-2 py-1 rounded">{item.qr_code}</code>
               </div>
             )}
