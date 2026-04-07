@@ -148,31 +148,37 @@ function AppContent({ user, profile, permissions, signOut }: any) {
 
   // Обработка QR-сканирования из URL (?scan=EQ-XXX)
   const [initialScanCode, setInitialScanCode] = useState<string | null>(null);
+  const hasProcessedQR = useRef(false);
   
   useEffect(() => {
-    // Case-insensitive поиск параметра scan
-    const params = new URLSearchParams(window.location.search);
+    if (hasProcessedQR.current) return;
+    
+    // Читаем URL напрямую из window.location
     const fullUrl = window.location.href;
-    console.log('[App] Reading URL:', fullUrl);
+    const searchIndex = fullUrl.indexOf('?');
     
-    let scanCode: string | null = null;
+    console.log('[App] Current URL:', fullUrl);
     
-    for (const [key, value] of params) {
-      console.log('[App] URL param:', key, '=', value);
-      if (key.toLowerCase() === 'scan') {
-        scanCode = value;
-        break;
+    if (searchIndex !== -1) {
+      const searchString = fullUrl.substring(searchIndex + 1);
+      const params = new URLSearchParams(searchString);
+      
+      let scanCode: string | null = null;
+      for (const [key, value] of params) {
+        console.log('[App] Param:', key, '=', value);
+        if (key.toLowerCase() === 'scan') {
+          scanCode = value;
+          break;
+        }
       }
-    }
-    
-    console.log('[App] Found scanCode:', scanCode);
-    
-    if (scanCode) {
-      setInitialScanCode(scanCode);
-      // Не очищаем URL сразу - дадим MainApp время получить initialScanCode
-      setTimeout(() => {
+      
+      if (scanCode) {
+        console.log('[App] Found scanCode, setting state:', scanCode);
+        hasProcessedQR.current = true;
+        setInitialScanCode(scanCode);
+        // Очищаем URL
         window.history.replaceState({}, '', window.location.pathname);
-      }, 500);
+      }
     }
   }, []);
 
