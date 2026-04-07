@@ -150,8 +150,17 @@ function AppContent({ user, profile, permissions, signOut }: any) {
   const [initialScanCode, setInitialScanCode] = useState<string | null>(null);
   
   useEffect(() => {
+    // Case-insensitive поиск параметра scan
     const params = new URLSearchParams(window.location.search);
-    const scanCode = params.get('scan');
+    let scanCode: string | null = null;
+    
+    for (const [key, value] of params) {
+      if (key.toLowerCase() === 'scan') {
+        scanCode = value;
+        break;
+      }
+    }
+    
     if (scanCode) {
       setInitialScanCode(scanCode);
       // Очищаем параметр из URL
