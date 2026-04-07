@@ -132,10 +132,11 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
 
   // Обработка initialCode из URL
   useEffect(() => {
-    if (initialCode && inventory.length > 0) {
+    if (initialCode && inventory.length > 0 && !scanResult) {
+      console.log('[QRScan] Processing initialCode:', initialCode);
       handleScan(initialCode);
     }
-  }, [initialCode, inventory]);
+  }, [initialCode, inventory, kits, categories, handleScan, scanResult]);
 
   // Извлекаем QR-код из URL или возвращаем как есть
   const extractQRCode = (input: string): string => {
@@ -742,5 +743,19 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
     );
   }
 
-  return null;
+  // Fallback - показываем кнопку для начала сканирования
+  return (
+    <div className="space-y-4 max-w-md mx-auto text-center">
+      <h2 className="text-2xl font-bold">QR Сканер</h2>
+      <p className="text-muted-foreground">
+        {initialCode 
+          ? `Загрузка данных для кода: ${initialCode}...` 
+          : 'Нажмите кнопку ниже чтобы отсканировать QR-код'}
+      </p>
+      <Button onClick={handleScanAgain} className="w-full">
+        <Scan className="w-4 h-4 mr-2" />
+        {initialCode ? 'Сканировать снова' : 'Начать сканирование'}
+      </Button>
+    </div>
+  );
 }
