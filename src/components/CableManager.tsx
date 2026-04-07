@@ -1880,6 +1880,7 @@ export const CableManager = memo(function CableManager({
         }}
         value={selectedQRItem?.qr_code ?? ''}
         equipmentName={selectedQRItem?.name ?? ''}
+        isScanUrl={true}
       />
 
       {/* Диалог действий после сканирования QR */}

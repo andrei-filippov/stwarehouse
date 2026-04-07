@@ -3,6 +3,9 @@ import { QRScanner } from './QRScanner';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './ui/dialog';
 import { 
   Scan, 
   Package, 
@@ -12,7 +15,10 @@ import {
   Plus,
   Minus,
   CheckCircle2,
-  X
+  X,
+  User,
+  Wrench,
+  ArrowUpRight
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
@@ -33,12 +39,20 @@ type ScanResult =
   | { type: 'not_found'; qrCode: string }
   | null;
 
+type QuickAction = 'info' | 'checklist' | 'issue' | 'repair' | null;
+
 export function QRScanPage({ companyId, categories = [], checklists = [], onTabChange, initialCode }: QRScanPageProps) {
   const [isScanning, setIsScanning] = useState(!initialCode); // Если есть initialCode - не сканируем
   const [scanResult, setScanResult] = useState<ScanResult>(null);
   const [inventory, setInventory] = useState<CableInventory[]>([]);
   const [kits, setKits] = useState<EquipmentKit[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Диалоги быстрых действий
+  const [activeAction, setActiveAction] = useState<QuickAction>(null);
+  const [issueForm, setIssueForm] = useState({ issued_to: '', contact: '', quantity: 1 });
+  const [repairForm, setRepairForm] = useState({ reason: '', quantity: 1 });
+  const [submitting, setSubmitting] = useState(false);
 
   // Загружаем инвентарь и комплекты
   useEffect(() => {
@@ -103,6 +117,89 @@ export function QRScanPage({ companyId, categories = [], checklists = [], onTabC
 
   const goToChecklists = () => {
     onTabChange?.('checklists');
+  };
+  
+  // Быстрая выдача оборудования
+  const handleQuickIssue = async () => {
+    if (!scanResult || scanResult.type !== 'inventory') return;
+    if (!issueForm.issued_to.trim()) {
+      toast.error('Укажите, кому выдаётся оборудование');
+      return;
+    }
+    
+    const item = scanResult.data;
+    if (issueForm.quantity > item.quantity) {
+      toast.error('Нельзя выдать больше, чем есть на складе');
+      return;
+    }
+    
+    setSubmitting(true);
+    const { error } = await supabase.from('cable_movements').insert({
+      company_id: companyId,
+      category_id: item.category_id,
+      inventory_id: item.id,
+      equipment_name: item.name || 'Оборудование',
+      length: item.length || 0,
+      quantity: issueForm.quantity,
+      issued_to: issueForm.issued_to,
+      contact: issueForm.contact || undefined,
+      type: 'issue'
+    });
+    
+    if (error) {
+      toast.error('Ошибка при выдаче', { description: error.message });
+    } else {
+      toast.success('Оборудование выдано', { 
+        description: `${item.name || 'Оборудование'} — ${issueForm.quantity} шт` 
+      });
+      setActiveAction(null);
+      setIssueForm({ issued_to: '', contact: '', quantity: 1 });
+      // Обновляем данные
+      const { data } = await supabase.from('cable_inventory').select('*').eq('company_id', companyId);
+      if (data) setInventory(data);
+    }
+    setSubmitting(false);
+  };
+  
+  // Быстрая отправка в ремонт
+  const handleQuickRepair = async () => {
+    if (!scanResult || scanResult.type !== 'inventory') return;
+    if (!repairForm.reason.trim()) {
+      toast.error('Укажите причину ремонта');
+      return;
+    }
+    
+    const item = scanResult.data;
+    if (repairForm.quantity > item.quantity) {
+      toast.error('Нельзя отправить в ремонт больше, чем есть на складе');
+      return;
+    }
+    
+    setSubmitting(true);
+    const { error } = await supabase.from('equipment_repairs').insert({
+      company_id: companyId,
+      category_id: item.category_id,
+      inventory_id: item.id,
+      equipment_name: item.name || 'Оборудование',
+      length: item.length || 0,
+      quantity: repairForm.quantity,
+      reason: repairForm.reason,
+      status: 'in_repair'
+    });
+    
+    if (error) {
+      toast.error('Ошибка при отправке в ремонт', { description: error.message });
+    } else {
+      toast.success('Отправлено в ремонт', { 
+        description: `${item.name || 'Оборудование'} — ${repairForm.quantity} шт` 
+      });
+      setActiveAction(null);
+      setRepairForm({ reason: '', quantity: 1 });
+      // Обновляем данные
+      const { data } = await supabase.from('cable_inventory').select('*').eq('company_id', companyId);
+      if (data) setInventory(data);
+    }
+    setSubmitting(false);
   };
 
   if (loading) {
@@ -285,18 +382,201 @@ export function QRScanPage({ companyId, categories = [], checklists = [], onTabC
             <div className="pt-4 border-t space-y-2">
               <h4 className="font-medium text-sm">Быстрые действия:</h4>
               <div className="grid grid-cols-2 gap-2">
-                <Button variant="outline" onClick={goToChecklists}>
+                <Button variant="outline" onClick={() => setActiveAction('info')}>
+                  <Info className="w-4 h-4 mr-2" />
+                  Информация
+                </Button>
+                <Button variant="outline" onClick={() => setActiveAction('checklist')}>
                   <ClipboardCheck className="w-4 h-4 mr-2" />
                   В чеклист
                 </Button>
-                <Button variant="outline" onClick={goToInventory}>
-                  <Package className="w-4 h-4 mr-2" />
-                  На склад
+                <Button variant="outline" onClick={() => setActiveAction('issue')}>
+                  <ArrowUpRight className="w-4 h-4 mr-2" />
+                  Выдать
+                </Button>
+                <Button variant="outline" onClick={() => setActiveAction('repair')}>
+                  <Wrench className="w-4 h-4 mr-2" />
+                  В ремонт
                 </Button>
               </div>
             </div>
           </CardContent>
         </Card>
+        
+        {/* Диалог выдачи */}
+        <Dialog open={activeAction === 'issue'} onOpenChange={() => setActiveAction(null)}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Выдача оборудования</DialogTitle>
+              <DialogDescription>
+                {item.name || 'Оборудование'} — на складе {item.quantity} шт
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Кому выдаётся *</Label>
+                <Input
+                  placeholder="ФИО или название"
+                  value={issueForm.issued_to}
+                  onChange={(e) => setIssueForm({ ...issueForm, issued_to: e.target.value })}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Контакт</Label>
+                <Input
+                  placeholder="Телефон или email"
+                  value={issueForm.contact}
+                  onChange={(e) => setIssueForm({ ...issueForm, contact: e.target.value })}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Количество</Label>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIssueForm({ ...issueForm, quantity: Math.max(1, issueForm.quantity - 1) })}
+                  >
+                    <Minus className="w-4 h-4" />
+                  </Button>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={item.quantity}
+                    value={issueForm.quantity}
+                    onChange={(e) => setIssueForm({ ...issueForm, quantity: parseInt(e.target.value) || 1 })}
+                    className="text-center"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIssueForm({ ...issueForm, quantity: Math.min(item.quantity, issueForm.quantity + 1) })}
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+            
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setActiveAction(null)}>Отмена</Button>
+              <Button onClick={handleQuickIssue} disabled={submitting}>
+                <ArrowUpRight className="w-4 h-4 mr-2" />
+                Выдать
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        
+        {/* Диалог ремонта */}
+        <Dialog open={activeAction === 'repair'} onOpenChange={() => setActiveAction(null)}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Отправка в ремонт</DialogTitle>
+              <DialogDescription>
+                {item.name || 'Оборудование'} — на складе {item.quantity} шт
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Причина ремонта *</Label>
+                <Input
+                  placeholder="Описание неисправности"
+                  value={repairForm.reason}
+                  onChange={(e) => setRepairForm({ ...repairForm, reason: e.target.value })}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Количество</Label>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setRepairForm({ ...repairForm, quantity: Math.max(1, repairForm.quantity - 1) })}
+                  >
+                    <Minus className="w-4 h-4" />
+                  </Button>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={item.quantity}
+                    value={repairForm.quantity}
+                    onChange={(e) => setRepairForm({ ...repairForm, quantity: parseInt(e.target.value) || 1 })}
+                    className="text-center"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setRepairForm({ ...repairForm, quantity: Math.min(item.quantity, repairForm.quantity + 1) })}
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+            
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setActiveAction(null)}>Отмена</Button>
+              <Button onClick={handleQuickRepair} disabled={submitting}>
+                <Wrench className="w-4 h-4 mr-2" />
+                В ремонт
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        
+        {/* Диалог информации */}
+        <Dialog open={activeAction === 'info'} onOpenChange={() => setActiveAction(null)}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Информация об оборудовании</DialogTitle>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-3 bg-muted rounded-lg text-center">
+                  <p className="text-sm text-muted-foreground">На складе</p>
+                  <p className="text-2xl font-bold">{item.quantity}</p>
+                </div>
+                {item.length && (
+                  <div className="p-3 bg-muted rounded-lg text-center">
+                    <p className="text-sm text-muted-foreground">Длина</p>
+                    <p className="text-2xl font-bold">{item.length} м</p>
+                  </div>
+                )}
+              </div>
+              
+              {item.min_quantity > 0 && (
+                <div className="p-3 bg-muted rounded-lg">
+                  <p className="text-sm text-muted-foreground">Минимальный остаток</p>
+                  <p className="font-medium">{item.min_quantity} шт</p>
+                </div>
+              )}
+              
+              {item.notes && (
+                <div className="p-3 bg-muted rounded-lg">
+                  <p className="text-sm text-muted-foreground">Примечания</p>
+                  <p className="font-medium">{item.notes}</p>
+                </div>
+              )}
+              
+              {item.qr_code && (
+                <div className="text-sm text-muted-foreground">
+                  QR: <code className="bg-muted px-2 py-1 rounded">{item.qr_code}</code>
+                </div>
+              )}
+            </div>
+            
+            <DialogFooter>
+              <Button onClick={() => setActiveAction(null)}>Закрыть</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
