@@ -257,10 +257,22 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
 
   // Если есть QR-код из URL - сразу открываем сканер
   useEffect(() => {
+    console.log('[App] Checking initialScanCode:', initialScanCode, 'companyId:', companyId);
     if (initialScanCode && companyId) {
+      console.log('[App] Switching to qr-scan tab');
       setActiveTab('qr-scan');
     }
   }, [initialScanCode, companyId]);
+  
+  // Дополнительная проверка при монтировании
+  useEffect(() => {
+    console.log('[App] Mount check - initialScanCode:', initialScanCode, 'companyId:', companyId);
+    if (initialScanCode && companyId) {
+      console.log('[App] Mount: Switching to qr-scan tab');
+      setActiveTab('qr-scan');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Хуки с companyId
   const { equipment, categories, loading: equipmentLoading, addEquipment, updateEquipment, deleteEquipment, bulkInsert, addCategory, deleteCategory, refresh: refreshEquipment } = useEquipment(companyId);
