@@ -153,8 +153,26 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
     };
   }, [companyId, scanResult]);
 
-  // Используем initialCode из props или из синхронно прочитанного URL
-  const effectiveInitialCode = initialCode || URL_SCAN_CODE;
+  // Читаем URL параметр напрямую если URL_SCAN_CODE пуст (SSR)
+  const getScanCodeFromUrl = (): string | null => {
+    if (typeof window === 'undefined') return null;
+    const fullUrl = window.location.href;
+    const searchIndex = fullUrl.indexOf('?');
+    if (searchIndex === -1) return null;
+    
+    const searchString = fullUrl.substring(searchIndex + 1);
+    const params = new URLSearchParams(searchString);
+    
+    for (const [key, value] of params) {
+      if (key.toLowerCase() === 'scan') {
+        return value;
+      }
+    }
+    return null;
+  };
+  
+  // Используем initialCode из props, URL_SCAN_CODE или читаем напрямую
+  const effectiveInitialCode = initialCode || URL_SCAN_CODE || getScanCodeFromUrl();
 
   // Обработка initialCode из URL - вызываем только один раз при загрузке данных
   useEffect(() => {
