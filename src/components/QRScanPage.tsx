@@ -705,6 +705,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
           isOpen={true}
           onClose={() => {
             // При закрытии сканера сбрасываем состояние
+            console.log('[QRScan] QRScanner onClose called, scanResult:', scanResult?.type);
             setIsScanning(false);
             onTabChange?.('dashboard');
           }}
