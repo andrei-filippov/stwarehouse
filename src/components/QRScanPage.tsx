@@ -1,3 +1,24 @@
+// Читаем URL параметр СИНХРОННО при загрузке модуля (до очистки URL)
+const getInitialScanCodeFromUrl = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  const fullUrl = window.location.href;
+  const searchIndex = fullUrl.indexOf('?');
+  if (searchIndex === -1) return null;
+  
+  const searchString = fullUrl.substring(searchIndex + 1);
+  const params = new URLSearchParams(searchString);
+  
+  for (const [key, value] of params) {
+    if (key.toLowerCase() === 'scan') {
+      console.log('[QRScan] Sync read from URL:', value);
+      return value;
+    }
+  }
+  return null;
+};
+
+const URL_SCAN_CODE = getInitialScanCodeFromUrl();
+
 import { useState, useEffect, useCallback } from 'react';
 import { QRScanner } from './QRScanner';
 import { Button } from './ui/button';
@@ -130,26 +151,8 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
     };
   }, [companyId, scanResult]);
 
-  // Читаем URL параметр напрямую если initialCode не передан
-  const getScanCodeFromUrl = (): string | null => {
-    if (typeof window === 'undefined') return null;
-    const fullUrl = window.location.href;
-    const searchIndex = fullUrl.indexOf('?');
-    if (searchIndex === -1) return null;
-    
-    const searchString = fullUrl.substring(searchIndex + 1);
-    const params = new URLSearchParams(searchString);
-    
-    for (const [key, value] of params) {
-      if (key.toLowerCase() === 'scan') {
-        return value;
-      }
-    }
-    return null;
-  };
-  
-  // Используем initialCode из props или читаем из URL
-  const effectiveInitialCode = initialCode || getScanCodeFromUrl();
+  // Используем initialCode из props или из синхронно прочитанного URL
+  const effectiveInitialCode = initialCode || URL_SCAN_CODE;
 
   // Обработка initialCode из URL - вызываем только один раз при загрузке данных
   useEffect(() => {
