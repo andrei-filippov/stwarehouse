@@ -282,6 +282,16 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
     }
   }, [initialScanCode, companyId]);
   
+  // Проверяем URL scan параметр при монтировании
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const fullUrl = window.location.href;
+    if (fullUrl.toLowerCase().includes('?scan=') || fullUrl.toLowerCase().includes('&scan=')) {
+      console.log('[App] Found scan in URL, switching to qr-scan');
+      setActiveTab('qr-scan');
+    }
+  }, []);
+  
   // Дополнительная проверка при монтировании
   useEffect(() => {
     console.log('[App] Mount check - initialScanCode:', initialScanCode, 'companyId:', companyId);
@@ -291,24 +301,6 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
       return;
     }
     
-    // Резервная проверка URL напрямую
-    const fullUrl = window.location.href;
-    if (fullUrl.toLowerCase().includes('?scan=') || fullUrl.toLowerCase().includes('&scan=')) {
-      console.log('[App] Mount: Found scan in URL, switching to qr-scan');
-      setActiveTab('qr-scan');
-      return;
-    }
-    
-    // Резервная проверка sessionStorage
-    try {
-      const pendingScan = sessionStorage.getItem('pending_scan_code');
-      if (pendingScan) {
-        console.log('[App] Mount: Found scan in sessionStorage, switching to qr-scan');
-        setActiveTab('qr-scan');
-      }
-    } catch (e) {
-      // Игнорируем ошибки
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
