@@ -11,13 +11,32 @@ const getInitialScanCodeFromUrl = (): string | null => {
   for (const [key, value] of params) {
     if (key.toLowerCase() === 'scan') {
       console.log('[QRScan] Sync read from URL:', value);
+      // Сохраняем в sessionStorage на случай если URL очистится
+      try {
+        sessionStorage.setItem('pending_scan_code', value);
+        console.log('[QRScan] Saved to sessionStorage:', value);
+      } catch (e) {
+        // Игнорируем ошибки
+      }
       return value;
     }
   }
   return null;
 };
 
-const URL_SCAN_CODE = getInitialScanCodeFromUrl();
+// Резервное чтение из sessionStorage (если URL уже очищен)
+const getScanCodeFromStorage = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const code = sessionStorage.getItem('pending_scan_code');
+    if (code) console.log('[QRScan] Read from sessionStorage:', code);
+    return code;
+  } catch (e) {
+    return null;
+  }
+};
+
+const URL_SCAN_CODE = getInitialScanCodeFromUrl() || getScanCodeFromStorage();
 
 import { useState, useEffect, useCallback } from 'react';
 import { QRScanner } from './QRScanner';
@@ -192,6 +211,13 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
     if (effectiveInitialCode && scanResult && onTabChange) {
       console.log('[QRScan] Found equipment from URL, switching to qr-scan tab');
       onTabChange('qr-scan');
+      // Очищаем sessionStorage после успешной обработки
+      try {
+        sessionStorage.removeItem('pending_scan_code');
+        console.log('[QRScan] Cleared pending_scan_code from sessionStorage');
+      } catch (e) {
+        // Игнорируем ошибки
+      }
     }
   }, [effectiveInitialCode, scanResult, onTabChange]);
 

@@ -173,6 +173,17 @@ function AppContent({ user, profile, permissions, signOut }: any) {
     } else {
       console.log('[App] No query params found');
     }
+    
+    // Резервное чтение из sessionStorage (если URL уже очищен)
+    try {
+      const pendingScan = sessionStorage.getItem('pending_scan_code');
+      if (pendingScan && !initialScanCode) {
+        console.log('[App] Found scanCode in sessionStorage:', pendingScan);
+        setInitialScanCode(pendingScan);
+      }
+    } catch (e) {
+      // Игнорируем ошибки sessionStorage
+    }
   }, []);
 
   useEffect(() => {
@@ -285,6 +296,18 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
     if (fullUrl.toLowerCase().includes('?scan=') || fullUrl.toLowerCase().includes('&scan=')) {
       console.log('[App] Mount: Found scan in URL, switching to qr-scan');
       setActiveTab('qr-scan');
+      return;
+    }
+    
+    // Резервная проверка sessionStorage
+    try {
+      const pendingScan = sessionStorage.getItem('pending_scan_code');
+      if (pendingScan) {
+        console.log('[App] Mount: Found scan in sessionStorage, switching to qr-scan');
+        setActiveTab('qr-scan');
+      }
+    } catch (e) {
+      // Игнорируем ошибки
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
