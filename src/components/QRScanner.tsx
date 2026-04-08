@@ -68,15 +68,17 @@ export function QRScanner({ isOpen, onClose, onScan, title = 'Сканирова
           (result, error) => {
             if (result && isProcessingRef.current) {
               const text = result.getText();
+              // Извлекаем QR код из URL если нужно
+              const extractedCode = extractQRCode(text);
               
               if (keepOpen) {
                 // В batch режиме сначала останавливаем, потом вызываем onScan и перезапускаем
                 stopScanning();
-                onScan(text);
+                onScan(extractedCode);
                 setScanKey(k => k + 1); // Триггер для перезапуска useEffect
               } else {
                 stopScanning();
-                onScan(text);
+                onScan(extractedCode);
                 onClose();
               }
             }
@@ -103,12 +105,35 @@ export function QRScanner({ isOpen, onClose, onScan, title = 'Сканирова
     };
   }, [isOpen, useCamera, scanKey]); // scanKey для перезапуска в batch режиме
 
+  // Извлекает QR код из URL (поддержка ?scan=XXX)
+  const extractQRCode = (input: string): string => {
+    const lowerInput = input.toLowerCase();
+    
+    // Если это URL с параметром scan
+    try {
+      const url = new URL(input);
+      for (const [key, value] of url.searchParams) {
+        if (key.toLowerCase() === 'scan') {
+          return value.toUpperCase();
+        }
+      }
+    } catch {
+      // Не URL, пробуем найти ?scan= вручную
+      const scanMatch = lowerInput.match(/[?&]scan=([^&]+)/);
+      if (scanMatch) {
+        return scanMatch[1].toUpperCase();
+      }
+    }
+    // Если это не URL с scan параметром, возвращаем как есть
+    return input.toUpperCase();
+  };
+
   const handleManualSubmit = () => {
     if (manualCode.trim()) {
       const code = manualCode.trim();
-      // Если это не URL (не содержит ://), переводим в верхний регистр
-      const isUrl = code.includes('://') || code.startsWith('http');
-      onScan(isUrl ? code : code.toUpperCase());
+      // Извлекаем код из URL если нужно
+      const extractedCode = extractQRCode(code);
+      onScan(extractedCode);
       setManualCode('');
       onClose();
     }
