@@ -15,6 +15,8 @@ interface QRScannerProps {
 }
 
 export function QRScanner({ isOpen, onClose, onScan, title = 'Сканировать QR-код', subtitle, keepOpen }: QRScannerProps) {
+  console.log('[QRScanner] Render, isOpen:', isOpen, 'keepOpen:', keepOpen);
+  
   const videoRef = useRef<HTMLVideoElement>(null);
   const [manualCode, setManualCode] = useState('');
   const [useCamera, setUseCamera] = useState(true);
@@ -24,11 +26,17 @@ export function QRScanner({ isOpen, onClose, onScan, title = 'Сканирова
   const controlsRef = useRef<any>(null);
   const isProcessingRef = useRef(false); // Защита от двойного срабатывания
   const onScanRef = useRef(onScan); // Храним актуальную версию onScan
+  const onCloseRef = useRef(onClose); // Храним актуальную версию onClose
 
   // Обновляем ref при изменении onScan
   useEffect(() => {
     onScanRef.current = onScan;
   }, [onScan]);
+  
+  // Обновляем ref при изменении onClose
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   // Остановка камеры
   const stopScanning = () => {
@@ -150,10 +158,14 @@ export function QRScanner({ isOpen, onClose, onScan, title = 'Сканирова
   };
 
   const handleClose = () => {
+    console.log('[QRScanner] handleClose called, keepOpen:', keepOpen);
     stopScanning();
     setManualCode('');
     setError('');
-    onClose();
+    // Не вызываем onClose если keepOpen (только останавливаем сканирование)
+    if (!keepOpen) {
+      onCloseRef.current();
+    }
   };
 
   return (
