@@ -63,7 +63,9 @@ type ScanResult =
 type QuickAction = 'info' | 'checklist' | 'issue' | 'repair' | null;
 
 export default function QRScanPage({ companyId, categories = [], checklists = [], onTabChange, initialCode }: QRScanPageProps) {
-  const [isScanning, setIsScanning] = useState(!initialCode); // Если есть initialCode - не сканируем
+  console.log('[QRScan] Component rendering, initialCode:', initialCode, 'URL_SCAN_CODE:', URL_SCAN_CODE);
+  
+  const [isScanning, setIsScanning] = useState(!initialCode && !URL_SCAN_CODE); // Если есть initialCode - не сканируем
   const [scanResult, setScanResult] = useState<ScanResult>(null);
   const [inventory, setInventory] = useState<CableInventory[]>([]);
   const [kits, setKits] = useState<EquipmentKit[]>([]);
