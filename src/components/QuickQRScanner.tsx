@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './ui/dialog';
 import { Input } from './ui/input';
@@ -27,6 +27,7 @@ import { QRCodeDialog } from './QRCodeDisplay';
 import type { ChecklistV2, ChecklistItemV2, EquipmentKit } from '../types/checklist';
 import type { CableInventory, CableCategory } from '../types';
 import { supabase } from '../lib/supabase';
+import { useUrlScanCode, clearUrlScanCode } from '../hooks/useUrlScanCode';
 
 interface QuickQRScannerProps {
   companyId?: string;
@@ -123,6 +124,27 @@ export function QuickQRScanner({
   const allInventory = inventory.length > 0 ? inventory : localInventory;
   const allKits = kits.length > 0 ? kits : localKits;
   
+  // Читаем URL scan параметр
+  const urlScanCode = useUrlScanCode();
+  const processedUrlScan = useRef(false);
+
+  // Обработка URL scan параметра
+  useEffect(() => {
+    if (urlScanCode && !processedUrlScan.current && allInventory.length > 0) {
+      console.log('[QuickQRScanner] Processing URL scan code:', urlScanCode);
+      processedUrlScan.current = true;
+      
+      // Открываем главный диалог
+      setIsMainOpen(true);
+      
+      // Обрабатываем сканирование в режиме информации (по умолчанию)
+      setTimeout(() => {
+        handleInfoScan(urlScanCode);
+        clearUrlScanCode();
+      }, 300);
+    }
+  }, [urlScanCode, allInventory, handleInfoScan]);
+
   // Debug: выводим данные для проверки
   useEffect(() => {
     if (isMainOpen) {

@@ -10,6 +10,7 @@ import { Checkbox } from './ui/checkbox';
 import { Badge } from './ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { QRScanner } from './QRScanner';
+import { useUrlScanCode, clearUrlScanCode } from '../hooks/useUrlScanCode';
 import { 
   Plus, 
   Trash2, 
@@ -777,6 +778,10 @@ function ChecklistView({
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingQrCode, setEditingQrCode] = useState('');
 
+  // Читаем URL scan параметр
+  const urlScanCode = useUrlScanCode();
+  const processedUrlScan = useRef(false);
+
   // При смене чек-листа сбрасываем оптимистичные обновления и локальные счетчики
   useEffect(() => {
     setOptimisticUpdates({});
@@ -788,6 +793,33 @@ function ChecklistView({
     console.log(`[ChecklistView] Loaded checklist: ${checklist.event_name}, items: ${checklist.items?.length}, with QR: ${itemsWithQr.length}`);
     console.log('[ChecklistView] Items with QR:', itemsWithQr.map(i => ({ name: i.name, qr: i.qr_code })));
   }, [checklist.id]);
+
+  // Обработка URL scan параметра
+  useEffect(() => {
+    if (urlScanCode && !processedUrlScan.current && checklist.items && checklist.items.length > 0) {
+      console.log('[ChecklistView] Processing URL scan code:', urlScanCode);
+      processedUrlScan.current = true;
+      
+      // Определяем режим сканирования на основе текущего состояния чеклиста
+      // Если есть непогруженные позиции - режим погрузки, иначе разгрузки
+      const hasUnloadedItems = checklist.items.some(item => {
+        const totalQty = item.quantity || 1;
+        const loadedQty = item.loaded_quantity || (item.loaded ? totalQty : 0);
+        return loadedQty < totalQty;
+      });
+      
+      const targetMode: 'load' | 'unload' = hasUnloadedItems ? 'load' : 'unload';
+      console.log('[ChecklistView] Auto-selecting scan mode:', targetMode);
+      
+      setScanMode(targetMode);
+      
+      // Открываем сканер и сразу обрабатываем код
+      setTimeout(() => {
+        handleQRScan(urlScanCode);
+        clearUrlScanCode();
+      }, 300);
+    }
+  }, [urlScanCode, checklist.items]);
 
   // Синхронизация с realtime обновлениями от других пользователей
   // ОТКЛЮЧЕНО: вызывает проблемы с обновлением UI после сканирования

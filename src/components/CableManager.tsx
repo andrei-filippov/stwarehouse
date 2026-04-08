@@ -32,6 +32,7 @@ import { Spinner } from './ui/spinner';
 import { TransferToInventoryDialog } from './TransferToInventoryDialog';
 import { QRCodeDialog, QRCodeBatchPrint, QRCodeDisplay } from './QRCodeDisplay';
 import { QRScanner } from './QRScanner';
+import { useUrlScanCode, clearUrlScanCode } from '../hooks/useUrlScanCode';
 import { format } from 'date-fns';
 import * as XLSX from 'xlsx';
 import { ru } from 'date-fns/locale';
@@ -220,6 +221,24 @@ export const CableManager = memo(function CableManager({
   const [scannedQRItem, setScannedQRItem] = useState<CableInventory | null>(null);
   const [isQRActionDialogOpen, setIsQRActionDialogOpen] = useState(false);
   const [qrScanMode, setQrScanMode] = useState<'single' | 'batch'>('single'); // batch = режим выдачи
+
+  // Читаем URL scan параметр
+  const urlScanCode = useUrlScanCode();
+  const processedUrlScan = useRef(false);
+
+  // Обработка URL scan параметра
+  useEffect(() => {
+    if (urlScanCode && !processedUrlScan.current && inventory.length > 0) {
+      console.log('[CableManager] Processing URL scan code:', urlScanCode);
+      processedUrlScan.current = true;
+      
+      // Обрабатываем сканирование
+      setTimeout(() => {
+        handleQRScan(urlScanCode);
+        clearUrlScanCode();
+      }, 300);
+    }
+  }, [urlScanCode, inventory]);
 
   const toggleCategory = (id: string) => {
     setExpandedCategories(prev => {
