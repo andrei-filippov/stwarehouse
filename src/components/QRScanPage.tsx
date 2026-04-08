@@ -155,9 +155,12 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
   }, [effectiveInitialCode, inventory]);
   
   // Когда нашли оборудование по URL - переключаемся на вкладку QR Сканер
+  // Только если это было из URL (effectiveInitialCode)
+  const hasSwitchedToQR = useRef(false);
   useEffect(() => {
-    if (effectiveInitialCode && scanResult && onTabChange) {
+    if (effectiveInitialCode && scanResult && onTabChange && !hasSwitchedToQR.current) {
       console.log('[QRScan] Found equipment from URL, switching to qr-scan tab');
+      hasSwitchedToQR.current = true;
       onTabChange('qr-scan');
     }
   }, [effectiveInitialCode, scanResult, onTabChange]);
