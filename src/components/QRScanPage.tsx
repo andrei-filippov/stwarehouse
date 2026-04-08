@@ -543,7 +543,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
                 Отмена
               </Button>
               <Button 
-                onClick={handleIssue}
+                onClick={handleQuickIssue}
                 disabled={!issueForm.issued_to.trim() || submitting}
               >
                 {submitting ? 'Выдача...' : 'Выдать'}
@@ -607,7 +607,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
               </Button>
               <Button 
                 variant="destructive"
-                onClick={handleRepair}
+                onClick={handleQuickRepair}
                 disabled={submitting}
               >
                 {submitting ? 'Отправка...' : 'В ремонт'}
