@@ -38,7 +38,7 @@ const getScanCodeFromStorage = (): string | null => {
 
 const URL_SCAN_CODE = getInitialScanCodeFromUrl() || getScanCodeFromStorage();
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { QRScanner } from './QRScanner';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -245,7 +245,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
     return input.toUpperCase();
   };
 
-  const handleScan = useCallback(async (qrCode: string) => {
+  const handleScan = async (qrCode: string) => {
     console.log('[QRScan] Raw input:', qrCode);
     
     // Извлекаем код из URL если нужно
@@ -333,7 +333,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
     toast.error('QR-код не найден', { 
       description: `${cleanCode} не найден в базе` 
     });
-  }, [inventory, kits, categories, companyId]);
+  };
 
   const handleScanAgain = () => {
     setScanResult(null);
