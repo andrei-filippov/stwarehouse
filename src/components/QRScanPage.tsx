@@ -748,18 +748,33 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
     );
   }
 
+  // Если есть initialCode но результат ещё не получен - показываем загрузку
+  if (initialCode && !scanResult) {
+    return (
+      <div className="space-y-4 max-w-md mx-auto text-center">
+        <h2 className="text-2xl font-bold">QR Сканер</h2>
+        <div className="flex items-center justify-center h-32">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mr-3"></div>
+          <span className="text-muted-foreground">Поиск оборудования: {initialCode}...</span>
+        </div>
+        <Button onClick={handleScanAgain} variant="outline" className="w-full">
+          <Scan className="w-4 h-4 mr-2" />
+          Сканировать снова
+        </Button>
+      </div>
+    );
+  }
+
   // Fallback - показываем кнопку для начала сканирования
   return (
     <div className="space-y-4 max-w-md mx-auto text-center">
       <h2 className="text-2xl font-bold">QR Сканер</h2>
       <p className="text-muted-foreground">
-        {initialCode 
-          ? `Загрузка данных для кода: ${initialCode}...` 
-          : 'Нажмите кнопку ниже чтобы отсканировать QR-код'}
+        Нажмите кнопку ниже чтобы отсканировать QR-код
       </p>
       <Button onClick={handleScanAgain} className="w-full">
         <Scan className="w-4 h-4 mr-2" />
-        {initialCode ? 'Сканировать снова' : 'Начать сканирование'}
+        Начать сканирование
       </Button>
     </div>
   );
