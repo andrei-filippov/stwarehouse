@@ -704,6 +704,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
           onScan={handleScan}
           title="Наведите камеру на QR-код"
           subtitle="Сканируйте оборудование или комплект"
+          keepOpen={true}
         />
         
         <div className="text-center text-muted-foreground text-sm">
