@@ -181,7 +181,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
   };
 
   const handleScan = async (qrCode: string) => {
-    console.log('[QRScan] Raw input:', qrCode);
+    console.log('[QRScan] handleScan STARTED, input:', qrCode, 'current scanResult:', scanResult?.type);
     
     // Извлекаем код из URL если нужно
     const cleanCode = extractQRCode(qrCode);

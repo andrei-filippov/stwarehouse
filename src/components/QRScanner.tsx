@@ -77,17 +77,16 @@ export function QRScanner({ isOpen, onClose, onScan, title = 'Сканирова
               // Извлекаем QR код из URL если нужно
               const extractedCode = extractQRCode(text);
               
+              console.log('[QRScanner] Scanned:', text, 'extracted:', extractedCode, 'keepOpen:', keepOpen);
               if (keepOpen) {
                 // Не закрываем сканер после сканирования (для QRScanPage)
+                console.log('[QRScanner] keepOpen mode - calling onScan, NOT closing');
                 stopScanning();
                 onScanRef.current(extractedCode);
-                // Перезапускаем сканер для следующего сканирования
-                setTimeout(() => {
-                  isProcessingRef.current = false;
-                  setScanKey(k => k + 1);
-                }, 500);
+                // НЕ перезапускаем сканер - пусть пользователь закроет сам
               } else {
                 // Обычный режим - закрываем после сканирования
+                console.log('[QRScanner] Normal mode - calling onScan and onClose');
                 stopScanning();
                 onScanRef.current(extractedCode);
                 onClose();
