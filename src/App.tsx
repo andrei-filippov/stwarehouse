@@ -273,6 +273,11 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
   const userRole = (myRole || profile?.role || 'manager') as UserRole;
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
 
+  // Отслеживаем изменения activeTab
+  useEffect(() => {
+    console.log('[App] activeTab changed to:', activeTab);
+  }, [activeTab]);
+
   // Если есть QR-код из URL - сразу открываем сканер
   useEffect(() => {
     console.log('[App] Checking initialScanCode:', initialScanCode, 'companyId:', companyId);
