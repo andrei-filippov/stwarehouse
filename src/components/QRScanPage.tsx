@@ -419,26 +419,16 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Статистика по оборудованию */}
+            {/* Статистика по оборудованию - только актуальная для сканирования */}
             <div className="grid grid-cols-2 gap-3">
-              <div className="p-3 bg-blue-50 dark:bg-blue-950 rounded-lg text-center">
-                <p className="text-xs text-blue-600 dark:text-blue-400">Всего</p>
-                <p className="text-xl font-bold text-blue-700 dark:text-blue-300">{scanResult.stats?.total || item.quantity}</p>
-                <p className="text-xs text-blue-500">шт</p>
-              </div>
-              <div className="p-3 bg-green-50 dark:bg-green-950 rounded-lg text-center">
-                <p className="text-xs text-green-600 dark:text-green-400">На складе</p>
-                <p className="text-xl font-bold text-green-700 dark:text-green-300">{scanResult.stats?.inStock || item.quantity}</p>
+              <div className="p-4 bg-green-50 dark:bg-green-950 rounded-lg text-center">
+                <p className="text-xs text-green-600 dark:text-green-400 mb-1">Свободно на складе</p>
+                <p className="text-2xl font-bold text-green-700 dark:text-green-300">{scanResult.stats?.inStock || item.quantity}</p>
                 <p className="text-xs text-green-500">шт</p>
               </div>
-              <div className="p-3 bg-amber-50 dark:bg-amber-950 rounded-lg text-center">
-                <p className="text-xs text-amber-600 dark:text-amber-400">Выдано</p>
-                <p className="text-xl font-bold text-amber-700 dark:text-amber-300">{scanResult.stats?.issued || 0}</p>
-                <p className="text-xs text-amber-500">шт</p>
-              </div>
-              <div className="p-3 bg-red-50 dark:bg-red-950 rounded-lg text-center">
-                <p className="text-xs text-red-600 dark:text-red-400">В ремонте</p>
-                <p className="text-xl font-bold text-red-700 dark:text-red-300">{scanResult.stats?.inRepair || 0}</p>
+              <div className="p-4 bg-red-50 dark:bg-red-950 rounded-lg text-center">
+                <p className="text-xs text-red-600 dark:text-red-400 mb-1">В ремонте</p>
+                <p className="text-2xl font-bold text-red-700 dark:text-red-300">{scanResult.stats?.inRepair || 0}</p>
                 <p className="text-xs text-red-500">шт</p>
               </div>
             </div>
@@ -855,26 +845,16 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Статистика по оборудованию */}
+            {/* Статистика по оборудованию - только актуальная для сканирования */}
             <div className="grid grid-cols-2 gap-3">
-              <div className="p-3 bg-blue-50 dark:bg-blue-950 rounded-lg text-center">
-                <p className="text-xs text-blue-600 dark:text-blue-400">Всего</p>
-                <p className="text-xl font-bold text-blue-700 dark:text-blue-300">{scanResult.stats?.total || item.quantity}</p>
-                <p className="text-xs text-blue-500">шт</p>
-              </div>
-              <div className="p-3 bg-green-50 dark:bg-green-950 rounded-lg text-center">
-                <p className="text-xs text-green-600 dark:text-green-400">На складе</p>
-                <p className="text-xl font-bold text-green-700 dark:text-green-300">{scanResult.stats?.inStock || item.quantity}</p>
+              <div className="p-4 bg-green-50 dark:bg-green-950 rounded-lg text-center">
+                <p className="text-xs text-green-600 dark:text-green-400 mb-1">Свободно на складе</p>
+                <p className="text-2xl font-bold text-green-700 dark:text-green-300">{scanResult.stats?.inStock || item.quantity}</p>
                 <p className="text-xs text-green-500">шт</p>
               </div>
-              <div className="p-3 bg-amber-50 dark:bg-amber-950 rounded-lg text-center">
-                <p className="text-xs text-amber-600 dark:text-amber-400">Выдано</p>
-                <p className="text-xl font-bold text-amber-700 dark:text-amber-300">{scanResult.stats?.issued || 0}</p>
-                <p className="text-xs text-amber-500">шт</p>
-              </div>
-              <div className="p-3 bg-red-50 dark:bg-red-950 rounded-lg text-center">
-                <p className="text-xs text-red-600 dark:text-red-400">В ремонте</p>
-                <p className="text-xl font-bold text-red-700 dark:text-red-300">{scanResult.stats?.inRepair || 0}</p>
+              <div className="p-4 bg-red-50 dark:bg-red-950 rounded-lg text-center">
+                <p className="text-xs text-red-600 dark:text-red-400 mb-1">В ремонте</p>
+                <p className="text-2xl font-bold text-red-700 dark:text-red-300">{scanResult.stats?.inRepair || 0}</p>
                 <p className="text-xs text-red-500">шт</p>
               </div>
             </div>
