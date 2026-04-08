@@ -1,44 +1,4 @@
-// Читаем URL параметр СИНХРОННО при загрузке модуля (до очистки URL)
-const getInitialScanCodeFromUrl = (): string | null => {
-  if (typeof window === 'undefined') return null;
-  const fullUrl = window.location.href;
-  const searchIndex = fullUrl.indexOf('?');
-  if (searchIndex === -1) return null;
-  
-  const searchString = fullUrl.substring(searchIndex + 1);
-  const params = new URLSearchParams(searchString);
-  
-  for (const [key, value] of params) {
-    if (key.toLowerCase() === 'scan') {
-      console.log('[QRScan] Sync read from URL:', value);
-      // Сохраняем в sessionStorage на случай если URL очистится
-      try {
-        sessionStorage.setItem('pending_scan_code', value);
-        console.log('[QRScan] Saved to sessionStorage:', value);
-      } catch (e) {
-        // Игнорируем ошибки
-      }
-      return value;
-    }
-  }
-  return null;
-};
-
-// Резервное чтение из sessionStorage (если URL уже очищен)
-const getScanCodeFromStorage = (): string | null => {
-  if (typeof window === 'undefined') return null;
-  try {
-    const code = sessionStorage.getItem('pending_scan_code');
-    if (code) console.log('[QRScan] Read from sessionStorage:', code);
-    return code;
-  } catch (e) {
-    return null;
-  }
-};
-
-const URL_SCAN_CODE = getInitialScanCodeFromUrl() || getScanCodeFromStorage();
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { QRScanner } from './QRScanner';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -64,6 +24,7 @@ import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
 import type { CableInventory, EquipmentKit, CableCategory } from '../types';
 import type { ChecklistV2 } from '../types/checklist';
+import { useUrlScanCode, clearUrlScanCode } from '../hooks/useUrlScanCode';
 
 interface QRScanPageProps {
   companyId: string;
@@ -82,28 +43,13 @@ type ScanResult =
 type QuickAction = 'info' | 'checklist' | 'issue' | 'repair' | null;
 
 export default function QRScanPage({ companyId, categories = [], checklists = [], onTabChange, initialCode }: QRScanPageProps) {
-  // Читаем URL параметр напрямую если URL_SCAN_CODE пуст (SSR)
-  const getScanCodeFromUrl = (): string | null => {
-    if (typeof window === 'undefined') return null;
-    const fullUrl = window.location.href;
-    const searchIndex = fullUrl.indexOf('?');
-    if (searchIndex === -1) return null;
-    
-    const searchString = fullUrl.substring(searchIndex + 1);
-    const params = new URLSearchParams(searchString);
-    
-    for (const [key, value] of params) {
-      if (key.toLowerCase() === 'scan') {
-        return value;
-      }
-    }
-    return null;
-  };
+  // Читаем URL параметр через хук
+  const urlScanCode = useUrlScanCode();
+  const processedUrlScan = useRef(false);
   
-  const urlCode = getScanCodeFromUrl();
-  const effectiveInitialCode = initialCode || URL_SCAN_CODE || urlCode;
+  const effectiveInitialCode = initialCode || urlScanCode;
   
-  console.log('[QRScan] Component rendering, initialCode:', initialCode, 'URL_SCAN_CODE:', URL_SCAN_CODE, 'urlCode:', urlCode, 'effective:', effectiveInitialCode);
+  console.log('[QRScan] Component rendering, initialCode:', initialCode, 'urlScanCode:', urlScanCode, 'effective:', effectiveInitialCode);
   
   const [isScanning, setIsScanning] = useState(!effectiveInitialCode); // Если есть initialCode - не сканируем
   const [scanResult, setScanResult] = useState<ScanResult>(null);
@@ -195,11 +141,13 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
 
   // Обработка initialCode из URL - вызываем только один раз при загрузке данных
   useEffect(() => {
-    if (effectiveInitialCode && inventory.length > 0 && !scanResult) {
+    if (effectiveInitialCode && inventory.length > 0 && !scanResult && !processedUrlScan.current) {
       console.log('[QRScan] Processing initialCode:', effectiveInitialCode);
+      processedUrlScan.current = true;
       // Небольшая задержка чтобы убедиться что handleScan инициализирован
       const timer = setTimeout(() => {
         handleScan(effectiveInitialCode);
+        clearUrlScanCode();
       }, 100);
       return () => clearTimeout(timer);
     }
@@ -211,13 +159,6 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
     if (effectiveInitialCode && scanResult && onTabChange) {
       console.log('[QRScan] Found equipment from URL, switching to qr-scan tab');
       onTabChange('qr-scan');
-      // Очищаем sessionStorage после успешной обработки
-      try {
-        sessionStorage.removeItem('pending_scan_code');
-        console.log('[QRScan] Cleared pending_scan_code from sessionStorage');
-      } catch (e) {
-        // Игнорируем ошибки
-      }
     }
   }, [effectiveInitialCode, scanResult, onTabChange]);
 
