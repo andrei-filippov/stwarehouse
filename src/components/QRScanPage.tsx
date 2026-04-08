@@ -82,6 +82,14 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
     fetchData();
   }, [companyId]);
 
+  // Отслеживаем размонтирование
+  useEffect(() => {
+    console.log('[QRScan] Component MOUNTED');
+    return () => {
+      console.log('[QRScan] Component UNMOUNTED');
+    };
+  }, []);
+
   // Real-time подписка на изменения инвентаря
   useEffect(() => {
     if (!companyId) return;
