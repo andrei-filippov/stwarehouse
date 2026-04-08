@@ -282,25 +282,27 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
     }
   }, [initialScanCode, companyId]);
   
-  // Проверяем URL scan параметр при монтировании
+  // Проверяем URL scan параметр при монтировании (только если не на qr-scan уже)
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    if (activeTab === 'qr-scan') return; // Уже на нужной вкладке
     const fullUrl = window.location.href;
     if (fullUrl.toLowerCase().includes('?scan=') || fullUrl.toLowerCase().includes('&scan=')) {
       console.log('[App] Found scan in URL, switching to qr-scan');
       setActiveTab('qr-scan');
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   
-  // Дополнительная проверка при монтировании
+  // Дополнительная проверка при монтировании (только если не на qr-scan уже)
   useEffect(() => {
+    if (activeTab === 'qr-scan') return; // Уже на нужной вкладке
     console.log('[App] Mount check - initialScanCode:', initialScanCode, 'companyId:', companyId);
     if (initialScanCode && companyId) {
       console.log('[App] Mount: Switching to qr-scan tab');
       setActiveTab('qr-scan');
       return;
     }
-    
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
