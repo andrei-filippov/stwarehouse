@@ -166,6 +166,14 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectiveInitialCode, inventory]);
+  
+  // Когда нашли оборудование по URL - переключаемся на вкладку QR Сканер
+  useEffect(() => {
+    if (effectiveInitialCode && scanResult && onTabChange) {
+      console.log('[QRScan] Found equipment from URL, switching to qr-scan tab');
+      onTabChange('qr-scan');
+    }
+  }, [effectiveInitialCode, scanResult, onTabChange]);
 
   // Извлекаем QR-код из URL или возвращаем как есть
   const extractQRCode = (input: string): string => {
