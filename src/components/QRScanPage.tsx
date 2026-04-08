@@ -225,6 +225,9 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
         const issuedQty = movements?.reduce((sum, m) => sum + (m.quantity || 0), 0) || 0;
         const repairQty = repairs?.reduce((sum, r) => sum + (r.quantity || 0), 0) || 0;
         
+        console.log('[QRScan] Setting isScanning to false FIRST');
+        setIsScanning(false);
+        
         console.log('[QRScan] Setting scan result...');
         setScanResult({ 
           type: 'inventory', 
@@ -237,8 +240,6 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
             inRepair: repairQty
           }
         });
-        console.log('[QRScan] Setting isScanning to false');
-        setIsScanning(false);
       } catch (err) {
         console.error('[QRScan] Error fetching stats:', err);
         // Показываем без статистики
@@ -1082,6 +1083,23 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mr-3"></div>
           <span className="text-muted-foreground">Поиск оборудования: {initialCode}...</span>
         </div>
+        <Button onClick={handleScanAgain} variant="outline" className="w-full">
+          <Scan className="w-4 h-4 mr-2" />
+          Сканировать снова
+        </Button>
+      </div>
+    );
+  }
+
+  // Fallback - если есть scanResult но мы сюда дошли, значит тип неизвестен
+  if (scanResult) {
+    console.log('[QRScan] Fallback with scanResult:', scanResult.type);
+    return (
+      <div className="space-y-4 max-w-md mx-auto text-center">
+        <h2 className="text-2xl font-bold">QR Сканер</h2>
+        <p className="text-muted-foreground text-red-500">
+          Неизвестный тип результата: {scanResult.type}
+        </p>
         <Button onClick={handleScanAgain} variant="outline" className="w-full">
           <Scan className="w-4 h-4 mr-2" />
           Сканировать снова
