@@ -35,7 +35,7 @@ interface QRScanPageProps {
 }
 
 type ScanResult = 
-  | { type: 'inventory'; data: CableInventory; category?: CableCategory; stats?: { total: number; inStock: number; issued: number; inRepair: number } }
+  | { type: 'inventory'; data: CableInventory; category?: CableCategory; stats?: { inStock: number; reserved: number; inRepair: number } }
   | { type: 'kit'; data: EquipmentKit }
   | { type: 'not_found'; qrCode: string }
   | null;
@@ -215,7 +215,9 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
       // Получаем статистику по оборудованию
       console.log('[QRScan] Fetching stats from supabase...');
       try {
-        const [{ data: movements }, { data: repairs }] = await Promise.all([
+        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        
+        const [{ data: movements }, { data: repairs }, { data: estimateReservations }] = await Promise.all([
           supabase
             .from('cable_movements')
             .select('quantity')
@@ -225,13 +227,29 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
             .from('equipment_repairs')
             .select('quantity')
             .eq('inventory_id', item.id)
-            .not('status', 'eq', 'returned')
+            .not('status', 'eq', 'returned'),
+          // Запрос резервов из смет на будущие мероприятия
+          supabase
+            .from('estimate_items')
+            .select('quantity, estimates!inner(event_date, event_end_date)')
+            .eq('equipment_id', item.id)
+            .gte('estimates.event_date', today)
         ]);
         
-        console.log('[QRScan] Stats received:', { movements: movements?.length || 0, repairs: repairs?.length || 0 });
+        console.log('[QRScan] Stats received:', { 
+          movements: movements?.length || 0, 
+          repairs: repairs?.length || 0,
+          reservations: estimateReservations?.length || 0 
+        });
         
         const issuedQty = movements?.reduce((sum, m) => sum + (m.quantity || 0), 0) || 0;
         const repairQty = repairs?.reduce((sum, r) => sum + (r.quantity || 0), 0) || 0;
+        
+        // Считаем зарезервированное количество из смет
+        const reservedQty = estimateReservations?.reduce((sum, r) => sum + (r.quantity || 0), 0) || 0;
+        
+        // Свободно = на складе - в ремонте - зарезервировано
+        const availableQty = Math.max(0, item.quantity - repairQty - reservedQty);
         
         console.log('[QRScan] Setting isScanning to false FIRST');
         setIsScanning(false);
@@ -242,9 +260,8 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
           data: item, 
           category,
           stats: {
-            total: item.quantity + issuedQty + repairQty,
-            inStock: item.quantity,
-            issued: issuedQty,
+            inStock: availableQty, // Свободно для выдачи
+            reserved: reservedQty, // Зарезервировано в сметах
             inRepair: repairQty
           }
         });
@@ -256,9 +273,8 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
           data: item, 
           category,
           stats: {
-            total: item.quantity,
             inStock: item.quantity,
-            issued: 0,
+            reserved: 0,
             inRepair: 0
           }
         });
@@ -420,11 +436,16 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Статистика по оборудованию - только актуальная для сканирования */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div className="p-4 bg-green-50 dark:bg-green-950 rounded-lg text-center">
-                <p className="text-xs text-green-600 dark:text-green-400 mb-1">Свободно на складе</p>
+                <p className="text-xs text-green-600 dark:text-green-400 mb-1">Свободно</p>
                 <p className="text-2xl font-bold text-green-700 dark:text-green-300">{scanResult.stats?.inStock || item.quantity}</p>
                 <p className="text-xs text-green-500">шт</p>
+              </div>
+              <div className="p-4 bg-amber-50 dark:bg-amber-950 rounded-lg text-center">
+                <p className="text-xs text-amber-600 dark:text-amber-400 mb-1">Зарезерв.</p>
+                <p className="text-2xl font-bold text-amber-700 dark:text-amber-300">{scanResult.stats?.reserved || 0}</p>
+                <p className="text-xs text-amber-500">шт</p>
               </div>
               <div className="p-4 bg-red-50 dark:bg-red-950 rounded-lg text-center">
                 <p className="text-xs text-red-600 dark:text-red-400 mb-1">В ремонте</p>
@@ -846,11 +867,16 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Статистика по оборудованию - только актуальная для сканирования */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div className="p-4 bg-green-50 dark:bg-green-950 rounded-lg text-center">
-                <p className="text-xs text-green-600 dark:text-green-400 mb-1">Свободно на складе</p>
+                <p className="text-xs text-green-600 dark:text-green-400 mb-1">Свободно</p>
                 <p className="text-2xl font-bold text-green-700 dark:text-green-300">{scanResult.stats?.inStock || item.quantity}</p>
                 <p className="text-xs text-green-500">шт</p>
+              </div>
+              <div className="p-4 bg-amber-50 dark:bg-amber-950 rounded-lg text-center">
+                <p className="text-xs text-amber-600 dark:text-amber-400 mb-1">Зарезерв.</p>
+                <p className="text-2xl font-bold text-amber-700 dark:text-amber-300">{scanResult.stats?.reserved || 0}</p>
+                <p className="text-xs text-amber-500">шт</p>
               </div>
               <div className="p-4 bg-red-50 dark:bg-red-950 rounded-lg text-center">
                 <p className="text-xs text-red-600 dark:text-red-400 mb-1">В ремонте</p>
