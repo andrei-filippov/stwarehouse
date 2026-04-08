@@ -794,14 +794,16 @@ function ChecklistView({
     console.log('[ChecklistView] Items with QR:', itemsWithQr.map(i => ({ name: i.name, qr: i.qr_code })));
   }, [checklist.id]);
 
-  // Обработка URL scan параметра
+  // Состояние для pending URL scan кода
+  const [pendingScanCode, setPendingScanCode] = useState<string | null>(null);
+
+  // Обработка URL scan параметра - только сохраняем код
   useEffect(() => {
     if (urlScanCode && !processedUrlScan.current && checklist.items && checklist.items.length > 0) {
-      console.log('[ChecklistView] Processing URL scan code:', urlScanCode);
+      console.log('[ChecklistView] Received URL scan code:', urlScanCode);
       processedUrlScan.current = true;
       
       // Определяем режим сканирования на основе текущего состояния чеклиста
-      // Если есть непогруженные позиции - режим погрузки, иначе разгрузки
       const hasUnloadedItems = checklist.items.some(item => {
         const totalQty = item.quantity || 1;
         const loadedQty = item.loaded_quantity || (item.loaded ? totalQty : 0);
@@ -812,14 +814,22 @@ function ChecklistView({
       console.log('[ChecklistView] Auto-selecting scan mode:', targetMode);
       
       setScanMode(targetMode);
-      
-      // Открываем сканер и сразу обрабатываем код
-      setTimeout(() => {
-        handleQRScan(urlScanCode);
-        clearUrlScanCode();
-      }, 300);
+      setPendingScanCode(urlScanCode);
     }
   }, [urlScanCode, checklist.items]);
+
+  // Обработка pending scan кода (вызовется после определения handleQRScan)
+  useEffect(() => {
+    if (pendingScanCode) {
+      console.log('[ChecklistView] Processing pending scan code:', pendingScanCode);
+      setTimeout(() => {
+        handleQRScan(pendingScanCode);
+        clearUrlScanCode();
+        setPendingScanCode(null);
+      }, 300);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingScanCode]);
 
   // Синхронизация с realtime обновлениями от других пользователей
   // ОТКЛЮЧЕНО: вызывает проблемы с обновлением UI после сканирования

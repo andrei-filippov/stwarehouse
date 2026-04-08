@@ -139,11 +139,28 @@ export function QuickQRScanner({
       
       // Обрабатываем сканирование в режиме информации (по умолчанию)
       setTimeout(() => {
-        handleInfoScan(urlScanCode);
+        // Ищем комплект
+        const kit = allKits.find(k => k.qr_code === urlScanCode);
+        if (kit) {
+          setScannedItem(kit);
+          setIsInfoDialogOpen(true);
+        } else {
+          // Ищем оборудование
+          const item = allInventory.find(i => i.qr_code === urlScanCode);
+          if (item) {
+            setScannedItem(item);
+            setIsInfoDialogOpen(true);
+          } else {
+            toast.error('QR-код не найден', { 
+              description: `${urlScanCode} не найден в базе` 
+            });
+          }
+        }
         clearUrlScanCode();
       }, 300);
     }
-  }, [urlScanCode, allInventory, handleInfoScan]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlScanCode, allInventory.length]);
 
   // Debug: выводим данные для проверки
   useEffect(() => {

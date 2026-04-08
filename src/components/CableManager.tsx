@@ -225,20 +225,29 @@ export const CableManager = memo(function CableManager({
   // Читаем URL scan параметр
   const urlScanCode = useUrlScanCode();
   const processedUrlScan = useRef(false);
+  const [pendingScanCode, setPendingScanCode] = useState<string | null>(null);
 
-  // Обработка URL scan параметра
+  // Обработка URL scan параметра - только сохраняем код
   useEffect(() => {
     if (urlScanCode && !processedUrlScan.current && inventory.length > 0) {
-      console.log('[CableManager] Processing URL scan code:', urlScanCode);
+      console.log('[CableManager] Received URL scan code:', urlScanCode);
       processedUrlScan.current = true;
-      
-      // Обрабатываем сканирование
-      setTimeout(() => {
-        handleQRScan(urlScanCode);
-        clearUrlScanCode();
-      }, 300);
+      setPendingScanCode(urlScanCode);
     }
   }, [urlScanCode, inventory]);
+
+  // Обработка pending scan кода (вызовется после определения handleQRScan)
+  useEffect(() => {
+    if (pendingScanCode) {
+      console.log('[CableManager] Processing pending scan code:', pendingScanCode);
+      setTimeout(() => {
+        handleQRScan(pendingScanCode);
+        clearUrlScanCode();
+        setPendingScanCode(null);
+      }, 300);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingScanCode]);
 
   const toggleCategory = (id: string) => {
     setExpandedCategories(prev => {
