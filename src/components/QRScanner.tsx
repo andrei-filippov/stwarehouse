@@ -23,6 +23,12 @@ export function QRScanner({ isOpen, onClose, onScan, title = 'Сканирова
   const codeReaderRef = useRef<BrowserQRCodeReader | null>(null);
   const controlsRef = useRef<any>(null);
   const isProcessingRef = useRef(false); // Защита от двойного срабатывания
+  const onScanRef = useRef(onScan); // Храним актуальную версию onScan
+
+  // Обновляем ref при изменении onScan
+  useEffect(() => {
+    onScanRef.current = onScan;
+  }, [onScan]);
 
   // Остановка камеры
   const stopScanning = () => {
@@ -72,13 +78,18 @@ export function QRScanner({ isOpen, onClose, onScan, title = 'Сканирова
               const extractedCode = extractQRCode(text);
               
               if (keepOpen) {
-                // В batch режиме сначала останавливаем, потом вызываем onScan и перезапускаем
+                // Не закрываем сканер после сканирования (для QRScanPage)
                 stopScanning();
-                onScan(extractedCode);
-                setScanKey(k => k + 1); // Триггер для перезапуска useEffect
+                onScanRef.current(extractedCode);
+                // Перезапускаем сканер для следующего сканирования
+                setTimeout(() => {
+                  isProcessingRef.current = false;
+                  setScanKey(k => k + 1);
+                }, 500);
               } else {
+                // Обычный режим - закрываем после сканирования
                 stopScanning();
-                onScan(extractedCode);
+                onScanRef.current(extractedCode);
                 onClose();
               }
             }
@@ -133,7 +144,7 @@ export function QRScanner({ isOpen, onClose, onScan, title = 'Сканирова
       const code = manualCode.trim();
       // Извлекаем код из URL если нужно
       const extractedCode = extractQRCode(code);
-      onScan(extractedCode);
+      onScanRef.current(extractedCode);
       setManualCode('');
       onClose();
     }

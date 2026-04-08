@@ -694,7 +694,11 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
         
         <QRScanner
           isOpen={true}
-          onClose={() => onTabChange?.('dashboard')}
+          onClose={() => {
+            // При закрытии сканера сбрасываем состояние
+            setIsScanning(false);
+            onTabChange?.('dashboard');
+          }}
           onScan={handleScan}
           title="Наведите камеру на QR-код"
           subtitle="Сканируйте оборудование или комплект"
