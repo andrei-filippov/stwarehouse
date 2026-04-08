@@ -398,7 +398,17 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
             <ArrowLeft className="w-4 h-4 mr-2" />
             Новое сканирование
           </Button>
-          <Badge>{category?.name || 'Оборудование'}</Badge>
+          <div className="flex items-center gap-2">
+            <Badge>{category?.name || 'Оборудование'}</Badge>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => onTabChange?.('dashboard')}
+              title="На дашборд"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
         
         <Card>
@@ -704,10 +714,11 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
         <QRScanner
           isOpen={true}
           onClose={() => {
-            // При закрытии сканера сбрасываем состояние
+            // При закрытии сканера просто останавливаем сканирование
+            // НЕ переключаем таб - пользователь увидит результат или сможет переключить сам
             console.log('[QRScan] QRScanner onClose called, scanResult:', scanResult?.type);
             setIsScanning(false);
-            onTabChange?.('dashboard');
+            // Убрали onTabChange('dashboard') - Dialog вызывает onClose при размонтировании
           }}
           onScan={handleScan}
           title="Наведите камеру на QR-код"

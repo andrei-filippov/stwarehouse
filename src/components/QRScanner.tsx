@@ -25,6 +25,7 @@ export function QRScanner({ isOpen, onClose, onScan, title = 'Сканирова
   const codeReaderRef = useRef<BrowserQRCodeReader | null>(null);
   const controlsRef = useRef<any>(null);
   const isProcessingRef = useRef(false); // Защита от двойного срабатывания
+  const hasScannedRef = useRef(false); // Отслеживание успешного скана
   const onScanRef = useRef(onScan); // Храним актуальную версию onScan
   const onCloseRef = useRef(onClose); // Храним актуальную версию onClose
 
@@ -60,6 +61,9 @@ export function QRScanner({ isOpen, onClose, onScan, title = 'Сканирова
 
   useEffect(() => {
     if (!isOpen || !useCamera) return;
+    
+    // Сбрасываем флаг сканирования при открытии
+    hasScannedRef.current = false;
 
     const startScanning = async () => {
       // Защита от повторного запуска
@@ -86,6 +90,10 @@ export function QRScanner({ isOpen, onClose, onScan, title = 'Сканирова
               const extractedCode = extractQRCode(text);
               
               console.log('[QRScanner] Scanned:', text, 'extracted:', extractedCode, 'keepOpen:', keepOpen);
+              // ОТМЕЧАЕМ УСПЕШНЫЙ СКАН СРАЗУ - до любых операций!
+              hasScannedRef.current = true;
+              console.log('[QRScanner] hasScannedRef set to TRUE');
+              
               if (keepOpen) {
                 // Не закрываем сканер после сканирования (для QRScanPage)
                 console.log('[QRScanner] keepOpen mode - calling onScan, NOT closing');
@@ -158,14 +166,16 @@ export function QRScanner({ isOpen, onClose, onScan, title = 'Сканирова
   };
 
   const handleClose = () => {
-    console.log('[QRScanner] handleClose called, keepOpen:', keepOpen);
+    console.log('[QRScanner] handleClose called, keepOpen:', keepOpen, 'hasScanned:', hasScannedRef.current);
     stopScanning();
     setManualCode('');
     setError('');
-    // Не вызываем onClose если keepOpen (только останавливаем сканирование)
-    if (!keepOpen) {
+    // Не вызываем onClose если keepOpen или был успешный скан
+    if (!keepOpen && !hasScannedRef.current) {
       onCloseRef.current();
     }
+    // Сбрасываем hasScanned при закрытии
+    hasScannedRef.current = false;
   };
 
   return (
