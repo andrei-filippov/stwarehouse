@@ -277,7 +277,7 @@ export function useEquipment(companyId: string | undefined) {
         } catch (err) {
           logger.warn('Network error, switching to offline mode:', err);
         }
-      }
+      }  // <-- закрытие if (isOnline())
       
       // ОФФЛАЙН режим (сохраняем только в equipment)
       const localId = `local_equip_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
