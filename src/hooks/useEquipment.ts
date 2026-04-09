@@ -123,178 +123,15 @@ export function useEquipment(companyId: string | undefined) {
   const addEquipment = useCallback(async (
     item: Partial<Equipment>, 
     options?: { 
-      saveTo?: 'estimates' | 'inventory' | 'both'  // Куда сохранять: сметы, склад, или оба
+      saveTo?: 'estimates' | 'inventory' | 'both'
     }
   ) => {
     if (!companyId) return { error: new Error('No company') };
     
-    const saveTo = options?.saveTo || 'estimates'; // По умолчанию только в сметы
+    const saveTo = options?.saveTo || 'estimates';
 
-    try {
-      if (isOnline()) {
-        try {
-          // Онлайн — сохраняем согласно выбору
-          
-          // 1. Всегда создаём в equipment (для смет)
-          if (saveTo === 'estimates' || saveTo === 'both') {
-            const { data: equipData, error: equipError } = await supabase
-              .from('equipment')
-              .insert({ ...item, company_id: companyId })
-              .select()
-              .single();
-
-            if (equipError) throw equipError;
-
-            // Если нужно сохранить и на склад
-            if (saveTo === 'both') {
-              // Находим или создаём категорию в cable_categories
-              let categoryId = null;
-              if (item.category) {
-                const { data: catData } = await supabase
-                  .from('cable_categories')
-                  .select('id')
-                  .eq('name', item.category)
-                  .eq('company_id', companyId)
-                  .single();
-                categoryId = catData?.id;
-                
-                // Если категория не найдена - создаём
-                if (!categoryId) {
-                  const { data: newCat, error: catError } = await supabase
-                    .from('cable_categories')
-                    .insert({
-                      company_id: companyId,
-                      name: item.category,
-                      color: '#3b82f6'
-                    })
-                    .select()
-                    .single();
-                  if (!catError && newCat) {
-                    categoryId = newCat.id;
-                  }
-                }
-              }
-
-              // Если нет категории - используем дефолтную или не создаём
-              if (!categoryId) {
-                logger.warn('No category for cable_inventory, skipping');
-              } else {
-                // Создаём запись в cable_inventory
-                const { data: invData, error: invError } = await supabase
-                  .from('cable_inventory')
-                  .insert({
-                    company_id: companyId,
-                    category_id: categoryId,
-                    name: item.name,
-                    length: 0,  // Обязательное поле для кабелей
-                    quantity: item.quantity || 0,
-                    min_quantity: 0,
-                    price: item.price,
-                    unit: item.unit || 'шт',
-                    equipment_id: equipData.id
-                  })
-                  .select()
-                  .single();
-
-                if (invError) {
-                  console.error('[addEquipment] cable_inventory ERROR:', {
-                    message: invError.message,
-                    code: (invError as any).code,
-                    details: (invError as any).details,
-                    hint: (invError as any).hint,
-                    item: {
-                      company_id: companyId,
-                      category_id: categoryId,
-                      name: item.name,
-                      quantity: item.quantity || 0,
-                      price: item.price,
-                      unit: item.unit || 'шт',
-                      equipment_id: equipData.id
-                    }
-                  });
-                  toast.error('Ошибка добавления на склад', { 
-                    description: `${invError.message}. Код: ${(invError as any).code || 'неизвестен'}`
-                  });
-                } else {
-                  // Обновляем equipment ссылкой на inventory
-                  await supabase
-                    .from('equipment')
-                    .update({ inventory_id: invData.id })
-                    .eq('id', equipData.id);
-                }
-              }
-
-            await fetchEquipment();
-            
-            const msg = saveTo === 'both' 
-              ? 'Оборудование добавлено в сметы и на склад'
-              : 'Оборудование добавлено в сметы';
-            toast.success(msg);
-            return { error: null, data: equipData };
-          }
-          
-          // Только на склад (без смет)
-          if (saveTo === 'inventory') {
-            // Находим или создаём категорию в cable_categories
-            let categoryId = null;
-            if (item.category) {
-              const { data: catData } = await supabase
-                .from('cable_categories')
-                .select('id')
-                .eq('name', item.category)
-                .eq('company_id', companyId)
-                .single();
-              categoryId = catData?.id;
-              
-              // Если категория не найдена - создаём
-              if (!categoryId) {
-                const { data: newCat, error: catError } = await supabase
-                  .from('cable_categories')
-                  .insert({
-                    company_id: companyId,
-                    name: item.category,
-                    color: '#3b82f6'
-                  })
-                  .select()
-                  .single();
-                if (!catError && newCat) {
-                  categoryId = newCat.id;
-                }
-              }
-            }
-
-            // Без категории не создаём
-            if (!categoryId) {
-              return { error: new Error('Категория обязательна для создания оборудования на складе') };
-            }
-
-            const { data: invData, error: invError } = await supabase
-              .from('cable_inventory')
-              .insert({
-                company_id: companyId,
-                category_id: categoryId,
-                name: item.name,
-                length: 0,
-                quantity: item.quantity || 0,
-                min_quantity: 0,
-                price: item.price,
-                unit: item.unit || 'шт'
-              })
-              .select()
-              .single();
-
-            if (invError) throw invError;
-            
-            toast.success('Оборудование добавлено на склад');
-            return { error: null, data: invData };
-          }
-        }  // <-- закрытие внутреннего try для online
-        catch (err) {
-          logger.warn('Network error, switching to offline mode:', err);
-        }
-      }  // <-- закрытие if (isOnline())
-      
-      // ОФФЛАЙН режим (сохраняем только в equipment)
+    // ОФФЛАЙН режим
+    if (!isOnline()) {
       const localId = `local_equip_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       const newItem = { 
         ...item, 
@@ -305,15 +142,155 @@ export function useEquipment(companyId: string | undefined) {
 
       await saveEquipmentLocal(newItem, companyId);
       await addToSyncQueue('equipment', 'create', { ...newItem, company_id: companyId });
-      
       setEquipment(prev => [...prev, newItem]);
       
       toast.info('Сохранено офлайн', { 
         description: 'Будет синхронизировано при подключении' 
       });
       return { error: null, queued: true, data: newItem };
+    }
+
+    // ОНЛАЙН режим
+    try {
+      // Вариант 1: Только в сметы
+      if (saveTo === 'estimates') {
+        const { data: equipData, error: equipError } = await supabase
+          .from('equipment')
+          .insert({ ...item, company_id: companyId })
+          .select()
+          .single();
+
+        if (equipError) throw equipError;
+
+        await fetchEquipment();
+        toast.success('Оборудование добавлено в сметы');
+        return { error: null, data: equipData };
+      }
+
+      // Вариант 2: В сметы и на склад
+      if (saveTo === 'both') {
+        // Создаём в equipment
+        const { data: equipData, error: equipError } = await supabase
+          .from('equipment')
+          .insert({ ...item, company_id: companyId })
+          .select()
+          .single();
+
+        if (equipError) throw equipError;
+
+        // Находим или создаём категорию
+        let categoryId = null;
+        if (item.category) {
+          const { data: catData } = await supabase
+            .from('cable_categories')
+            .select('id')
+            .eq('name', item.category)
+            .eq('company_id', companyId)
+            .single();
+          categoryId = catData?.id;
+          
+          if (!categoryId) {
+            const { data: newCat } = await supabase
+              .from('cable_categories')
+              .insert({ company_id: companyId, name: item.category, color: '#3b82f6' })
+              .select()
+              .single();
+            categoryId = newCat?.id;
+          }
+        }
+
+        if (!categoryId) {
+          logger.warn('No category for cable_inventory');
+          await fetchEquipment();
+          return { error: null, data: equipData };
+        }
+
+        // Создаём в cable_inventory
+        const { data: invData, error: invError } = await supabase
+          .from('cable_inventory')
+          .insert({
+            company_id: companyId,
+            category_id: categoryId,
+            name: item.name,
+            length: 0,
+            quantity: item.quantity || 0,
+            min_quantity: 0,
+            price: item.price,
+            unit: item.unit || 'шт',
+            equipment_id: equipData.id
+          })
+          .select()
+          .single();
+
+        if (invError) {
+          logger.error('cable_inventory error:', invError);
+          toast.error('Ошибка добавления на склад', { description: invError.message });
+          await fetchEquipment();
+          return { error: null, data: equipData };
+        }
+
+        // Обновляем связь
+        await supabase
+          .from('equipment')
+          .update({ inventory_id: invData.id })
+          .eq('id', equipData.id);
+
+        await fetchEquipment();
+        toast.success('Оборудование добавлено в сметы и на склад');
+        return { error: null, data: equipData };
+      }
+
+      // Вариант 3: Только на склад
+      if (saveTo === 'inventory') {
+        let categoryId = null;
+        if (item.category) {
+          const { data: catData } = await supabase
+            .from('cable_categories')
+            .select('id')
+            .eq('name', item.category)
+            .eq('company_id', companyId)
+            .single();
+          categoryId = catData?.id;
+          
+          if (!categoryId) {
+            const { data: newCat } = await supabase
+              .from('cable_categories')
+              .insert({ company_id: companyId, name: item.category, color: '#3b82f6' })
+              .select()
+              .single();
+            categoryId = newCat?.id;
+          }
+        }
+
+        if (!categoryId) {
+          return { error: new Error('Категория обязательна') };
+        }
+
+        const { data: invData, error: invError } = await supabase
+          .from('cable_inventory')
+          .insert({
+            company_id: companyId,
+            category_id: categoryId,
+            name: item.name,
+            length: 0,
+            quantity: item.quantity || 0,
+            min_quantity: 0,
+            price: item.price,
+            unit: item.unit || 'шт'
+          })
+          .select()
+          .single();
+
+        if (invError) throw invError;
+        
+        toast.success('Оборудование добавлено на склад');
+        return { error: null, data: invData };
+      }
+
+      return { error: new Error('Unknown saveTo option') };
     } catch (err: any) {
-      toast.error('Ошибка при добавлении оборудования', { description: err.message });
+      logger.error('addEquipment error:', err);
+      toast.error('Ошибка', { description: err.message });
       return { error: err };
     }
   }, [companyId, fetchEquipment]);
