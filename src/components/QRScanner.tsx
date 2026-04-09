@@ -165,21 +165,31 @@ export function QRScanner({ isOpen, onClose, onScan, title = 'Сканирова
     }
   };
 
-  const handleClose = () => {
-    console.log('[QRScanner] handleClose called, keepOpen:', keepOpen, 'hasScanned:', hasScannedRef.current);
+  // Закрытие по кнопке или крестику - всегда вызываем onClose
+  const handleManualClose = () => {
+    console.log('[QRScanner] handleManualClose called');
     stopScanning();
     setManualCode('');
     setError('');
-    // Не вызываем onClose если keepOpen или был успешный скан
-    if (!keepOpen && !hasScannedRef.current) {
+    onCloseRef.current();
+    hasScannedRef.current = false;
+  };
+
+  // Закрытие через Dialog onOpenChange (при размонтировании)
+  const handleDialogClose = () => {
+    console.log('[QRScanner] handleDialogClose called, keepOpen:', keepOpen, 'hasScanned:', hasScannedRef.current);
+    stopScanning();
+    setManualCode('');
+    setError('');
+    // Не вызываем onClose если был успешный скан (это автоматическое закрытие при размонтировании)
+    if (!hasScannedRef.current) {
       onCloseRef.current();
     }
-    // Сбрасываем hasScanned при закрытии
     hasScannedRef.current = false;
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
+    <Dialog open={isOpen} onOpenChange={handleDialogClose}>
       <DialogContent className="max-w-md w-[95%] rounded-xl p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -280,7 +290,7 @@ export function QRScanner({ isOpen, onClose, onScan, title = 'Сканирова
             <div className="pt-2 border-t">
               <Button 
                 variant="outline" 
-                onClick={handleClose}
+                onClick={handleManualClose}
                 className="w-full"
               >
                 ✓ Завершить сканирование
