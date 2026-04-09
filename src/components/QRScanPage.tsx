@@ -399,26 +399,38 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
     const category = scanResult.category;
     setSubmitting(true);
     
+    console.log('[QRScan] Adding to checklist:', { checklistId, item: item.name, category: category?.name });
+    
     try {
-      const { error } = await supabase.from('checklist_items').insert({
+      const insertData = {
         checklist_id: checklistId,
-        inventory_id: item.id,
         name: item.name || 'Оборудование',
         category: category?.name || 'Без категории',
         quantity: 1,
         is_required: true,
-        is_checked: false,
-        loaded: false,
-        unloaded: false
-      });
+        is_checked: false
+      };
       
-      if (error) throw error;
+      console.log('[QRScan] Insert data:', insertData);
+      
+      const { data, error } = await supabase
+        .from('checklist_items')
+        .insert(insertData)
+        .select();
+      
+      if (error) {
+        console.error('[QRScan] Insert error:', error);
+        throw error;
+      }
+      
+      console.log('[QRScan] Insert success:', data);
       
       toast.success('Добавлено в чеклист', {
         description: `${item.name || 'Оборудование'} добавлено`
       });
       setActiveAction(null);
     } catch (err: any) {
+      console.error('[QRScan] Catch error:', err);
       toast.error('Ошибка', { description: err.message });
     }
     setSubmitting(false);
