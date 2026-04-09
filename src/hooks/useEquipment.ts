@@ -197,9 +197,23 @@ export function useEquipment(companyId: string | undefined) {
                   .single();
 
                 if (invError) {
-                  logger.error('Failed to create cable_inventory:', invError);
+                  console.error('[addEquipment] cable_inventory ERROR:', {
+                    message: invError.message,
+                    code: (invError as any).code,
+                    details: (invError as any).details,
+                    hint: (invError as any).hint,
+                    item: {
+                      company_id: companyId,
+                      category_id: categoryId,
+                      name: item.name,
+                      quantity: item.quantity || 0,
+                      price: item.price,
+                      unit: item.unit || 'шт',
+                      equipment_id: equipData.id
+                    }
+                  });
                   toast.error('Ошибка добавления на склад', { 
-                    description: invError.message || 'Проверьте консоль для деталей'
+                    description: `${invError.message}. Код: ${(invError as any).code || 'неизвестен'}`
                   });
                 } else {
                   // Обновляем equipment ссылкой на inventory
