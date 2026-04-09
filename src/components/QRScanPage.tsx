@@ -391,6 +391,39 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
     setSubmitting(false);
   };
 
+  // Добавление оборудования в чеклист
+  const handleAddToChecklist = async (checklistId: string) => {
+    if (!scanResult || scanResult.type !== 'inventory') return;
+    
+    const item = scanResult.data;
+    const category = scanResult.category;
+    setSubmitting(true);
+    
+    try {
+      const { error } = await supabase.from('checklist_items').insert({
+        checklist_id: checklistId,
+        inventory_id: item.id,
+        name: item.name || 'Оборудование',
+        category: category?.name || 'Без категории',
+        quantity: 1,
+        is_required: true,
+        is_checked: false,
+        loaded: false,
+        unloaded: false
+      });
+      
+      if (error) throw error;
+      
+      toast.success('Добавлено в чеклист', {
+        description: `${item.name || 'Оборудование'} добавлено`
+      });
+      setActiveAction(null);
+    } catch (err: any) {
+      toast.error('Ошибка', { description: err.message });
+    }
+    setSubmitting(false);
+  };
+
   console.log('[QRScan] Render state:', { loading, isScanning, scanResultType: scanResult?.type });
 
   if (loading) {
