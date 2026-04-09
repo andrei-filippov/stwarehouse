@@ -198,6 +198,9 @@ export function useEquipment(companyId: string | undefined) {
 
                 if (invError) {
                   logger.error('Failed to create cable_inventory:', invError);
+                  toast.error('Ошибка добавления на склад', { 
+                    description: invError.message || 'Проверьте консоль для деталей'
+                  });
                 } else {
                   // Обновляем equipment ссылкой на inventory
                   await supabase
