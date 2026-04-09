@@ -136,7 +136,8 @@ export function EstimateBuilder({
     category: equipmentCategories[0] || '',
     quantity: '' as string | number,
     price: '' as string | number,
-    unit: 'шт'
+    unit: 'шт',
+    saveTo: 'estimates' as 'estimates' | 'inventory' | 'both'  // Куда сохранять
   });
   
   const [isDragging, setIsDragging] = useState(false);
@@ -577,15 +578,18 @@ export function EstimateBuilder({
   const handleCreateEquipment = async () => {
     if (!newEquipment.name || !onCreateEquipment) return;
     
-    const result = await onCreateEquipment({
-      name: newEquipment.name,
-      description: newEquipment.description,
-      category: newEquipment.category,
-      quantity: newEquipment.quantity === '' ? 0 : Number(newEquipment.quantity),
-      price: newEquipment.price === '' ? 0 : Number(newEquipment.price),
-      unit: newEquipment.unit,
-      is_active: true
-    });
+    const result = await onCreateEquipment(
+      {
+        name: newEquipment.name,
+        description: newEquipment.description,
+        category: newEquipment.category,
+        quantity: newEquipment.quantity === '' ? 0 : Number(newEquipment.quantity),
+        price: newEquipment.price === '' ? 0 : Number(newEquipment.price),
+        unit: newEquipment.unit,
+        is_active: true
+      },
+      { saveTo: newEquipment.saveTo }
+    );
     
     if (!result.error) {
       setShowCreateEquipment(false);
@@ -595,10 +599,11 @@ export function EstimateBuilder({
         category: equipmentCategories[0] || '',
         quantity: '',
         price: '',
-        unit: 'шт'
+        unit: 'шт',
+        saveTo: 'estimates'
       });
-      // Добавляем созданное оборудование в смету
-      if (result.data) {
+      // Добавляем созданное оборудование в смету только если оно для смет
+      if (result.data && (newEquipment.saveTo === 'estimates' || newEquipment.saveTo === 'both')) {
         handleAddItem(result.data);
       }
     }
@@ -1918,7 +1923,9 @@ export function EstimateBuilder({
           <DialogHeader>
             <DialogTitle>Новое оборудование</DialogTitle>
             <DialogDescription>
-              Создайте новое оборудование и оно будет автоматически добавлено в смету.
+              {newEquipment.saveTo === 'estimates' && 'Создаётся только для смет. Не появится на складе.'}
+              {newEquipment.saveTo === 'both' && 'Создаётся в сметах и на складе. Доступно для QR-сканирования.'}
+              {newEquipment.saveTo === 'inventory' && 'Создаётся только на складе. Не добавляется в смету автоматически.'}
             </DialogDescription>
           </DialogHeader>
           
@@ -1994,6 +2001,43 @@ export function EstimateBuilder({
                 />
               </div>
             </div>
+            
+            {/* Выбор куда сохранять */}
+            <div className="space-y-2 pt-2 border-t">
+              <Label>Сохранить в:</Label>
+              <div className="flex flex-col gap-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="saveTo"
+                    value="estimates"
+                    checked={newEquipment.saveTo === 'estimates'}
+                    onChange={(e) => setNewEquipment({...newEquipment, saveTo: e.target.value as any})}
+                  />
+                  <span className="text-sm">Только в сметы (для аренды/субаренды)</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="saveTo"
+                    value="both"
+                    checked={newEquipment.saveTo === 'both'}
+                    onChange={(e) => setNewEquipment({...newEquipment, saveTo: e.target.value as any})}
+                  />
+                  <span className="text-sm">В сметы и на склад (своё оборудование)</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="saveTo"
+                    value="inventory"
+                    checked={newEquipment.saveTo === 'inventory'}
+                    onChange={(e) => setNewEquipment({...newEquipment, saveTo: e.target.value as any})}
+                  />
+                  <span className="text-sm">Только на склад (без добавления в смету)</span>
+                </label>
+              </div>
+            </div>
           </div>
           
           <DialogFooter className="gap-2">
@@ -2005,7 +2049,7 @@ export function EstimateBuilder({
               disabled={!newEquipment.name || !newEquipment.category}
             >
               <Plus className="w-4 h-4 mr-2" />
-              Создать и добавить
+              {newEquipment.saveTo === 'inventory' ? 'Создать на складе' : 'Создать и добавить'}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -120,48 +120,134 @@ export function useEquipment(companyId: string | undefined) {
     }
   }, [companyId]);
 
-  const addEquipment = useCallback(async (item: Partial<Equipment>) => {
+  const addEquipment = useCallback(async (
+    item: Partial<Equipment>, 
+    options?: { 
+      saveTo?: 'estimates' | 'inventory' | 'both'  // Куда сохранять: сметы, склад, или оба
+    }
+  ) => {
     if (!companyId) return { error: new Error('No company') };
+    
+    const saveTo = options?.saveTo || 'estimates'; // По умолчанию только в сметы
 
     try {
       if (isOnline()) {
         try {
-          // Онлайн — сохраняем на сервер
-          const { error } = await supabase
-            .from('equipment')
-            .insert({ ...item, company_id: companyId });
+          // Онлайн — сохраняем согласно выбору
+          
+          // 1. Всегда создаём в equipment (для смет)
+          if (saveTo === 'estimates' || saveTo === 'both') {
+            const { data: equipData, error: equipError } = await supabase
+              .from('equipment')
+              .insert({ ...item, company_id: companyId })
+              .select()
+              .single();
 
-          if (error) throw error;
+            if (equipError) throw equipError;
 
-          await fetchEquipment();
-          toast.success('Оборудование добавлено');
-          return { error: null };
+            // Если нужно сохранить и на склад
+            if (saveTo === 'both') {
+              // Находим category_id по названию категории
+              let categoryId = null;
+              if (item.category) {
+                const { data: catData } = await supabase
+                  .from('categories')
+                  .select('id')
+                  .eq('name', item.category)
+                  .eq('company_id', companyId)
+                  .single();
+                categoryId = catData?.id;
+              }
+
+              // Создаём запись в cable_inventory
+              const { data: invData, error: invError } = await supabase
+                .from('cable_inventory')
+                .insert({
+                  company_id: companyId,
+                  category_id: categoryId,
+                  name: item.name,
+                  quantity: item.quantity || 0,
+                  price: item.price,
+                  unit: item.unit || 'шт',
+                  equipment_id: equipData.id
+                })
+                .select()
+                .single();
+
+              if (invError) {
+                logger.error('Failed to create cable_inventory:', invError);
+              } else {
+                // Обновляем equipment ссылкой на inventory
+                await supabase
+                  .from('equipment')
+                  .update({ inventory_id: invData.id })
+                  .eq('id', equipData.id);
+              }
+            }
+
+            await fetchEquipment();
+            
+            const msg = saveTo === 'both' 
+              ? 'Оборудование добавлено в сметы и на склад'
+              : 'Оборудование добавлено в сметы';
+            toast.success(msg);
+            return { error: null, data: equipData };
+          }
+          
+          // Только на склад (без смет)
+          if (saveTo === 'inventory') {
+            let categoryId = null;
+            if (item.category) {
+              const { data: catData } = await supabase
+                .from('categories')
+                .select('id')
+                .eq('name', item.category)
+                .eq('company_id', companyId)
+                .single();
+              categoryId = catData?.id;
+            }
+
+            const { data: invData, error: invError } = await supabase
+              .from('cable_inventory')
+              .insert({
+                company_id: companyId,
+                category_id: categoryId,
+                name: item.name,
+                quantity: item.quantity || 0,
+                price: item.price,
+                unit: item.unit || 'шт'
+              })
+              .select()
+              .single();
+
+            if (invError) throw invError;
+            
+            toast.success('Оборудование добавлено на склад');
+            return { error: null, data: invData };
+          }
         } catch (err) {
-          // При ошибке сети (503) переходим в оффлайн-режим
           logger.warn('Network error, switching to offline mode:', err);
         }
       }
       
-      // ОФФЛАЙН режим (или fallback при ошибке)
-        // ОФФЛАЙН — сохраняем только локально
-        const localId = `local_equip_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-        const newItem = { 
-          ...item, 
-          id: localId,
-          company_id: companyId,
-          created_at: new Date().toISOString()
-        } as Equipment;
+      // ОФФЛАЙН режим (сохраняем только в equipment)
+      const localId = `local_equip_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      const newItem = { 
+        ...item, 
+        id: localId,
+        company_id: companyId,
+        created_at: new Date().toISOString()
+      } as Equipment;
 
-        await saveEquipmentLocal(newItem, companyId);
-        await addToSyncQueue('equipment', 'create', { ...newItem, company_id: companyId });
-        
-        // Обновляем UI только локальными данными
-        setEquipment(prev => [...prev, newItem]);
-        
-        toast.info('Сохранено офлайн', { 
-          description: 'Будет синхронизировано при подключении' 
-        });
-        return { error: null, queued: true };
+      await saveEquipmentLocal(newItem, companyId);
+      await addToSyncQueue('equipment', 'create', { ...newItem, company_id: companyId });
+      
+      setEquipment(prev => [...prev, newItem]);
+      
+      toast.info('Сохранено офлайн', { 
+        description: 'Будет синхронизировано при подключении' 
+      });
+      return { error: null, queued: true, data: newItem };
     } catch (err: any) {
       toast.error('Ошибка при добавлении оборудования', { description: err.message });
       return { error: err };
