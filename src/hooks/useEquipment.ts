@@ -178,17 +178,31 @@ export function useEquipment(companyId: string | undefined) {
 
         if (equipError) throw equipError;
 
-        // Находим или создаём категорию
+        // Находим или создаём категорию (пробуем cable_categories, fallback на categories)
         let categoryId = null;
         if (item.category) {
-          const { data: catData } = await supabase
+          // Пробуем новую таблицу
+          let { data: catData, error: catError } = await supabase
             .from('cable_categories')
             .select('id')
             .eq('name', item.category)
             .eq('company_id', companyId)
             .single();
-          categoryId = catData?.id;
           
+          // Если таблицы нет - используем старую
+          if (catError && catError.code === '42P01') {
+            const { data: oldCat } = await supabase
+              .from('categories')
+              .select('id')
+              .eq('name', item.category)
+              .eq('company_id', companyId)
+              .single();
+            categoryId = oldCat?.id;
+          } else {
+            categoryId = catData?.id;
+          }
+          
+          // Создаём в новой таблице если не нашли
           if (!categoryId) {
             const { data: newCat } = await supabase
               .from('cable_categories')
@@ -244,13 +258,26 @@ export function useEquipment(companyId: string | undefined) {
       if (saveTo === 'inventory') {
         let categoryId = null;
         if (item.category) {
-          const { data: catData } = await supabase
+          // Пробуем новую таблицу
+          let { data: catData, error: catError } = await supabase
             .from('cable_categories')
             .select('id')
             .eq('name', item.category)
             .eq('company_id', companyId)
             .single();
-          categoryId = catData?.id;
+          
+          // Fallback на старую
+          if (catError && catError.code === '42P01') {
+            const { data: oldCat } = await supabase
+              .from('categories')
+              .select('id')
+              .eq('name', item.category)
+              .eq('company_id', companyId)
+              .single();
+            categoryId = oldCat?.id;
+          } else {
+            categoryId = catData?.id;
+          }
           
           if (!categoryId) {
             const { data: newCat } = await supabase
