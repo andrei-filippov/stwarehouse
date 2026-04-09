@@ -288,7 +288,8 @@ export function useEquipment(companyId: string | undefined) {
             toast.success('Оборудование добавлено на склад');
             return { error: null, data: invData };
           }
-        } catch (err) {
+        }  // <-- закрытие внутреннего try для online
+        catch (err) {
           logger.warn('Network error, switching to offline mode:', err);
         }
       }  // <-- закрытие if (isOnline())
