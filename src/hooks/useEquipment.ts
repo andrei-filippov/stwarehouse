@@ -147,43 +147,65 @@ export function useEquipment(companyId: string | undefined) {
 
             // Если нужно сохранить и на склад
             if (saveTo === 'both') {
-              // Находим category_id по названию категории
+              // Находим или создаём категорию в cable_categories
               let categoryId = null;
               if (item.category) {
                 const { data: catData } = await supabase
-                  .from('categories')
+                  .from('cable_categories')
                   .select('id')
                   .eq('name', item.category)
                   .eq('company_id', companyId)
                   .single();
                 categoryId = catData?.id;
+                
+                // Если категория не найдена - создаём
+                if (!categoryId) {
+                  const { data: newCat, error: catError } = await supabase
+                    .from('cable_categories')
+                    .insert({
+                      company_id: companyId,
+                      name: item.category,
+                      color: '#3b82f6'
+                    })
+                    .select()
+                    .single();
+                  if (!catError && newCat) {
+                    categoryId = newCat.id;
+                  }
+                }
               }
 
-              // Создаём запись в cable_inventory
-              const { data: invData, error: invError } = await supabase
-                .from('cable_inventory')
-                .insert({
-                  company_id: companyId,
-                  category_id: categoryId,
-                  name: item.name,
-                  quantity: item.quantity || 0,
-                  price: item.price,
-                  unit: item.unit || 'шт',
-                  equipment_id: equipData.id
-                })
-                .select()
-                .single();
-
-              if (invError) {
-                logger.error('Failed to create cable_inventory:', invError);
+              // Если нет категории - используем дефолтную или не создаём
+              if (!categoryId) {
+                logger.warn('No category for cable_inventory, skipping');
               } else {
-                // Обновляем equipment ссылкой на inventory
-                await supabase
-                  .from('equipment')
-                  .update({ inventory_id: invData.id })
-                  .eq('id', equipData.id);
+                // Создаём запись в cable_inventory
+                const { data: invData, error: invError } = await supabase
+                  .from('cable_inventory')
+                  .insert({
+                    company_id: companyId,
+                    category_id: categoryId,
+                    name: item.name,
+                    length: 0,  // Обязательное поле для кабелей
+                    quantity: item.quantity || 0,
+                    min_quantity: 0,
+                    price: item.price,
+                    unit: item.unit || 'шт',
+                    equipment_id: equipData.id
+                  })
+                  .select()
+                  .single();
+
+                if (invError) {
+                  logger.error('Failed to create cable_inventory:', invError);
+                } else {
+                  // Обновляем equipment ссылкой на inventory
+                  await supabase
+                    .from('equipment')
+                    .update({ inventory_id: invData.id })
+                    .eq('id', equipData.id);
+                }
               }
-            }
 
             await fetchEquipment();
             
@@ -196,15 +218,37 @@ export function useEquipment(companyId: string | undefined) {
           
           // Только на склад (без смет)
           if (saveTo === 'inventory') {
+            // Находим или создаём категорию в cable_categories
             let categoryId = null;
             if (item.category) {
               const { data: catData } = await supabase
-                .from('categories')
+                .from('cable_categories')
                 .select('id')
                 .eq('name', item.category)
                 .eq('company_id', companyId)
                 .single();
               categoryId = catData?.id;
+              
+              // Если категория не найдена - создаём
+              if (!categoryId) {
+                const { data: newCat, error: catError } = await supabase
+                  .from('cable_categories')
+                  .insert({
+                    company_id: companyId,
+                    name: item.category,
+                    color: '#3b82f6'
+                  })
+                  .select()
+                  .single();
+                if (!catError && newCat) {
+                  categoryId = newCat.id;
+                }
+              }
+            }
+
+            // Без категории не создаём
+            if (!categoryId) {
+              return { error: new Error('Категория обязательна для создания оборудования на складе') };
             }
 
             const { data: invData, error: invError } = await supabase
@@ -213,7 +257,9 @@ export function useEquipment(companyId: string | undefined) {
                 company_id: companyId,
                 category_id: categoryId,
                 name: item.name,
+                length: 0,
                 quantity: item.quantity || 0,
+                min_quantity: 0,
                 price: item.price,
                 unit: item.unit || 'шт'
               })
