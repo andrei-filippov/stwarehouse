@@ -228,12 +228,12 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
             .select('quantity')
             .eq('inventory_id', item.id)
             .not('status', 'eq', 'returned'),
-          // Запрос резервов из смет - по связи или по имени
+          // Запрос резервов из смет - активные (не закончившиеся) мероприятия
           supabase
             .from('estimate_items')
             .select('quantity, estimates!inner(event_date, event_end_date), equipment!inner(inventory_id, name)')
             .or(`equipment.inventory_id.eq.${item.id},equipment.name.eq.${item.name}`)
-            .gte('estimates.event_date', today)
+            .gte('estimates.event_end_date', today)  // Мероприятие ещё не закончилось
         ]);
         
         console.log('[QRScan] Stats received:', { 
