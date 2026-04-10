@@ -66,6 +66,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
   // Детали для просмотра информации
   const [movementsDetails, setMovementsDetails] = useState<any[]>([]);
   const [reservationsDetails, setReservationsDetails] = useState<any[]>([]);
+  const [checklistLoadsDetails, setChecklistLoadsDetails] = useState<any[]>([]);
 
   // Загружаем инвентарь и комплекты
   useEffect(() => {
@@ -221,7 +222,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
       try {
         const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
         
-        const [{ data: movements }, { data: repairs }, { data: estimateReservations }] = await Promise.all([
+        const [{ data: movements }, { data: repairs }, { data: estimateReservations }, { data: checklistItems }] = await Promise.all([
           supabase
             .from('cable_movements')
             .select('quantity')
@@ -237,16 +238,25 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
             .from('estimate_items')
             .select('quantity, estimates!inner(event_date, event_end_date), equipment!inner(inventory_id, name)')
             .or(`equipment.inventory_id.eq.${item.id},equipment.name.eq.${item.name}`)
-            .gte('estimates.event_end_date', today)  // Мероприятие ещё не закончилось
+            .gte('estimates.event_end_date', today),  // Мероприятие ещё не закончилось
+          // Запрос выдач через чек-листы
+          supabase
+            .from('checklist_items')
+            .select('loaded_quantity')
+            .eq('inventory_id', item.id)
+            .eq('loaded', true)
         ]);
         
         console.log('[QRScan] Stats received:', { 
           movements: movements?.length || 0, 
           repairs: repairs?.length || 0,
-          reservations: estimateReservations?.length || 0 
+          reservations: estimateReservations?.length || 0,
+          checklistItems: checklistItems?.length || 0
         });
         
-        const issuedQty = movements?.reduce((sum, m) => sum + (m.quantity || 0), 0) || 0;
+        const manualIssued = movements?.reduce((sum, m) => sum + (m.quantity || 0), 0) || 0;
+        const checklistIssued = checklistItems?.reduce((sum, c) => sum + (c.loaded_quantity || 0), 0) || 0;
+        const issuedQty = manualIssued + checklistIssued;
         const repairQty = repairs?.reduce((sum, r) => sum + (r.quantity || 0), 0) || 0;
         
         // Считаем зарезервированное количество из смет
@@ -459,8 +469,8 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
     setSubmitting(true);
     
     try {
-      // Загружаем выдачи и резервы параллельно
-      const [{ data: movData, error: movError }, { data: resData, error: resError }] = await Promise.all([
+      // Загружаем выдачи (ручные + через чек-листы) и резервы параллельно
+      const [{ data: movData, error: movError }, { data: resData, error: resError }, { data: checklistData, error: checklistError }] = await Promise.all([
         supabase
           .from('cable_movements')
           .select('*')
@@ -471,14 +481,36 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
           .from('estimate_items')
           .select('quantity, estimates!inner(event_name, event_date, event_end_date), equipment!inner(inventory_id, name)')
           .or(`equipment.inventory_id.eq.${item.id},equipment.name.eq.${item.name}`)
-          .gte('estimates.event_end_date', today)
+          .gte('estimates.event_end_date', today),
+        supabase
+          .from('checklist_items')
+          .select('loaded_quantity, loaded_at, checklists!inner(event_name, event_date), inventory_name')
+          .eq('inventory_id', item.id)
+          .eq('loaded', true)
+          .order('loaded_at', { ascending: false })
       ]);
       
       if (movError) throw movError;
       if (resError) console.error('Reservations error:', resError);
+      if (checklistError) console.error('Checklist error:', checklistError);
       
-      setMovementsDetails(movData || []);
+      // Объединяем ручные выдачи и выдачи через чек-листы
+      const manualMovements = (movData || []).map(m => ({ ...m, source: 'manual' }));
+      const checklistMovements = (checklistData || []).map(c => ({
+        id: `checklist-${c.checklists?.event_name}`,
+        issued_to: c.checklists?.event_name || 'Мероприятие',
+        contact: null,
+        quantity: c.loaded_quantity || 0,
+        created_at: c.loaded_at,
+        source: 'checklist'
+      }));
+      
+      const allMovements = [...manualMovements, ...checklistMovements]
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      
+      setMovementsDetails(allMovements);
       setReservationsDetails(resData || []);
+      setChecklistLoadsDetails(checklistData || []);
       setActiveAction('info');
     } catch (err: any) {
       toast.error('Ошибка загрузки', { description: err.message });
@@ -776,6 +808,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
                             <p className="font-medium text-sm">{m.issued_to || '—'}</p>
                             <p className="text-xs text-muted-foreground">
                               {m.contact && `Контакт: ${m.contact}`}
+                              {m.source === 'checklist' && ' (через смету)'}
                             </p>
                           </div>
                           <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
@@ -783,7 +816,57 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
                           </span>
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">
-                          {new Date(m.created_at).toLocaleDateString('ru-RU')}
+                          {new Date(m.created_at || m.loaded_at).toLocaleDateString('ru-RU')}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              {/* Загружено в чек-листы */}
+              <div className="border-t pt-4">
+                <h4 className="font-medium mb-3">Загружено на мероприятиях ({checklistLoadsDetails.reduce((sum, c) => sum + (c.loaded_quantity || 0), 0)} шт)</h4>
+                
+                {checklistLoadsDetails.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-4">Нет загрузок на мероприятиях</p>
+                ) : (
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {checklistLoadsDetails.map((c, idx) => (
+                      <div key={idx} className="p-3 bg-green-50 dark:bg-green-950 rounded-lg">
+                        <div className="flex justify-between items-start">
+                          <p className="font-medium text-sm">{c.checklists?.event_name || '—'}</p>
+                          <span className="text-sm font-bold text-green-600 dark:text-green-400">
+                            {c.loaded_quantity} шт
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {c.checklists?.venue && `Площадка: ${c.checklists.venue}`}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              {/* Загружено в чек-листы */}
+              <div className="border-t pt-4">
+                <h4 className="font-medium mb-3">Загружено на мероприятиях ({checklistLoadsDetails.reduce((sum, c) => sum + (c.loaded_quantity || 0), 0)} шт)</h4>
+                
+                {checklistLoadsDetails.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-4">Нет загрузок на мероприятиях</p>
+                ) : (
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {checklistLoadsDetails.map((c, idx) => (
+                      <div key={idx} className="p-3 bg-green-50 dark:bg-green-950 rounded-lg">
+                        <div className="flex justify-between items-start">
+                          <p className="font-medium text-sm">{c.checklists?.event_name || '—'}</p>
+                          <span className="text-sm font-bold text-green-600 dark:text-green-400">
+                            {c.loaded_quantity} шт
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {c.checklists?.venue && `Площадка: ${c.checklists.venue}`}
                         </p>
                       </div>
                     ))}
