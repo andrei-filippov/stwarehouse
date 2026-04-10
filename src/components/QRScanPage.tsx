@@ -426,7 +426,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
     
     const { error } = await supabase
       .from('equipment_repairs')
-      .update({ status: 'returned', returned_at: new Date().toISOString() })
+      .update({ status: 'returned', returned_date: new Date().toISOString() })
       .eq('id', repairId);
     
     if (error) {
