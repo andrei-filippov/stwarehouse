@@ -341,7 +341,11 @@ export function useOfflineSync(companyId: string | undefined) {
                     quantity: item.quantity,
                     category: item.category,
                     is_required: item.is_required ?? true,
-                    is_checked: item.is_checked ?? false
+                    is_checked: item.is_checked ?? false,
+                    inventory_id: item.inventory_id || null,
+                    qr_code: item.qr_code || null,
+                    kit_id: item.kit_id || null,
+                    kit_name: item.kit_name || null
                   }));
                   
                   const { error: itemsError } = await supabase

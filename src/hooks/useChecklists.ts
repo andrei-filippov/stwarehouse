@@ -267,10 +267,10 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
       logger.info('[createChecklist] Rules to apply:', rulesToUse.length);
       
       // Загружаем QR-коды из cable_inventory для сопоставления
-      // Создаем Map: имя оборудования -> массив QR-кодов (для случая когда несколько единиц)
-      let inventoryMap: Map<string, { qr_code?: string; kit_id?: string; kit_name?: string }[]> = new Map();
+      // Создаем Map: имя оборудования -> массив данных (для случая когда несколько единиц)
+      let inventoryMap: Map<string, { inventory_id?: string; qr_code?: string; kit_id?: string; kit_name?: string }[]> = new Map();
       // Map для поиска по ID (для правил с inventory_id)
-      let inventoryByIdMap: Map<string, { name?: string; qr_code?: string; kit_id?: string; kit_name?: string; category_id?: string }> = new Map();
+      let inventoryByIdMap: Map<string, { inventory_id?: string; name?: string; qr_code?: string; kit_id?: string; kit_name?: string; category_id?: string }> = new Map();
       // Категории кабелей (нужны для формирования имени и категории)
       let cableCategories: { id: string; name: string }[] = [];
       
@@ -319,6 +319,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
               
               // Заполняем Map по ID (для правил с inventory_id)
               inventoryByIdMap.set(i.id, {
+                inventory_id: i.id,
                 name: displayName,
                 qr_code: i.qr_code,
                 category_id: i.category_id,
@@ -334,6 +335,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
                   inventoryMap.set(key, []);
                 }
                 inventoryMap.get(key)!.push({
+                  inventory_id: i.id,
                   qr_code: i.qr_code,
                   kit_id: kitData?.kit_id,
                   kit_name: kitData?.equipment_kits?.name
@@ -366,7 +368,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
       };
       
       // Создаем нормализованную Map для поиска (с полной информацией)
-      const normalizedInventoryMap: Map<string, { qr_code?: string; kit_id?: string; kit_name?: string }[]> = new Map();
+      const normalizedInventoryMap: Map<string, { inventory_id?: string; qr_code?: string; kit_id?: string; kit_name?: string }[]> = new Map();
       for (const [invName, data] of inventoryMap.entries()) {
         const normalized = normalizeName(invName);
         if (!normalizedInventoryMap.has(normalized)) {
@@ -379,7 +381,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
       
       // Функция для поиска данных оборудования по имени
       // Возвращает массив для случая когда несколько единиц с таким именем
-      const findInventoryData = (itemName: string): { qr_code?: string; kit_id?: string; kit_name?: string }[] => {
+      const findInventoryData = (itemName: string): { inventory_id?: string; qr_code?: string; kit_id?: string; kit_name?: string }[] => {
         const normalizedItemName = normalizeName(itemName);
         
         // Точное совпадение по нормализованному имени
@@ -402,7 +404,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
         const invDataWithKit = invDataList.find(d => d.kit_id);
         const invData = invDataWithKit || invDataList[0];
         
-        logger.debug(`[createChecklist] Item "${item.name}": normalized="${normalizeName(item.name)}", QR=${invData?.qr_code || 'none'}, Kit=${invData?.kit_name || 'none'}`);
+        logger.debug(`[createChecklist] Item "${item.name}": normalized="${normalizeName(item.name)}", QR=${invData?.qr_code || 'none'}, Kit=${invData?.kit_name || 'none'}, InventoryId=${invData?.inventory_id || 'none'}`);
         
         items.push({
           id: `local_item_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
@@ -411,6 +413,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
           category: item.category || 'equipment',
           is_required: true,
           is_checked: false,
+          inventory_id: invData?.inventory_id || null,
           qr_code: invData?.qr_code || null,
           kit_id: invData?.kit_id || null,
           kit_name: invData?.kit_name || null
@@ -460,12 +463,13 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
                     category: category,
                     is_required: ruleItem.is_required,
                     is_checked: false,
+                    inventory_id: ruleItem.inventory_id || invData.inventory_id || null,
                     qr_code: invData.qr_code || null,
                     kit_id: invData.kit_id || null,
                     kit_name: invData.kit_name || null,
                     source_rule_id: rule.id
                   });
-                  logger.debug(`[createChecklist] Added item from inventory: ${displayName}, QR: ${invData.qr_code}`);
+                  logger.debug(`[createChecklist] Added item from inventory: ${displayName}, QR: ${invData.qr_code}, InventoryId: ${ruleItem.inventory_id || invData.inventory_id}`);
                 } else {
                   // Нет в инвентаре (удалена позиция) - используем сохраненные метаданные
                   items.push({
@@ -475,6 +479,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
                     category: ruleItem.inventory_category || 'tool',
                     is_required: ruleItem.is_required,
                     is_checked: false,
+                    inventory_id: ruleItem.inventory_id || null,
                     qr_code: ruleItem.inventory_qr_code || null,
                     source_rule_id: rule.id
                   });
@@ -551,6 +556,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
               category: item.category,
               is_required: item.is_required ?? true,
               is_checked: item.is_checked ?? false,
+              inventory_id: item.inventory_id || null,
               qr_code: item.qr_code || null,
               kit_id: item.kit_id || null,
               kit_name: item.kit_name || null
@@ -559,9 +565,11 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
             // Отладка: показываем что отправляем
             const itemsWithQr = itemsWithChecklistId.filter(i => i.qr_code);
             const itemsWithKit = itemsWithChecklistId.filter(i => i.kit_id);
-            logger.info(`[createChecklist] Inserting ${itemsWithChecklistId.length} items, ${itemsWithQr.length} with QR codes, ${itemsWithKit.length} with kits`);
+            const itemsWithInventory = itemsWithChecklistId.filter(i => i.inventory_id);
+            logger.info(`[createChecklist] Inserting ${itemsWithChecklistId.length} items, ${itemsWithQr.length} with QR codes, ${itemsWithKit.length} with kits, ${itemsWithInventory.length} with inventory_id`);
             logger.debug('[createChecklist] Items with QR:', itemsWithQr.map(i => ({ name: i.name, qr: i.qr_code })));
             logger.debug('[createChecklist] Items with kits:', itemsWithKit.map(i => ({ name: i.name, kit: i.kit_name })));
+            logger.debug('[createChecklist] Items with inventory:', itemsWithInventory.map(i => ({ name: i.name, inventory_id: i.inventory_id })));
 
             const { error: itemsError } = await supabase
               .from('checklist_items')
