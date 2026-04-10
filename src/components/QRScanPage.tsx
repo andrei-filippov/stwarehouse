@@ -62,6 +62,10 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
   const [issueForm, setIssueForm] = useState({ issued_to: '', contact: '', quantity: 1 });
   const [repairForm, setRepairForm] = useState({ reason: '', quantity: 1 });
   const [submitting, setSubmitting] = useState(false);
+  
+  // Детали для просмотра информации
+  const [movementsDetails, setMovementsDetails] = useState<any[]>([]);
+  const [showInfoDialog, setShowInfoDialog] = useState(false);
 
   // Загружаем инвентарь и комплекты
   useEffect(() => {
@@ -446,6 +450,31 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
     setSubmitting(false);
   };
 
+  // Загрузка деталей выдач для просмотра
+  const handleShowInfo = async () => {
+    if (!scanResult || scanResult.type !== 'inventory') return;
+    
+    const item = scanResult.data;
+    setSubmitting(true);
+    
+    try {
+      const { data, error } = await supabase
+        .from('cable_movements')
+        .select('*')
+        .eq('inventory_id', item.id)
+        .eq('type', 'issue')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      setMovementsDetails(data || []);
+      setShowInfoDialog(true);
+    } catch (err: any) {
+      toast.error('Ошибка загрузки', { description: err.message });
+    }
+    setSubmitting(false);
+  };
+
   console.log('[QRScan] Render state:', { loading, isScanning, scanResultType: scanResult?.type });
 
   if (loading) {
@@ -530,7 +559,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
             <div className="pt-4 border-t space-y-2">
               <h4 className="font-medium text-sm">Быстрые действия:</h4>
               <div className="grid grid-cols-2 gap-2">
-                <Button variant="outline" onClick={() => setActiveAction('info')}>
+                <Button variant="outline" onClick={handleShowInfo}>
                   <Info className="w-4 h-4 mr-2" />
                   Информация
                 </Button>
@@ -689,12 +718,13 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
 
         {/* Диалог информации */}
         <Dialog open={activeAction === 'info'} onOpenChange={() => setActiveAction(null)}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Информация об оборудовании</DialogTitle>
             </DialogHeader>
             
             <div className="space-y-4">
+              {/* Основная информация */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-3 bg-muted rounded-lg">
                   <p className="text-sm text-muted-foreground">Наименование</p>
@@ -716,9 +746,38 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
                 </div>
               </div>
               
-              <div className="p-3 bg-muted rounded-lg">
-                <p className="text-sm text-muted-foreground">ID в системе</p>
-                <code className="text-xs">{item.id}</code>
+              {/* Список выдач */}
+              <div className="border-t pt-4">
+                <h4 className="font-medium mb-3">История выдач ({scanResult.stats?.issued || 0} шт)</h4>
+                
+                {submitting ? (
+                  <div className="flex justify-center py-4">
+                    <div className="animate-spin h-6 w-6 border-b-2 border-primary rounded-full"></div>
+                  </div>
+                ) : movementsDetails.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-4">Нет записей о выдаче</p>
+                ) : (
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {movementsDetails.map((m, idx) => (
+                      <div key={m.id || idx} className="p-3 bg-blue-50 dark:bg-blue-950 rounded-lg">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="font-medium text-sm">{m.issued_to || '—'}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {m.contact && `Контакт: ${m.contact}`}
+                            </p>
+                          </div>
+                          <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
+                            {m.quantity} шт
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {new Date(m.created_at).toLocaleDateString('ru-RU')}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
             
@@ -966,7 +1025,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
             <div className="pt-4 border-t space-y-2">
               <h4 className="font-medium text-sm">Быстрые действия:</h4>
               <div className="grid grid-cols-2 gap-2">
-                <Button variant="outline" onClick={() => setActiveAction('info')}>
+                <Button variant="outline" onClick={handleShowInfo}>
                   <Info className="w-4 h-4 mr-2" />
                   Информация
                 </Button>
@@ -1116,7 +1175,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
         
         {/* Диалог информации */}
         <Dialog open={activeAction === 'info'} onOpenChange={() => setActiveAction(null)}>
-          <DialogContent className="max-w-sm">
+          <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Информация об оборудовании</DialogTitle>
             </DialogHeader>
@@ -1154,6 +1213,40 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
                   QR: <code className="bg-muted px-2 py-1 rounded">{item.qr_code}</code>
                 </div>
               )}
+              
+              {/* Список выдач */}
+              <div className="border-t pt-4">
+                <h4 className="font-medium mb-3">История выдач ({scanResult.stats?.issued || 0} шт)</h4>
+                
+                {submitting ? (
+                  <div className="flex justify-center py-4">
+                    <div className="animate-spin h-6 w-6 border-b-2 border-primary rounded-full"></div>
+                  </div>
+                ) : movementsDetails.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-4">Нет записей о выдаче</p>
+                ) : (
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {movementsDetails.map((m, idx) => (
+                      <div key={m.id || idx} className="p-3 bg-blue-50 dark:bg-blue-950 rounded-lg">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="font-medium text-sm">{m.issued_to || '—'}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {m.contact && `Контакт: ${m.contact}`}
+                            </p>
+                          </div>
+                          <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
+                            {m.quantity} шт
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {new Date(m.created_at).toLocaleDateString('ru-RU')}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
             
             <DialogFooter>
