@@ -912,7 +912,16 @@ function ChecklistView({
       }
       
       setOptimisticUpdates(prev => ({ ...prev, [item.id]: updates }));
-      onUpdateItem(checklist.id, item.id, updates);
+      onUpdateItem(checklist.id, item.id, updates).then(() => {
+        // Очищаем optimistic update после успешного сохранения
+        setTimeout(() => {
+          setOptimisticUpdates(prev => {
+            const newOptimistic = { ...prev };
+            delete newOptimistic[item.id];
+            return newOptimistic;
+          });
+        }, 300);
+      });
     } else {
       // Простой режим - стандартный чекбокс
       const newValue = !isChecked(item);
@@ -1012,11 +1021,22 @@ function ChecklistView({
       setOptimisticUpdates(prev => ({ ...prev, [item.id!]: updates }));
       
       // Запускаем API вызов асинхронно (не ждем)
-      onUpdateItem(checklist.id, item.id, updates).catch(err => {
-        console.error('Failed to update item:', err);
-        // Откатываем локальный счетчик при ошибке
-        scanCounterRef.current[item.id].loaded -= 1;
-      });
+      onUpdateItem(checklist.id, item.id, updates)
+        .then(() => {
+          // Очищаем optimistic update после успешного сохранения
+          setTimeout(() => {
+            setOptimisticUpdates(prev => {
+              const newOptimistic = { ...prev };
+              delete newOptimistic[item.id];
+              return newOptimistic;
+            });
+          }, 300);
+        })
+        .catch(err => {
+          console.error('Failed to update item:', err);
+          // Откатываем локальный счетчик при ошибке
+          scanCounterRef.current[item.id].loaded -= 1;
+        });
       
       toast.success(
         isComplete ? '✅ Погружено полностью' : '📦 Погружено', 
@@ -1052,11 +1072,22 @@ function ChecklistView({
       setOptimisticUpdates(prev => ({ ...prev, [item.id!]: updates }));
       
       // Запускаем API вызов асинхронно (не ждем)
-      onUpdateItem(checklist.id, item.id, updates).catch(err => {
-        console.error('Failed to update item:', err);
-        // Откатываем локальный счетчик при ошибке
-        scanCounterRef.current[item.id].unloaded -= 1;
-      });
+      onUpdateItem(checklist.id, item.id, updates)
+        .then(() => {
+          // Очищаем optimistic update после успешного сохранения
+          setTimeout(() => {
+            setOptimisticUpdates(prev => {
+              const newOptimistic = { ...prev };
+              delete newOptimistic[item.id];
+              return newOptimistic;
+            });
+          }, 300);
+        })
+        .catch(err => {
+          console.error('Failed to update item:', err);
+          // Откатываем локальный счетчик при ошибке
+          scanCounterRef.current[item.id].unloaded -= 1;
+        });
       
       toast.success(
         isComplete ? '✅ Разгружено полностью' : '📦 Разгружено', 
@@ -1198,10 +1229,21 @@ function ChecklistView({
             setOptimisticUpdates(prev => ({ ...prev, [item.id!]: updates }));
             
             // Запускаем API вызов асинхронно
-            onUpdateItem(checklist.id, item.id!, updates).catch(err => {
-              console.error('[Kit Scan] Failed:', err);
-              kitScanCounterRef.current[localKey][scanModeField] -= canAdd;
-            });
+            onUpdateItem(checklist.id, item.id!, updates)
+              .then(() => {
+                // Очищаем optimistic update после успешного сохранения
+                setTimeout(() => {
+                  setOptimisticUpdates(prev => {
+                    const newOptimistic = { ...prev };
+                    delete newOptimistic[item.id!];
+                    return newOptimistic;
+                  });
+                }, 300);
+              })
+              .catch(err => {
+                console.error('[Kit Scan] Failed:', err);
+                kitScanCounterRef.current[localKey][scanModeField] -= canAdd;
+              });
             
             updatedCount++;
             remainingToScan -= canAdd;
@@ -1298,7 +1340,19 @@ function ChecklistView({
     return checklist.items?.filter(i => isChecked(i)).length || 0;
   }, [checklist.items, optimisticUpdates]);
   
-  const total = checklist.items?.length || 0;
+  // Общее количество единиц оборудования (сумма quantity)
+  const totalQty = checklist.items?.reduce((sum, i) => sum + (i.quantity || 1), 0) || 0;
+  // Погружено/разгружено (сумма loaded_quantity/unloaded_quantity)
+  const loadedQty = checklist.items?.reduce((sum, i) => {
+    const status = getItemStatus(i);
+    return sum + (status.loaded_quantity || (status.loaded ? (i.quantity || 1) : 0));
+  }, 0) || 0;
+  const unloadedQty = checklist.items?.reduce((sum, i) => {
+    const status = getItemStatus(i);
+    return sum + (status.unloaded_quantity || (status.unloaded ? (i.quantity || 1) : 0));
+  }, 0) || 0;
+  // Для совместимости со старым кодом
+  const total = totalQty;
 
   return (
     <div className="space-y-4">
@@ -1353,13 +1407,13 @@ function ChecklistView({
             <div className="bg-primary/10 p-2 rounded text-center">
               <div className="text-xs text-muted-foreground mb-1">Погружено</div>
               <div className="font-semibold text-blue-600">
-                {checklist.items?.filter(i => getItemStatus(i).loaded).length || 0} / {total}
+                {loadedQty} / {totalQty}
               </div>
             </div>
             <div className="bg-green-500/10 p-2 rounded text-center">
               <div className="text-xs text-muted-foreground mb-1">Разгружено</div>
               <div className="font-semibold text-green-600">
-                {checklist.items?.filter(i => getItemStatus(i).unloaded).length || 0} / {total}
+                {unloadedQty} / {totalQty}
               </div>
             </div>
           </div>
