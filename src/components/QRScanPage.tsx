@@ -65,6 +65,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
   
   // Детали для просмотра информации
   const [movementsDetails, setMovementsDetails] = useState<any[]>([]);
+  const [reservationsDetails, setReservationsDetails] = useState<any[]>([]);
   const [showInfoDialog, setShowInfoDialog] = useState(false);
 
   // Загружаем инвентарь и комплекты
@@ -455,19 +456,30 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
     if (!scanResult || scanResult.type !== 'inventory') return;
     
     const item = scanResult.data;
+    const today = new Date().toISOString().split('T')[0];
     setSubmitting(true);
     
     try {
-      const { data, error } = await supabase
-        .from('cable_movements')
-        .select('*')
-        .eq('inventory_id', item.id)
-        .eq('type', 'issue')
-        .order('created_at', { ascending: false });
+      // Загружаем выдачи и резервы параллельно
+      const [{ data: movData, error: movError }, { data: resData, error: resError }] = await Promise.all([
+        supabase
+          .from('cable_movements')
+          .select('*')
+          .eq('inventory_id', item.id)
+          .eq('type', 'issue')
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('estimate_items')
+          .select('quantity, estimates!inner(event_name, event_date, event_end_date), equipment!inner(inventory_id, name)')
+          .or(`equipment.inventory_id.eq.${item.id},equipment.name.eq.${item.name}`)
+          .gte('estimates.event_end_date', today)
+      ]);
       
-      if (error) throw error;
+      if (movError) throw movError;
+      if (resError) console.error('Reservations error:', resError);
       
-      setMovementsDetails(data || []);
+      setMovementsDetails(movData || []);
+      setReservationsDetails(resData || []);
       setShowInfoDialog(true);
     } catch (err: any) {
       toast.error('Ошибка загрузки', { description: err.message });
@@ -757,7 +769,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
                 ) : movementsDetails.length === 0 ? (
                   <p className="text-muted-foreground text-center py-4">Нет записей о выдаче</p>
                 ) : (
-                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
                     {movementsDetails.map((m, idx) => (
                       <div key={m.id || idx} className="p-3 bg-blue-50 dark:bg-blue-950 rounded-lg">
                         <div className="flex justify-between items-start">
@@ -773,6 +785,33 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">
                           {new Date(m.created_at).toLocaleDateString('ru-RU')}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              {/* Список резервов в сметах */}
+              <div className="border-t pt-4">
+                <h4 className="font-medium mb-3">Зарезервировано в сметах ({reservationsDetails.reduce((sum, r) => sum + (r.quantity || 0), 0)} шт)</h4>
+                
+                {reservationsDetails.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-4">Нет активных резервов</p>
+                ) : (
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {reservationsDetails.map((r, idx) => (
+                      <div key={idx} className="p-3 bg-amber-50 dark:bg-amber-950 rounded-lg">
+                        <div className="flex justify-between items-start">
+                          <p className="font-medium text-sm">{r.estimates?.event_name || '—'}</p>
+                          <span className="text-sm font-bold text-amber-600 dark:text-amber-400">
+                            {r.quantity} шт
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {r.estimates?.event_date && new Date(r.estimates.event_date).toLocaleDateString('ru-RU')}
+                          {r.estimates?.event_end_date && r.estimates.event_date !== r.estimates.event_end_date && 
+                            ` - ${new Date(r.estimates.event_end_date).toLocaleDateString('ru-RU')}`}
                         </p>
                       </div>
                     ))}
@@ -1225,7 +1264,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
                 ) : movementsDetails.length === 0 ? (
                   <p className="text-muted-foreground text-center py-4">Нет записей о выдаче</p>
                 ) : (
-                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
                     {movementsDetails.map((m, idx) => (
                       <div key={m.id || idx} className="p-3 bg-blue-50 dark:bg-blue-950 rounded-lg">
                         <div className="flex justify-between items-start">
@@ -1241,6 +1280,33 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">
                           {new Date(m.created_at).toLocaleDateString('ru-RU')}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              {/* Список резервов в сметах */}
+              <div className="border-t pt-4">
+                <h4 className="font-medium mb-3">Зарезервировано в сметах ({reservationsDetails.reduce((sum, r) => sum + (r.quantity || 0), 0)} шт)</h4>
+                
+                {reservationsDetails.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-4">Нет активных резервов</p>
+                ) : (
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {reservationsDetails.map((r, idx) => (
+                      <div key={idx} className="p-3 bg-amber-50 dark:bg-amber-950 rounded-lg">
+                        <div className="flex justify-between items-start">
+                          <p className="font-medium text-sm">{r.estimates?.event_name || '—'}</p>
+                          <span className="text-sm font-bold text-amber-600 dark:text-amber-400">
+                            {r.quantity} шт
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {r.estimates?.event_date && new Date(r.estimates.event_date).toLocaleDateString('ru-RU')}
+                          {r.estimates?.event_end_date && r.estimates.event_date !== r.estimates.event_end_date && 
+                            ` - ${new Date(r.estimates.event_end_date).toLocaleDateString('ru-RU')}`}
                         </p>
                       </div>
                     ))}
