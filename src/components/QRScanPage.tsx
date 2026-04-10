@@ -35,7 +35,7 @@ interface QRScanPageProps {
 }
 
 type ScanResult = 
-  | { type: 'inventory'; data: CableInventory; category?: CableCategory; stats?: { inStock: number; reserved: number; inRepair: number } }
+  | { type: 'inventory'; data: CableInventory; category?: CableCategory; stats?: { inStock: number; issued: number; reserved: number; inRepair: number } }
   | { type: 'kit'; data: EquipmentKit }
   | { type: 'not_found'; qrCode: string }
   | null;
@@ -248,8 +248,16 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
         // Считаем зарезервированное количество из смет
         const reservedQty = estimateReservations?.reduce((sum, r) => sum + (r.quantity || 0), 0) || 0;
         
-        // Свободно = на складе - в ремонте - зарезервировано
-        const availableQty = Math.max(0, item.quantity - repairQty - reservedQty);
+        // Свободно = всего - выдано - в ремонте - зарезервировано
+        const availableQty = Math.max(0, item.quantity - issuedQty - repairQty - reservedQty);
+        
+        console.log('[QRScan] Calculated quantities:', { 
+          total: item.quantity, 
+          issued: issuedQty, 
+          repair: repairQty, 
+          reserved: reservedQty, 
+          available: availableQty 
+        });
         
         console.log('[QRScan] Setting isScanning to false FIRST');
         setIsScanning(false);
@@ -261,8 +269,9 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
           category,
           stats: {
             inStock: availableQty, // Свободно для выдачи
+            issued: issuedQty,     // Выдано
             reserved: reservedQty, // Зарезервировано в сметах
-            inRepair: repairQty
+            inRepair: repairQty    // В ремонте
           }
         });
       } catch (err) {
@@ -274,6 +283,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
           category,
           stats: {
             inStock: item.quantity,
+            issued: 0,
             reserved: 0,
             inRepair: 0
           }
