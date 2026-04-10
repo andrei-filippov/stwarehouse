@@ -66,7 +66,6 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
   // Детали для просмотра информации
   const [movementsDetails, setMovementsDetails] = useState<any[]>([]);
   const [reservationsDetails, setReservationsDetails] = useState<any[]>([]);
-  const [showInfoDialog, setShowInfoDialog] = useState(false);
 
   // Загружаем инвентарь и комплекты
   useEffect(() => {
@@ -480,7 +479,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
       
       setMovementsDetails(movData || []);
       setReservationsDetails(resData || []);
-      setShowInfoDialog(true);
+      setActiveAction('info');
     } catch (err: any) {
       toast.error('Ошибка загрузки', { description: err.message });
     }
