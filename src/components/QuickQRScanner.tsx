@@ -389,10 +389,16 @@ export function QuickQRScanner({
       updates.unloaded_quantity = newQty;
     }
     
-    // Обновляем локально (сравниваем по id элемента чеклиста)
-    const updatedItems = selectedChecklist.items?.map(i => 
-      i.id === item.id ? { ...i, ...updates } : i
-    );
+    // Обновляем локально (сравниваем по id, inventory_id или имени)
+    const updatedItems = selectedChecklist.items?.map(i => {
+      // Сравниваем по id если оба есть
+      if (i.id && item.id && i.id === item.id) return { ...i, ...updates };
+      // Сравниваем по inventory_id
+      if (i.inventory_id && item.inventory_id && i.inventory_id === item.inventory_id) return { ...i, ...updates };
+      // Fallback: сравниваем по имени
+      if (i.name === item.name) return { ...i, ...updates };
+      return i;
+    });
     
     setSelectedChecklist({ ...selectedChecklist, items: updatedItems });
     

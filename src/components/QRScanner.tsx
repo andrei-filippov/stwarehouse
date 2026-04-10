@@ -95,11 +95,14 @@ export function QRScanner({ isOpen, onClose, onScan, title = 'Сканирова
               console.log('[QRScanner] hasScannedRef set to TRUE');
               
               if (keepOpen) {
-                // Не закрываем сканер после сканирования (для QRScanPage)
-                console.log('[QRScanner] keepOpen mode - calling onScan, NOT closing');
+                // Не закрываем сканер после сканирования (для batch режима чек-листов)
+                console.log('[QRScanner] keepOpen mode - calling onScan, restarting camera');
                 stopScanning();
                 onScanRef.current(extractedCode);
-                // НЕ перезапускаем сканер - пусть пользователь закроет сам
+                // Перезапускаем сканер для следующего сканирования
+                setTimeout(() => {
+                  setScanKey(prev => prev + 1);
+                }, 500);
               } else {
                 // Обычный режим - закрываем после сканирования
                 console.log('[QRScanner] Normal mode - calling onScan and onClose');
