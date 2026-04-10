@@ -979,8 +979,8 @@ function ChecklistView({
     
     // Берем базовое количество ТОЛЬКО из item (исходные данные из БД)
     // НЕ используем getItemStatus, т.к. он включает optimistic updates
-    const baseLoadedQty = item.loaded_quantity || (item as any).loaded ? (item.quantity || 1) : 0;
-    const baseUnloadedQty = item.unloaded_quantity || (item as any).unloaded ? (item.quantity || 1) : 0;
+    const baseLoadedQty = item.loaded_quantity ?? 0;
+    const baseUnloadedQty = item.unloaded_quantity ?? 0;
     
     // Добавляем локальные сканы из ref (для быстрого сканирования подряд)
     const localLoaded = scanCounterRef.current[item.id]?.loaded || 0;
