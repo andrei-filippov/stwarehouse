@@ -142,15 +142,10 @@ export const ChecklistsManager = memo(function ChecklistsManager({
       // Обновляем только если данные реально изменились
       if (updated && JSON.stringify(updated.items) !== JSON.stringify(selectedChecklist.items)) {
         setSelectedChecklist(updated);
-        // Очищаем optimistic updates т.к. данные уже актуальны
-        setOptimisticUpdates({});
-        // Очищаем локальные счетчики
-        scanCounterRef.current = {};
-        kitScanCounterRef.current = {};
       }
       prevChecklistsRef.current = checklists;
     }
-  }, [checklists, selectedChecklist, setOptimisticUpdates]);
+  }, [checklists, selectedChecklist]);
 
   const handleDeselectChecklist = useCallback(() => {
     setSelectedChecklist(null);
