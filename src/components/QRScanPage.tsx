@@ -234,10 +234,12 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
             .eq('inventory_id', item.id)
             .not('status', 'eq', 'returned'),
           // Запрос резервов из смет - активные (не закончившиеся) мероприятия
+          // Ищем по equipment_id (связь cable_inventory -> equipment) или по имени
           supabase
             .from('estimate_items')
-            .select('quantity, estimates!inner(event_date, event_end_date), equipment!inner(inventory_id, name)')
-            .or(`equipment.inventory_id.eq.${item.id},equipment.name.eq.${item.name}`)
+            .select('quantity, estimates!inner(event_date, event_end_date, company_id), equipment!inner(id, name)')
+            .eq('estimates.company_id', companyId)
+            .or(`equipment.id.eq.${item.equipment_id || 'null'},equipment.name.ilike.${item.name}`)
             .gte('estimates.event_end_date', today),  // Мероприятие ещё не закончилось
           // Запрос выдач через чек-листы
           supabase
@@ -251,7 +253,9 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
           movements: movements?.length || 0, 
           repairs: repairs?.length || 0,
           reservations: estimateReservations?.length || 0,
-          checklistItems: checklistItems?.length || 0
+          checklistItems: checklistItems?.length || 0,
+          itemEquipmentId: item.equipment_id,
+          itemName: item.name
         });
         
         const manualIssued = movements?.reduce((sum, m) => sum + (m.quantity || 0), 0) || 0;
@@ -479,8 +483,9 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
           .order('created_at', { ascending: false }),
         supabase
           .from('estimate_items')
-          .select('quantity, estimates!inner(event_name, event_date, event_end_date), equipment!inner(inventory_id, name)')
-          .or(`equipment.inventory_id.eq.${item.id},equipment.name.eq.${item.name}`)
+          .select('quantity, estimates!inner(event_name, event_date, event_end_date, company_id), equipment!inner(id, name)')
+          .eq('estimates.company_id', companyId)
+          .or(`equipment.id.eq.${item.equipment_id || 'null'},equipment.name.ilike.${item.name}`)
           .gte('estimates.event_end_date', today),
         supabase
           .from('checklist_items')
@@ -817,31 +822,6 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">
                           {new Date(m.created_at || m.loaded_at).toLocaleDateString('ru-RU')}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              
-              {/* Загружено в чек-листы */}
-              <div className="border-t pt-4">
-                <h4 className="font-medium mb-3">Загружено на мероприятиях ({checklistLoadsDetails.reduce((sum, c) => sum + (c.loaded_quantity || 0), 0)} шт)</h4>
-                
-                {checklistLoadsDetails.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-4">Нет загрузок на мероприятиях</p>
-                ) : (
-                  <div className="space-y-2 max-h-40 overflow-y-auto">
-                    {checklistLoadsDetails.map((c, idx) => (
-                      <div key={idx} className="p-3 bg-green-50 dark:bg-green-950 rounded-lg">
-                        <div className="flex justify-between items-start">
-                          <p className="font-medium text-sm">{c.checklists?.event_name || '—'}</p>
-                          <span className="text-sm font-bold text-green-600 dark:text-green-400">
-                            {c.loaded_quantity} шт
-                          </span>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {c.checklists?.venue && `Площадка: ${c.checklists.venue}`}
                         </p>
                       </div>
                     ))}
