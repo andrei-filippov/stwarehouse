@@ -1008,12 +1008,13 @@ function ChecklistView({
       console.log(`[Equipment Scan] ${item.name}: +1, newTotal=${newTotalQty}, target=${targetQty}`);
       
       let updates: any = {
-        loaded_quantity: newTotalQty
+        loaded_quantity: newTotalQty,
+        unloaded_quantity: currentUnloadedQty // Сохраняем количество разгруженного
       };
       
       if (checkMode === 'double') {
         updates.loaded = isComplete;
-        if (!isComplete) updates.unloaded = false;
+        updates.unloaded = currentUnloadedQty >= targetQty; // Сохраняем статус разгрузки
       } else {
         updates.is_checked = isComplete;
       }
@@ -1065,6 +1066,7 @@ function ChecklistView({
       
       const updates = {
         unloaded_quantity: newTotalQty,
+        loaded_quantity: currentLoadedQty, // Сохраняем количество погруженного
         loaded: true,
         unloaded: isComplete
       };
@@ -1214,15 +1216,17 @@ function ChecklistView({
             let updates: any = {};
             if (scanMode === 'load') {
               updates.loaded_quantity = newTotalQty;
+              updates.unloaded_quantity = status.unloaded_quantity; // Сохраняем разгрузку
               if (checkMode === 'simple') {
                 updates.is_checked = isComplete;
               } else {
                 updates.loaded = isComplete;
-                if (!isComplete) updates.unloaded = false;
+                updates.unloaded = status.unloaded_quantity >= itemNeeded;
               }
             } else if (scanMode === 'unload') {
               updates.unloaded_quantity = newTotalQty;
-              updates.loaded = true;
+              updates.loaded_quantity = status.loaded_quantity; // Сохраняем погрузку
+              updates.loaded = status.loaded_quantity >= itemNeeded;
               updates.unloaded = isComplete;
             }
             
