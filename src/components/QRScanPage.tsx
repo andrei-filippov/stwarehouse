@@ -234,11 +234,11 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
             .eq('inventory_id', item.id)
             .not('status', 'eq', 'returned'),
           // Запрос резервов из смет - активные (не закончившиеся) мероприятия
-          // Ищем по equipment_id через связанные таблицы
+          // Прямой запрос по equipment_id без join (связь не настроена в схеме)
           supabase
             .from('estimate_items')
-            .select('quantity, estimates(event_date, event_end_date, company_id), equipment(id, name)')
-            .eq('equipment.id', item.equipment_id || 'null')
+            .select('quantity, estimates!inner(event_date, event_end_date, company_id)')
+            .eq('equipment_id', item.equipment_id || 'null')
             .gte('estimates.event_end_date', today),
           // Запрос выдач через чек-листы
           supabase
@@ -483,12 +483,12 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
           .order('created_at', { ascending: false }),
         supabase
           .from('estimate_items')
-          .select('quantity, estimates(event_name, event_date, event_end_date, company_id), equipment(id, name)')
-          .eq('equipment.id', item.equipment_id || 'null')
+          .select('quantity, estimates!inner(event_name, event_date, event_end_date, company_id)')
+          .eq('equipment_id', item.equipment_id || 'null')
           .gte('estimates.event_end_date', today),
         supabase
           .from('checklist_items')
-          .select('loaded_quantity, loaded_at, checklists!inner(event_name, event_date), inventory_name')
+          .select('loaded_quantity, loaded_at, checklists!inner(event_name, event_date)')
           .eq('inventory_id', item.id)
           .eq('loaded', true)
           .order('loaded_at', { ascending: false })
