@@ -67,6 +67,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
   const [movementsDetails, setMovementsDetails] = useState<any[]>([]);
   const [reservationsDetails, setReservationsDetails] = useState<any[]>([]);
   const [checklistLoadsDetails, setChecklistLoadsDetails] = useState<any[]>([]);
+  const [repairsDetails, setRepairsDetails] = useState<any[]>([]);
 
   // Загружаем инвентарь и комплекты
   useEffect(() => {
@@ -419,6 +420,30 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
     setSubmitting(false);
   };
 
+  // Возврат из ремонта
+  const handleReturnFromRepair = async (repairId: string) => {
+    setSubmitting(true);
+    
+    const { error } = await supabase
+      .from('equipment_repairs')
+      .update({ status: 'returned', returned_at: new Date().toISOString() })
+      .eq('id', repairId);
+    
+    if (error) {
+      toast.error('Ошибка при возврате', { description: error.message });
+    } else {
+      toast.success('Оборудование возвращено', { description: 'Со склада' });
+      // Обновляем данные
+      const { data } = await supabase.from('cable_inventory').select('*').eq('company_id', companyId);
+      if (data) setInventory(data);
+      // Перезагружаем информацию
+      if (scanResult?.type === 'inventory') {
+        handleShowInfo();
+      }
+    }
+    setSubmitting(false);
+  };
+
   // Добавление оборудования в чеклист
   const handleAddToChecklist = async (checklistId: string) => {
     if (!scanResult || scanResult.type !== 'inventory') return;
@@ -473,8 +498,8 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
     setSubmitting(true);
     
     try {
-      // Загружаем выдачи (ручные + через чек-листы) и резервы параллельно
-      const [{ data: movData, error: movError }, { data: resData, error: resError }, { data: checklistData, error: checklistError }] = await Promise.all([
+      // Загружаем выдачи (ручные + через чек-листы), резервы и ремонты параллельно
+      const [{ data: movData, error: movError }, { data: resData, error: resError }, { data: checklistData, error: checklistError }, { data: repairsData, error: repairsError }] = await Promise.all([
         supabase
           .from('cable_movements')
           .select('*')
@@ -491,7 +516,12 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
           .select('loaded_quantity, loaded_at, checklists!inner(event_name, event_date)')
           .eq('inventory_id', item.id)
           .eq('loaded', true)
-          .order('loaded_at', { ascending: false })
+          .order('loaded_at', { ascending: false }),
+        supabase
+          .from('equipment_repairs')
+          .select('*')
+          .eq('inventory_id', item.id)
+          .order('created_at', { ascending: false })
       ]);
       
       if (movError) throw movError;
@@ -517,6 +547,8 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
       setMovementsDetails(allMovements);
       setReservationsDetails(filteredReservations);
       setChecklistLoadsDetails(checklistData || []);
+      setRepairsDetails(repairsData || []);
+      if (repairsError) console.error('Repairs error:', repairsError);
       setActiveAction('info');
     } catch (err: any) {
       toast.error('Ошибка загрузки', { description: err.message });
@@ -876,6 +908,43 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
                           {r.estimates?.event_end_date && r.estimates.event_date !== r.estimates.event_end_date && 
                             ` - ${new Date(r.estimates.event_end_date).toLocaleDateString('ru-RU')}`}
                         </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              {/* Список ремонтов */}
+              <div className="border-t pt-4">
+                <h4 className="font-medium mb-3">В ремонте ({repairsDetails.filter(r => r.status !== 'returned').reduce((sum, r) => sum + (r.quantity || 0), 0)} шт)</h4>
+                
+                {repairsDetails.filter(r => r.status !== 'returned').length === 0 ? (
+                  <p className="text-muted-foreground text-center py-4">Нет оборудования в ремонте</p>
+                ) : (
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {repairsDetails.filter(r => r.status !== 'returned').map((r, idx) => (
+                      <div key={idx} className="p-3 bg-red-50 dark:bg-red-950 rounded-lg">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="font-medium text-sm">{r.reason || 'Ремонт'}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(r.created_at).toLocaleDateString('ru-RU')}
+                            </p>
+                          </div>
+                          <span className="text-sm font-bold text-red-600 dark:text-red-400">
+                            {r.quantity} шт
+                          </span>
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="w-full mt-2"
+                          onClick={() => handleReturnFromRepair(r.id)}
+                          disabled={submitting}
+                        >
+                          <Package className="w-4 h-4 mr-2" />
+                          Вернуть на склад
+                        </Button>
                       </div>
                     ))}
                   </div>
@@ -1371,6 +1440,43 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
                           {r.estimates?.event_end_date && r.estimates.event_date !== r.estimates.event_end_date && 
                             ` - ${new Date(r.estimates.event_end_date).toLocaleDateString('ru-RU')}`}
                         </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              {/* Список ремонтов */}
+              <div className="border-t pt-4">
+                <h4 className="font-medium mb-3">В ремонте ({repairsDetails.filter(r => r.status !== 'returned').reduce((sum, r) => sum + (r.quantity || 0), 0)} шт)</h4>
+                
+                {repairsDetails.filter(r => r.status !== 'returned').length === 0 ? (
+                  <p className="text-muted-foreground text-center py-4">Нет оборудования в ремонте</p>
+                ) : (
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {repairsDetails.filter(r => r.status !== 'returned').map((r, idx) => (
+                      <div key={idx} className="p-3 bg-red-50 dark:bg-red-950 rounded-lg">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="font-medium text-sm">{r.reason || 'Ремонт'}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(r.created_at).toLocaleDateString('ru-RU')}
+                            </p>
+                          </div>
+                          <span className="text-sm font-bold text-red-600 dark:text-red-400">
+                            {r.quantity} шт
+                          </span>
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="w-full mt-2"
+                          onClick={() => handleReturnFromRepair(r.id)}
+                          disabled={submitting}
+                        >
+                          <Package className="w-4 h-4 mr-2" />
+                          Вернуть на склад
+                        </Button>
                       </div>
                     ))}
                   </div>
