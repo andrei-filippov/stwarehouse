@@ -1024,9 +1024,15 @@ function ChecklistView({
       // Запускаем API вызов асинхронно (не ждем)
       onUpdateItem(checklist.id, item.id, updates)
         .then(() => {
-          // НЕ очищаем optimistic update сразу - ждем обновления пропсов от родителя
-          // Очистка произойдет автоматически при изменении checklist.items
-          console.log(`[Equipment Scan] ${item.name}: saved to DB, keeping optimistic`);
+          // Очищаем optimistic update после успешного сохранения
+          setTimeout(() => {
+            setOptimisticUpdates(prev => {
+              const newOptimistic = { ...prev };
+              delete newOptimistic[item.id];
+              return newOptimistic;
+            });
+            scanCounterRef.current[item.id].loaded = 0;
+          }, 500);
         })
         .catch(err => {
           console.error('Failed to update item:', err);
@@ -1036,7 +1042,7 @@ function ChecklistView({
             delete newOptimistic[item.id];
             return newOptimistic;
           });
-          scanCounterRef.current[item.id].loaded -= 1;
+          scanCounterRef.current[item.id].loaded = 0;
         });
       
       toast.success(
@@ -1076,8 +1082,15 @@ function ChecklistView({
       // Запускаем API вызов асинхронно (не ждем)
       onUpdateItem(checklist.id, item.id, updates)
         .then(() => {
-          // НЕ очищаем optimistic update сразу - ждем обновления пропсов от родителя
-          console.log(`[Equipment Scan] ${item.name}: saved to DB, keeping optimistic`);
+          // Очищаем optimistic update после успешного сохранения
+          setTimeout(() => {
+            setOptimisticUpdates(prev => {
+              const newOptimistic = { ...prev };
+              delete newOptimistic[item.id];
+              return newOptimistic;
+            });
+            scanCounterRef.current[item.id].unloaded = 0;
+          }, 500);
         })
         .catch(err => {
           console.error('Failed to update item:', err);
@@ -1087,7 +1100,7 @@ function ChecklistView({
             delete newOptimistic[item.id];
             return newOptimistic;
           });
-          scanCounterRef.current[item.id].unloaded -= 1;
+          scanCounterRef.current[item.id].unloaded = 0;
         });
       
       toast.success(
@@ -1244,8 +1257,15 @@ function ChecklistView({
             // Запускаем API вызов асинхронно
             onUpdateItem(checklist.id, item.id!, updates)
               .then(() => {
-                // НЕ очищаем optimistic update сразу - ждем обновления пропсов от родителя
-                console.log(`[Kit Scan] ${item.name}: saved to DB, keeping optimistic`);
+                // Очищаем optimistic update после успешного сохранения
+                setTimeout(() => {
+                  setOptimisticUpdates(prev => {
+                    const newOptimistic = { ...prev };
+                    delete newOptimistic[item.id!];
+                    return newOptimistic;
+                  });
+                  kitScanCounterRef.current[localKey][scanModeField] = 0;
+                }, 500);
               })
               .catch(err => {
                 console.error('[Kit Scan] Failed:', err);
@@ -1255,7 +1275,7 @@ function ChecklistView({
                   delete newOptimistic[item.id!];
                   return newOptimistic;
                 });
-                kitScanCounterRef.current[localKey][scanModeField] -= canAdd;
+                kitScanCounterRef.current[localKey][scanModeField] = 0;
               });
             
             updatedCount++;
