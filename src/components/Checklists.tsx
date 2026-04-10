@@ -150,7 +150,7 @@ export const ChecklistsManager = memo(function ChecklistsManager({
       }
       prevChecklistsRef.current = checklists;
     }
-  }, [checklists, selectedChecklist]);
+  }, [checklists, selectedChecklist, setOptimisticUpdates]);
 
   const handleDeselectChecklist = useCallback(() => {
     setSelectedChecklist(null);
