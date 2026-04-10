@@ -142,6 +142,11 @@ export const ChecklistsManager = memo(function ChecklistsManager({
       // Обновляем только если данные реально изменились
       if (updated && JSON.stringify(updated.items) !== JSON.stringify(selectedChecklist.items)) {
         setSelectedChecklist(updated);
+        // Очищаем optimistic updates т.к. данные уже актуальны
+        setOptimisticUpdates({});
+        // Очищаем локальные счетчики
+        scanCounterRef.current = {};
+        kitScanCounterRef.current = {};
       }
       prevChecklistsRef.current = checklists;
     }
@@ -1024,18 +1029,18 @@ function ChecklistView({
       // Запускаем API вызов асинхронно (не ждем)
       onUpdateItem(checklist.id, item.id, updates)
         .then(() => {
-          // Очищаем optimistic update после успешного сохранения
-          setTimeout(() => {
-            setOptimisticUpdates(prev => {
-              const newOptimistic = { ...prev };
-              delete newOptimistic[item.id];
-              return newOptimistic;
-            });
-          }, 300);
+          // НЕ очищаем optimistic update сразу - ждем обновления пропсов от родителя
+          // Очистка произойдет автоматически при изменении checklist.items
+          console.log(`[Equipment Scan] ${item.name}: saved to DB, keeping optimistic`);
         })
         .catch(err => {
           console.error('Failed to update item:', err);
-          // Откатываем локальный счетчик при ошибке
+          // Откатываем optimistic update при ошибке
+          setOptimisticUpdates(prev => {
+            const newOptimistic = { ...prev };
+            delete newOptimistic[item.id];
+            return newOptimistic;
+          });
           scanCounterRef.current[item.id].loaded -= 1;
         });
       
@@ -1076,18 +1081,17 @@ function ChecklistView({
       // Запускаем API вызов асинхронно (не ждем)
       onUpdateItem(checklist.id, item.id, updates)
         .then(() => {
-          // Очищаем optimistic update после успешного сохранения
-          setTimeout(() => {
-            setOptimisticUpdates(prev => {
-              const newOptimistic = { ...prev };
-              delete newOptimistic[item.id];
-              return newOptimistic;
-            });
-          }, 300);
+          // НЕ очищаем optimistic update сразу - ждем обновления пропсов от родителя
+          console.log(`[Equipment Scan] ${item.name}: saved to DB, keeping optimistic`);
         })
         .catch(err => {
           console.error('Failed to update item:', err);
-          // Откатываем локальный счетчик при ошибке
+          // Откатываем optimistic update при ошибке
+          setOptimisticUpdates(prev => {
+            const newOptimistic = { ...prev };
+            delete newOptimistic[item.id];
+            return newOptimistic;
+          });
           scanCounterRef.current[item.id].unloaded -= 1;
         });
       
@@ -1245,17 +1249,17 @@ function ChecklistView({
             // Запускаем API вызов асинхронно
             onUpdateItem(checklist.id, item.id!, updates)
               .then(() => {
-                // Очищаем optimistic update после успешного сохранения
-                setTimeout(() => {
-                  setOptimisticUpdates(prev => {
-                    const newOptimistic = { ...prev };
-                    delete newOptimistic[item.id!];
-                    return newOptimistic;
-                  });
-                }, 300);
+                // НЕ очищаем optimistic update сразу - ждем обновления пропсов от родителя
+                console.log(`[Kit Scan] ${item.name}: saved to DB, keeping optimistic`);
               })
               .catch(err => {
                 console.error('[Kit Scan] Failed:', err);
+                // Откатываем optimistic update при ошибке
+                setOptimisticUpdates(prev => {
+                  const newOptimistic = { ...prev };
+                  delete newOptimistic[item.id!];
+                  return newOptimistic;
+                });
                 kitScanCounterRef.current[localKey][scanModeField] -= canAdd;
               });
             
