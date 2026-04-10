@@ -1402,11 +1402,11 @@ export const CableManager = memo(function CableManager({
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => onUpdateRepairStatus?.(repair.id, 'repaired', new Date().toISOString())}
+                            onClick={() => onUpdateRepairStatus?.(repair.id, 'returned', new Date().toISOString())}
                             className="h-7 sm:h-8 px-2 text-xs sm:text-sm"
                           >
-                            <span className="hidden sm:inline">✅ Отремонтировано</span>
-                            <span className="sm:hidden">✅ Готово</span>
+                            <span className="hidden sm:inline">📦 Вернуть на склад</span>
+                            <span className="sm:hidden">📦 Вернуть</span>
                           </Button>
                           <Button
                             size="sm"
