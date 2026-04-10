@@ -895,9 +895,9 @@ export function EstimateBuilder({
       currentRow++;
     });
 
-    // Общий итог
+    // Общий итог - формула SUMIF, суммирует только строки с количеством (позиции)
     const grandTotalRow = worksheet.getRow(currentRow);
-    grandTotalRow.values = ['', '', '', '', '', 'ИТОГО:', total];
+    grandTotalRow.values = ['', '', '', '', '', 'ИТОГО:', { formula: `SUMIF(D${dataStartRow}:D${currentRow-1},">0",G${dataStartRow}:G${currentRow-1})` }];
     grandTotalRow.font = { bold: true, size: 12 };
     grandTotalRow.fill = {
       type: 'pattern',
