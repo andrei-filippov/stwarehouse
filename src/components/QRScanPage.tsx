@@ -491,11 +491,16 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Статистика по оборудованию - только актуальная для сканирования */}
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div className="p-4 bg-green-50 dark:bg-green-950 rounded-lg text-center">
                 <p className="text-xs text-green-600 dark:text-green-400 mb-1">Свободно</p>
                 <p className="text-2xl font-bold text-green-700 dark:text-green-300">{scanResult.stats?.inStock || item.quantity}</p>
                 <p className="text-xs text-green-500">шт</p>
+              </div>
+              <div className="p-4 bg-blue-50 dark:bg-blue-950 rounded-lg text-center">
+                <p className="text-xs text-blue-600 dark:text-blue-400 mb-1">Выдано</p>
+                <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">{scanResult.stats?.issued || 0}</p>
+                <p className="text-xs text-blue-500">шт</p>
               </div>
               <div className="p-4 bg-amber-50 dark:bg-amber-950 rounded-lg text-center">
                 <p className="text-xs text-amber-600 dark:text-amber-400 mb-1">Зарезерв.</p>
@@ -922,11 +927,16 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Статистика по оборудованию - только актуальная для сканирования */}
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div className="p-4 bg-green-50 dark:bg-green-950 rounded-lg text-center">
                 <p className="text-xs text-green-600 dark:text-green-400 mb-1">Свободно</p>
                 <p className="text-2xl font-bold text-green-700 dark:text-green-300">{scanResult.stats?.inStock || item.quantity}</p>
                 <p className="text-xs text-green-500">шт</p>
+              </div>
+              <div className="p-4 bg-blue-50 dark:bg-blue-950 rounded-lg text-center">
+                <p className="text-xs text-blue-600 dark:text-blue-400 mb-1">Выдано</p>
+                <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">{scanResult.stats?.issued || 0}</p>
+                <p className="text-xs text-blue-500">шт</p>
               </div>
               <div className="p-4 bg-amber-50 dark:bg-amber-950 rounded-lg text-center">
                 <p className="text-xs text-amber-600 dark:text-amber-400 mb-1">Зарезерв.</p>
