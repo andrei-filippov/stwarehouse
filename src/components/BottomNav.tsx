@@ -121,76 +121,76 @@ export function BottomNav({
                   <span className="text-[10px] font-medium">Ещё</span>
                 </button>
               </SheetTrigger>
-              <SheetContent side="bottom" className="h-[80vh] rounded-t-2xl overflow-y-auto">
-                <SheetHeader className="pb-4">
+              <SheetContent side="bottom" className="h-[80vh] rounded-t-2xl flex flex-col">
+                <SheetHeader className="pb-4 shrink-0">
                   <SheetTitle className="text-lg">Меню</SheetTitle>
                 </SheetHeader>
-                <div className="grid grid-cols-3 gap-3 pb-4 mb-48">
-                  {otherTabs.map((tab) => {
-                    const Icon = tab.icon;
-                    const isActive = activeTab === tab.id;
-                    
-                    return (
-                      <button
-                        key={tab.id}
-                        onClick={() => {
-                          onTabChange(tab.id);
-                          setMenuOpen(false);
-                        }}
-                        className={`flex flex-col items-center gap-2 p-4 rounded-xl transition-all ${
-                          isActive
-                            ? 'bg-blue-50 text-blue-600 ring-2 ring-blue-200'
-                            : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                        }`}
-                      >
-                        <Icon className="w-6 h-6" />
-                        <span className="text-xs font-medium text-center">{tab.label}</span>
-                      </button>
-                    );
-                  })}
+                
+                {/* Прокручиваемый контент */}
+                <div className="flex-1 overflow-y-auto">
+                  <div className="grid grid-cols-3 gap-3 pb-4">
+                    {otherTabs.map((tab) => {
+                      const Icon = tab.icon;
+                      const isActive = activeTab === tab.id;
+                      
+                      return (
+                        <button
+                          key={tab.id}
+                          onClick={() => {
+                            onTabChange(tab.id);
+                            setMenuOpen(false);
+                          }}
+                          className={`flex flex-col items-center gap-2 p-4 rounded-xl transition-all ${
+                            isActive
+                              ? 'bg-blue-50 text-blue-600 ring-2 ring-blue-200'
+                              : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                          }`}
+                        >
+                          <Icon className="w-6 h-6" />
+                          <span className="text-xs font-medium text-center">{tab.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
-                {/* Статус и кнопка сброса */}
-                <div className="absolute bottom-16 left-0 right-0 px-4 py-3 border-t bg-muted">
+                {/* Фиксированный низ */}
+                <div className="shrink-0 border-t bg-card space-y-2 p-4">
+                  {/* Статус сервера */}
                   <button
                     onClick={() => {
                       setIsSyncDialogOpen(true);
                       setMenuOpen(false);
                     }}
-                    className="w-full flex items-center justify-between p-3 bg-card rounded-lg border hover:bg-muted transition-colors transition-colors"
+                    className="w-full flex items-center justify-between p-3 bg-muted rounded-lg border hover:bg-muted/80 transition-colors"
                   >
                     <div className="flex items-center gap-2 text-sm">
                       {serverAvailable ? (
                         <>
                           <Wifi className="w-4 h-4 text-green-500" />
-                          <span className="text-gray-700">Сервер доступен</span>
+                          <span>Сервер доступен</span>
                         </>
                       ) : browserOnline ? (
                         <>
                           <WifiOff className="w-4 h-4 text-orange-500" />
-                          <span className="text-gray-700">Сервер недоступен</span>
+                          <span>Сервер недоступен</span>
                         </>
                       ) : (
                         <>
                           <WifiOff className="w-4 h-4 text-red-500" />
-                          <span className="text-gray-700">Нет сети</span>
+                          <span>Нет сети</span>
                         </>
                       )}
                     </div>
-                    <span className="text-xs text-gray-500">
-                      Нажмите для управления
-                    </span>
                   </button>
-                </div>
 
-                {/* Theme Toggle */}
-                <div className="absolute bottom-16 left-0 right-0 px-4 py-2 border-t bg-muted">
+                  {/* Theme Toggle */}
                   <button
                     onClick={() => {
                       toggleTheme();
                       setMenuOpen(false);
                     }}
-                    className="w-full flex items-center justify-center gap-2 p-3 bg-card rounded-lg border hover:bg-muted transition-colors"
+                    className="w-full flex items-center justify-center gap-2 p-3 bg-muted rounded-lg border hover:bg-muted/80 transition-colors"
                   >
                     {resolvedTheme === 'light' ? (
                       <>
@@ -204,9 +204,7 @@ export function BottomNav({
                       </>
                     )}
                   </button>
-                </div>
 
-                <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-card">
                   <Button 
                     variant="outline" 
                     className="w-full rounded-xl hover:bg-red-500/10 hover:text-red-600"
