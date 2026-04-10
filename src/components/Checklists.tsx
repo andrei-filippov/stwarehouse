@@ -977,10 +977,10 @@ function ChecklistView({
       scanCounterRef.current[item.id] = { loaded: 0, unloaded: 0 };
     }
     
-    // Берем базовое количество из статуса (из БД или optimisticUpdates)
-    const status = getItemStatus(item);
-    const baseLoadedQty = status.loaded_quantity;
-    const baseUnloadedQty = status.unloaded_quantity;
+    // Берем базовое количество ТОЛЬКО из item (исходные данные из БД)
+    // НЕ используем getItemStatus, т.к. он включает optimistic updates
+    const baseLoadedQty = item.loaded_quantity || (item as any).loaded ? (item.quantity || 1) : 0;
+    const baseUnloadedQty = item.unloaded_quantity || (item as any).unloaded ? (item.quantity || 1) : 0;
     
     // Добавляем локальные сканы из ref (для быстрого сканирования подряд)
     const localLoaded = scanCounterRef.current[item.id]?.loaded || 0;
@@ -1189,10 +1189,16 @@ function ChecklistView({
         for (const item of uniqueItems) {
           if (remainingToScan <= 0) break;
           
-          const status = getItemStatus(item);
-          const currentQty = scanMode === 'unload' 
-            ? status.unloaded_quantity
-            : status.loaded_quantity;
+          // Берем базовое количество ТОЛЬКО из item (исходные данные из БД)
+          const baseQty = scanMode === 'unload'
+            ? (item.unloaded_quantity || ((item as any).unloaded ? (item.quantity || 1) : 0))
+            : (item.loaded_quantity || ((item as any).loaded ? (item.quantity || 1) : 0));
+          
+          // Добавляем локальные сканы из ref
+          const localKey = `${item.id}_${equipmentName}`;
+          const localQty = kitScanCounterRef.current[localKey]?.[scanModeField] || 0;
+          
+          const currentQty = baseQty + localQty;
           const itemNeeded = item.quantity || 1;
           
           // Сколько можно добавить к этой позиции
@@ -1201,7 +1207,6 @@ function ChecklistView({
           
           if (canAdd > 0) {
             // Увеличиваем локальный счетчик комплекта
-            const localKey = `${item.id}_${equipmentName}`;
             if (!kitScanCounterRef.current[localKey]) {
               kitScanCounterRef.current[localKey] = { loaded: 0, unloaded: 0 };
             }
@@ -1213,20 +1218,25 @@ function ChecklistView({
             // Определяем статус на основе количества
             const isComplete = newTotalQty >= itemNeeded;
             
+            // Берем противоположное количество из item (исходные данные)
+            const oppositeQty = scanMode === 'load'
+              ? (item.unloaded_quantity || ((item as any).unloaded ? itemNeeded : 0))
+              : (item.loaded_quantity || ((item as any).loaded ? itemNeeded : 0));
+            
             let updates: any = {};
             if (scanMode === 'load') {
               updates.loaded_quantity = newTotalQty;
-              updates.unloaded_quantity = status.unloaded_quantity; // Сохраняем разгрузку
+              updates.unloaded_quantity = oppositeQty; // Сохраняем разгрузку
               if (checkMode === 'simple') {
                 updates.is_checked = isComplete;
               } else {
                 updates.loaded = isComplete;
-                updates.unloaded = status.unloaded_quantity >= itemNeeded;
+                updates.unloaded = oppositeQty >= itemNeeded;
               }
             } else if (scanMode === 'unload') {
               updates.unloaded_quantity = newTotalQty;
-              updates.loaded_quantity = status.loaded_quantity; // Сохраняем погрузку
-              updates.loaded = status.loaded_quantity >= itemNeeded;
+              updates.loaded_quantity = oppositeQty; // Сохраняем погрузку
+              updates.loaded = oppositeQty >= itemNeeded;
               updates.unloaded = isComplete;
             }
             
