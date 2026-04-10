@@ -121,11 +121,11 @@ export function BottomNav({
                   <span className="text-[10px] font-medium">Ещё</span>
                 </button>
               </SheetTrigger>
-              <SheetContent side="bottom" className="h-[80vh] rounded-t-2xl">
+              <SheetContent side="bottom" className="h-[80vh] rounded-t-2xl overflow-y-auto">
                 <SheetHeader className="pb-4">
                   <SheetTitle className="text-lg">Меню</SheetTitle>
                 </SheetHeader>
-                <div className="grid grid-cols-3 gap-3 pb-32">
+                <div className="grid grid-cols-3 gap-3 pb-4 mb-48">
                   {otherTabs.map((tab) => {
                     const Icon = tab.icon;
                     const isActive = activeTab === tab.id;
