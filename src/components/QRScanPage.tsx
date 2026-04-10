@@ -237,10 +237,9 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
           // Ищем по equipment_id через связанные таблицы
           supabase
             .from('estimate_items')
-            .select('quantity, estimates!inner(event_date, event_end_date, company_id), equipment!inner(id, name)')
+            .select('quantity, estimates(event_date, event_end_date, company_id), equipment(id, name)')
             .eq('equipment.id', item.equipment_id || 'null')
-            .gte('estimates.event_end_date', today)
-            .filter('estimates.company_id', 'eq', companyId),
+            .gte('estimates.event_end_date', today),
           // Запрос выдач через чек-листы
           supabase
             .from('checklist_items')
@@ -263,8 +262,9 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
         const issuedQty = manualIssued + checklistIssued;
         const repairQty = repairs?.reduce((sum, r) => sum + (r.quantity || 0), 0) || 0;
         
-        // Считаем зарезервированное количество из смет
-        const reservedQty = estimateReservations?.reduce((sum, r) => sum + (r.quantity || 0), 0) || 0;
+        // Считаем зарезервированное количество из смет (фильтруем по company_id на клиенте)
+        const filteredReservations = estimateReservations?.filter(r => r.estimates?.company_id === companyId) || [];
+        const reservedQty = filteredReservations.reduce((sum, r) => sum + (r.quantity || 0), 0) || 0;
         
         // Свободно = всего - выдано - в ремонте - зарезервировано
         const availableQty = Math.max(0, item.quantity - issuedQty - repairQty - reservedQty);
@@ -483,10 +483,9 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
           .order('created_at', { ascending: false }),
         supabase
           .from('estimate_items')
-          .select('quantity, estimates!inner(event_name, event_date, event_end_date, company_id), equipment!inner(id, name)')
+          .select('quantity, estimates(event_name, event_date, event_end_date, company_id), equipment(id, name)')
           .eq('equipment.id', item.equipment_id || 'null')
-          .gte('estimates.event_end_date', today)
-          .filter('estimates.company_id', 'eq', companyId),
+          .gte('estimates.event_end_date', today),
         supabase
           .from('checklist_items')
           .select('loaded_quantity, loaded_at, checklists!inner(event_name, event_date), inventory_name')
@@ -513,8 +512,10 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
       const allMovements = [...manualMovements, ...checklistMovements]
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       
+      // Фильтруем резервы по company_id на клиенте
+      const filteredReservations = (resData || []).filter(r => r.estimates?.company_id === companyId);
       setMovementsDetails(allMovements);
-      setReservationsDetails(resData || []);
+      setReservationsDetails(filteredReservations);
       setChecklistLoadsDetails(checklistData || []);
       setActiveAction('info');
     } catch (err: any) {
