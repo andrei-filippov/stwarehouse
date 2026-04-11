@@ -1445,7 +1445,7 @@ export const CableManager = memo(function CableManager({
                       .sort((a, b) => new Date(b.created_at!).getTime() - new Date(a.created_at!).getTime())
                       .map(movement => {
                         const item = equipmentItems.find(i => i.id === movement.inventory_id) || 
-                                   cableItems.find(i => i.id === movement.inventory_id);
+                                   inventory.find(i => i.id === movement.inventory_id);
                         const category = categories.find(c => c.id === (item?.category_id || movement.category_id));
                         const isReturned = movement.is_returned === true;
                         return (
