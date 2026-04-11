@@ -1099,6 +1099,9 @@ export const CableManager = memo(function CableManager({
               <Badge variant="secondary" className="ml-1 sm:ml-2 text-xs">{repairs.filter(r => r.status === 'in_repair').length}</Badge>
             )}
           </TabsTrigger>
+          <TabsTrigger value="history" className="text-xs sm:text-sm">
+            История
+          </TabsTrigger>
         </TabsList>
 
         {/* Вкладка Склад */}
@@ -1345,6 +1348,151 @@ export const CableManager = memo(function CableManager({
                   })}
                 </div>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Вкладка История */}
+        <TabsContent value="history" className="space-y-3 sm:space-y-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                📜 История операций
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* История ремонтов */}
+              <div>
+                <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+                  🔧 История ремонтов
+                  <Badge variant="outline" className="text-xs">
+                    {repairs.length}
+                  </Badge>
+                </h4>
+                {repairs.length === 0 ? (
+                  <div className="text-center py-4 text-muted-foreground text-sm border rounded-lg">
+                    Нет записей о ремонтах
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {repairs
+                      .sort((a, b) => new Date(b.sent_date).getTime() - new Date(a.sent_date).getTime())
+                      .map(repair => {
+                        const category = categories.find(c => c.id === repair.category_id);
+                        const isReturned = repair.status === 'returned';
+                        const isWrittenOff = repair.status === 'written_off';
+                        return (
+                          <div 
+                            key={repair.id}
+                            className={`flex flex-col sm:flex-row sm:items-center justify-between p-2 sm:p-3 rounded-lg border gap-2 ${
+                              isReturned ? 'bg-green-500/10 border-green-500/30' :
+                              isWrittenOff ? 'bg-gray-500/10 border-gray-500/30' :
+                              'bg-yellow-500/10 border-yellow-500/30'
+                            }`}
+                          >
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-1 sm:gap-2 text-sm">
+                                <div 
+                                  className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full shrink-0"
+                                  style={{ backgroundColor: category?.color || '#ccc' }}
+                                />
+                                <span className="font-medium">{repair.equipment_name}</span>
+                                <span className="text-muted-foreground">× {repair.quantity} шт</span>
+                                <Badge className={`${getRepairStatusColor(repair.status)} text-xs`}>
+                                  {getRepairStatusLabel(repair.status)}
+                                </Badge>
+                              </div>
+                              <div className="text-xs text-muted-foreground mt-1">
+                                <span className="font-medium">Причина:</span> {repair.reason}
+                              </div>
+                              {repair.notes && (
+                                <div className="text-xs text-muted-foreground">
+                                  <span className="font-medium">Примечание:</span> {repair.notes}
+                                </div>
+                              )}
+                              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground/70 mt-1">
+                                <span>Отправлено: {format(new Date(repair.sent_date), 'dd.MM.yyyy')}</span>
+                                {repair.returned_date && (
+                                  <span className={isReturned ? 'text-green-600 font-medium' : ''}>
+                                    {isWrittenOff ? 'Списано' : 'Возвращено'}: {format(new Date(repair.returned_date), 'dd.MM.yyyy')}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t pt-4">
+                {/* История выдач */}
+                <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+                  📦 История выдач
+                  <Badge variant="outline" className="text-xs">
+                    {movements.length}
+                  </Badge>
+                </h4>
+                {movements.length === 0 ? (
+                  <div className="text-center py-4 text-muted-foreground text-sm border rounded-lg">
+                    Нет записей о выдачах
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {movements
+                      .filter(m => m.created_at)
+                      .sort((a, b) => new Date(b.created_at!).getTime() - new Date(a.created_at!).getTime())
+                      .map(movement => {
+                        const item = equipmentItems.find(i => i.id === movement.inventory_id) || 
+                                   cableItems.find(i => i.id === movement.inventory_id);
+                        const category = categories.find(c => c.id === (item?.category_id || movement.category_id));
+                        const isReturned = movement.is_returned === true;
+                        return (
+                          <div 
+                            key={movement.id}
+                            className={`flex flex-col sm:flex-row sm:items-center justify-between p-2 sm:p-3 rounded-lg border gap-2 ${
+                              isReturned ? 'bg-green-500/10 border-green-500/30' : 'bg-blue-500/10 border-blue-500/30'
+                            }`}
+                          >
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-1 sm:gap-2 text-sm">
+                                <div 
+                                  className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full shrink-0"
+                                  style={{ backgroundColor: category?.color || '#ccc' }}
+                                />
+                                <span className="font-medium">{movement.equipment_name || item?.name || 'Неизвестно'}</span>
+                                <span className="text-muted-foreground">× {movement.quantity} шт</span>
+                                <Badge className={`text-xs ${isReturned ? 'bg-green-500/20 text-green-700' : 'bg-blue-500/20 text-blue-700'}`}>
+                                  {isReturned ? '✓ Возвращено' : '→ Выдано'}
+                                </Badge>
+                              </div>
+                              <div className="text-xs text-muted-foreground mt-1">
+                                <span className="font-medium">Кому:</span> {movement.issued_to || '—'}
+                                {movement.contact && (
+                                  <span className="ml-3"><span className="font-medium">Контакт:</span> {movement.contact}</span>
+                                )}
+                              </div>
+                              {movement.notes && (
+                                <div className="text-xs text-muted-foreground">
+                                  <span className="font-medium">Примечание:</span> {movement.notes}
+                                </div>
+                              )}
+                              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground/70 mt-1">
+                                <span>Дата: {format(new Date(movement.created_at!), 'dd.MM.yyyy HH:mm')}</span>
+                                {movement.returned_at && (
+                                  <span className="text-green-600 font-medium">
+                                    Возвращено: {format(new Date(movement.returned_at), 'dd.MM.yyyy')}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
