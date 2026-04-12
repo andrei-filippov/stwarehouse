@@ -39,7 +39,7 @@ interface QRScanPageProps {
 }
 
 type ScanResult = 
-  | { type: 'inventory'; data: CableInventory; category?: CableCategory; stats?: { inStock: number; issued: number; totalIssued?: number; reserved: number; inRepair: number } }
+  | { type: 'inventory'; data: CableInventory; category?: CableCategory; stats?: { inStock: number; issued: number; inRepair: number } }
   | { type: 'kit'; data: EquipmentKit }
   | { type: 'not_found'; qrCode: string }
   | null;
@@ -291,24 +291,17 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
           itemName: item.name
         });
         
-        const totalIssued = movements?.reduce((sum, m) => sum + (m.quantity || 0), 0) || 0;
+        // Активные выдачи (не возвращённые) из cable_movements
         const activeIssued = movements?.filter(m => !m.is_returned).reduce((sum, m) => sum + (m.quantity || 0), 0) || 0;
-        const checklistIssued = checklistItems?.reduce((sum, c) => sum + (c.loaded_quantity || 0), 0) || 0;
-        const issuedQty = manualIssued + checklistIssued;
         const repairQty = repairs?.reduce((sum, r) => sum + (r.quantity || 0), 0) || 0;
         
-        // Считаем зарезервированное количество из смет (фильтруем по company_id на клиенте)
-        const filteredReservations = estimateReservations?.filter(r => r.estimates?.company_id === companyId) || [];
-        const reservedQty = filteredReservations.reduce((sum, r) => sum + (r.quantity || 0), 0) || 0;
-        
-        // Свободно = всего - выдано - в ремонте - зарезервировано
-        const availableQty = Math.max(0, item.quantity - issuedQty - repairQty - reservedQty);
+        // Свободно = всего на складе - активная выдача - в ремонте
+        const availableQty = Math.max(0, item.quantity - activeIssued - repairQty);
         
         console.log('[QRScan] Calculated quantities:', { 
           total: item.quantity, 
-          issued: issuedQty, 
+          activeIssued: activeIssued, 
           repair: repairQty, 
-          reserved: reservedQty, 
           available: availableQty 
         });
         
@@ -322,8 +315,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
           category,
           stats: {
             inStock: availableQty, // Свободно для выдачи
-            issued: issuedQty,     // Выдано
-            reserved: reservedQty, // Зарезервировано в сметах
+            issued: activeIssued,  // Активно выдано (не возвращено)
             inRepair: repairQty    // В ремонте
           }
         });
@@ -957,24 +949,16 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
               </CardHeader>
               <CardContent className="space-y-4">
                 {/* Статистика по оборудованию */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="grid grid-cols-3 gap-3">
                   <div className="p-4 bg-green-50 dark:bg-green-950 rounded-lg text-center">
                     <p className="text-xs text-green-600 dark:text-green-400 mb-1">Свободно</p>
                     <p className="text-2xl font-bold text-green-700 dark:text-green-300">{scanResult.stats?.inStock ?? 0}</p>
                     <p className="text-xs text-green-500">шт</p>
                   </div>
                   <div className="p-4 bg-blue-50 dark:bg-blue-950 rounded-lg text-center">
-                    <p className="text-xs text-blue-600 dark:text-blue-400 mb-1">Выдано сейчас</p>
+                    <p className="text-xs text-blue-600 dark:text-blue-400 mb-1">Выдано</p>
                     <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">{scanResult.stats?.issued || 0}</p>
-                    {scanResult.stats?.totalIssued && scanResult.stats.totalIssued !== scanResult.stats.issued && (
-                      <p className="text-xs text-blue-400">всего: {scanResult.stats.totalIssued}</p>
-                    )}
                     <p className="text-xs text-blue-500">шт</p>
-                  </div>
-                  <div className="p-4 bg-amber-50 dark:bg-amber-950 rounded-lg text-center">
-                    <p className="text-xs text-amber-600 dark:text-amber-400 mb-1">Зарезерв.</p>
-                    <p className="text-2xl font-bold text-amber-700 dark:text-amber-300">{scanResult.stats?.reserved || 0}</p>
-                    <p className="text-xs text-amber-500">шт</p>
                   </div>
                   <div className="p-4 bg-red-50 dark:bg-red-950 rounded-lg text-center">
                     <p className="text-xs text-red-600 dark:text-red-400 mb-1">В ремонте</p>
