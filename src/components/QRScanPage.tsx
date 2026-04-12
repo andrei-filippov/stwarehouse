@@ -65,6 +65,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
   const [activeAction, setActiveAction] = useState<QuickAction>(null);
   const [issueForm, setIssueForm] = useState({ issued_to: '', contact: '', quantity: 1 });
   const [repairForm, setRepairForm] = useState({ reason: '', quantity: 1 });
+  const [kitIssueForm, setKitIssueForm] = useState({ issued_to: '', contact: '' });
   const [submitting, setSubmitting] = useState(false);
   
   // Детали для просмотра информации
@@ -404,6 +405,72 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
       });
       setActiveAction(null);
       setIssueForm({ issued_to: '', contact: '', quantity: 1 });
+      // Обновляем данные
+      const { data } = await supabase.from('cable_inventory').select('*').eq('company_id', companyId);
+      if (data) setInventory(data);
+    }
+    setSubmitting(false);
+  };
+  
+  // Выдача комплекта (все позиции одному получателю)
+  const handleIssueKit = async () => {
+    if (!scanResult || scanResult.type !== 'kit') return;
+    if (!kitIssueForm.issued_to.trim()) {
+      toast.error('Укажите, кому выдаётся комплект');
+      return;
+    }
+    
+    const kit = scanResult.data;
+    if (!kit.items || kit.items.length === 0) {
+      toast.error('Комплект пуст');
+      return;
+    }
+    
+    setSubmitting(true);
+    
+    // Выдаём каждую позицию комплекта
+    const errors: string[] = [];
+    for (const kitItem of kit.items) {
+      // Находим инвентарь по ID
+      const inventoryItem = inventory.find(i => i.id === kitItem.inventory_id);
+      if (!inventoryItem) {
+        errors.push(`Не найдено: ${kitItem.inventory_name}`);
+        continue;
+      }
+      
+      // Проверяем достаточно ли на складе
+      if ((kitItem.quantity || 1) > inventoryItem.quantity) {
+        errors.push(`Недостаточно: ${kitItem.inventory_name} (нужно ${kitItem.quantity || 1}, есть ${inventoryItem.quantity})`);
+        continue;
+      }
+      
+      const { error } = await supabase.from('cable_movements').insert({
+        company_id: companyId,
+        category_id: inventoryItem.category_id,
+        inventory_id: inventoryItem.id,
+        equipment_name: inventoryItem.name || kitItem.inventory_name || 'Оборудование',
+        length: inventoryItem.length || 0,
+        quantity: kitItem.quantity || 1,
+        issued_to: kitIssueForm.issued_to,
+        contact: kitIssueForm.contact || undefined,
+        type: 'issue',
+        event_name: `Комплект: ${kit.name}`
+      });
+      
+      if (error) {
+        errors.push(`${kitItem.inventory_name}: ${error.message}`);
+      }
+    }
+    
+    if (errors.length > 0) {
+      toast.error('Частичная выдача', { description: errors.join('; ') });
+    } else {
+      toast.success('Комплект выдан', { 
+        description: `${kit.name} — ${kit.items.length} позиций` 
+      });
+      setActiveAction(null);
+      setKitIssueForm({ issued_to: '', contact: '' });
+      
       // Обновляем данные
       const { data } = await supabase.from('cable_inventory').select('*').eq('company_id', companyId);
       if (data) setInventory(data);
@@ -759,18 +826,92 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
             <div className="pt-4 border-t space-y-2">
               <h4 className="font-medium text-sm">Быстрые действия:</h4>
               <div className="grid grid-cols-2 gap-2">
+                <Button variant="default" onClick={() => setActiveAction('issue_kit')}>
+                  <ArrowUpRight className="w-4 h-4 mr-2" />
+                  Выдать комплект
+                </Button>
                 <Button variant="outline" onClick={goToChecklists}>
                   <ClipboardCheck className="w-4 h-4 mr-2" />
                   В чеклист
-                </Button>
-                <Button variant="outline" onClick={goToInventory}>
-                  <Package className="w-4 h-4 mr-2" />
-                  На склад
                 </Button>
               </div>
             </div>
           </CardContent>
         </Card>
+        
+        {/* Диалог выдачи комплекта */}
+        <Dialog open={activeAction === 'issue_kit'} onOpenChange={() => setActiveAction(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Package className="w-5 h-5" />
+                Выдача комплекта
+              </DialogTitle>
+              <DialogDescription>
+                {kit.name} — {kit.items?.length || 0} позиций
+              </DialogDescription>
+            </DialogHeader>
+            
+            {/* Список позиций комплекта */}
+            <div className="space-y-2 max-h-48 overflow-y-auto border rounded-lg p-2 bg-muted/30">
+              {kit.items?.map((item, idx) => {
+                const inventoryItem = inventory.find(i => i.id === item.inventory_id);
+                const available = inventoryItem?.quantity || 0;
+                const needed = item.quantity || 1;
+                const isAvailable = available >= needed;
+                
+                return (
+                  <div key={idx} className={`flex items-center justify-between p-2 rounded text-sm ${isAvailable ? 'bg-green-50 dark:bg-green-950' : 'bg-red-50 dark:bg-red-950'}`}>
+                    <span className="flex-1 truncate">{item.inventory_name}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground">× {needed}</span>
+                      {!isAvailable && (
+                        <span className="text-xs text-red-600">(доступно: {available})</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label>Кому выдаётся *</Label>
+                <Input
+                  placeholder="ФИО или название организации"
+                  value={kitIssueForm.issued_to}
+                  onChange={(e) => setKitIssueForm({ ...kitIssueForm, issued_to: e.target.value })}
+                  className="h-11"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Контакт</Label>
+                <Input
+                  placeholder="Телефон или email"
+                  value={kitIssueForm.contact}
+                  onChange={(e) => setKitIssueForm({ ...kitIssueForm, contact: e.target.value })}
+                  className="h-11"
+                />
+              </div>
+            </div>
+            
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setActiveAction(null)}>Отмена</Button>
+              <Button 
+                onClick={handleIssueKit} 
+                disabled={submitting || !kitIssueForm.issued_to.trim()}
+              >
+                {submitting ? (
+                  <div className="animate-spin h-4 w-4 border-2 border-white rounded-full mr-2" />
+                ) : (
+                  <ArrowUpRight className="w-4 h-4 mr-2" />
+                )}
+                Выдать комплект
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
