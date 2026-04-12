@@ -569,6 +569,124 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
       </div>
     );
   }
+
+  // Режим сканирования - автозапуск при открытии вкладки
+  if (isScanning) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold flex items-center gap-2">
+            <Scan className="w-6 h-6" />
+            Сканер QR-кода
+          </h2>
+          <div className="hidden md:flex items-center gap-2">
+            <Badge variant="outline" className="flex items-center gap-1">
+              <Monitor className="w-3 h-3" />
+              Десктоп режим
+            </Badge>
+          </div>
+        </div>
+        
+        {/* Адаптивный интерфейс: десктоп - ручной ввод, мобильные - камера */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Левая колонка - Камера */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Camera className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Камера</span>
+              <span className="text-xs text-muted-foreground hidden md:inline">(мобильные)</span>
+            </div>
+            <QRScanner
+              isOpen={true}
+              onClose={() => {
+                setIsScanning(false);
+              }}
+              onScan={handleScan}
+              title="Наведите камеру на QR-код"
+              subtitle="Сканируйте оборудование или комплект"
+              keepOpen={true}
+            />
+          </div>
+          
+          {/* Правая колонка - Ручной ввод */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Keyboard className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Ручной ввод</span>
+              <span className="text-xs text-muted-foreground hidden md:inline">(десктоп)</span>
+            </div>
+            
+            <Card className="border-dashed">
+              <CardContent className="p-6 space-y-4">
+                <div className="text-center space-y-2">
+                  <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mx-auto">
+                    <Keyboard className="w-6 h-6 text-muted-foreground" />
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Введите QR-код вручную
+                  </p>
+                </div>
+                
+                <form 
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const input = e.currentTarget.elements.namedItem('manualQrCode') as HTMLInputElement;
+                    if (input.value.trim()) {
+                      handleScan(input.value.trim());
+                      input.value = '';
+                    }
+                  }}
+                  className="space-y-3"
+                >
+                  <Input
+                    id="manualQrCode"
+                    name="manualQrCode"
+                    placeholder="Например: EQ-UVE970FM"
+                    className="text-center font-mono text-lg"
+                    autoComplete="off"
+                    autoFocus
+                  />
+                  <Button type="submit" className="w-full">
+                    <ArrowUpRight className="w-4 h-4 mr-2" />
+                    Найти оборудование
+                  </Button>
+                </form>
+                
+                <div className="pt-2 border-t">
+                  <p className="text-xs text-muted-foreground text-center">
+                    Формат: EQ-* (оборудование) или KIT-* (комплект)
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+            
+            {/* Быстрые подсказки для десктопа */}
+            <div className="hidden md:block space-y-2">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Горячие клавиши</p>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="flex items-center gap-2 p-2 bg-muted rounded">
+                  <kbd className="px-1.5 py-0.5 bg-background rounded border text-[10px]">Enter</kbd>
+                  <span>Поиск</span>
+                </div>
+                <div className="flex items-center gap-2 p-2 bg-muted rounded">
+                  <kbd className="px-1.5 py-0.5 bg-background rounded border text-[10px]">Esc</kbd>
+                  <span>Назад</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="flex justify-center gap-2">
+          <Button variant="outline" onClick={() => setIsScanning(false)}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Назад
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   // Результат сканирования - комплект
   if (scanResult?.type === 'kit') {
     const kit = scanResult.data;
