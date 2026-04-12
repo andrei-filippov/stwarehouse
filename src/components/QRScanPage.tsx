@@ -39,7 +39,7 @@ interface QRScanPageProps {
 }
 
 type ScanResult = 
-  | { type: 'inventory'; data: CableInventory; category?: CableCategory; stats?: { inStock: number; issued: number; reserved: number; inRepair: number } }
+  | { type: 'inventory'; data: CableInventory; category?: CableCategory; stats?: { inStock: number; issued: number; totalIssued?: number; reserved: number; inRepair: number } }
   | { type: 'kit'; data: EquipmentKit }
   | { type: 'not_found'; qrCode: string }
   | null;
@@ -259,7 +259,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
         const [{ data: movements }, { data: repairs }, { data: estimateReservations }, { data: checklistItems }] = await Promise.all([
           supabase
             .from('cable_movements')
-            .select('quantity')
+            .select('quantity, is_returned')
             .eq('inventory_id', item.id)
             .eq('type', 'issue'),
           supabase
@@ -291,7 +291,8 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
           itemName: item.name
         });
         
-        const manualIssued = movements?.reduce((sum, m) => sum + (m.quantity || 0), 0) || 0;
+        const totalIssued = movements?.reduce((sum, m) => sum + (m.quantity || 0), 0) || 0;
+        const activeIssued = movements?.filter(m => !m.is_returned).reduce((sum, m) => sum + (m.quantity || 0), 0) || 0;
         const checklistIssued = checklistItems?.reduce((sum, c) => sum + (c.loaded_quantity || 0), 0) || 0;
         const issuedQty = manualIssued + checklistIssued;
         const repairQty = repairs?.reduce((sum, r) => sum + (r.quantity || 0), 0) || 0;
@@ -959,12 +960,15 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div className="p-4 bg-green-50 dark:bg-green-950 rounded-lg text-center">
                     <p className="text-xs text-green-600 dark:text-green-400 mb-1">Свободно</p>
-                    <p className="text-2xl font-bold text-green-700 dark:text-green-300">{scanResult.stats?.inStock || item.quantity}</p>
+                    <p className="text-2xl font-bold text-green-700 dark:text-green-300">{scanResult.stats?.inStock ?? 0}</p>
                     <p className="text-xs text-green-500">шт</p>
                   </div>
                   <div className="p-4 bg-blue-50 dark:bg-blue-950 rounded-lg text-center">
-                    <p className="text-xs text-blue-600 dark:text-blue-400 mb-1">Выдано</p>
+                    <p className="text-xs text-blue-600 dark:text-blue-400 mb-1">Выдано сейчас</p>
                     <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">{scanResult.stats?.issued || 0}</p>
+                    {scanResult.stats?.totalIssued && scanResult.stats.totalIssued !== scanResult.stats.issued && (
+                      <p className="text-xs text-blue-400">всего: {scanResult.stats.totalIssued}</p>
+                    )}
                     <p className="text-xs text-blue-500">шт</p>
                   </div>
                   <div className="p-4 bg-amber-50 dark:bg-amber-950 rounded-lg text-center">
@@ -1040,7 +1044,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
                   ) : (
                     <div className="space-y-2 max-h-48 overflow-y-auto">
                       {movementsDetails.map((m, idx) => (
-                        <div key={m.id || idx} className="p-3 bg-blue-50 dark:bg-blue-950 rounded-lg">
+                        <div key={m.id || idx} className={`p-3 rounded-lg ${m.is_returned ? 'bg-green-50 dark:bg-green-950' : 'bg-blue-50 dark:bg-blue-950'}`}>
                           <div className="flex justify-between items-start">
                             <div>
                               <p className="font-medium text-sm">{m.issued_to || '—'}</p>
@@ -1048,12 +1052,20 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
                                 {m.contact && `Контакт: ${m.contact}`}
                               </p>
                             </div>
-                            <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
-                              {m.quantity} шт
-                            </span>
+                            <div className="text-right">
+                              <span className={`text-sm font-bold ${m.is_returned ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400'}`}>
+                                {m.quantity} шт
+                              </span>
+                              {m.is_returned && (
+                                <p className="text-xs text-green-600">✓ Возвращено</p>
+                              )}
+                            </div>
                           </div>
                           <p className="text-xs text-muted-foreground mt-1">
                             {new Date(m.created_at).toLocaleDateString('ru-RU')}
+                            {m.is_returned && m.returned_at && (
+                              <span className="text-green-600"> → возврат {new Date(m.returned_at).toLocaleDateString('ru-RU')}</span>
+                            )}
                           </p>
                         </div>
                       ))}
@@ -1188,7 +1200,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
                 Выдача оборудования
               </DialogTitle>
               <DialogDescription>
-                {item.name || 'Оборудование'} — доступно {scanResult.stats?.inStock || item.quantity} шт
+                {item.name || 'Оборудование'} — доступно {scanResult.stats?.inStock ?? 0} шт
               </DialogDescription>
             </DialogHeader>
             
@@ -1214,7 +1226,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
               </div>
               
               <div className="space-y-2">
-                <Label>Количество (макс. {scanResult.stats?.inStock || item.quantity})</Label>
+                <Label>Количество (макс. {scanResult.stats?.inStock ?? 0})</Label>
                 <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
@@ -1226,7 +1238,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
                   <Input
                     type="number"
                     min={1}
-                    max={scanResult.stats?.inStock || item.quantity}
+                    max={scanResult.stats?.inStock ?? 0}
                     value={issueForm.quantity}
                     onChange={(e) => setIssueForm({ ...issueForm, quantity: parseInt(e.target.value) || 1 })}
                     className="text-center h-11"
@@ -1234,7 +1246,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
                   <Button
                     variant="outline"
                     size="icon"
-                    onClick={() => setIssueForm({ ...issueForm, quantity: Math.min(scanResult.stats?.inStock || item.quantity, issueForm.quantity + 1) })}
+                    onClick={() => setIssueForm({ ...issueForm, quantity: Math.min(scanResult.stats?.inStock ?? 0, issueForm.quantity + 1) })}
                   >
                     <Plus className="w-4 h-4" />
                   </Button>
@@ -1269,7 +1281,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
                 Отправка в ремонт
               </DialogTitle>
               <DialogDescription>
-                {item.name || 'Оборудование'} — доступно {scanResult.stats?.inStock || item.quantity} шт
+                {item.name || 'Оборудование'} — доступно {scanResult.stats?.inStock ?? 0} шт
               </DialogDescription>
             </DialogHeader>
             
@@ -1285,7 +1297,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
               </div>
               
               <div className="space-y-2">
-                <Label>Количество (макс. {scanResult.stats?.inStock || item.quantity})</Label>
+                <Label>Количество (макс. {scanResult.stats?.inStock ?? 0})</Label>
                 <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
@@ -1297,7 +1309,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
                   <Input
                     type="number"
                     min={1}
-                    max={scanResult.stats?.inStock || item.quantity}
+                    max={scanResult.stats?.inStock ?? 0}
                     value={repairForm.quantity}
                     onChange={(e) => setRepairForm({ ...repairForm, quantity: parseInt(e.target.value) || 1 })}
                     className="text-center h-11"
@@ -1305,7 +1317,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
                   <Button
                     variant="outline"
                     size="icon"
-                    onClick={() => setRepairForm({ ...repairForm, quantity: Math.min(scanResult.stats?.inStock || item.quantity, repairForm.quantity + 1) })}
+                    onClick={() => setRepairForm({ ...repairForm, quantity: Math.min(scanResult.stats?.inStock ?? 0, repairForm.quantity + 1) })}
                   >
                     <Plus className="w-4 h-4" />
                   </Button>
@@ -1374,7 +1386,15 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
               
               {/* Список выдач */}
               <div className="border-t pt-4">
-                <h4 className="font-medium mb-3">История выдач ({scanResult.stats?.issued || 0} шт)</h4>
+                <h4 className="font-medium mb-3">
+                  История выдач 
+                  <span className="text-sm text-muted-foreground">
+                    (активных: {scanResult.stats?.issued || 0}
+                    {scanResult.stats?.totalIssued && scanResult.stats.totalIssued !== scanResult.stats.issued && (
+                      <>, всего: {scanResult.stats.totalIssued}</>
+                    )})
+                  </span>
+                </h4>
                 
                 {submitting ? (
                   <div className="flex justify-center py-4">
@@ -1385,7 +1405,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
                 ) : (
                   <div className="space-y-2 max-h-40 overflow-y-auto">
                     {movementsDetails.map((m, idx) => (
-                      <div key={m.id || idx} className="p-3 bg-blue-50 dark:bg-blue-950 rounded-lg">
+                      <div key={m.id || idx} className={`p-3 rounded-lg ${m.is_returned ? 'bg-green-50 dark:bg-green-950' : 'bg-blue-50 dark:bg-blue-950'}`}>
                         <div className="flex justify-between items-start">
                           <div>
                             <p className="font-medium text-sm">{m.issued_to || '—'}</p>
@@ -1393,12 +1413,20 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
                               {m.contact && `Контакт: ${m.contact}`}
                             </p>
                           </div>
-                          <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
-                            {m.quantity} шт
-                          </span>
+                          <div className="text-right">
+                            <span className={`text-sm font-bold ${m.is_returned ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400'}`}>
+                              {m.quantity} шт
+                            </span>
+                            {m.is_returned && (
+                              <p className="text-xs text-green-600">✓ Возвращено</p>
+                            )}
+                          </div>
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">
                           {new Date(m.created_at).toLocaleDateString('ru-RU')}
+                          {m.is_returned && m.returned_at && (
+                            <span className="text-green-600"> → возврат {new Date(m.returned_at).toLocaleDateString('ru-RU')}</span>
+                          )}
                         </p>
                       </div>
                     ))}
