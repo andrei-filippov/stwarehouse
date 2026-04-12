@@ -113,11 +113,33 @@ export function QuickQRScanner({
 
   const fetchKits = useCallback(async () => {
     if (!companyId || kits.length > 0) return;
-    const { data } = await supabase
+    
+    // Загружаем комплекты
+    const { data: kitsData } = await supabase
       .from('equipment_kits')
-      .select('*, items:kit_items(*)')
+      .select('*')
       .eq('company_id', companyId);
-    if (data) setLocalKits(data);
+    
+    // Загружаем items для каждого комплекта с названиями оборудования
+    const kitsWithItems = await Promise.all((kitsData || []).map(async (kit: any) => {
+      const { data: itemsData } = await supabase
+        .from('kit_items')
+        .select(`
+          *,
+          cable_inventory:inventory_id(name)
+        `)
+        .eq('kit_id', kit.id);
+      
+      return {
+        ...kit,
+        items: (itemsData || []).map((item: any) => ({
+          ...item,
+          inventory_name: item.inventory_name || item.cable_inventory?.name || 'Неизвестно'
+        }))
+      };
+    }));
+    
+    setLocalKits(kitsWithItems);
   }, [companyId, kits.length]);
 
   // Объединенные данные
