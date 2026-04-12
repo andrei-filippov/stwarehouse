@@ -745,49 +745,6 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
             </DialogFooter>
           </DialogContent>
         </Dialog>
-              
-              <div className="space-y-2">
-                <Label>Количество</Label>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIssueForm({ ...issueForm, quantity: Math.max(1, issueForm.quantity - 1) })}
-                  >
-                    <Minus className="w-4 h-4" />
-                  </Button>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={item.quantity}
-                    value={issueForm.quantity}
-                    onChange={(e) => setIssueForm({ ...issueForm, quantity: parseInt(e.target.value) || 1 })}
-                    className="text-center"
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIssueForm({ ...issueForm, quantity: Math.min(item.quantity, issueForm.quantity + 1) })}
-                  >
-                    <Plus className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            </div>
-            
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setActiveAction(null)}>
-                Отмена
-              </Button>
-              <Button 
-                onClick={handleQuickIssue}
-                disabled={!issueForm.issued_to.trim() || submitting}
-              >
-                {submitting ? 'Выдача...' : 'Выдать'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
 
         {/* Диалог ремонта */}
         <Dialog open={activeAction === 'repair'} onOpenChange={() => setActiveAction(null)}>
