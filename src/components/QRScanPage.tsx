@@ -379,8 +379,9 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
     }
     
     const item = scanResult.data;
-    if (issueForm.quantity > item.quantity) {
-      toast.error('Нельзя выдать больше, чем есть на складе');
+    const availableQty = scanResult.stats?.inStock ?? item.quantity;
+    if (issueForm.quantity > availableQty) {
+      toast.error(`Нельзя выдать больше, чем есть на складе (доступно: ${availableQty})`);
       return;
     }
     
@@ -1172,19 +1173,93 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
                   </div>
                 )}
                 
-                <Button 
-                  variant="outline" 
-                  className="w-full"
-                  onClick={handleShowInfo}
-                >
-                  <Info className="w-4 h-4 mr-2" />
-                  Показать историю
-                </Button>
+
               </CardContent>
             </Card>
           </div>
         </div>
         
+        {/* Диалог выдачи */}
+        <Dialog open={activeAction === 'issue'} onOpenChange={() => setActiveAction(null)}>
+          <DialogContent className="max-w-md sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <ArrowUpRight className="w-5 h-5" />
+                Выдача оборудования
+              </DialogTitle>
+              <DialogDescription>
+                {item.name || 'Оборудование'} — доступно {scanResult.stats?.inStock || item.quantity} шт
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2 sm:col-span-2">
+                <Label>Кому выдаётся *</Label>
+                <Input
+                  placeholder="ФИО или название организации"
+                  value={issueForm.issued_to}
+                  onChange={(e) => setIssueForm({ ...issueForm, issued_to: e.target.value })}
+                  className="h-11"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Контакт</Label>
+                <Input
+                  placeholder="Телефон или email"
+                  value={issueForm.contact}
+                  onChange={(e) => setIssueForm({ ...issueForm, contact: e.target.value })}
+                  className="h-11"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Количество (макс. {scanResult.stats?.inStock || item.quantity})</Label>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setIssueForm({ ...issueForm, quantity: Math.max(1, issueForm.quantity - 1) })}
+                  >
+                    <Minus className="w-4 h-4" />
+                  </Button>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={scanResult.stats?.inStock || item.quantity}
+                    value={issueForm.quantity}
+                    onChange={(e) => setIssueForm({ ...issueForm, quantity: parseInt(e.target.value) || 1 })}
+                    className="text-center h-11"
+                  />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setIssueForm({ ...issueForm, quantity: Math.min(scanResult.stats?.inStock || item.quantity, issueForm.quantity + 1) })}
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+            
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button variant="outline" onClick={() => setActiveAction(null)} className="w-full sm:w-auto">Отмена</Button>
+              <Button 
+                onClick={handleQuickIssue} 
+                disabled={submitting || !issueForm.issued_to.trim()}
+                className="w-full sm:w-auto"
+              >
+                {submitting ? (
+                  <div className="animate-spin h-4 w-4 border-2 border-white rounded-full mr-2" />
+                ) : (
+                  <ArrowUpRight className="w-4 h-4 mr-2" />
+                )}
+                Выдать {issueForm.quantity > 1 && `${issueForm.quantity} шт`}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {/* Диалог ремонта */}
         <Dialog open={activeAction === 'repair'} onOpenChange={() => setActiveAction(null)}>
           <DialogContent className="max-w-md sm:max-w-lg">
