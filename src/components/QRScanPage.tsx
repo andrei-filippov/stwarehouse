@@ -79,13 +79,41 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
       if (!companyId) return;
       
       setLoading(true);
-      const [{ data: invData }, { data: kitsData }] = await Promise.all([
-        supabase.from('cable_inventory').select('*').eq('company_id', companyId),
-        supabase.from('equipment_kits').select('*, items:kit_items(*)').eq('company_id', companyId)
-      ]);
+      
+      // Загружаем инвентарь
+      const { data: invData } = await supabase
+        .from('cable_inventory')
+        .select('*')
+        .eq('company_id', companyId);
       
       if (invData) setInventory(invData);
-      if (kitsData) setKits(kitsData);
+      
+      // Загружаем комплекты с items и названиями оборудования
+      const { data: kitsData } = await supabase
+        .from('equipment_kits')
+        .select('*')
+        .eq('company_id', companyId);
+      
+      // Загружаем items для каждого комплекта с названиями
+      const kitsWithItems = await Promise.all((kitsData || []).map(async (kit: any) => {
+        const { data: itemsData } = await supabase
+          .from('kit_items')
+          .select(`
+            *,
+            cable_inventory:inventory_id(name)
+          `)
+          .eq('kit_id', kit.id);
+        
+        return {
+          ...kit,
+          items: (itemsData || []).map((item: any) => ({
+            ...item,
+            inventory_name: item.inventory_name || item.cable_inventory?.name || 'Неизвестно'
+          }))
+        };
+      }));
+      
+      setKits(kitsWithItems);
       setLoading(false);
     };
     

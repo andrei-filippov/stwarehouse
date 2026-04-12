@@ -371,6 +371,25 @@ export function EquipmentKits({ kits, inventory, categories, onCreateKit, onUpda
                   </span>
                 )}
               </p>
+              
+              {/* Список оборудования в комплекте */}
+              {kit.items && kit.items.length > 0 && (
+                <div className="mt-3 space-y-1">
+                  <div className="text-xs text-gray-400 mb-1">Содержимое:</div>
+                  <div className="space-y-1 max-h-32 overflow-y-auto">
+                    {kit.items.map((item, idx) => (
+                      <div key={idx} className="flex items-center justify-between text-sm py-1 px-2 bg-gray-50 dark:bg-gray-800 rounded">
+                        <span className="truncate flex-1" title={item.inventory_name}>
+                          {item.inventory_name}
+                        </span>
+                        <span className="text-gray-400 ml-2 shrink-0">
+                          × {item.quantity || 1}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         ))}

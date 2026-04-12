@@ -64,16 +64,25 @@ export function useChecklistsV2(companyId: string | undefined) {
 
       if (kitsError) throw kitsError;
 
-      // Затем загружаем items для каждого kit
+      // Затем загружаем items для каждого kit с названиями оборудования
       const transformed: EquipmentKit[] = await Promise.all((kitsData || []).map(async (k: any) => {
         const { data: itemsData } = await supabase
           .from('kit_items')
-          .select('*')
+          .select(`
+            *,
+            cable_inventory:inventory_id(name)
+          `)
           .eq('kit_id', k.id);
+        
+        // Добавляем inventory_name из связанной таблицы
+        const itemsWithNames = (itemsData || []).map((item: any) => ({
+          ...item,
+          inventory_name: item.inventory_name || item.cable_inventory?.name || 'Неизвестно'
+        }));
         
         return {
           ...k,
-          items: (itemsData || [])
+          items: itemsWithNames
         };
       }));
 
