@@ -140,10 +140,16 @@ export const EstimateManager = memo(function EstimateManager({
     });
   }, [filteredEstimates]);
   
-  // При первой загрузке разворачиваем все месяцы
+  // При первой загрузке разворачиваем только текущий месяц
   useEffect(() => {
     if (groupedEstimates.length > 0 && expandedMonths.size === 0) {
-      setExpandedMonths(new Set(groupedEstimates.map(([month]) => month)));
+      const currentMonth = format(new Date(), 'MMMM yyyy', { locale: ru });
+      // Если текущий месяц есть в списке, разворачиваем только его
+      // Иначе разворачиваем первый (самый новый) месяц
+      const monthToExpand = groupedEstimates.find(([month]) => month === currentMonth)?.[0] || groupedEstimates[0]?.[0];
+      if (monthToExpand) {
+        setExpandedMonths(new Set([monthToExpand]));
+      }
     }
   }, [groupedEstimates]);
 
