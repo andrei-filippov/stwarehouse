@@ -454,7 +454,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
         issued_to: kitIssueForm.issued_to,
         contact: kitIssueForm.contact || undefined,
         type: 'issue',
-        event_name: `Комплект: ${kit.name}`
+        notes: `Из комплекта: ${kit.name}`
       });
       
       if (error) {
