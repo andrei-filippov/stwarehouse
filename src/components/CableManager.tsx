@@ -22,7 +22,13 @@ import {
   GripVertical,
   CheckSquare,
   X,
-  Boxes
+  Boxes,
+  Calendar,
+  Search,
+  Filter,
+  TrendingUp,
+  Wrench,
+  ArrowRightLeft
 } from 'lucide-react';
 import type { CableCategory, CableInventory, CableMovement, EquipmentRepair } from '../types';
 import type { EquipmentKit } from '../types/checklist';
@@ -221,6 +227,15 @@ export const CableManager = memo(function CableManager({
   const [scannedQRItem, setScannedQRItem] = useState<CableInventory | null>(null);
   const [isQRActionDialogOpen, setIsQRActionDialogOpen] = useState(false);
   const [qrScanMode, setQrScanMode] = useState<'single' | 'batch'>('single'); // batch = режим выдачи
+
+  // Фильтры для истории
+  const [historyFilters, setHistoryFilters] = useState({
+    dateFrom: '',
+    dateTo: '',
+    categoryId: 'all',
+    status: 'all',
+    search: '',
+  });
 
   // Читаем URL scan параметр
   const urlScanCode = useUrlScanCode();
@@ -1085,22 +1100,23 @@ export const CableManager = memo(function CableManager({
       </p>
       
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3 h-9 sm:h-10">
-          <TabsTrigger value="warehouse" className="text-xs sm:text-sm">Склад</TabsTrigger>
-          <TabsTrigger value="issued" className="text-xs sm:text-sm">
+        <TabsList className="w-full h-9 sm:h-10 flex overflow-x-auto scrollbar-hide">
+          <TabsTrigger value="warehouse" className="text-xs sm:text-sm flex-shrink-0">Склад</TabsTrigger>
+          <TabsTrigger value="issued" className="text-xs sm:text-sm flex-shrink-0">
             Выдано
             {movements.filter(m => m.is_returned !== true).length > 0 && (
               <Badge variant="secondary" className="ml-1 sm:ml-2 text-xs">{movements.filter(m => m.is_returned !== true).length}</Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="repair" className="text-xs sm:text-sm">
+          <TabsTrigger value="repair" className="text-xs sm:text-sm flex-shrink-0">
             Ремонт
             {repairs.filter(r => r.status === 'in_repair').length > 0 && (
               <Badge variant="secondary" className="ml-1 sm:ml-2 text-xs">{repairs.filter(r => r.status === 'in_repair').length}</Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="history" className="text-xs sm:text-sm">
+          <TabsTrigger value="history" className="text-xs sm:text-sm flex-shrink-0">
             История
+            <Badge variant="outline" className="ml-1 sm:ml-2 text-xs">{repairs.length + movements.length}</Badge>
           </TabsTrigger>
         </TabsList>
 
@@ -1354,144 +1370,336 @@ export const CableManager = memo(function CableManager({
 
         {/* Вкладка История */}
         <TabsContent value="history" className="space-y-3 sm:space-y-4">
+          {/* Статистика */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+            <Card className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border-blue-500/20">
+              <CardContent className="p-3">
+                <div className="flex items-center gap-2">
+                  <ArrowRightLeft className="w-4 h-4 text-blue-500" />
+                  <span className="text-xs text-muted-foreground">Всего выдач</span>
+                </div>
+                <div className="text-xl sm:text-2xl font-bold mt-1">{movements.length}</div>
+                <div className="text-xs text-muted-foreground">
+                  {movements.filter(m => !m.is_returned).length} активных
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-gradient-to-br from-green-500/10 to-green-600/5 border-green-500/20">
+              <CardContent className="p-3">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-green-500" />
+                  <span className="text-xs text-muted-foreground">Возвращено</span>
+                </div>
+                <div className="text-xl sm:text-2xl font-bold mt-1">
+                  {movements.filter(m => m.is_returned).length}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {Math.round((movements.filter(m => m.is_returned).length / Math.max(movements.length, 1)) * 100)}% возвратов
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-gradient-to-br from-yellow-500/10 to-yellow-600/5 border-yellow-500/20">
+              <CardContent className="p-3">
+                <div className="flex items-center gap-2">
+                  <Wrench className="w-4 h-4 text-yellow-500" />
+                  <span className="text-xs text-muted-foreground">В ремонте</span>
+                </div>
+                <div className="text-xl sm:text-2xl font-bold mt-1">
+                  {repairs.filter(r => r.status === 'in_repair').length}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {repairs.filter(r => r.status !== 'in_repair').length} завершено
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-gradient-to-br from-purple-500/10 to-purple-600/5 border-purple-500/20">
+              <CardContent className="p-3">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-purple-500" />
+                  <span className="text-xs text-muted-foreground">Всего операций</span>
+                </div>
+                <div className="text-xl sm:text-2xl font-bold mt-1">{movements.length + repairs.length}</div>
+                <div className="text-xs text-muted-foreground">
+                  за все время
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
                 📜 История операций
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-4">
+              {/* Фильтры */}
+              <div className="space-y-3 p-3 bg-muted/50 rounded-lg">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Filter className="w-4 h-4" />
+                  Фильтры
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+                  {/* Поиск */}
+                  <div className="relative">
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Поиск по названию..."
+                      value={historyFilters.search}
+                      onChange={(e) => setHistoryFilters(prev => ({ ...prev, search: e.target.value }))}
+                      className="pl-8 h-9 text-sm"
+                    />
+                  </div>
+                  {/* Категория */}
+                  <select
+                    value={historyFilters.categoryId}
+                    onChange={(e) => setHistoryFilters(prev => ({ ...prev, categoryId: e.target.value }))}
+                    className="h-9 px-2 rounded-md border border-input bg-background text-sm"
+                  >
+                    <option value="all">Все категории</option>
+                    {categories.map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
+                  {/* Статус */}
+                  <select
+                    value={historyFilters.status}
+                    onChange={(e) => setHistoryFilters(prev => ({ ...prev, status: e.target.value }))}
+                    className="h-9 px-2 rounded-md border border-input bg-background text-sm"
+                  >
+                    <option value="all">Все статусы</option>
+                    <option value="active">Активные (не возвращено)</option>
+                    <option value="returned">Возвращено</option>
+                    <option value="in_repair">В ремонте</option>
+                    <option value="written_off">Списано</option>
+                  </select>
+                  {/* Сброс фильтров */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setHistoryFilters({ dateFrom: '', dateTo: '', categoryId: 'all', status: 'all', search: '' })}
+                    className="h-9"
+                  >
+                    <X className="w-4 h-4 mr-1" />
+                    Сбросить
+                  </Button>
+                </div>
+                {/* Даты */}
+                <div className="flex flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">С:</span>
+                    <Input
+                      type="date"
+                      value={historyFilters.dateFrom}
+                      onChange={(e) => setHistoryFilters(prev => ({ ...prev, dateFrom: e.target.value }))}
+                      className="h-8 w-32 text-sm"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">По:</span>
+                    <Input
+                      type="date"
+                      value={historyFilters.dateTo}
+                      onChange={(e) => setHistoryFilters(prev => ({ ...prev, dateTo: e.target.value }))}
+                      className="h-8 w-32 text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+
               {/* История ремонтов */}
               <div>
                 <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
                   🔧 История ремонтов
-                  <Badge variant="outline" className="text-xs">
-                    {repairs.length}
-                  </Badge>
+                  {(() => {
+                    const filteredRepairs = repairs.filter(r => {
+                      const matchesSearch = !historyFilters.search || r.equipment_name.toLowerCase().includes(historyFilters.search.toLowerCase());
+                      const matchesCategory = historyFilters.categoryId === 'all' || r.category_id === historyFilters.categoryId;
+                      const matchesStatus = historyFilters.status === 'all' || 
+                        (historyFilters.status === 'in_repair' && r.status === 'in_repair') ||
+                        (historyFilters.status === 'written_off' && r.status === 'written_off') ||
+                        (historyFilters.status === 'returned' && r.status === 'returned');
+                      const date = new Date(r.sent_date);
+                      const matchesDateFrom = !historyFilters.dateFrom || date >= new Date(historyFilters.dateFrom);
+                      const matchesDateTo = !historyFilters.dateTo || date <= new Date(historyFilters.dateTo + 'T23:59:59');
+                      return matchesSearch && matchesCategory && matchesStatus && matchesDateFrom && matchesDateTo;
+                    });
+                    return <Badge variant="outline" className="text-xs">{filteredRepairs.length}</Badge>;
+                  })()}
                 </h4>
-                {repairs.length === 0 ? (
-                  <div className="text-center py-4 text-muted-foreground text-sm border rounded-lg">
-                    Нет записей о ремонтах
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {repairs
-                      .sort((a, b) => new Date(b.sent_date).getTime() - new Date(a.sent_date).getTime())
-                      .map(repair => {
-                        const category = categories.find(c => c.id === repair.category_id);
-                        const isReturned = repair.status === 'returned';
-                        const isWrittenOff = repair.status === 'written_off';
-                        return (
-                          <div 
-                            key={repair.id}
-                            className={`flex flex-col sm:flex-row sm:items-center justify-between p-2 sm:p-3 rounded-lg border gap-2 ${
-                              isReturned ? 'bg-green-500/10 border-green-500/30' :
-                              isWrittenOff ? 'bg-gray-500/10 border-gray-500/30' :
-                              'bg-yellow-500/10 border-yellow-500/30'
-                            }`}
-                          >
-                            <div className="min-w-0">
-                              <div className="flex flex-wrap items-center gap-1 sm:gap-2 text-sm">
-                                <div 
-                                  className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full shrink-0"
-                                  style={{ backgroundColor: category?.color || '#ccc' }}
-                                />
-                                <span className="font-medium">{repair.equipment_name}</span>
-                                <span className="text-muted-foreground">× {repair.quantity} шт</span>
-                                <Badge className={`${getRepairStatusColor(repair.status)} text-xs`}>
-                                  {getRepairStatusLabel(repair.status)}
-                                </Badge>
-                              </div>
-                              <div className="text-xs text-muted-foreground mt-1">
-                                <span className="font-medium">Причина:</span> {repair.reason}
-                              </div>
-                              {repair.notes && (
-                                <div className="text-xs text-muted-foreground">
-                                  <span className="font-medium">Примечание:</span> {repair.notes}
+                {(() => {
+                  const filteredRepairs = repairs.filter(r => {
+                    const matchesSearch = !historyFilters.search || r.equipment_name.toLowerCase().includes(historyFilters.search.toLowerCase());
+                    const matchesCategory = historyFilters.categoryId === 'all' || r.category_id === historyFilters.categoryId;
+                    const matchesStatus = historyFilters.status === 'all' || 
+                      (historyFilters.status === 'in_repair' && r.status === 'in_repair') ||
+                      (historyFilters.status === 'written_off' && r.status === 'written_off') ||
+                      (historyFilters.status === 'returned' && r.status === 'returned');
+                    const date = new Date(r.sent_date);
+                    const matchesDateFrom = !historyFilters.dateFrom || date >= new Date(historyFilters.dateFrom);
+                    const matchesDateTo = !historyFilters.dateTo || date <= new Date(historyFilters.dateTo + 'T23:59:59');
+                    return matchesSearch && matchesCategory && matchesStatus && matchesDateFrom && matchesDateTo;
+                  });
+                  
+                  if (filteredRepairs.length === 0) {
+                    return (
+                      <div className="text-center py-4 text-muted-foreground text-sm border rounded-lg">
+                        Нет записей о ремонтах
+                      </div>
+                    );
+                  }
+                  
+                  return (
+                    <div className="space-y-2">
+                      {filteredRepairs
+                        .sort((a, b) => new Date(b.sent_date).getTime() - new Date(a.sent_date).getTime())
+                        .map(repair => {
+                          const category = categories.find(c => c.id === repair.category_id);
+                          const isReturned = repair.status === 'returned';
+                          const isWrittenOff = repair.status === 'written_off';
+                          return (
+                            <div 
+                              key={repair.id}
+                              className={`flex flex-col sm:flex-row sm:items-center justify-between p-2 sm:p-3 rounded-lg border gap-2 ${
+                                isReturned ? 'bg-green-500/10 border-green-500/30' :
+                                isWrittenOff ? 'bg-gray-500/10 border-gray-500/30' :
+                                'bg-yellow-500/10 border-yellow-500/30'
+                              }`}
+                            >
+                              <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-1 sm:gap-2 text-sm">
+                                  <div 
+                                    className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full shrink-0"
+                                    style={{ backgroundColor: category?.color || '#ccc' }}
+                                  />
+                                  <span className="font-medium">{repair.equipment_name}</span>
+                                  <span className="text-muted-foreground">× {repair.quantity} шт</span>
+                                  <Badge className={`${getRepairStatusColor(repair.status)} text-xs`}>
+                                    {getRepairStatusLabel(repair.status)}
+                                  </Badge>
                                 </div>
-                              )}
-                              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground/70 mt-1">
-                                <span>Отправлено: {format(new Date(repair.sent_date), 'dd.MM.yyyy')}</span>
-                                {repair.returned_date && (
-                                  <span className={isReturned ? 'text-green-600 font-medium' : ''}>
-                                    {isWrittenOff ? 'Списано' : 'Возвращено'}: {format(new Date(repair.returned_date), 'dd.MM.yyyy')}
-                                  </span>
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  <span className="font-medium">Причина:</span> {repair.reason}
+                                </div>
+                                {repair.notes && (
+                                  <div className="text-xs text-muted-foreground">
+                                    <span className="font-medium">Примечание:</span> {repair.notes}
+                                  </div>
                                 )}
+                                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground/70 mt-1">
+                                  <span>Отправлено: {format(new Date(repair.sent_date), 'dd.MM.yyyy')}</span>
+                                  {repair.returned_date && (
+                                    <span className={isReturned ? 'text-green-600 font-medium' : ''}>
+                                      {isWrittenOff ? 'Списано' : 'Возвращено'}: {format(new Date(repair.returned_date), 'dd.MM.yyyy')}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        );
-                      })}
-                  </div>
-                )}
+                          );
+                        })}
+                    </div>
+                  );
+                })()}
               </div>
 
               <div className="border-t pt-4">
                 {/* История выдач */}
                 <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
                   📦 История выдач
-                  <Badge variant="outline" className="text-xs">
-                    {movements.length}
-                  </Badge>
+                  {(() => {
+                    const filteredMovements = movements.filter(m => {
+                      if (!m.created_at) return false;
+                      const matchesSearch = !historyFilters.search || (m.equipment_name || '').toLowerCase().includes(historyFilters.search.toLowerCase());
+                      const matchesCategory = historyFilters.categoryId === 'all' || m.category_id === historyFilters.categoryId;
+                      const matchesStatus = historyFilters.status === 'all' || 
+                        (historyFilters.status === 'active' && !m.is_returned) ||
+                        (historyFilters.status === 'returned' && m.is_returned);
+                      const date = new Date(m.created_at);
+                      const matchesDateFrom = !historyFilters.dateFrom || date >= new Date(historyFilters.dateFrom);
+                      const matchesDateTo = !historyFilters.dateTo || date <= new Date(historyFilters.dateTo + 'T23:59:59');
+                      return matchesSearch && matchesCategory && matchesStatus && matchesDateFrom && matchesDateTo;
+                    });
+                    return <Badge variant="outline" className="text-xs">{filteredMovements.length}</Badge>;
+                  })()}
                 </h4>
-                {movements.length === 0 ? (
-                  <div className="text-center py-4 text-muted-foreground text-sm border rounded-lg">
-                    Нет записей о выдачах
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {movements
-                      .filter(m => m.created_at)
-                      .sort((a, b) => new Date(b.created_at!).getTime() - new Date(a.created_at!).getTime())
-                      .map(movement => {
-                        const item = equipmentItems.find(i => i.id === movement.inventory_id) || 
-                                   inventory.find(i => i.id === movement.inventory_id);
-                        const category = categories.find(c => c.id === (item?.category_id || movement.category_id));
-                        const isReturned = movement.is_returned === true;
-                        return (
-                          <div 
-                            key={movement.id}
-                            className={`flex flex-col sm:flex-row sm:items-center justify-between p-2 sm:p-3 rounded-lg border gap-2 ${
-                              isReturned ? 'bg-green-500/10 border-green-500/30' : 'bg-blue-500/10 border-blue-500/30'
-                            }`}
-                          >
-                            <div className="min-w-0">
-                              <div className="flex flex-wrap items-center gap-1 sm:gap-2 text-sm">
-                                <div 
-                                  className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full shrink-0"
-                                  style={{ backgroundColor: category?.color || '#ccc' }}
-                                />
-                                <span className="font-medium">{movement.equipment_name || item?.name || 'Неизвестно'}</span>
-                                <span className="text-muted-foreground">× {movement.quantity} шт</span>
-                                <Badge className={`text-xs ${isReturned ? 'bg-green-500/20 text-green-700' : 'bg-blue-500/20 text-blue-700'}`}>
-                                  {isReturned ? '✓ Возвращено' : '→ Выдано'}
-                                </Badge>
-                              </div>
-                              <div className="text-xs text-muted-foreground mt-1">
-                                <span className="font-medium">Кому:</span> {movement.issued_to || '—'}
-                                {movement.contact && (
-                                  <span className="ml-3"><span className="font-medium">Контакт:</span> {movement.contact}</span>
-                                )}
-                              </div>
-                              {movement.notes && (
-                                <div className="text-xs text-muted-foreground">
-                                  <span className="font-medium">Примечание:</span> {movement.notes}
+                {(() => {
+                  const filteredMovements = movements.filter(m => {
+                    if (!m.created_at) return false;
+                    const matchesSearch = !historyFilters.search || (m.equipment_name || '').toLowerCase().includes(historyFilters.search.toLowerCase());
+                    const matchesCategory = historyFilters.categoryId === 'all' || m.category_id === historyFilters.categoryId;
+                    const matchesStatus = historyFilters.status === 'all' || 
+                      (historyFilters.status === 'active' && !m.is_returned) ||
+                      (historyFilters.status === 'returned' && m.is_returned);
+                    const date = new Date(m.created_at);
+                    const matchesDateFrom = !historyFilters.dateFrom || date >= new Date(historyFilters.dateFrom);
+                    const matchesDateTo = !historyFilters.dateTo || date <= new Date(historyFilters.dateTo + 'T23:59:59');
+                    return matchesSearch && matchesCategory && matchesStatus && matchesDateFrom && matchesDateTo;
+                  });
+                  
+                  if (filteredMovements.length === 0) {
+                    return (
+                      <div className="text-center py-4 text-muted-foreground text-sm border rounded-lg">
+                        Нет записей о выдачах
+                      </div>
+                    );
+                  }
+                  
+                  return (
+                    <div className="space-y-2">
+                      {filteredMovements
+                        .sort((a, b) => new Date(b.created_at!).getTime() - new Date(a.created_at!).getTime())
+                        .map(movement => {
+                          const item = equipmentItems.find(i => i.id === movement.inventory_id) || 
+                                     inventory.find(i => i.id === movement.inventory_id);
+                          const category = categories.find(c => c.id === (item?.category_id || movement.category_id));
+                          const isReturned = movement.is_returned === true;
+                          return (
+                            <div 
+                              key={movement.id}
+                              className={`flex flex-col sm:flex-row sm:items-center justify-between p-2 sm:p-3 rounded-lg border gap-2 ${
+                                isReturned ? 'bg-green-500/10 border-green-500/30' : 'bg-blue-500/10 border-blue-500/30'
+                              }`}
+                            >
+                              <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-1 sm:gap-2 text-sm">
+                                  <div 
+                                    className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full shrink-0"
+                                    style={{ backgroundColor: category?.color || '#ccc' }}
+                                  />
+                                  <span className="font-medium">{movement.equipment_name || item?.name || 'Неизвестно'}</span>
+                                  <span className="text-muted-foreground">× {movement.quantity} шт</span>
+                                  <Badge className={`text-xs ${isReturned ? 'bg-green-500/20 text-green-700' : 'bg-blue-500/20 text-blue-700'}`}>
+                                    {isReturned ? '✓ Возвращено' : '→ Выдано'}
+                                  </Badge>
                                 </div>
-                              )}
-                              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground/70 mt-1">
-                                <span>Дата: {format(new Date(movement.created_at!), 'dd.MM.yyyy HH:mm')}</span>
-                                {movement.returned_at && (
-                                  <span className="text-green-600 font-medium">
-                                    Возвращено: {format(new Date(movement.returned_at), 'dd.MM.yyyy')}
-                                  </span>
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  <span className="font-medium">Кому:</span> {movement.issued_to || '—'}
+                                  {movement.contact && (
+                                    <span className="ml-3"><span className="font-medium">Контакт:</span> {movement.contact}</span>
+                                  )}
+                                </div>
+                                {movement.notes && (
+                                  <div className="text-xs text-muted-foreground">
+                                    <span className="font-medium">Примечание:</span> {movement.notes}
+                                  </div>
                                 )}
+                                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground/70 mt-1">
+                                  <span>Дата: {format(new Date(movement.created_at!), 'dd.MM.yyyy HH:mm')}</span>
+                                  {movement.returned_at && (
+                                    <span className="text-green-600 font-medium">
+                                      Возвращено: {format(new Date(movement.returned_at), 'dd.MM.yyyy')}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        );
-                      })}
-                  </div>
-                )}
+                          );
+                        })}
+                    </div>
+                  );
+                })()}
               </div>
             </CardContent>
           </Card>
