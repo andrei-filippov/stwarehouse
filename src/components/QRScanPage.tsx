@@ -667,21 +667,25 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
         
         {/* Диалог выдачи */}
         <Dialog open={activeAction === 'issue'} onOpenChange={() => setActiveAction(null)}>
-          <DialogContent className="max-w-sm">
+          <DialogContent className="max-w-md sm:max-w-lg">
             <DialogHeader>
-              <DialogTitle>Выдача оборудования</DialogTitle>
+              <DialogTitle className="flex items-center gap-2">
+                <ArrowUpRight className="w-5 h-5" />
+                Выдача оборудования
+              </DialogTitle>
               <DialogDescription>
-                {item.name || 'Оборудование'} — на складе {item.quantity} шт
+                {item.name || 'Оборудование'} — доступно {scanResult.stats?.inStock || item.quantity} шт
               </DialogDescription>
             </DialogHeader>
             
-            <div className="space-y-4">
-              <div className="space-y-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2 sm:col-span-2">
                 <Label>Кому выдаётся *</Label>
                 <Input
-                  placeholder="ФИО или название"
+                  placeholder="ФИО или название организации"
                   value={issueForm.issued_to}
                   onChange={(e) => setIssueForm({ ...issueForm, issued_to: e.target.value })}
+                  className="h-11"
                 />
               </div>
               
@@ -691,8 +695,56 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
                   placeholder="Телефон или email"
                   value={issueForm.contact}
                   onChange={(e) => setIssueForm({ ...issueForm, contact: e.target.value })}
+                  className="h-11"
                 />
               </div>
+              
+              <div className="space-y-2">
+                <Label>Количество (макс. {scanResult.stats?.inStock || item.quantity})</Label>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setIssueForm({ ...issueForm, quantity: Math.max(1, issueForm.quantity - 1) })}
+                  >
+                    <Minus className="w-4 h-4" />
+                  </Button>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={scanResult.stats?.inStock || item.quantity}
+                    value={issueForm.quantity}
+                    onChange={(e) => setIssueForm({ ...issueForm, quantity: parseInt(e.target.value) || 1 })}
+                    className="text-center h-11"
+                  />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setIssueForm({ ...issueForm, quantity: Math.min(scanResult.stats?.inStock || item.quantity, issueForm.quantity + 1) })}
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+            
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button variant="outline" onClick={() => setActiveAction(null)} className="w-full sm:w-auto">Отмена</Button>
+              <Button 
+                onClick={handleQuickIssue} 
+                disabled={submitting || !issueForm.issued_to.trim()}
+                className="w-full sm:w-auto"
+              >
+                {submitting ? (
+                  <div className="animate-spin h-4 w-4 border-2 border-white rounded-full mr-2" />
+                ) : (
+                  <ArrowUpRight className="w-4 h-4 mr-2" />
+                )}
+                Выдать {issueForm.quantity > 1 && `${issueForm.quantity} шт`}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
               
               <div className="space-y-2">
                 <Label>Количество</Label>
@@ -1227,159 +1279,279 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
     const category = scanResult.category;
     
     return (
-      <div className="space-y-4 max-w-lg mx-auto">
+      <div className="space-y-4 max-w-6xl mx-auto">
+        {/* Шапка */}
         <div className="flex items-center justify-between">
           <Button variant="ghost" onClick={handleScanAgain}>
             <ArrowLeft className="w-4 h-4 mr-2" />
             Новое сканирование
           </Button>
-          <Badge>{category?.name || 'Оборудование'}</Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="hidden sm:inline-flex">
+              <Package className="w-3 h-3 mr-1" />
+              {category?.name || 'Оборудование'}
+            </Badge>
+            {item.qr_code && (
+              <code className="bg-muted px-2 py-1 rounded text-xs font-mono hidden md:inline">
+                {item.qr_code}
+              </code>
+            )}
+          </div>
         </div>
         
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Package className="w-5 h-5" />
-              {item.name || 'Оборудование'}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Статистика по оборудованию - только актуальная для сканирования */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className="p-4 bg-green-50 dark:bg-green-950 rounded-lg text-center">
-                <p className="text-xs text-green-600 dark:text-green-400 mb-1">Свободно</p>
-                <p className="text-2xl font-bold text-green-700 dark:text-green-300">{scanResult.stats?.inStock || item.quantity}</p>
-                <p className="text-xs text-green-500">шт</p>
-              </div>
-              <div className="p-4 bg-blue-50 dark:bg-blue-950 rounded-lg text-center">
-                <p className="text-xs text-blue-600 dark:text-blue-400 mb-1">Выдано</p>
-                <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">{scanResult.stats?.issued || 0}</p>
-                <p className="text-xs text-blue-500">шт</p>
-              </div>
-              <div className="p-4 bg-amber-50 dark:bg-amber-950 rounded-lg text-center">
-                <p className="text-xs text-amber-600 dark:text-amber-400 mb-1">Зарезерв.</p>
-                <p className="text-2xl font-bold text-amber-700 dark:text-amber-300">{scanResult.stats?.reserved || 0}</p>
-                <p className="text-xs text-amber-500">шт</p>
-              </div>
-              <div className="p-4 bg-red-50 dark:bg-red-950 rounded-lg text-center">
-                <p className="text-xs text-red-600 dark:text-red-400 mb-1">В ремонте</p>
-                <p className="text-2xl font-bold text-red-700 dark:text-red-300">{scanResult.stats?.inRepair || 0}</p>
-                <p className="text-xs text-red-500">шт</p>
-              </div>
-            </div>
-            
-            {item.length && (
-              <div className="p-3 bg-muted rounded-lg text-center">
-                <p className="text-sm text-muted-foreground">Длина</p>
-                <p className="text-xl font-bold">{item.length} м</p>
-              </div>
-            )}
-            
-            {item.qr_code && (
-              <div className="text-sm text-muted-foreground text-center">
-                QR: <code className="bg-muted px-2 py-1 rounded">{item.qr_code}</code>
-              </div>
-            )}
-            
-            <div className="pt-4 border-t space-y-2">
-              <h4 className="font-medium text-sm">Быстрые действия:</h4>
-              <div className="grid grid-cols-2 gap-2">
-                <Button variant="outline" onClick={handleShowInfo}>
-                  <Info className="w-4 h-4 mr-2" />
-                  Информация
-                </Button>
-                <Button variant="outline" onClick={() => setActiveAction('checklist')}>
-                  <ClipboardCheck className="w-4 h-4 mr-2" />
-                  В чеклист
-                </Button>
-                <Button variant="outline" onClick={() => setActiveAction('issue')}>
-                  <ArrowUpRight className="w-4 h-4 mr-2" />
-                  Выдать
-                </Button>
-                <Button variant="outline" onClick={() => setActiveAction('repair')}>
-                  <Wrench className="w-4 h-4 mr-2" />
-                  В ремонт
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        {/* Диалог выдачи */}
-        <Dialog open={activeAction === 'issue'} onOpenChange={() => setActiveAction(null)}>
-          <DialogContent className="max-w-sm">
-            <DialogHeader>
-              <DialogTitle>Выдача оборудования</DialogTitle>
-              <DialogDescription>
-                {item.name || 'Оборудование'} — на складе {item.quantity} шт
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Кому выдаётся *</Label>
-                <Input
-                  placeholder="ФИО или название"
-                  value={issueForm.issued_to}
-                  onChange={(e) => setIssueForm({ ...issueForm, issued_to: e.target.value })}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label>Контакт</Label>
-                <Input
-                  placeholder="Телефон или email"
-                  value={issueForm.contact}
-                  onChange={(e) => setIssueForm({ ...issueForm, contact: e.target.value })}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label>Количество</Label>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIssueForm({ ...issueForm, quantity: Math.max(1, issueForm.quantity - 1) })}
-                  >
-                    <Minus className="w-4 h-4" />
-                  </Button>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={item.quantity}
-                    value={issueForm.quantity}
-                    onChange={(e) => setIssueForm({ ...issueForm, quantity: parseInt(e.target.value) || 1 })}
-                    className="text-center"
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIssueForm({ ...issueForm, quantity: Math.min(item.quantity, issueForm.quantity + 1) })}
-                  >
-                    <Plus className="w-4 h-4" />
-                  </Button>
+        {/* Десктоп: двухколоночный layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Левая колонка: основная информация и статистика */}
+          <div className="lg:col-span-2 space-y-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
+                  <Package className="w-6 h-6 text-primary" />
+                  {item.name || 'Оборудование'}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Статистика по оборудованию */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="p-4 bg-green-50 dark:bg-green-950 rounded-lg text-center">
+                    <p className="text-xs text-green-600 dark:text-green-400 mb-1">Свободно</p>
+                    <p className="text-2xl font-bold text-green-700 dark:text-green-300">{scanResult.stats?.inStock || item.quantity}</p>
+                    <p className="text-xs text-green-500">шт</p>
+                  </div>
+                  <div className="p-4 bg-blue-50 dark:bg-blue-950 rounded-lg text-center">
+                    <p className="text-xs text-blue-600 dark:text-blue-400 mb-1">Выдано</p>
+                    <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">{scanResult.stats?.issued || 0}</p>
+                    <p className="text-xs text-blue-500">шт</p>
+                  </div>
+                  <div className="p-4 bg-amber-50 dark:bg-amber-950 rounded-lg text-center">
+                    <p className="text-xs text-amber-600 dark:text-amber-400 mb-1">Зарезерв.</p>
+                    <p className="text-2xl font-bold text-amber-700 dark:text-amber-300">{scanResult.stats?.reserved || 0}</p>
+                    <p className="text-xs text-amber-500">шт</p>
+                  </div>
+                  <div className="p-4 bg-red-50 dark:bg-red-950 rounded-lg text-center">
+                    <p className="text-xs text-red-600 dark:text-red-400 mb-1">В ремонте</p>
+                    <p className="text-2xl font-bold text-red-700 dark:text-red-300">{scanResult.stats?.inRepair || 0}</p>
+                    <p className="text-xs text-red-500">шт</p>
+                  </div>
                 </div>
-              </div>
-            </div>
+                
+                {item.length && (
+                  <div className="flex items-center gap-4 p-4 bg-muted rounded-lg">
+                    <div className="w-10 h-10 bg-background rounded-full flex items-center justify-center">
+                      <span className="text-lg">📏</span>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Длина кабеля</p>
+                      <p className="text-xl font-bold">{item.length} м</p>
+                    </div>
+                  </div>
+                )}
+                
+                {item.notes && (
+                  <div className="p-4 bg-muted rounded-lg">
+                    <p className="text-sm text-muted-foreground mb-1">Примечания</p>
+                    <p className="font-medium">{item.notes}</p>
+                  </div>
+                )}
+                
+                {item.qr_code && (
+                  <div className="text-sm text-muted-foreground md:hidden">
+                    QR: <code className="bg-muted px-2 py-1 rounded">{item.qr_code}</code>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
             
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setActiveAction(null)}>Отмена</Button>
-              <Button onClick={handleQuickIssue} disabled={submitting}>
-                <ArrowUpRight className="w-4 h-4 mr-2" />
-                Выдать
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            {/* История (видна только на десктопе) */}
+            <Card className="hidden lg:block">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Info className="w-5 h-5" />
+                  Информация и история
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Минимальный остаток */}
+                {item.min_quantity > 0 && (
+                  <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+                    <span className="text-sm text-muted-foreground">Минимальный остаток:</span>
+                    <span className="font-medium">{item.min_quantity} шт</span>
+                  </div>
+                )}
+                
+                {/* История выдач */}
+                <div>
+                  <h4 className="font-medium mb-3 flex items-center gap-2">
+                    <span>📦</span>
+                    История выдач 
+                    <Badge variant="secondary">{scanResult.stats?.issued || 0} шт</Badge>
+                  </h4>
+                  
+                  {submitting ? (
+                    <div className="flex justify-center py-4">
+                      <div className="animate-spin h-6 w-6 border-b-2 border-primary rounded-full"></div>
+                    </div>
+                  ) : movementsDetails.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-4 bg-muted rounded-lg">Нет записей о выдаче</p>
+                  ) : (
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {movementsDetails.map((m, idx) => (
+                        <div key={m.id || idx} className="p-3 bg-blue-50 dark:bg-blue-950 rounded-lg">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="font-medium text-sm">{m.issued_to || '—'}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {m.contact && `Контакт: ${m.contact}`}
+                              </p>
+                            </div>
+                            <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
+                              {m.quantity} шт
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {new Date(m.created_at).toLocaleDateString('ru-RU')}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                
+                {/* Резервы */}
+                <div className="border-t pt-4">
+                  <h4 className="font-medium mb-3 flex items-center gap-2">
+                    <span>🔒</span>
+                    Зарезервировано в сметах
+                    <Badge variant="secondary">{reservationsDetails.reduce((sum, r) => sum + (r.quantity || 0), 0)} шт</Badge>
+                  </h4>
+                  
+                  {reservationsDetails.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-4 bg-muted rounded-lg">Нет активных резервов</p>
+                  ) : (
+                    <div className="space-y-2 max-h-40 overflow-y-auto">
+                      {reservationsDetails.map((r, idx) => (
+                        <div key={idx} className="p-3 bg-amber-50 dark:bg-amber-950 rounded-lg">
+                          <div className="flex justify-between items-start">
+                            <p className="font-medium text-sm">{r.estimates?.event_name || '—'}</p>
+                            <span className="text-sm font-bold text-amber-600 dark:text-amber-400">
+                              {r.quantity} шт
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {r.estimates?.event_date && new Date(r.estimates.event_date).toLocaleDateString('ru-RU')}
+                            {r.estimates?.event_end_date && r.estimates.event_date !== r.estimates.event_end_date && 
+                              ` - ${new Date(r.estimates.event_end_date).toLocaleDateString('ru-RU')}`}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          
+          {/* Правая колонка: быстрые действия */}
+          <div className="space-y-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Быстрые действия</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start h-auto py-3 px-4"
+                  onClick={handleShowInfo}
+                >
+                  <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center mr-3">
+                    <Info className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-medium">Информация</p>
+                    <p className="text-xs text-muted-foreground">Подробности и история</p>
+                  </div>
+                </Button>
+                
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start h-auto py-3 px-4"
+                  onClick={() => setActiveAction('checklist')}
+                >
+                  <div className="w-10 h-10 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center mr-3">
+                    <ClipboardCheck className="w-5 h-5 text-green-600 dark:text-green-400" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-medium">В чеклист</p>
+                    <p className="text-xs text-muted-foreground">Добавить в мероприятие</p>
+                  </div>
+                </Button>
+                
+                <Button 
+                  variant="default" 
+                  className="w-full justify-start h-auto py-3 px-4"
+                  onClick={() => setActiveAction('issue')}
+                >
+                  <div className="w-10 h-10 bg-primary/20 rounded-lg flex items-center justify-center mr-3">
+                    <ArrowUpRight className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-medium">Выдать</p>
+                    <p className="text-xs text-muted-foreground">Выдать оборудование</p>
+                  </div>
+                </Button>
+                
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start h-auto py-3 px-4 border-yellow-500/30 hover:bg-yellow-50 dark:hover:bg-yellow-950"
+                  onClick={() => setActiveAction('repair')}
+                >
+                  <div className="w-10 h-10 bg-yellow-100 dark:bg-yellow-900 rounded-lg flex items-center justify-center mr-3">
+                    <Wrench className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-medium">В ремонт</p>
+                    <p className="text-xs text-muted-foreground">Отправить на ремонт</p>
+                  </div>
+                </Button>
+              </CardContent>
+            </Card>
+            
+            {/* Мобильная история (видна только на мобильных) */}
+            <Card className="lg:hidden">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Информация</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {item.min_quantity > 0 && (
+                  <div className="flex items-center gap-2 p-3 bg-muted rounded-lg mb-4">
+                    <span className="text-sm text-muted-foreground">Минимальный остаток:</span>
+                    <span className="font-medium">{item.min_quantity} шт</span>
+                  </div>
+                )}
+                
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={handleShowInfo}
+                >
+                  <Info className="w-4 h-4 mr-2" />
+                  Показать историю
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
         
         {/* Диалог ремонта */}
         <Dialog open={activeAction === 'repair'} onOpenChange={() => setActiveAction(null)}>
-          <DialogContent className="max-w-sm">
+          <DialogContent className="max-w-md sm:max-w-lg">
             <DialogHeader>
-              <DialogTitle>Отправка в ремонт</DialogTitle>
+              <DialogTitle className="flex items-center gap-2">
+                <Wrench className="w-5 h-5" />
+                Отправка в ремонт
+              </DialogTitle>
               <DialogDescription>
-                {item.name || 'Оборудование'} — на складе {item.quantity} шт
+                {item.name || 'Оборудование'} — доступно {scanResult.stats?.inStock || item.quantity} шт
               </DialogDescription>
             </DialogHeader>
             
@@ -1390,15 +1562,16 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
                   placeholder="Описание неисправности"
                   value={repairForm.reason}
                   onChange={(e) => setRepairForm({ ...repairForm, reason: e.target.value })}
+                  className="h-11"
                 />
               </div>
               
               <div className="space-y-2">
-                <Label>Количество</Label>
+                <Label>Количество (макс. {scanResult.stats?.inStock || item.quantity})</Label>
                 <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
-                    size="sm"
+                    size="icon"
                     onClick={() => setRepairForm({ ...repairForm, quantity: Math.max(1, repairForm.quantity - 1) })}
                   >
                     <Minus className="w-4 h-4" />
@@ -1406,15 +1579,15 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
                   <Input
                     type="number"
                     min={1}
-                    max={item.quantity}
+                    max={scanResult.stats?.inStock || item.quantity}
                     value={repairForm.quantity}
                     onChange={(e) => setRepairForm({ ...repairForm, quantity: parseInt(e.target.value) || 1 })}
-                    className="text-center"
+                    className="text-center h-11"
                   />
                   <Button
                     variant="outline"
-                    size="sm"
-                    onClick={() => setRepairForm({ ...repairForm, quantity: Math.min(item.quantity, repairForm.quantity + 1) })}
+                    size="icon"
+                    onClick={() => setRepairForm({ ...repairForm, quantity: Math.min(scanResult.stats?.inStock || item.quantity, repairForm.quantity + 1) })}
                   >
                     <Plus className="w-4 h-4" />
                   </Button>
@@ -1422,11 +1595,19 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
               </div>
             </div>
             
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setActiveAction(null)}>Отмена</Button>
-              <Button onClick={handleQuickRepair} disabled={submitting}>
-                <Wrench className="w-4 h-4 mr-2" />
-                В ремонт
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button variant="outline" onClick={() => setActiveAction(null)} className="w-full sm:w-auto">Отмена</Button>
+              <Button 
+                onClick={handleQuickRepair} 
+                disabled={submitting || !repairForm.reason.trim()}
+                className="w-full sm:w-auto"
+              >
+                {submitting ? (
+                  <div className="animate-spin h-4 w-4 border-2 border-white rounded-full mr-2" />
+                ) : (
+                  <Wrench className="w-4 h-4 mr-2" />
+                )}
+                В ремонт {repairForm.quantity > 1 && `${repairForm.quantity} шт`}
               </Button>
             </DialogFooter>
           </DialogContent>
