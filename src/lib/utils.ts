@@ -242,11 +242,11 @@ export async function getCurrentUserDisplayName(): Promise<string> {
   try {
     const { data: profile } = await supabase
       .from('profiles')
-      .select('full_name, email')
+      .select('name, email')
       .eq('id', user.id)
       .single();
     
-    return profile?.full_name || profile?.email || user.email || user.id.slice(0, 8);
+    return profile?.name || profile?.email || user.email || user.id.slice(0, 8);
   } catch {
     return user.email || user.id.slice(0, 8);
   }

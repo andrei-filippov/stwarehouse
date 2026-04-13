@@ -145,7 +145,7 @@ export const CableManager = memo(function CableManager({
   const [activeTab, setActiveTab] = useState('warehouse');
   
   // Загружаем профили выдавших для отображения
-  const [issuerProfiles, setIssuerProfiles] = useState<Record<string, { email?: string; full_name?: string }>>({});
+  const [issuerProfiles, setIssuerProfiles] = useState<Record<string, { email?: string; name?: string }>>({});
   
   useEffect(() => {
     const loadIssuerProfiles = async () => {
@@ -158,14 +158,14 @@ export const CableManager = memo(function CableManager({
       try {
         const { data } = await supabase
           .from('profiles')
-          .select('id, email, full_name')
+          .select('id, email, name')
           .in('id', unknownIds);
         
         if (data) {
           setIssuerProfiles(prev => {
             const next = { ...prev };
             data.forEach((p: any) => {
-              next[p.id] = { email: p.email, full_name: p.full_name };
+              next[p.id] = { email: p.email, name: p.name };
             });
             return next;
           });
@@ -182,7 +182,7 @@ export const CableManager = memo(function CableManager({
     if (issuedByName) return issuedByName;
     if (!issuedBy) return null;
     const profile = issuerProfiles[issuedBy];
-    return profile?.full_name || profile?.email || issuedBy.slice(0, 8);
+    return profile?.name || profile?.email || issuedBy.slice(0, 8);
   };
 
   // Подвкладки склада: оборудование (с name) vs коммутация (без name)

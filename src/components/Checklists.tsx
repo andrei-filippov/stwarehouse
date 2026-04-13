@@ -771,7 +771,7 @@ function ChecklistView({
   const kitScanCounterRef = useRef<Record<string, { loaded: number; unloaded: number }>>({});
   
   // Загружаем профили пользователей для отображения кто погрузил/разгрузил
-  const [actorProfiles, setActorProfiles] = useState<Record<string, { email?: string; full_name?: string }>>({});
+  const [actorProfiles, setActorProfiles] = useState<Record<string, { email?: string; name?: string }>>({});
   
   useEffect(() => {
     const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
@@ -789,14 +789,14 @@ function ChecklistView({
       try {
         const { data } = await supabase
           .from('profiles')
-          .select('id, email, full_name')
+          .select('id, email, name')
           .in('id', unknownIds);
         
         if (data) {
           setActorProfiles(prev => {
             const next = { ...prev };
             data.forEach((p: any) => {
-              next[p.id] = { email: p.email, full_name: p.full_name };
+              next[p.id] = { email: p.email, name: p.name };
             });
             return next;
           });
@@ -814,7 +814,7 @@ function ChecklistView({
     const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
     if (!isUuid(actorId)) return actorId;
     const profile = actorProfiles[actorId];
-    return profile?.full_name || profile?.email || actorId.slice(0, 8);
+    return profile?.name || profile?.email || actorId.slice(0, 8);
   };
 
   // QR-сканирование

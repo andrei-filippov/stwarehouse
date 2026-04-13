@@ -5,7 +5,7 @@ ALTER TABLE cable_movements ADD COLUMN IF NOT EXISTS issued_by_name TEXT;
 DO $$
 BEGIN
   UPDATE cable_movements cm
-  SET issued_by_name = p.full_name
+  SET issued_by_name = p.name
   FROM profiles p
   WHERE cm.issued_by = p.id::uuid
     AND (cm.issued_by_name IS NULL OR cm.issued_by_name = '');
