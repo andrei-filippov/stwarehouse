@@ -42,6 +42,7 @@ export type CableMovement = {
   issued_to: string;
   contact?: string;
   issued_by?: string;
+  issued_by_name?: string;
   returned_at?: string;
   returned_quantity?: number;
   notes?: string;

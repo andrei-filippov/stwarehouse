@@ -178,11 +178,9 @@ export const CableManager = memo(function CableManager({
     loadIssuerProfiles();
   }, [movements]);
   
-  const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
-  
-  const formatIssuer = (issuedBy?: string) => {
+  const formatIssuer = (issuedByName?: string, issuedBy?: string) => {
+    if (issuedByName) return issuedByName;
     if (!issuedBy) return null;
-    if (!isUuid(issuedBy)) return issuedBy;
     const profile = issuerProfiles[issuedBy];
     return profile?.full_name || profile?.email || issuedBy.slice(0, 8);
   };
@@ -1400,8 +1398,8 @@ export const CableManager = memo(function CableManager({
                             )}
                             <div className="text-xs text-muted-foreground/70">
                               {format(new Date(movement.created_at || ''), 'dd.MM.yyyy HH:mm', { locale: ru })}
-                              {movement.issued_by && (
-                                <span className="ml-2">Выдал: {formatIssuer(movement.issued_by)}</span>
+                              {(movement.issued_by_name || movement.issued_by) && (
+                                <span className="ml-2">Выдал: {formatIssuer(movement.issued_by_name, movement.issued_by)}</span>
                               )}
                             </div>
                           </div>
@@ -1727,9 +1725,9 @@ export const CableManager = memo(function CableManager({
                                     <span className="ml-3"><span className="font-medium">Контакт:</span> {movement.contact}</span>
                                   )}
                                 </div>
-                                {movement.issued_by && (
+                                {(movement.issued_by_name || movement.issued_by) && (
                                   <div className="text-xs text-muted-foreground">
-                                    <span className="font-medium">Выдал:</span> {formatIssuer(movement.issued_by)}
+                                    <span className="font-medium">Выдал:</span> {formatIssuer(movement.issued_by_name, movement.issued_by)}
                                   </div>
                                 )}
                                 {movement.notes && (

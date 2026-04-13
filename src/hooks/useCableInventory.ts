@@ -219,13 +219,15 @@ export function useCableInventory(companyId: string | undefined) {
     
     try {
       const displayName = await getCurrentUserDisplayName();
+      const { data: { user } } = await supabase.auth.getUser();
       const { error } = await supabase
         .from('cable_movements')
         .insert({ 
           ...movement, 
           company_id: companyId,
           type: 'issue',
-          issued_by: displayName
+          issued_by: user?.id,
+          issued_by_name: displayName
         });
 
       if (error) throw error;
