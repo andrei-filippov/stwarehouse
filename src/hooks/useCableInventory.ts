@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
+import { getCurrentUserDisplayName } from '../lib/utils';
 import type { CableCategory, CableInventory, CableMovement, EquipmentRepair } from '../types';
 
 export function useCableInventory(companyId: string | undefined) {
@@ -217,13 +218,14 @@ export function useCableInventory(companyId: string | undefined) {
     if (!companyId) return { error: new Error('No company selected') };
     
     try {
+      const displayName = await getCurrentUserDisplayName();
       const { error } = await supabase
         .from('cable_movements')
         .insert({ 
           ...movement, 
           company_id: companyId,
           type: 'issue',
-          issued_by: (await supabase.auth.getUser()).data.user?.id
+          issued_by: displayName
         });
 
       if (error) throw error;

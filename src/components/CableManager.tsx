@@ -178,8 +178,11 @@ export const CableManager = memo(function CableManager({
     loadIssuerProfiles();
   }, [movements]);
   
+  const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+  
   const formatIssuer = (issuedBy?: string) => {
     if (!issuedBy) return null;
+    if (!isUuid(issuedBy)) return issuedBy;
     const profile = issuerProfiles[issuedBy];
     return profile?.full_name || profile?.email || issuedBy.slice(0, 8);
   };

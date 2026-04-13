@@ -232,3 +232,22 @@ export function escapeHtml(text: string): string {
   div.textContent = text;
   return div.innerHTML;
 }
+
+import { supabase } from './supabase';
+
+export async function getCurrentUserDisplayName(): Promise<string> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return 'unknown';
+  
+  try {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('full_name, email')
+      .eq('id', user.id)
+      .single();
+    
+    return profile?.full_name || profile?.email || user.email || user.id.slice(0, 8);
+  } catch {
+    return user.email || user.id.slice(0, 8);
+  }
+}

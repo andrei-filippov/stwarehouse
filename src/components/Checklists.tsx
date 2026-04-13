@@ -770,6 +770,53 @@ function ChecklistView({
   // Локальный счетчик для комплектов (по названию оборудования)
   const kitScanCounterRef = useRef<Record<string, { loaded: number; unloaded: number }>>({});
   
+  // Загружаем профили пользователей для отображения кто погрузил/разгрузил
+  const [actorProfiles, setActorProfiles] = useState<Record<string, { email?: string; full_name?: string }>>({});
+  
+  useEffect(() => {
+    const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+    
+    const loadProfiles = async () => {
+      const actorIds = [...new Set(
+        (checklist.items || []).flatMap(i => [i.loaded_by, i.unloaded_by]).filter(Boolean)
+      )] as string[];
+      const uuidIds = actorIds.filter(isUuid);
+      if (uuidIds.length === 0) return;
+      
+      const unknownIds = uuidIds.filter(id => !actorProfiles[id]);
+      if (unknownIds.length === 0) return;
+      
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select('id, email, full_name')
+          .in('id', unknownIds);
+        
+        if (data) {
+          setActorProfiles(prev => {
+            const next = { ...prev };
+            data.forEach((p: any) => {
+              next[p.id] = { email: p.email, full_name: p.full_name };
+            });
+            return next;
+          });
+        }
+      } catch {
+        // ignore
+      }
+    };
+    
+    loadProfiles();
+  }, [checklist.items]);
+  
+  const formatActor = (actorId?: string) => {
+    if (!actorId) return null;
+    const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+    if (!isUuid(actorId)) return actorId;
+    const profile = actorProfiles[actorId];
+    return profile?.full_name || profile?.email || actorId.slice(0, 8);
+  };
+
   // QR-сканирование
   const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
   const [scanMode, setScanMode] = useState<'load' | 'unload'>('load');
@@ -870,7 +917,11 @@ function ChecklistView({
       loaded: optimistic?.loaded ?? (item as any).loaded ?? false,
       unloaded: optimistic?.unloaded ?? (item as any).unloaded ?? false,
       loaded_quantity: optimistic?.loaded_quantity ?? item.loaded_quantity ?? 0,
-      unloaded_quantity: optimistic?.unloaded_quantity ?? item.unloaded_quantity ?? 0
+      unloaded_quantity: optimistic?.unloaded_quantity ?? item.unloaded_quantity ?? 0,
+      loaded_by: optimistic?.loaded_by ?? (item as any).loaded_by,
+      unloaded_by: optimistic?.unloaded_by ?? (item as any).unloaded_by,
+      loaded_at: optimistic?.loaded_at ?? (item as any).loaded_at,
+      unloaded_at: optimistic?.unloaded_at ?? (item as any).unloaded_at,
     };
     return status;
   };
@@ -895,8 +946,8 @@ function ChecklistView({
       return;
     }
     
-    const { data: { user } } = await supabase.auth.getUser();
-    const actor = user?.email || user?.id || 'unknown';
+    const { getCurrentUserDisplayName } = await import('../lib/utils');
+    const actor = await getCurrentUserDisplayName();
     const now = new Date().toISOString();
     
     if (checkMode === 'double') {
@@ -988,8 +1039,8 @@ function ChecklistView({
   const handleEquipmentScan = useCallback(async (item: ChecklistItem) => {
     if (!item.id) return;
     
-    const { data: { user } } = await supabase.auth.getUser();
-    const actor = user?.email || user?.id || 'unknown';
+    const { getCurrentUserDisplayName } = await import('../lib/utils');
+    const actor = await getCurrentUserDisplayName();
     const now = new Date().toISOString();
     
     // Инициализируем счетчик если нужно
@@ -1137,8 +1188,8 @@ function ChecklistView({
   // Обработка сканирования комплекта - учитывает количество единиц
   const handleKitScan = useCallback(async (kitData: { id: string; name: string }) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const actor = user?.email || user?.id || 'unknown';
+      const { getCurrentUserDisplayName } = await import('../lib/utils');
+      const actor = await getCurrentUserDisplayName();
       const now = new Date().toISOString();
       
       console.log('[Kit Scan] Processing kit:', kitData.id, kitData.name);
@@ -1591,6 +1642,11 @@ function ChecklistView({
                         <span className="text-xs ml-2">
                           {status.unloaded ? '✅ разгружено' : status.loaded ? '📦 погружено' : ''}
                         </span>
+                        {(status.loaded_by || status.unloaded_by) && (
+                          <span className="text-xs text-muted-foreground block mt-0.5">
+                            {status.unloaded_by ? `Разгрузил: ${formatActor(status.unloaded_by)}` : status.loaded_by ? `Загрузил: ${formatActor(status.loaded_by)}` : ''}
+                          </span>
+                        )}
                       </span>
                       <Button
                         variant="ghost"
@@ -1640,6 +1696,11 @@ function ChecklistView({
                       {item.is_required && <span className="text-red-500 ml-1">*</span>}
                       {(item as any).kit_name && <span className="text-xs text-purple-500 ml-2">📦 {(item as any).kit_name}</span>}
                       {item.qr_code && <span className="text-xs text-blue-500 ml-2">📱 {item.qr_code}</span>}
+                      {(status.loaded_by || status.unloaded_by) && (
+                        <span className="text-xs text-muted-foreground block mt-0.5">
+                          {status.unloaded_by ? `Разгрузил: ${formatActor(status.unloaded_by)}` : status.loaded_by ? `Загрузил: ${formatActor(status.loaded_by)}` : ''}
+                        </span>
+                      )}
                     </span>
                     <Button
                       variant="ghost"

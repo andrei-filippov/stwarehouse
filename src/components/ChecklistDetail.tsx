@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Checkbox } from './ui/checkbox';
@@ -29,6 +29,53 @@ export function ChecklistDetail({ checklist, onBack, onUpdate }: ChecklistDetail
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [scanningKit, setScanningKit] = useState(false);
 
+  // Загружаем профили пользователей для отображения кто погрузил/разгрузил
+  const [actorProfiles, setActorProfiles] = useState<Record<string, { email?: string; full_name?: string }>>({});
+  
+  useEffect(() => {
+    const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+    
+    const loadProfiles = async () => {
+      const actorIds = [...new Set(
+        (checklist.items || []).flatMap(i => [i.loaded_by, i.unloaded_by]).filter(Boolean)
+      )] as string[];
+      const uuidIds = actorIds.filter(isUuid);
+      if (uuidIds.length === 0) return;
+      
+      const unknownIds = uuidIds.filter(id => !actorProfiles[id]);
+      if (unknownIds.length === 0) return;
+      
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select('id, email, full_name')
+          .in('id', unknownIds);
+        
+        if (data) {
+          setActorProfiles(prev => {
+            const next = { ...prev };
+            data.forEach((p: any) => {
+              next[p.id] = { email: p.email, full_name: p.full_name };
+            });
+            return next;
+          });
+        }
+      } catch {
+        // ignore
+      }
+    };
+    
+    loadProfiles();
+  }, [checklist.items]);
+  
+  const formatActor = (actorId?: string) => {
+    if (!actorId) return null;
+    const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+    if (!isUuid(actorId)) return actorId;
+    const profile = actorProfiles[actorId];
+    return profile?.full_name || profile?.email || actorId.slice(0, 8);
+  };
+
   // Статистика
   const stats = useMemo(() => {
     const items = checklist.items || [];
@@ -50,8 +97,8 @@ export function ChecklistDetail({ checklist, onBack, onUpdate }: ChecklistDetail
   // Обработка сканирования QR
   const handleQRScan = useCallback(async (qrCode: string) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const actor = user?.email || user?.id || 'unknown';
+      const { getCurrentUserDisplayName } = await import('../lib/utils');
+      const actor = await getCurrentUserDisplayName();
       const now = new Date().toISOString();
       
       if (scanningKit) {
@@ -318,6 +365,11 @@ export function ChecklistDetail({ checklist, onBack, onUpdate }: ChecklistDetail
                         {item.qr_code && ` • ${item.qr_code}`}
                         {item.kit_name && ` • Комплект: ${item.kit_name}`}
                       </p>
+                      {(item.loaded_by || item.unloaded_by) && (
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          {item.unloaded_by ? `Разгрузил: ${formatActor(item.unloaded_by)}` : item.loaded_by ? `Загрузил: ${formatActor(item.loaded_by)}` : ''}
+                        </p>
+                      )}
                     </div>
                   </div>
 

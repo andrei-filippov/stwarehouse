@@ -506,7 +506,8 @@ export function QuickQRScanner({
       return;
     }
 
-    const user = (await supabase.auth.getUser()).data.user;
+    const { getCurrentUserDisplayName } = await import('../lib/utils');
+    const issuerName = await getCurrentUserDisplayName();
     let hasError = false;
 
     for (const item of issueItems) {
@@ -521,7 +522,7 @@ export function QuickQRScanner({
           quantity: item.quantity,
           issued_to: issueForm.issued_to,
           contact: issueForm.contact || undefined,
-          issued_by: user?.id,
+          issued_by: issuerName,
           type: 'issue'
         });
 
