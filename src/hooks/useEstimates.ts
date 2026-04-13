@@ -186,8 +186,8 @@ export function useEstimates(companyId: string | undefined) {
           setEstimates(deduplicatedWithCleanItems);
           
           // СОХРАНЯЕМ серверные данные в локальную базу для офлайн-доступа
-          // (только серверные ID, без перезаписи существующих локальных)
-          const localIds = new Set(localOnly.map(e => e.id));
+          // Перезаписываем существующие локальные записи, если серверная версия актуальнее
+          const localDataMap = new Map(localOnly.map(e => [e.id, e]));
           
           // Удаляем локальные дубликаты (по содержимому) перед кэшированием
           for (const localEstimate of localOnly) {
@@ -206,30 +206,30 @@ export function useEstimates(companyId: string | undefined) {
           
           // Кэшируем серверные данные
           // НЕ кэшируем сметы, которые были изменены оффлайн (modifiedOffline)
-          // Используем уже созданный modifiedOfflineIds
-          
+          // Перезаписываем существующие локальные копии, если серверная версия новее или такая же
           for (const estimate of deduplicatedServer) {
-            // Сохраняем только если:
-            // 1. Это серверный ID (не local_*)
-            // 2. Такой записи ещё нет локально
-            // 3. Это не смета, изменённая оффлайн (не в modifiedOffline)
-            if (!estimate.id?.startsWith('local_') && 
-                !localIds.has(estimate.id) && 
-                !modifiedOfflineIds.has(estimate.id)) {
-              try {
-                // Дедуплицируем items перед кэшированием
-                const estimateToCache = estimate.items && estimate.items.length > 0
-                  ? { ...estimate, items: estimate.items.filter((item: any, idx: number, self: any[]) => 
-                      idx === self.findIndex((t: any) => 
-                        t.name === item.name && t.category === item.category && t.price === item.price
-                      )
-                    )}
-                  : estimate;
-                
-                await saveEstimateLocal(estimateToCache, companyId);
-                debugLog('[fetchEstimates] Cached server estimate:', estimate.id, 'items:', estimateToCache.items?.length);
-              } catch (saveErr) {
-                console.warn('[fetchEstimates] Failed to cache estimate:', estimate.id, saveErr);
+            if (!estimate.id?.startsWith('local_') && !modifiedOfflineIds.has(estimate.id)) {
+              const localVersion = localDataMap.get(estimate.id);
+              const localUpdated = localVersion ? new Date(localVersion.updated_at || 0).getTime() : 0;
+              const serverUpdated = new Date(estimate.updated_at || 0).getTime();
+              
+              // Кэшируем если нет локальной копии или серверная версия актуальнее
+              if (!localVersion || serverUpdated >= localUpdated) {
+                try {
+                  // Дедуплицируем items перед кэшированием
+                  const estimateToCache = estimate.items && estimate.items.length > 0
+                    ? { ...estimate, items: estimate.items.filter((item: any, idx: number, self: any[]) => 
+                        idx === self.findIndex((t: any) => 
+                          t.name === item.name && t.category === item.category && t.price === item.price
+                        )
+                      )}
+                    : estimate;
+                  
+                  await saveEstimateLocal(estimateToCache, companyId);
+                  debugLog('[fetchEstimates] Cached server estimate:', estimate.id, 'items:', estimateToCache.items?.length, 'forced:', !!localVersion);
+                } catch (saveErr) {
+                  console.warn('[fetchEstimates] Failed to cache estimate:', estimate.id, saveErr);
+                }
               }
             }
           }
