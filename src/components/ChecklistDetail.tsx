@@ -50,46 +50,113 @@ export function ChecklistDetail({ checklist, onBack, onUpdate }: ChecklistDetail
   // Обработка сканирования QR
   const handleQRScan = useCallback(async (qrCode: string) => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const actor = user?.email || user?.id || 'unknown';
+      const now = new Date().toISOString();
+      
       if (scanningKit) {
-        // Сканируем комплект
-        const { data, error } = await supabase.rpc('mark_kit_loaded', {
-          p_kit_qr: qrCode,
-          p_checklist_id: checklist.id
+        // Сканируем комплект - находим по QR и отмечаем все связанные позиции
+        const { data: kitData, error: kitError } = await supabase
+          .from('equipment_kits')
+          .select('id, name')
+          .eq('qr_code', qrCode.toUpperCase())
+          .single();
+        
+        if (kitError || !kitData) throw new Error('Комплект не найден');
+        
+        // Загружаем содержимое комплекта
+        const { data: kitItemsData } = await supabase
+          .from('kit_items')
+          .select('inventory_id, quantity, cable_inventory(name)')
+          .eq('kit_id', kitData.id);
+        
+        const kitEquipmentNames = new Map<string, number>();
+        kitItemsData?.forEach((item: any) => {
+          const name = (item.cable_inventory as any)?.name?.toLowerCase().trim();
+          if (name) kitEquipmentNames.set(name, (kitEquipmentNames.get(name) || 0) + (item.quantity || 1));
         });
         
-        if (error) throw error;
+        const checklistItemsByName = new Map<string, ChecklistItemV2[]>();
+        for (const item of checklist.items || []) {
+          const name = item.name.toLowerCase().trim();
+          if (!checklistItemsByName.has(name)) checklistItemsByName.set(name, []);
+          checklistItemsByName.get(name)!.push(item);
+        }
         
-        const count = data?.[0]?.item_count || 0;
-        toast.success(`Комплект отмечен`, { description: `Отмечено ${count} позиций` });
+        let updatedCount = 0;
+        for (const [eqName, requiredQty] of kitEquipmentNames) {
+          const matching = checklistItemsByName.get(eqName) || [];
+          const byKitId = (checklist.items || []).filter(i => i.kit_id === kitData.id);
+          const unique = [...matching, ...byKitId].filter((item, idx, self) => 
+            idx === self.findIndex(i => i.id === item.id)
+          );
+          
+          let remaining = requiredQty;
+          for (const item of unique) {
+            if (remaining <= 0) break;
+            const target = item.quantity || 1;
+            const current = item.loaded_quantity || (item.loaded ? target : 0);
+            const canAdd = Math.min(remaining, target - current);
+            if (canAdd > 0) {
+              const newQty = current + canAdd;
+              const { error } = await supabase.from('checklist_items').update({
+                loaded: newQty >= target,
+                loaded_quantity: newQty,
+                loaded_by: actor,
+                loaded_at: now
+              }).eq('id', item.id!);
+              if (!error) updatedCount++;
+              remaining -= canAdd;
+            }
+          }
+        }
+        
+        toast.success(`Комплект отмечен`, { description: `Отмечено ${updatedCount} позиций` });
       } else if (scanMode === 'load') {
         // Отмечаем погрузку
-        const { data, error } = await supabase.rpc('mark_item_loaded', {
-          p_qr_code: qrCode,
-          p_checklist_id: checklist.id
-        });
+        const item = checklist.items?.find(i => i.qr_code?.toUpperCase() === qrCode.toUpperCase());
+        if (!item) throw new Error('Позиция не найдена в чеклисте');
         
-        if (error) throw error;
+        const target = item.quantity || 1;
+        const current = item.loaded_quantity || (item.loaded ? target : 0);
         
-        const result = data?.[0];
-        if (result?.already_loaded) {
-          toast.info('Уже погружено', { description: result.item_name });
+        if (current >= target) {
+          toast.info('Уже погружено', { description: item.name });
         } else {
-          toast.success('Погружено', { description: result?.item_name });
+          const newQty = current + 1;
+          const { error } = await supabase.from('checklist_items').update({
+            loaded: newQty >= target,
+            loaded_quantity: newQty,
+            loaded_by: actor,
+            loaded_at: now
+          }).eq('id', item.id!);
+          
+          if (error) throw error;
+          toast.success('Погружено', { description: item.name });
         }
       } else if (scanMode === 'unload') {
         // Отмечаем разгрузку
-        const { data, error } = await supabase.rpc('mark_item_unloaded', {
-          p_qr_code: qrCode,
-          p_checklist_id: checklist.id
-        });
+        const item = checklist.items?.find(i => i.qr_code?.toUpperCase() === qrCode.toUpperCase());
+        if (!item) throw new Error('Позиция не найдена в чеклисте');
         
-        if (error) throw error;
+        const target = item.quantity || 1;
+        const current = item.unloaded_quantity || (item.unloaded ? target : 0);
         
-        const result = data?.[0];
-        if (result?.already_unloaded) {
-          toast.info('Уже разгружено', { description: result.item_name });
+        if (current >= target) {
+          toast.info('Уже разгружено', { description: item.name });
         } else {
-          toast.success('Разгружено', { description: result?.item_name });
+          const newQty = current + 1;
+          const { error } = await supabase.from('checklist_items').update({
+            unloaded: newQty >= target,
+            unloaded_quantity: newQty,
+            unloaded_by: actor,
+            unloaded_at: now,
+            loaded: true,
+            loaded_quantity: item.loaded_quantity || target
+          }).eq('id', item.id!);
+          
+          if (error) throw error;
+          toast.success('Разгружено', { description: item.name });
         }
       }
       
@@ -98,7 +165,7 @@ export function ChecklistDetail({ checklist, onBack, onUpdate }: ChecklistDetail
     } catch (err: any) {
       toast.error('Ошибка', { description: err.message });
     }
-  }, [checklist.id, scanMode, scanningKit, onUpdate]);
+  }, [checklist.id, checklist.items, scanMode, scanningKit, onUpdate]);
 
   // Группировка по категориям
   const groupedItems = useMemo(() => {

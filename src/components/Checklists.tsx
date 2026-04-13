@@ -895,6 +895,10 @@ function ChecklistView({
       return;
     }
     
+    const { data: { user } } = await supabase.auth.getUser();
+    const actor = user?.email || user?.id || 'unknown';
+    const now = new Date().toISOString();
+    
     if (checkMode === 'double') {
       // Двойной режим: циклически переключаем unloaded -> loaded -> none
       const status = getItemStatus(item);
@@ -902,13 +906,13 @@ function ChecklistView({
       
       if (!status.loaded && !status.unloaded) {
         // Первый клик - погрузка
-        updates = { loaded: true, unloaded: false };
+        updates = { loaded: true, unloaded: false, loaded_by: actor, loaded_at: now, loaded_quantity: item.quantity || 1 };
       } else if (status.loaded && !status.unloaded) {
         // Второй клик - разгрузка
-        updates = { loaded: true, unloaded: true };
+        updates = { loaded: true, unloaded: true, unloaded_by: actor, unloaded_at: now, unloaded_quantity: item.quantity || 1 };
       } else {
         // Третий клик - сброс
-        updates = { loaded: false, unloaded: false };
+        updates = { loaded: false, unloaded: false, loaded_by: null, loaded_at: null, unloaded_by: null, unloaded_at: null, loaded_quantity: 0, unloaded_quantity: 0 };
       }
       
       setOptimisticUpdates(prev => ({ ...prev, [item.id]: updates }));
@@ -925,8 +929,20 @@ function ChecklistView({
     } else {
       // Простой режим - стандартный чекбокс
       const newValue = !isChecked(item);
-      setOptimisticUpdates(prev => ({ ...prev, [item.id]: { is_checked: newValue } }));
-      onUpdateItem(checklist.id, item.id, { is_checked: newValue });
+      const updates: any = { is_checked: newValue };
+      if (newValue) {
+        updates.loaded = true;
+        updates.loaded_quantity = item.quantity || 1;
+        updates.loaded_by = actor;
+        updates.loaded_at = now;
+      } else {
+        updates.loaded = false;
+        updates.loaded_quantity = 0;
+        updates.loaded_by = null;
+        updates.loaded_at = null;
+      }
+      setOptimisticUpdates(prev => ({ ...prev, [item.id]: updates }));
+      onUpdateItem(checklist.id, item.id, updates);
     }
   }, [checklist.id, onUpdateItem, isChecked, checkMode]);
 
@@ -972,6 +988,10 @@ function ChecklistView({
   const handleEquipmentScan = useCallback(async (item: ChecklistItem) => {
     if (!item.id) return;
     
+    const { data: { user } } = await supabase.auth.getUser();
+    const actor = user?.email || user?.id || 'unknown';
+    const now = new Date().toISOString();
+    
     // Инициализируем счетчик если нужно
     if (!scanCounterRef.current[item.id]) {
       scanCounterRef.current[item.id] = { loaded: 0, unloaded: 0 };
@@ -1009,7 +1029,9 @@ function ChecklistView({
       
       let updates: any = {
         loaded_quantity: newTotalQty,
-        unloaded_quantity: currentUnloadedQty // Сохраняем количество разгруженного
+        unloaded_quantity: currentUnloadedQty, // Сохраняем количество разгруженного
+        loaded_by: actor,
+        loaded_at: now
       };
       
       if (checkMode === 'double') {
@@ -1074,7 +1096,9 @@ function ChecklistView({
         unloaded_quantity: newTotalQty,
         loaded_quantity: currentLoadedQty, // Сохраняем количество погруженного
         loaded: true,
-        unloaded: isComplete
+        unloaded: isComplete,
+        unloaded_by: actor,
+        unloaded_at: now
       };
       
       setOptimisticUpdates(prev => ({ ...prev, [item.id!]: updates }));
@@ -1113,6 +1137,10 @@ function ChecklistView({
   // Обработка сканирования комплекта - учитывает количество единиц
   const handleKitScan = useCallback(async (kitData: { id: string; name: string }) => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const actor = user?.email || user?.id || 'unknown';
+      const now = new Date().toISOString();
+      
       console.log('[Kit Scan] Processing kit:', kitData.id, kitData.name);
       
       // Загружаем содержимое комплекта с количеством
@@ -1239,6 +1267,8 @@ function ChecklistView({
             if (scanMode === 'load') {
               updates.loaded_quantity = newTotalQty;
               updates.unloaded_quantity = oppositeQty; // Сохраняем разгрузку
+              updates.loaded_by = actor;
+              updates.loaded_at = now;
               if (checkMode === 'simple') {
                 updates.is_checked = isComplete;
               } else {
@@ -1250,6 +1280,8 @@ function ChecklistView({
               updates.loaded_quantity = oppositeQty; // Сохраняем погрузку
               updates.loaded = oppositeQty >= itemNeeded;
               updates.unloaded = isComplete;
+              updates.unloaded_by = actor;
+              updates.unloaded_at = now;
             }
             
             setOptimisticUpdates(prev => ({ ...prev, [item.id!]: updates }));

@@ -385,6 +385,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
     }
     
     setSubmitting(true);
+    const user = (await supabase.auth.getUser()).data.user;
     const { error } = await supabase.from('cable_movements').insert({
       company_id: companyId,
       category_id: item.category_id,
@@ -394,6 +395,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
       quantity: issueForm.quantity,
       issued_to: issueForm.issued_to,
       contact: issueForm.contact || undefined,
+      issued_by: user?.id,
       type: 'issue'
     });
     
@@ -444,6 +446,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
         continue;
       }
       
+      const user = (await supabase.auth.getUser()).data.user;
       const { error } = await supabase.from('cable_movements').insert({
         company_id: companyId,
         category_id: inventoryItem.category_id,
@@ -453,6 +456,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
         quantity: kitItem.quantity || 1,
         issued_to: kitIssueForm.issued_to,
         contact: kitIssueForm.contact || undefined,
+        issued_by: user?.id,
         type: 'issue',
         notes: `Из комплекта: ${kit.name}`
       });
