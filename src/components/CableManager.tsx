@@ -38,6 +38,7 @@ import { Spinner } from './ui/spinner';
 import { TransferToInventoryDialog } from './TransferToInventoryDialog';
 import { QRCodeDialog, QRCodeBatchPrint, QRCodeDisplay } from './QRCodeDisplay';
 import { QRScanner } from './QRScanner';
+import { supabase } from '../lib/supabase';
 import { useUrlScanCode, clearUrlScanCode } from '../hooks/useUrlScanCode';
 import { format } from 'date-fns';
 import * as XLSX from 'xlsx';
@@ -143,6 +144,46 @@ export const CableManager = memo(function CableManager({
 }: CableManagerProps) {
   const [activeTab, setActiveTab] = useState('warehouse');
   
+  // Загружаем профили выдавших для отображения
+  const [issuerProfiles, setIssuerProfiles] = useState<Record<string, { email?: string; full_name?: string }>>({});
+  
+  useEffect(() => {
+    const loadIssuerProfiles = async () => {
+      const issuerIds = [...new Set(movements.map(m => m.issued_by).filter(Boolean))] as string[];
+      if (issuerIds.length === 0) return;
+      
+      const unknownIds = issuerIds.filter(id => !issuerProfiles[id]);
+      if (unknownIds.length === 0) return;
+      
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select('id, email, full_name')
+          .in('id', unknownIds);
+        
+        if (data) {
+          setIssuerProfiles(prev => {
+            const next = { ...prev };
+            data.forEach((p: any) => {
+              next[p.id] = { email: p.email, full_name: p.full_name };
+            });
+            return next;
+          });
+        }
+      } catch {
+        // ignore
+      }
+    };
+    
+    loadIssuerProfiles();
+  }, [movements]);
+  
+  const formatIssuer = (issuedBy?: string) => {
+    if (!issuedBy) return null;
+    const profile = issuerProfiles[issuedBy];
+    return profile?.full_name || profile?.email || issuedBy.slice(0, 8);
+  };
+
   // Подвкладки склада: оборудование (с name) vs коммутация (без name)
   const [warehouseSubTab, setWarehouseSubTab] = useState<'equipment' | 'cabling'>('equipment');
   
@@ -1356,6 +1397,9 @@ export const CableManager = memo(function CableManager({
                             )}
                             <div className="text-xs text-muted-foreground/70">
                               {format(new Date(movement.created_at || ''), 'dd.MM.yyyy HH:mm', { locale: ru })}
+                              {movement.issued_by && (
+                                <span className="ml-2">Выдал: {formatIssuer(movement.issued_by)}</span>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -1680,6 +1724,11 @@ export const CableManager = memo(function CableManager({
                                     <span className="ml-3"><span className="font-medium">Контакт:</span> {movement.contact}</span>
                                   )}
                                 </div>
+                                {movement.issued_by && (
+                                  <div className="text-xs text-muted-foreground">
+                                    <span className="font-medium">Выдал:</span> {formatIssuer(movement.issued_by)}
+                                  </div>
+                                )}
                                 {movement.notes && (
                                   <div className="text-xs text-muted-foreground">
                                     <span className="font-medium">Примечание:</span> {movement.notes}
