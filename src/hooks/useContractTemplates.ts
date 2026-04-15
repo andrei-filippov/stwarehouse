@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
+import mammoth from 'mammoth';
 import type { ContractTemplate } from '../types';
 
 export function useContractTemplates(userId: string | undefined, companyId: string | undefined) {
@@ -43,8 +44,10 @@ export function useContractTemplates(userId: string | undefined, companyId: stri
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
       'application/vnd.ms-word.document.macroEnabled.12', // .docm
     ];
+    const allowedExts = ['doc', 'docx', 'docm'];
+    const fileExt = file.name.split('.').pop()?.toLowerCase() || '';
     
-    if (!allowedTypes.includes(file.type)) {
+    if (!allowedTypes.includes(file.type) && !allowedExts.includes(fileExt)) {
       toast.error('Неподдерживаемый формат файла', { 
         description: 'Поддерживаются только файлы .doc, .docx' 
       });
@@ -75,7 +78,25 @@ export function useContractTemplates(userId: string | undefined, companyId: stri
         throw uploadError;
       }
 
-      // 2. Создаем запись в БД
+      // 2. Конвертируем DOCX в HTML для предпросмотра
+      let htmlContent = '';
+      if (fileExt === 'docx' || fileExt === 'docm') {
+        try {
+          const arrayBuffer = await file.arrayBuffer();
+          const result = await mammoth.convertToHtml({ arrayBuffer }, {
+            styleMap: [
+              "p[style-name='Heading 1'] => h1",
+              "p[style-name='Heading 2'] => h2",
+              "p[style-name='Heading 3'] => h3",
+            ]
+          });
+          htmlContent = `<div style="font-family:'Times New Roman', serif; font-size:12pt; line-height:1.5;">${result.value}</div>`;
+        } catch (convErr: any) {
+          console.error('Mammoth conversion error:', convErr);
+        }
+      }
+
+      // 3. Создаем запись в БД
       const { data: template, error: dbError } = await supabase
         .from('contract_templates')
         .insert([{
@@ -90,7 +111,7 @@ export function useContractTemplates(userId: string | undefined, companyId: stri
           file_name: file.name,
           file_type: file.type,
           file_size: file.size,
-          content: '', // Для файловых шаблонов контент пустой
+          content: htmlContent, // HTML для предпросмотра
         }])
         .select()
         .single();

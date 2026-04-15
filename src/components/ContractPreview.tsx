@@ -19,7 +19,7 @@ import {
 import type { Contract, PDFSettings, CompanyBankAccount } from '../types';
 import { useCompanyContext } from '../contexts/CompanyContext';
 import { CONTRACT_STATUS_LABELS, CONTRACT_STATUS_COLORS, CONTRACT_TYPE_LABELS } from '../types';
-import { generateContractHTML, exportContractToDOC, printContract } from '../lib/contractExport';
+import { generateContractHTML, exportContractToDOC, exportContractToDOCX, printContract } from '../lib/contractExport';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { sanitizeContractHtml, cleanEditedHtml } from '../lib/utils';
 
@@ -35,6 +35,7 @@ export function ContractPreview({ contract, pdfSettings, bankAccounts = [], onCl
   const { company } = useCompanyContext();
 
   const [isExportingDOC, setIsExportingDOC] = useState(false);
+  const [isExportingDOCX, setIsExportingDOCX] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -92,6 +93,19 @@ export function ContractPreview({ contract, pdfSettings, bankAccounts = [], onCl
       alert('Ошибка при экспорте в DOC');
     } finally {
       setIsExportingDOC(false);
+    }
+  };
+
+  // Обработчик экспорта в DOCX (для файловых шаблонов)
+  const handleExportDOCX = async () => {
+    setIsExportingDOCX(true);
+    try {
+      await exportContractToDOCX(contract, pdfSettings, bankAccounts, company);
+    } catch (error) {
+      console.error('DOCX export error:', error);
+      alert('Ошибка при экспорте в DOCX');
+    } finally {
+      setIsExportingDOCX(false);
     }
   };
 
@@ -196,18 +210,33 @@ export function ContractPreview({ contract, pdfSettings, bankAccounts = [], onCl
           Печать / PDF
         </Button>
         
-        <Button 
-          onClick={handleExportDOC} 
-          disabled={isExportingDOC || isEditing}
-          variant="outline"
-        >
-          {isExportingDOC ? (
-            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-          ) : (
-            <FileType className="w-4 h-4 mr-2" />
-          )}
-          Скачать DOC
-        </Button>
+        {contract.template?.is_file_template ? (
+          <Button 
+            onClick={handleExportDOCX} 
+            disabled={isExportingDOCX || isEditing}
+            variant="outline"
+          >
+            {isExportingDOCX ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <FileType className="w-4 h-4 mr-2" />
+            )}
+            Скачать DOCX
+          </Button>
+        ) : (
+          <Button 
+            onClick={handleExportDOC} 
+            disabled={isExportingDOC || isEditing}
+            variant="outline"
+          >
+            {isExportingDOC ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <FileType className="w-4 h-4 mr-2" />
+            )}
+            Скачать DOC
+          </Button>
+        )}
 
         <div className="flex-1"></div>
 

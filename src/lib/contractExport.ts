@@ -1,7 +1,11 @@
 import { Document, Paragraph, TextRun, WidthType, AlignmentType } from 'docx';
+import Docxtemplater from 'docxtemplater';
+import PizZip from 'pizzip';
+import { supabase } from './supabase';
 import type { Contract, ContractTemplateData, PDFSettings, CompanyBankAccount, Company } from '../types';
 import { numberToWords } from '../types/contracts';
 import { cleanEditedHtml } from '../lib/utils';
+import { toast } from 'sonner';
 
 // Генерация HTML для предпросмотра и печати
 export function generateContractHTML(contract: Contract, pdfSettings: PDFSettings, bankAccounts: CompanyBankAccount[] = [], company?: Company | null, includeHeader: boolean = false): string {
@@ -494,4 +498,82 @@ export function printContract(contract: Contract, pdfSettings: PDFSettings, bank
   setTimeout(() => {
     printWindow.print();
   }, 500);
+}
+
+// Экспорт договора в DOCX через docxtemplater (для файловых шаблонов)
+export async function exportContractToDOCX(
+  contract: Contract,
+  pdfSettings: PDFSettings,
+  bankAccounts: CompanyBankAccount[] = [],
+  company?: Company | null
+): Promise<void> {
+  const template = contract.template;
+  if (!template?.is_file_template || !template.file_path) {
+    toast.error('DOCX шаблон не найден');
+    return;
+  }
+
+  const isDocx = template.file_name?.toLowerCase().endsWith('.docx') || template.file_name?.toLowerCase().endsWith('.docm');
+  if (!isDocx) {
+    toast.error('Автозаполнение поддерживается только для .docx и .docm файлов');
+    return;
+  }
+
+  const { data: blob, error } = await supabase.storage
+    .from('contract-templates')
+    .download(template.file_path);
+
+  if (error || !blob) {
+    toast.error('Ошибка при загрузке шаблона', { description: error?.message });
+    return;
+  }
+
+  try {
+    const arrayBuffer = await blob.arrayBuffer();
+    const zip = new PizZip(arrayBuffer);
+    const doc = new Docxtemplater(zip, {
+      paragraphLoop: true,
+      linebreaks: true,
+      delimiters: { start: '{{', end: '}}' }
+    });
+
+    const templateData = prepareTemplateData(contract, pdfSettings, bankAccounts, company);
+    const renderData: Record<string, string> = {};
+
+    for (const [key, value] of Object.entries(templateData)) {
+      let str = String(value ?? '');
+      if (key === 'specification_table') {
+        // Преобразуем HTML-таблицу в текст с переносами строк для Word
+        str = str
+          .replace(/<\/tr>/gi, '\n')
+          .replace(/<\/td>/gi, '\t')
+          .replace(/<\/th>/gi, '\t')
+          .replace(/<[^>]+>/g, '')
+          .replace(/&nbsp;/g, ' ')
+          .replace(/&nbsp;/g, ' ')
+          .replace(/\n\s*\n/g, '\n')
+          .trim();
+      }
+      renderData[key] = str;
+    }
+
+    doc.render(renderData);
+
+    const output = doc.getZip().generate({
+      type: 'blob',
+      mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    });
+
+    const url = URL.createObjectURL(output);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Договор_${contract.number}_${contract.customer?.name || 'без_заказчика'}.docx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  } catch (err: any) {
+    console.error('DOCX export error:', err);
+    toast.error('Ошибка при экспорте в DOCX', { description: err.message });
+  }
 }

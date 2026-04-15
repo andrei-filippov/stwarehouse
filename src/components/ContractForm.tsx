@@ -162,8 +162,11 @@ export function ContractForm({
   // Автовыбор шаблона при создании нового договора
   useEffect(() => {
     if (!isEditing && !templateId && templates.length > 0) {
-      // Ищем шаблон по умолчанию или берем первый
-      const defaultTemplate = templates.find(t => t.is_default) || templates[0];
+      // Сначала ищем текстовый шаблон по умолчанию, затем любой по умолчанию, затем первый текстовый, затем первый любой
+      const defaultTemplate = templates.find(t => !t.is_file_template && t.is_default) 
+        || templates.find(t => t.is_default)
+        || templates.find(t => !t.is_file_template)
+        || templates[0];
       if (defaultTemplate) {
         setTemplateId(defaultTemplate.id);
       }
@@ -308,7 +311,9 @@ export function ContractForm({
                 ) : (
                   templates.map((template) => (
                     <SelectItem key={template.id} value={template.id}>
-                      {template.name} {template.is_default && '(по умолчанию)'}
+                      {template.name}
+                      {template.is_file_template ? ' (DOCX)' : ''}
+                      {template.is_default && !template.is_file_template ? ' (по умолчанию)' : ''}
                     </SelectItem>
                   ))
                 )}

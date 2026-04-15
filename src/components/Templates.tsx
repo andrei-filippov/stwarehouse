@@ -1136,7 +1136,5 @@ function TemplateForm({ categories, equipment, template, onSubmit, onCancel }: T
   );
 }
 
-import { toast } from 'sonner';
-
 export default TemplatesManager;
 
