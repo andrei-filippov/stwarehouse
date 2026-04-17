@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
+import { generateSimpleQRCode } from '../lib/qrUtils';
 import type { Equipment, Category } from '../types';
 import { isOnline, addToSyncQueue, saveEquipmentLocal, getEquipmentLocal, deleteEquipmentLocal } from '../lib/offlineDB';
 import { createLogger } from '../lib/logger';
@@ -231,7 +232,8 @@ export function useEquipment(companyId: string | undefined) {
             min_quantity: 0,
             price: item.price,
             unit: item.unit || 'шт',
-            equipment_id: equipData.id
+            equipment_id: equipData.id,
+            qr_code: generateSimpleQRCode()
           })
           .select()
           .single();
@@ -303,7 +305,8 @@ export function useEquipment(companyId: string | undefined) {
             quantity: item.quantity || 0,
             min_quantity: 0,
             price: item.price,
-            unit: item.unit || 'шт'
+            unit: item.unit || 'шт',
+            qr_code: generateSimpleQRCode()
           })
           .select()
           .single();
