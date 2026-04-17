@@ -35,6 +35,7 @@ interface QRScanPageProps {
   categories?: CableCategory[];
   checklists?: ChecklistV2[];
   onTabChange?: (tab: string) => void;
+  onRefreshChecklists?: () => void;
   initialCode?: string | null; // QR-код из URL
 }
 
@@ -46,7 +47,7 @@ type ScanResult =
 
 type QuickAction = 'info' | 'checklist' | 'issue' | 'repair' | null;
 
-export default function QRScanPage({ companyId, categories = [], checklists = [], onTabChange, initialCode }: QRScanPageProps) {
+export default function QRScanPage({ companyId, categories = [], checklists = [], onTabChange, onRefreshChecklists, initialCode }: QRScanPageProps) {
   // Читаем URL параметр через хук
   const urlScanCode = useUrlScanCode();
   const processedUrlScan = useRef(false);
@@ -590,6 +591,9 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
       }
       
       console.log('[QRScan] Insert success:', data);
+      
+      // Обновляем чек-листы на родительском уровне
+      onRefreshChecklists?.();
       
       toast.success('Добавлено в чеклист', {
         description: `${item.name || 'Оборудование'} добавлено`
