@@ -268,7 +268,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
       
       // Загружаем QR-коды из cable_inventory для сопоставления
       // Создаем Map: имя оборудования -> массив данных (для случая когда несколько единиц)
-      let inventoryMap: Map<string, { inventory_id?: string; qr_code?: string; kit_id?: string; kit_name?: string }[]> = new Map();
+      let inventoryMap: Map<string, { inventory_id?: string; qr_code?: string; kit_id?: string; kit_name?: string; watts?: number; category_id?: string }[]> = new Map();
       // Map для поиска по ID (для правил с inventory_id)
       let inventoryByIdMap: Map<string, { inventory_id?: string; name?: string; qr_code?: string; kit_id?: string; kit_name?: string; category_id?: string; watts?: number }> = new Map();
       // Категории кабелей (нужны для формирования имени и категории)
@@ -340,7 +340,9 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
                   inventory_id: i.id,
                   qr_code: i.qr_code,
                   kit_id: kitData?.kit_id,
-                  kit_name: kitData?.equipment_kits?.name
+                  kit_name: kitData?.equipment_kits?.name,
+                  watts: i.watts,
+                  category_id: i.category_id
                 });
               }
             });
@@ -383,7 +385,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
       
       // Функция для поиска данных оборудования по имени
       // Возвращает массив для случая когда несколько единиц с таким именем
-      const findInventoryData = (itemName: string): { inventory_id?: string; qr_code?: string; kit_id?: string; kit_name?: string }[] => {
+      const findInventoryData = (itemName: string): { inventory_id?: string; qr_code?: string; kit_id?: string; kit_name?: string; watts?: number; category_id?: string }[] => {
         const normalizedItemName = normalizeName(itemName);
         
         // Точное совпадение по нормализованному имени
