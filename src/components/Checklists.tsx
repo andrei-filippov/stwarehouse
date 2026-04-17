@@ -1470,6 +1470,24 @@ function ChecklistView({
   // Для совместимости со старым кодом
   const total = totalQty;
 
+  // Расчёт мощности оборудования
+  const powerStats = useMemo(() => {
+    return (checklist.items || []).reduce((acc, item) => {
+      const watts = item.watts || 0;
+      const qty = item.quantity || 1;
+      const totalWatts = watts * qty;
+      if (item.category_type === 'sound') {
+        acc.sound += totalWatts;
+      } else if (item.category_type === 'light') {
+        acc.light += totalWatts;
+      } else {
+        acc.other += totalWatts;
+      }
+      acc.total += totalWatts;
+      return acc;
+    }, { sound: 0, light: 0, other: 0, total: 0 });
+  }, [checklist.items]);
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center bg-muted/50 p-3 rounded">
@@ -1485,6 +1503,26 @@ function ChecklistView({
           <span>Live</span>
         </div>
       </div>
+
+      {powerStats.total > 0 && (
+        <div className="bg-blue-50 dark:bg-blue-950/30 p-3 rounded border border-blue-100 dark:border-blue-900">
+          <p className="text-sm font-medium text-blue-900 dark:text-blue-200 mb-2">⚡ Мощность оборудования</p>
+          <div className="grid grid-cols-3 gap-2 text-sm">
+            <div>
+              <p className="text-muted-foreground text-xs">Звук</p>
+              <p className="font-semibold text-blue-700 dark:text-blue-300">{(powerStats.sound / 1000).toFixed(2)} кВт</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground text-xs">Свет</p>
+              <p className="font-semibold text-blue-700 dark:text-blue-300">{(powerStats.light / 1000).toFixed(2)} кВт</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground text-xs">Общая</p>
+              <p className="font-semibold text-blue-700 dark:text-blue-300">{(powerStats.total / 1000).toFixed(2)} кВт</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {checklist.notes && (
         <div className="bg-yellow-50 p-3 rounded text-sm">
@@ -1774,6 +1812,15 @@ function exportChecklistToPDF(checklist: Checklist) {
     return acc;
   }, {} as Record<string, ChecklistItem[]>);
 
+  const power = (checklist.items || []).reduce((acc, item) => {
+    const totalWatts = (item.watts || 0) * (item.quantity || 1);
+    if (item.category_type === 'sound') acc.sound += totalWatts;
+    else if (item.category_type === 'light') acc.light += totalWatts;
+    else acc.other += totalWatts;
+    acc.total += totalWatts;
+    return acc;
+  }, { sound: 0, light: 0, other: 0, total: 0 });
+
   const categoryNames: Record<string, string> = {
     equipment: 'Оборудование из сметы',
     tool: 'Инструменты',
@@ -1781,6 +1828,15 @@ function exportChecklistToPDF(checklist: Checklist) {
     accessory: 'Аксессуары',
     other: 'Другое'
   };
+
+  const powerHtml = power.total > 0 ? `
+    <div style="margin-bottom: 15px; padding: 10px; background: #e3f2fd; border-radius: 4px; font-size: 11px;">
+      <strong>⚡ Мощность оборудования:</strong><br>
+      Звуковое: ${(power.sound / 1000).toFixed(2)} кВт &nbsp;|&nbsp;
+      Световое: ${(power.light / 1000).toFixed(2)} кВт &nbsp;|&nbsp;
+      Общая: ${(power.total / 1000).toFixed(2)} кВт
+    </div>
+  ` : '';
 
   const html = `
     <!DOCTYPE html>
@@ -1815,6 +1871,8 @@ function exportChecklistToPDF(checklist: Checklist) {
         <strong>Дата формирования:</strong> ${new Date().toLocaleDateString('ru-RU')}<br>
         <strong>Всего позиций:</strong> ${checklist.items?.length || 0}
       </div>
+
+      ${powerHtml}
 
       ${Object.entries(grouped || {}).map(([category, items]) => `
         <div class="category ${category === 'equipment' ? 'equipment' : ''}">${categoryNames[category] || category}</div>

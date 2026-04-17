@@ -79,6 +79,17 @@ export function ChecklistDetail({ checklist, onBack, onUpdate }: ChecklistDetail
   // Статистика
   const stats = useMemo(() => {
     const items = checklist.items || [];
+    const power = items.reduce((acc, item) => {
+      const watts = item.watts || 0;
+      const qty = item.quantity || 1;
+      const totalWatts = watts * qty;
+      if (item.category_type === 'sound') acc.sound += totalWatts;
+      else if (item.category_type === 'light') acc.light += totalWatts;
+      else acc.other += totalWatts;
+      acc.total += totalWatts;
+      return acc;
+    }, { sound: 0, light: 0, other: 0, total: 0 });
+
     return {
       total: items.length,
       loaded: items.filter(i => i.loaded).length,
@@ -90,7 +101,8 @@ export function ChecklistDetail({ checklist, onBack, onUpdate }: ChecklistDetail
         if (item.loaded) acc[cat].loaded++;
         if (item.unloaded) acc[cat].unloaded++;
         return acc;
-      }, {} as Record<string, { total: number; loaded: number; unloaded: number }>)
+      }, {} as Record<string, { total: number; loaded: number; unloaded: number }>),
+      power
     };
   }, [checklist.items]);
 
@@ -274,6 +286,32 @@ export function ChecklistDetail({ checklist, onBack, onUpdate }: ChecklistDetail
           </CardContent>
         </Card>
       </div>
+
+      {stats.power.total > 0 && (
+        <Card className="bg-blue-50 dark:bg-blue-950/30 border-blue-100 dark:border-blue-900">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2 text-blue-900 dark:text-blue-200">
+              ⚡ Мощность оборудования
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-4 text-sm">
+              <div>
+                <p className="text-muted-foreground text-xs">Звуковое</p>
+                <p className="font-semibold text-blue-700 dark:text-blue-300">{(stats.power.sound / 1000).toFixed(2)} кВт</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground text-xs">Световое</p>
+                <p className="font-semibold text-blue-700 dark:text-blue-300">{(stats.power.light / 1000).toFixed(2)} кВт</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground text-xs">Общая</p>
+                <p className="font-semibold text-blue-700 dark:text-blue-300">{(stats.power.total / 1000).toFixed(2)} кВт</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Режимы сканирования */}
       <div className="flex flex-wrap gap-2">

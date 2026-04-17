@@ -165,6 +165,9 @@ export type ChecklistItem = {
   unloaded_quantity?: number; // Количество отсканированное при разгрузке
   kit_id?: string; // ID комплекта/кофра
   kit_name?: string; // Название комплекта
+  // Поля для расчёта мощности
+  watts?: number; // Мощность одной единицы в ваттах
+  category_type?: 'sound' | 'light' | 'other'; // Тип категории для группировки
 };
 
 // Заказчик

@@ -6,6 +6,7 @@ export type CableCategory = {
   description?: string;
   color: string;
   sort_order: number;
+  type?: 'sound' | 'light' | 'other'; // Тип категории для расчёта мощности
   created_at?: string;
   updated_at?: string;
   // Для иерархии в UI

@@ -33,6 +33,10 @@ export type ChecklistItemV2 = {
   
   notes?: string;
   source_rule_id?: string;
+  
+  // Поля для расчёта мощности
+  watts?: number; // Мощность одной единицы в ваттах
+  category_type?: 'sound' | 'light' | 'other'; // Тип категории для группировки
 };
 
 export type ChecklistV2 = {

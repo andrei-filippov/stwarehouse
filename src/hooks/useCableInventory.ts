@@ -16,7 +16,7 @@ export function useCableInventory(companyId: string | undefined) {
     
     const { data, error } = await supabase
       .from('cable_categories')
-      .select('*')
+      .select('*, type')
       .eq('company_id', companyId)
       .order('sort_order');
     

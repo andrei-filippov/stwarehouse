@@ -222,7 +222,7 @@ export const CableManager = memo(function CableManager({
     if (fabAction && fabAction > 0) {
       if (activeTab === 'warehouse') {
         setEditingCategory(null);
-        setCategoryForm({ name: '', description: '', color: '#3b82f6' });
+        setCategoryForm({ name: '', description: '', color: '#3b82f6', type: 'other' });
         setIsCategoryDialogOpen(true);
       }
     }
@@ -241,7 +241,7 @@ export const CableManager = memo(function CableManager({
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
 
   // Form states
-  const [categoryForm, setCategoryForm] = useState({ name: '', description: '', color: '#3b82f6', parent_id: '' as string | undefined });
+  const [categoryForm, setCategoryForm] = useState({ name: '', description: '', color: '#3b82f6', parent_id: '' as string | undefined, type: 'other' as 'sound' | 'light' | 'other' });
   const [inventoryForm, setInventoryForm] = useState({ category_id: '', name: '', length: '', quantity: '', min_quantity: '0', watts: '', notes: '' });
   
   // Repair dialog states
@@ -365,7 +365,7 @@ export const CableManager = memo(function CableManager({
     });
     if (!error) {
       setIsCategoryDialogOpen(false);
-      setCategoryForm({ name: '', description: '', color: '#3b82f6', parent_id: undefined });
+      setCategoryForm({ name: '', description: '', color: '#3b82f6', parent_id: undefined, type: 'other' });
     }
   };
 
@@ -378,7 +378,7 @@ export const CableManager = memo(function CableManager({
     if (!error) {
       setIsCategoryDialogOpen(false);
       setEditingCategory(null);
-      setCategoryForm({ name: '', description: '', color: '#3b82f6', parent_id: undefined });
+      setCategoryForm({ name: '', description: '', color: '#3b82f6', parent_id: undefined, type: 'other' });
     }
   };
 
@@ -752,6 +752,7 @@ export const CableManager = memo(function CableManager({
     setEditingCategory(cat);
     setCategoryForm({
       name: cat.name,
+      type: cat.type || 'other',
       description: cat.description || '',
       color: cat.color?.toLowerCase() || '#3b82f6',
       parent_id: cat.parent_id || undefined,
@@ -998,7 +999,7 @@ export const CableManager = memo(function CableManager({
             <Button 
               onClick={() => {
                 setEditingCategory(null);
-                setCategoryForm({ name: '', description: '', color: '#3b82f6' });
+                setCategoryForm({ name: '', description: '', color: '#3b82f6', type: 'other' });
                 setIsCategoryDialogOpen(true);
               }}
               size="sm"
@@ -1968,6 +1969,23 @@ export const CableManager = memo(function CableManager({
               </select>
               <p className="text-xs text-muted-foreground mt-1">
                 Оставьте пустым для создания корневой категории
+              </p>
+            </div>
+            
+            {/* Выбор типа категории */}
+            <div>
+              <label className="text-sm font-medium">Тип оборудования</label>
+              <select
+                value={categoryForm.type || 'other'}
+                onChange={(e) => setCategoryForm({ ...categoryForm, type: e.target.value as 'sound' | 'light' | 'other' })}
+                className="w-full border border-border rounded-md p-2 mt-1 bg-card text-foreground"
+              >
+                <option value="sound">🔊 Звуковое оборудование</option>
+                <option value="light">💡 Световое оборудование</option>
+                <option value="other">🔌 Прочее оборудование</option>
+              </select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Тип используется для расчёта общей мощности в чек-листах
               </p>
             </div>
             
