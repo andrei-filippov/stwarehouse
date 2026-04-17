@@ -1217,7 +1217,7 @@ function EquipmentForm({ categories, initialData, onSubmit, onAddCategory }: Equ
       <div className="space-y-2">
         <Label>Описание</Label>
         <textarea
-          className="w-full border rounded-md p-2 min-h-[80px] resize-y"
+          className="w-full border rounded-md p-2 min-h-[80px] resize-y bg-card text-foreground"
           value={formData.description}
           onChange={(e) => setFormData({ ...formData, description: e.target.value })}
           placeholder="Технические характеристики, примечания..."
