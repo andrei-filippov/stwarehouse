@@ -132,12 +132,12 @@ export function AuditLogs() {
     return (
       <div className="space-y-1 text-sm">
         {changes.slice(0, 10).map((change, idx) => (
-          <div key={idx} className="grid grid-cols-3 gap-2 py-1 border-b border-gray-100 last:border-0">
-            <span className="font-medium text-gray-600">{change.field}:</span>
-            <span className="text-red-600 line-through truncate">
+          <div key={idx} className="grid grid-cols-3 gap-2 py-1 border-b border-gray-100 dark:border-gray-800 last:border-0">
+            <span className="font-medium text-gray-600 dark:text-gray-300">{change.field}:</span>
+            <span className="text-red-600 dark:text-red-400 line-through truncate">
               {change.old !== undefined ? String(change.old).substring(0, 50) : '-'}
             </span>
-            <span className="text-green-600 truncate">
+            <span className="text-green-600 dark:text-green-400 truncate">
               {change.new !== undefined ? String(change.new).substring(0, 50) : '-'}
             </span>
           </div>
@@ -158,7 +158,7 @@ export function AuditLogs() {
               <History className="w-6 h-6 text-blue-500" />
               <div>
                 <CardTitle>Журнал аудита</CardTitle>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   Всего записей: {totalCount}
                   {displayedLogs.length !== logs.length && (
                     <span className="text-xs text-muted-foreground ml-2">
@@ -267,8 +267,8 @@ export function AuditLogs() {
               <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-red-100 mb-3">
                 <History className="w-6 h-6 text-red-500" />
               </div>
-              <p className="text-red-600 font-medium">Ошибка загрузки логов</p>
-              <p className="text-sm text-gray-500 mt-1">{error.message}</p>
+              <p className="text-red-600 dark:text-red-400 font-medium">Ошибка загрузки логов</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{error.message}</p>
               <Button 
                 variant="outline" 
                 size="sm" 
@@ -280,7 +280,7 @@ export function AuditLogs() {
               </Button>
             </div>
           ) : displayedLogs.length === 0 ? (
-            <div className="text-center py-8 text-gray-400">
+            <div className="text-center py-8 text-gray-400 dark:text-gray-500">
               <History className="w-12 h-12 mx-auto mb-2 opacity-30" />
               <p>Нет записей в журнале</p>
               {!showAllActions && logs.length > 0 && (
@@ -295,12 +295,12 @@ export function AuditLogs() {
                 <table className="w-full text-sm">
                   <thead className="bg-muted border-b sticky top-0">
                     <tr>
-                      <th className="text-left py-2 px-3 font-medium text-gray-600">Время</th>
-                      <th className="text-left py-2 px-3 font-medium text-gray-600">Пользователь</th>
-                      <th className="text-left py-2 px-3 font-medium text-gray-600">Действие</th>
-                      <th className="text-left py-2 px-3 font-medium text-gray-600">Объект</th>
-                      <th className="text-left py-2 px-3 font-medium text-gray-600">Название</th>
-                      <th className="text-center py-2 px-3 font-medium text-gray-600"></th>
+                      <th className="text-left py-2 px-3 font-medium text-gray-600 dark:text-gray-300">Время</th>
+                      <th className="text-left py-2 px-3 font-medium text-gray-600 dark:text-gray-300">Пользователь</th>
+                      <th className="text-left py-2 px-3 font-medium text-gray-600 dark:text-gray-300">Действие</th>
+                      <th className="text-left py-2 px-3 font-medium text-gray-600 dark:text-gray-300">Объект</th>
+                      <th className="text-left py-2 px-3 font-medium text-gray-600 dark:text-gray-300">Название</th>
+                      <th className="text-center py-2 px-3 font-medium text-gray-600 dark:text-gray-300"></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -322,12 +322,12 @@ export function AuditLogs() {
                               </tr>
                             )}
                             <tr key={log.id} className="border-b hover:bg-muted/50 transition-colors">
-                              <td className="py-2 px-3 text-gray-600 whitespace-nowrap">
+                              <td className="py-2 px-3 text-gray-600 dark:text-gray-300 whitespace-nowrap">
                                 {format(new Date(log.created_at), 'HH:mm:ss')}
                               </td>
                               <td className="py-2 px-3">
                                 <div className="flex items-center gap-1">
-                                  <User className="w-3 h-3 text-gray-400 shrink-0" />
+                                  <User className="w-3 h-3 text-gray-400 dark:text-gray-500 shrink-0" />
                                   <span className="truncate max-w-[120px]">{log.user_name || 'Unknown'}</span>
                                 </div>
                               </td>
@@ -336,7 +336,7 @@ export function AuditLogs() {
                                   {getActionLabel(log.action as any)}
                                 </Badge>
                               </td>
-                              <td className="py-2 px-3 text-gray-600">
+                              <td className="py-2 px-3 text-gray-600 dark:text-gray-300">
                                 {getEntityLabel(log.entity_type)}
                               </td>
                               <td className="py-2 px-3 truncate max-w-[200px]">
@@ -380,30 +380,30 @@ export function AuditLogs() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <p className="text-gray-500">Пользователь</p>
+                  <p className="text-gray-500 dark:text-gray-400">Пользователь</p>
                   <p className="font-medium">{selectedLog?.user_name || 'Неизвестно'}</p>
-                  <p className="text-gray-400 text-xs">{selectedLog?.user_email || ''}</p>
+                  <p className="text-gray-400 dark:text-gray-500 text-xs">{selectedLog?.user_email || ''}</p>
                 </div>
                 <div>
-                  <p className="text-gray-500">Время</p>
+                  <p className="text-gray-500 dark:text-gray-400">Время</p>
                   <p className="font-medium">{formatDate(selectedLog.created_at)}</p>
                 </div>
                 <div>
-                  <p className="text-gray-500">Действие</p>
+                  <p className="text-gray-500 dark:text-gray-400">Действие</p>
                   <Badge className={getActionColor(selectedLog?.action)}>
                     {getActionLabel(selectedLog?.action as any)}
                   </Badge>
                 </div>
                 <div>
-                  <p className="text-gray-500">Объект</p>
+                  <p className="text-gray-500 dark:text-gray-400">Объект</p>
                   <p className="font-medium">{getEntityLabel(selectedLog?.entity_type as any)}</p>
                   {selectedLog.entity_name && (
-                    <p className="text-gray-400 text-xs truncate">{selectedLog.entity_name}</p>
+                    <p className="text-gray-400 dark:text-gray-500 text-xs truncate">{selectedLog.entity_name}</p>
                   )}
                 </div>
                 {selectedLog.ip_address && (
                   <div>
-                    <p className="text-gray-500">IP-адрес</p>
+                    <p className="text-gray-500 dark:text-gray-400">IP-адрес</p>
                     <p className="font-medium text-xs font-mono">{selectedLog.ip_address}</p>
                   </div>
                 )}
@@ -418,16 +418,16 @@ export function AuditLogs() {
                 <div className="space-y-2">
                   {selectedLog.old_data && (
                     <div>
-                      <p className="text-xs text-gray-500 mb-1">Старые данные:</p>
-                      <pre className="text-xs bg-red-50 p-2 rounded overflow-auto max-h-32">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Старые данные:</p>
+                      <pre className="text-xs bg-red-50 dark:bg-red-900/20 p-2 rounded overflow-auto max-h-32">
                         {JSON.stringify(selectedLog.old_data, null, 2)}
                       </pre>
                     </div>
                   )}
                   {selectedLog.new_data && (
                     <div>
-                      <p className="text-xs text-gray-500 mb-1">Новые данные:</p>
-                      <pre className="text-xs bg-green-50 p-2 rounded overflow-auto max-h-32">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Новые данные:</p>
+                      <pre className="text-xs bg-green-50 dark:bg-green-900/20 p-2 rounded overflow-auto max-h-32">
                         {JSON.stringify(selectedLog.new_data, null, 2)}
                       </pre>
                     </div>
