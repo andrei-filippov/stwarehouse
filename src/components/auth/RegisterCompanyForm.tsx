@@ -9,7 +9,7 @@ import { generateSlug } from '../../lib/subdomain';
 import { getCompanyPath, saveSelectedCompany } from '../../lib/companyUrl';
 import { toast } from 'sonner';
 import { COMPANY_TYPE_LABELS } from '../../types';
-import { logger } from '../lib/logger';
+import { logger } from '../../lib/logger';
 
 interface RegisterCompanyFormProps {
   onSuccess: () => void;

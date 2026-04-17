@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { logger } from '../lib/logger';
+import { logger } from './logger';
 
 // Система прав доступа (RBAC) с поддержкой кастомных разрешений
 

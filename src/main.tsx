@@ -7,13 +7,14 @@ import { AppLoader } from './components/AppLoader'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { SpeedInsightsWrapper } from './components/SpeedInsightsWrapper'
 
+import { logger } from './lib/logger';
+
 // Регистрация Service Worker для офлайн-режима
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js')
       .then((registration) => {
         logger.debug('SW registered:', registration);
-import { logger } from './lib/logger';
         
         // Проверяем обновления каждые 60 минут
         setInterval(() => {
