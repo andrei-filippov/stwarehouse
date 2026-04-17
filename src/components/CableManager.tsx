@@ -60,6 +60,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { logger } from '../lib/logger';
 
 interface SelectedItem {
   inventory_id: string;
@@ -287,7 +288,7 @@ export const CableManager = memo(function CableManager({
   // Обработка URL scan параметра - только сохраняем код
   useEffect(() => {
     if (urlScanCode && !processedUrlScan.current && inventory.length > 0) {
-      console.log('[CableManager] Received URL scan code:', urlScanCode);
+      logger.debug('[CableManager] Received URL scan code:', urlScanCode);
       processedUrlScan.current = true;
       setPendingScanCode(urlScanCode);
     }
@@ -296,7 +297,7 @@ export const CableManager = memo(function CableManager({
   // Обработка pending scan кода (вызовется после определения handleQRScan)
   useEffect(() => {
     if (pendingScanCode) {
-      console.log('[CableManager] Processing pending scan code:', pendingScanCode);
+      logger.debug('[CableManager] Processing pending scan code:', pendingScanCode);
       setTimeout(() => {
         handleQRScan(pendingScanCode);
         clearUrlScanCode();

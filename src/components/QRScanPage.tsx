@@ -29,6 +29,7 @@ import { supabase } from '../lib/supabase';
 import type { CableInventory, EquipmentKit, CableCategory } from '../types';
 import type { ChecklistV2 } from '../types/checklist';
 import { useUrlScanCode, clearUrlScanCode } from '../hooks/useUrlScanCode';
+import { logger } from '../lib/logger';
 
 interface QRScanPageProps {
   companyId: string;
@@ -54,7 +55,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
   
   const effectiveInitialCode = initialCode || urlScanCode;
   
-  console.log('[QRScan] Component rendering, initialCode:', initialCode, 'urlScanCode:', urlScanCode, 'effective:', effectiveInitialCode);
+  logger.debug('[QRScan] Component rendering, initialCode:', initialCode, 'urlScanCode:', urlScanCode, 'effective:', effectiveInitialCode);
   
   const [isScanning, setIsScanning] = useState(!effectiveInitialCode); // Если есть initialCode - не сканируем
   const [scanResult, setScanResult] = useState<ScanResult>(null);
@@ -124,9 +125,9 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
 
   // Отслеживаем размонтирование
   useEffect(() => {
-    console.log('[QRScan] Component MOUNTED');
+    logger.debug('[QRScan] Component MOUNTED');
     return () => {
-      console.log('[QRScan] Component UNMOUNTED');
+      logger.debug('[QRScan] Component UNMOUNTED');
     };
   }, []);
 
@@ -190,7 +191,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
   // Обработка initialCode из URL - вызываем только один раз при загрузке данных
   useEffect(() => {
     if (effectiveInitialCode && inventory.length > 0 && !scanResult && !processedUrlScan.current) {
-      console.log('[QRScan] Processing initialCode:', effectiveInitialCode);
+      logger.debug('[QRScan] Processing initialCode:', effectiveInitialCode);
       processedUrlScan.current = true;
       // Небольшая задержка чтобы убедиться что handleScan инициализирован
       const timer = setTimeout(() => {
@@ -229,16 +230,16 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
   };
 
   const handleScan = async (qrCode: string) => {
-    console.log('[QRScan] handleScan STARTED, input:', qrCode, 'current scanResult:', scanResult?.type);
+    logger.debug('[QRScan] handleScan STARTED, input:', qrCode, 'current scanResult:', scanResult?.type);
     
     // Извлекаем код из URL если нужно
     const cleanCode = extractQRCode(qrCode);
-    console.log('[QRScan] Clean code:', cleanCode);
+    logger.debug('[QRScan] Clean code:', cleanCode);
     
     // Ищем комплект (case-insensitive)
     const kit = kits.find(k => k.qr_code?.toUpperCase() === cleanCode);
     if (kit) {
-      console.log('[QRScan] Found kit:', kit.name);
+      logger.debug('[QRScan] Found kit:', kit.name);
       setScanResult({ type: 'kit', data: kit });
       setIsScanning(false);
       return;
@@ -246,14 +247,14 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
     
     // Ищем оборудование (case-insensitive)
     const item = inventory.find(i => i.qr_code?.toUpperCase() === cleanCode);
-    console.log('[QRScan] Inventory search:', { found: !!item, totalItems: inventory.length, itemId: item?.id });
+    logger.debug('[QRScan] Inventory search:', { found: !!item, totalItems: inventory.length, itemId: item?.id });
     if (item) {
-      console.log('[QRScan] Found item:', item.name, 'category_id:', item.category_id);
+      logger.debug('[QRScan] Found item:', item.name, 'category_id:', item.category_id);
       const category = categories.find(c => c.id === item.category_id);
-      console.log('[QRScan] Category:', category?.name || 'not found');
+      logger.debug('[QRScan] Category:', category?.name || 'not found');
       
       // Получаем статистику по оборудованию
-      console.log('[QRScan] Fetching stats from supabase...');
+      logger.debug('[QRScan] Fetching stats from supabase...');
       try {
         const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
         
@@ -283,7 +284,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
             .eq('loaded', true)
         ]);
         
-        console.log('[QRScan] Stats received:', { 
+        logger.debug('[QRScan] Stats received:', { 
           movements: movements?.length || 0, 
           repairs: repairs?.length || 0,
           reservations: estimateReservations?.length || 0,
@@ -303,7 +304,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
         // Свободно = всего на складе - активная выдача - в ремонте (резерв не учитываем)
         const availableQty = Math.max(0, item.quantity - activeIssued - repairQty);
         
-        console.log('[QRScan] Calculated quantities:', { 
+        logger.debug('[QRScan] Calculated quantities:', { 
           total: item.quantity, 
           activeIssued: activeIssued, 
           repair: repairQty, 
@@ -311,10 +312,10 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
           available: availableQty 
         });
         
-        console.log('[QRScan] Setting isScanning to false FIRST');
+        logger.debug('[QRScan] Setting isScanning to false FIRST');
         setIsScanning(false);
         
-        console.log('[QRScan] Setting scan result...');
+        logger.debug('[QRScan] Setting scan result...');
         setScanResult({ 
           type: 'inventory', 
           data: item, 
@@ -346,7 +347,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
     }
     
     // Не найдено
-    console.log('[QRScan] Not found. Available codes:', {
+    logger.debug('[QRScan] Not found. Available codes:', {
       kits: kits.map(k => k.qr_code),
       inventory: inventory.map(i => i.qr_code)
     });
@@ -562,7 +563,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
     const category = scanResult.category;
     setSubmitting(true);
     
-    console.log('[QRScan] Adding to checklist:', { checklistId, item: item.name, category: category?.name });
+    logger.debug('[QRScan] Adding to checklist:', { checklistId, item: item.name, category: category?.name });
     
     try {
       const insertData = {
@@ -578,7 +579,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
         category_type: category?.type || 'other'
       };
       
-      console.log('[QRScan] Insert data:', insertData);
+      logger.debug('[QRScan] Insert data:', insertData);
       
       const { data, error } = await supabase
         .from('checklist_items')
@@ -590,7 +591,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
         throw error;
       }
       
-      console.log('[QRScan] Insert success:', data);
+      logger.debug('[QRScan] Insert success:', data);
       
       // Обновляем чек-листы на родительском уровне
       onRefreshChecklists?.();
@@ -673,7 +674,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
     setSubmitting(false);
   };
 
-  console.log('[QRScan] Render state:', { loading, isScanning, scanResultType: scanResult?.type });
+  logger.debug('[QRScan] Render state:', { loading, isScanning, scanResultType: scanResult?.type });
 
   if (loading) {
     return (
@@ -1593,7 +1594,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
 
   // Fallback - если есть scanResult но мы сюда дошли, значит тип неизвестен
   if (scanResult) {
-    console.log('[QRScan] Fallback with scanResult:', scanResult.type);
+    logger.debug('[QRScan] Fallback with scanResult:', scanResult.type);
     return (
       <div className="space-y-4 max-w-md mx-auto text-center">
         <h2 className="text-2xl font-bold">QR Сканер</h2>

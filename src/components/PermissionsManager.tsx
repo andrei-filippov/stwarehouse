@@ -16,6 +16,7 @@ import {
   type TabId,
   type EffectivePermission,
 } from '../lib/permissions';
+import { logger } from '../lib/logger';
 
 interface Member {
   id: string;
@@ -62,12 +63,12 @@ export function PermissionsManager({ currentUserId }: PermissionsManagerProps) {
   };
 
   const handleRoleChange = async (memberId: string, newRole: UserRole) => {
-    console.log('handleRoleChange called:', { memberId, newRole });
+    logger.debug('handleRoleChange called:', { memberId, newRole });
     setSaving(prev => ({ ...prev, [`role-${memberId}`]: true }));
     
     // Находим member по user_id
     const member = members?.find(m => m.user_id === memberId);
-    console.log('Found member:', member);
+    logger.debug('Found member:', member);
     if (!member) {
       toast.error('Участник не найден');
       setSaving(prev => ({ ...prev, [`role-${memberId}`]: false }));
@@ -75,9 +76,9 @@ export function PermissionsManager({ currentUserId }: PermissionsManagerProps) {
     }
     
     // Обновляем роль через контекст компании
-    console.log('Calling updateMemberRole with:', { memberId: member.id, newRole });
+    logger.debug('Calling updateMemberRole with:', { memberId: member.id, newRole });
     const { error } = await updateMemberRole(member.id, newRole);
-    console.log('updateMemberRole result:', { error });
+    logger.debug('updateMemberRole result:', { error });
     
     if (error) {
       toast.error('Ошибка обновления роли: ' + error);
@@ -119,23 +120,23 @@ export function PermissionsManager({ currentUserId }: PermissionsManagerProps) {
     currentAllowed: boolean,
     source: 'role' | 'custom'
   ) => {
-    console.log('handlePermissionToggle:', { userId, tabId, currentAllowed, source });
+    logger.debug('handlePermissionToggle:', { userId, tabId, currentAllowed, source });
     setSaving(prev => ({ ...prev, [`${userId}-${tabId}`]: true }));
     
     let error;
     
     if (source === 'role') {
       // Создаём кастомное разрешение противоположное ролевому
-      console.log('Calling setUserPermission:', { userId, tabId, allowed: !currentAllowed });
+      logger.debug('Calling setUserPermission:', { userId, tabId, allowed: !currentAllowed });
       const result = await setUserPermission(userId, tabId, !currentAllowed);
       error = result.error;
-      console.log('setUserPermission result:', result);
+      logger.debug('setUserPermission result:', result);
     } else {
       // Удаляем кастомное разрешение, возвращаемся к ролевому
-      console.log('Calling removeUserPermission:', { userId, tabId });
+      logger.debug('Calling removeUserPermission:', { userId, tabId });
       const result = await removeUserPermission(userId, tabId);
       error = result.error;
-      console.log('removeUserPermission result:', result);
+      logger.debug('removeUserPermission result:', result);
     }
     
     if (error) {

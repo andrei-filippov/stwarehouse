@@ -16,6 +16,7 @@ import {
   getDeletedEstimates,
   clearDeletedEstimates
 } from '../lib/offlineDB';
+import { logger } from '../lib/logger';
 
 // Генерируем уникальный ID сессии для этой вкладки
 const SESSION_ID = Math.random().toString(36).substring(2, 15);
@@ -229,7 +230,7 @@ export function useEstimates(companyId: string | undefined) {
                   await saveEstimateLocal(estimateToCache, companyId);
                   debugLog('[fetchEstimates] Cached server estimate:', estimate.id, 'items:', estimateToCache.items?.length, 'forced:', !!localVersion);
                 } catch (saveErr) {
-                  console.warn('[fetchEstimates] Failed to cache estimate:', estimate.id, saveErr);
+                  logger.warn('[fetchEstimates] Failed to cache estimate:', estimate.id, saveErr);
                 }
               }
             }

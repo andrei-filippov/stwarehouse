@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { logger } from '../lib/logger';
 
 /**
  * Хук для чтения QR кода из URL параметра ?scan=XXX
@@ -19,7 +20,7 @@ export function useUrlScanCode(): string | null {
         
         for (const [key, value] of params) {
           if (key.toLowerCase() === 'scan') {
-            console.log('[useUrlScanCode] Found in URL:', value);
+            logger.debug('[useUrlScanCode] Found in URL:', value);
             // Сохраняем в sessionStorage на случай если URL очистится
             try {
               sessionStorage.setItem('pending_scan_code', value);
@@ -36,7 +37,7 @@ export function useUrlScanCode(): string | null {
       try {
         const pendingScan = sessionStorage.getItem('pending_scan_code');
         if (pendingScan) {
-          console.log('[useUrlScanCode] Found in sessionStorage:', pendingScan);
+          logger.debug('[useUrlScanCode] Found in sessionStorage:', pendingScan);
           setScanCode(pendingScan);
         }
       } catch (e) {
@@ -55,7 +56,7 @@ export function clearUrlScanCode(): void {
   if (typeof window !== 'undefined') {
     try {
       sessionStorage.removeItem('pending_scan_code');
-      console.log('[useUrlScanCode] Cleared sessionStorage');
+      logger.debug('[useUrlScanCode] Cleared sessionStorage');
     } catch (e) {
       // Игнорируем ошибки
     }
@@ -69,7 +70,7 @@ export function saveUrlScanCode(code: string): void {
   if (typeof window !== 'undefined') {
     try {
       sessionStorage.setItem('pending_scan_code', code);
-      console.log('[useUrlScanCode] Saved to sessionStorage:', code);
+      logger.debug('[useUrlScanCode] Saved to sessionStorage:', code);
     } catch (e) {
       // Игнорируем ошибки
     }

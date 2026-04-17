@@ -14,6 +14,7 @@ import { useDebounce } from '../hooks/useDebounce';
 import { logAction } from '../hooks/useAuditLogs';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
+import { logger } from '../lib/logger';
 
 // Мемоизированная строка таблицы оборудования
 interface EquipmentRowProps {
@@ -363,8 +364,8 @@ export function EquipmentManager({
           return obj;
         });
         
-        console.log('Headers found:', headers);
-        console.log('Data rows:', jsonData.slice(0, 3));
+        logger.debug('Headers found:', headers);
+        logger.debug('Data rows:', jsonData.slice(0, 3));
         
         // Определяем какие позиции уже существуют
         const existingNames = new Set(equipment.map(e => e.name.toLowerCase().trim()));
@@ -389,10 +390,10 @@ export function EquipmentManager({
   };
 
   const processImportData = (data: any[]): any[] => {
-    console.log('Import data rows:', data.slice(0, 5));
+    logger.debug('Import data rows:', data.slice(0, 5));
     if (data.length > 0) {
-      console.log('First row keys:', Object.keys(data[0]));
-      console.log('First row values:', data[0]);
+      logger.debug('First row keys:', Object.keys(data[0]));
+      logger.debug('First row values:', data[0]);
     }
     
     const processed = data.map((row: any) => {
@@ -431,7 +432,7 @@ export function EquipmentManager({
       };
     }).filter(item => item.name && item.name.trim() !== '');
 
-    console.log('Processed items:', processed.length, processed.slice(0, 3));
+    logger.debug('Processed items:', processed.length, processed.slice(0, 3));
     
     setImportData(processed);
     setImportPreview(true);

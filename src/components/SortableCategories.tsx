@@ -20,6 +20,7 @@ import { GripVertical, Trash2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import type { EstimateItem, Equipment } from '../types';
+import { logger } from '../lib/logger';
 
 interface EquipmentAvailability {
   equipment: Equipment;
@@ -98,7 +99,7 @@ function SortableCategoryItem({
           const originalIndex = itemIndices[idx];
           // Защита: если индекс не найден или -1, не рендерим или используем запасной вариант
           if (originalIndex === undefined || originalIndex === -1) {
-            console.warn('SortableCategories: invalid originalIndex for item', item);
+            logger.warn('SortableCategories: invalid originalIndex for item', item);
             return null;
           }
           const maxQuantity = getItemMaxQuantity(item);

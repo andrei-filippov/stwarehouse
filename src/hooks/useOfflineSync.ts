@@ -24,6 +24,7 @@ import {
   cleanupOldRecords
 } from '../lib/offlineDB';
 import { supabase } from '../lib/supabase';
+import { logger } from '../lib/logger';
 
 export function useOfflineSync(companyId: string | undefined) {
   const [isOffline, setIsOffline] = useState(!isOnline());
@@ -269,7 +270,7 @@ export function useOfflineSync(companyId: string | undefined) {
                 }
                 
                 if (!serverId) {
-                  console.warn('[Sync] Cannot update estimate - no server ID found for:', id);
+                  logger.warn('[Sync] Cannot update estimate - no server ID found for:', id);
                   throw new Error('No server ID for update');
                 }
                 
@@ -300,7 +301,7 @@ export function useOfflineSync(companyId: string | undefined) {
                 }
                 
                 if (!serverId) {
-                  console.warn('[Sync] Cannot delete estimate - no server ID found for:', id);
+                  logger.warn('[Sync] Cannot delete estimate - no server ID found for:', id);
                   throw new Error('No server ID for delete');
                 }
                 result = await supabase.from('estimates').delete().eq('id', serverId);
@@ -432,7 +433,7 @@ export function useOfflineSync(companyId: string | undefined) {
             
             // Если маппинг не найден и это был local_id - пропускаем
             if (!serverEstimateId && estimateId?.startsWith('local_')) {
-              console.warn('[Sync] No mapping found for estimate:', estimateId, '- will retry later');
+              logger.warn('[Sync] No mapping found for estimate:', estimateId, '- will retry later');
               await updateSyncQueueRetry(item.id!, item.retryCount + 1);
               errorCount++;
               continue;
@@ -453,7 +454,7 @@ export function useOfflineSync(companyId: string | undefined) {
               );
               
               if (hasUnmappedEquipment) {
-                console.warn('[Sync] Some equipment not yet synced, retrying later');
+                logger.warn('[Sync] Some equipment not yet synced, retrying later');
                 await updateSyncQueueRetry(item.id!, item.retryCount + 1);
                 errorCount++;
                 continue;
@@ -512,7 +513,7 @@ export function useOfflineSync(companyId: string | undefined) {
                   throw result.error;
                 }
               } else {
-                console.warn('[Sync] No valid items to insert after filtering');
+                logger.warn('[Sync] No valid items to insert after filtering');
               }
             }
           }

@@ -28,6 +28,7 @@ import type { ChecklistV2, ChecklistItemV2, EquipmentKit } from '../types/checkl
 import type { CableInventory, CableCategory } from '../types';
 import { supabase } from '../lib/supabase';
 import { useUrlScanCode, clearUrlScanCode } from '../hooks/useUrlScanCode';
+import { logger } from '../lib/logger';
 
 interface QuickQRScannerProps {
   companyId?: string;
@@ -153,7 +154,7 @@ export function QuickQRScanner({
   // Обработка URL scan параметра
   useEffect(() => {
     if (urlScanCode && !processedUrlScan.current && allInventory.length > 0) {
-      console.log('[QuickQRScanner] Processing URL scan code:', urlScanCode);
+      logger.debug('[QuickQRScanner] Processing URL scan code:', urlScanCode);
       processedUrlScan.current = true;
       
       // Открываем главный диалог
@@ -187,9 +188,9 @@ export function QuickQRScanner({
   // Debug: выводим данные для проверки
   useEffect(() => {
     if (isMainOpen) {
-      console.log('[QuickQRScanner] Inventory:', allInventory.length, 'items');
-      console.log('[QuickQRScanner] Kits:', allKits.length, 'kits');
-      console.log('[QuickQRScanner] Checklists:', checklists.length, 'checklists');
+      logger.debug('[QuickQRScanner] Inventory:', allInventory.length, 'items');
+      logger.debug('[QuickQRScanner] Kits:', allKits.length, 'kits');
+      logger.debug('[QuickQRScanner] Checklists:', checklists.length, 'checklists');
     }
   }, [isMainOpen, allInventory, allKits, checklists]);
 
@@ -265,12 +266,12 @@ export function QuickQRScanner({
   // Обработка сканирования в режиме чеклиста
   const handleChecklistScan = useCallback((qrCode: string) => {
     if (!selectedChecklist) {
-      console.log('[QuickQRScanner] No selected checklist');
+      logger.debug('[QuickQRScanner] No selected checklist');
       return;
     }
     
     if (!selectedChecklist.items || selectedChecklist.items.length === 0) {
-      console.log('[QuickQRScanner] Checklist has no items');
+      logger.debug('[QuickQRScanner] Checklist has no items');
       toast.error('Чеклист пуст');
       return;
     }
@@ -331,10 +332,10 @@ export function QuickQRScanner({
     
     // Ищем оборудование
     const inventoryItem = allInventory.find(i => i.qr_code === qrCode);
-    console.log('[QuickQRScanner] Scanned QR:', qrCode);
-    console.log('[QuickQRScanner] Found inventory:', inventoryItem);
-    console.log('[QuickQRScanner] Checklist items count:', selectedChecklist.items?.length || 0);
-    console.log('[QuickQRScanner] Checklist items:', selectedChecklist.items);
+    logger.debug('[QuickQRScanner] Scanned QR:', qrCode);
+    logger.debug('[QuickQRScanner] Found inventory:', inventoryItem);
+    logger.debug('[QuickQRScanner] Checklist items count:', selectedChecklist.items?.length || 0);
+    logger.debug('[QuickQRScanner] Checklist items:', selectedChecklist.items);
     
     if (!inventoryItem) {
       toast.error('QR-код не найден в базе оборудования');
@@ -345,7 +346,7 @@ export function QuickQRScanner({
     let checklistItem = selectedChecklist.items?.find(
       i => i.qr_code === qrCode && isItemPending(i)
     );
-    console.log('[QuickQRScanner] Found by QR code:', checklistItem);
+    logger.debug('[QuickQRScanner] Found by QR code:', checklistItem);
     
     // Затем ищем по inventory_id
     if (!checklistItem) {
@@ -353,16 +354,16 @@ export function QuickQRScanner({
         i => i.inventory_id && inventoryItem.id && 
              i.inventory_id === inventoryItem.id && isItemPending(i)
       );
-      console.log('[QuickQRScanner] Found by inventory_id:', checklistItem);
+      logger.debug('[QuickQRScanner] Found by inventory_id:', checklistItem);
     }
     
     // Если не нашли по inventory_id, ищем по имени (fallback)
     if (!checklistItem && inventoryItem.name) {
-      console.log('[QuickQRScanner] Searching by name:', inventoryItem.name);
+      logger.debug('[QuickQRScanner] Searching by name:', inventoryItem.name);
       checklistItem = selectedChecklist.items?.find(
         i => i.name?.toLowerCase() === inventoryItem.name?.toLowerCase() && isItemPending(i)
       );
-      console.log('[QuickQRScanner] Found by name:', checklistItem);
+      logger.debug('[QuickQRScanner] Found by name:', checklistItem);
     }
     
     if (!checklistItem) {

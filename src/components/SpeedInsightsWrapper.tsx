@@ -1,6 +1,7 @@
 // Компонент-обёртка для Speed Insights с безопасной загрузкой
 import type React from 'react';
 import { useEffect, useState } from 'react';
+import { logger } from '../lib/logger';
 
 export function SpeedInsightsWrapper() {
   const [Component, setComponent] = useState<React.ComponentType | null>(null);
@@ -21,7 +22,7 @@ export function SpeedInsightsWrapper() {
         }
       })
       .catch((err) => {
-        console.warn('Speed Insights not loaded:', err);
+        logger.warn('Speed Insights not loaded:', err);
       });
 
     return () => {

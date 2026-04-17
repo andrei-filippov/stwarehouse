@@ -13,6 +13,7 @@ import {
 import { YandexDiskClient, getYandexOAuthUrl } from '../lib/yandexDisk';
 import { useCompanyYandexDisk } from '../hooks/useCompanyYandexDisk';
 import { supabase } from '../lib/supabase';
+import { logger } from '../lib/logger';
 
 interface YandexDiskFileManagerProps {
   clientId: string;
@@ -126,7 +127,7 @@ export function YandexDiskFileManager({
         } catch (err: any) {
           // Игнорируем если папка уже существует
           if (!err.message?.includes('409') && !err.message?.includes('exists')) {
-            console.warn('Error creating folder:', currentBuildPath, err.message);
+            logger.warn('Error creating folder:', currentBuildPath, err.message);
           }
         }
       }
@@ -248,7 +249,7 @@ export function YandexDiskFileManager({
     }
 
     const folderPath = `${currentPath}/${cleanName}`;
-    console.log('Creating folder:', folderPath);
+    logger.debug('Creating folder:', folderPath);
 
     try {
       await client.createFolder(folderPath);

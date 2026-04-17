@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { logger } from '../lib/logger';
 
 // Система прав доступа (RBAC) с поддержкой кастомных разрешений
 
@@ -141,13 +142,13 @@ export async function setUserPermission(
   tabId: TabId, 
   allowed: boolean
 ): Promise<{ error: Error | null }> {
-  console.log('setUserPermission called:', { userId, tabId, allowed });
+  logger.debug('setUserPermission called:', { userId, tabId, allowed });
   const { data, error } = await supabase.rpc('set_user_permission', {
     p_user_id: userId,
     p_tab_id: tabId,
     p_allowed: allowed
   });
-  console.log('set_user_permission RPC result:', { data, error });
+  logger.debug('set_user_permission RPC result:', { data, error });
   
   if (error) {
     console.error('RPC error in setUserPermission:', error);
@@ -164,12 +165,12 @@ export async function setUserPermission(
  * Удалить кастомное разрешение (via RPC)
  */
 export async function removeUserPermission(userId: string, tabId: TabId): Promise<{ error: Error | null }> {
-  console.log('removeUserPermission called:', { userId, tabId });
+  logger.debug('removeUserPermission called:', { userId, tabId });
   const { data, error } = await supabase.rpc('remove_user_permission', {
     p_user_id: userId,
     p_tab_id: tabId
   });
-  console.log('remove_user_permission RPC result:', { data, error });
+  logger.debug('remove_user_permission RPC result:', { data, error });
   
   if (error) {
     console.error('RPC error in removeUserPermission:', error);

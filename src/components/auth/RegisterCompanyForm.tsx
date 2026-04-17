@@ -9,6 +9,7 @@ import { generateSlug } from '../../lib/subdomain';
 import { getCompanyPath, saveSelectedCompany } from '../../lib/companyUrl';
 import { toast } from 'sonner';
 import { COMPANY_TYPE_LABELS } from '../../types';
+import { logger } from '../lib/logger';
 
 interface RegisterCompanyFormProps {
   onSuccess: () => void;
@@ -104,7 +105,7 @@ export function RegisterCompanyForm({ onSuccess, onLogin }: RegisterCompanyFormP
         throw new Error('Ошибка создания компании: ' + rpcError.message);
       }
 
-      console.log('Company created with ID:', companyId);
+      logger.debug('Company created with ID:', companyId);
 
       // 5. Показываем уведомление о подтверждении email
       toast.success('Компания успешно создана!', {

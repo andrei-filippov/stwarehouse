@@ -126,7 +126,7 @@ export function useAuth() {
       if (error) {
         console.error('Permissions fetch error:', error);
       } else {
-        console.log('Permissions loaded:', data);
+        logger.debug('Permissions loaded:', data);
         setPermissions(data as UserPermission[]);
       }
     } catch (err) {

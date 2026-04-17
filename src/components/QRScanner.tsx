@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { X, Camera, Keyboard } from 'lucide-react';
+import { logger } from '../lib/logger';
 
 interface QRScannerProps {
   isOpen: boolean;
@@ -15,7 +16,7 @@ interface QRScannerProps {
 }
 
 export function QRScanner({ isOpen, onClose, onScan, title = 'Сканировать QR-код', subtitle, keepOpen }: QRScannerProps) {
-  console.log('[QRScanner] Render, isOpen:', isOpen, 'keepOpen:', keepOpen);
+  logger.debug('[QRScanner] Render, isOpen:', isOpen, 'keepOpen:', keepOpen);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const [manualCode, setManualCode] = useState('');
@@ -71,7 +72,7 @@ export function QRScanner({ isOpen, onClose, onScan, title = 'Сканирова
       
       // Проверяем что video элемент готов
       if (!videoRef.current) {
-        console.log('Video element not ready');
+        logger.debug('Video element not ready');
         return;
       }
 
@@ -89,14 +90,14 @@ export function QRScanner({ isOpen, onClose, onScan, title = 'Сканирова
               // Извлекаем QR код из URL если нужно
               const extractedCode = extractQRCode(text);
               
-              console.log('[QRScanner] Scanned:', text, 'extracted:', extractedCode, 'keepOpen:', keepOpen);
+              logger.debug('[QRScanner] Scanned:', text, 'extracted:', extractedCode, 'keepOpen:', keepOpen);
               // ОТМЕЧАЕМ УСПЕШНЫЙ СКАН СРАЗУ - до любых операций!
               hasScannedRef.current = true;
-              console.log('[QRScanner] hasScannedRef set to TRUE');
+              logger.debug('[QRScanner] hasScannedRef set to TRUE');
               
               if (keepOpen) {
                 // Не закрываем сканер после сканирования (для batch режима чек-листов)
-                console.log('[QRScanner] keepOpen mode - calling onScan, restarting camera');
+                logger.debug('[QRScanner] keepOpen mode - calling onScan, restarting camera');
                 stopScanning();
                 onScanRef.current(extractedCode);
                 // Перезапускаем сканер для следующего сканирования
@@ -105,7 +106,7 @@ export function QRScanner({ isOpen, onClose, onScan, title = 'Сканирова
                 }, 500);
               } else {
                 // Обычный режим - закрываем после сканирования
-                console.log('[QRScanner] Normal mode - calling onScan and onClose');
+                logger.debug('[QRScanner] Normal mode - calling onScan and onClose');
                 stopScanning();
                 onScanRef.current(extractedCode);
                 onClose();
@@ -170,7 +171,7 @@ export function QRScanner({ isOpen, onClose, onScan, title = 'Сканирова
 
   // Закрытие по кнопке или крестику - всегда вызываем onClose
   const handleManualClose = () => {
-    console.log('[QRScanner] handleManualClose called');
+    logger.debug('[QRScanner] handleManualClose called');
     stopScanning();
     setManualCode('');
     setError('');
@@ -180,7 +181,7 @@ export function QRScanner({ isOpen, onClose, onScan, title = 'Сканирова
 
   // Закрытие через Dialog onOpenChange (при размонтировании)
   const handleDialogClose = () => {
-    console.log('[QRScanner] handleDialogClose called, keepOpen:', keepOpen, 'hasScanned:', hasScannedRef.current);
+    logger.debug('[QRScanner] handleDialogClose called, keepOpen:', keepOpen, 'hasScanned:', hasScannedRef.current);
     stopScanning();
     setManualCode('');
     setError('');

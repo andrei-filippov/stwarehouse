@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
 import type { ChecklistV2, EquipmentKit } from '../types/checklist';
 import type { Estimate } from '../types';
+import { logger } from '../lib/logger';
 
 export function useChecklistsV2(companyId: string | undefined) {
   const [checklists, setChecklists] = useState<ChecklistV2[]>([]);
@@ -43,7 +44,7 @@ export function useChecklistsV2(companyId: string | undefined) {
       setChecklists(transformed);
     } catch (err: any) {
       // Пока таблицы не созданы - просто пустой массив
-      console.log('Checklists v2 not loaded (tables may not exist):', err.message);
+      logger.debug('Checklists v2 not loaded (tables may not exist):', err.message);
       setChecklists([]);
     } finally {
       setLoading(false);
@@ -89,7 +90,7 @@ export function useChecklistsV2(companyId: string | undefined) {
       setKits(transformed);
     } catch (err: any) {
       // Пока таблицы не созданы - просто пустой массив
-      console.log('Kits not loaded (tables may not exist):', err.message);
+      logger.debug('Kits not loaded (tables may not exist):', err.message);
       setKits([]);
     }
   }, [companyId]);

@@ -34,6 +34,7 @@ import {
 import type { Equipment, Estimate, EstimateItem, Customer, PDFSettings, EquipmentRepair, CableCategory } from '../types';
 import { cn } from '../lib/utils';
 import { toast } from 'sonner';
+import { logger } from '../lib/logger';
 
 interface EstimateBuilderProps {
   equipment: Equipment[];
@@ -151,7 +152,7 @@ export function EstimateBuilder({
       const uniqueItems = estimate.items.filter((item: any) => {
         const key = `${item.name}_${item.category}_${item.price}_${item.quantity}`;
         if (seenKeys.has(key)) {
-          console.log('[EstimateBuilder] Removing duplicate item:', item.name);
+          logger.debug('[EstimateBuilder] Removing duplicate item:', item.name);
           return false;
         }
         seenKeys.add(key);
@@ -159,7 +160,7 @@ export function EstimateBuilder({
       });
       
       if (uniqueItems.length !== estimate.items.length) {
-        console.log('[EstimateBuilder] Items deduplicated:', estimate.items.length, '->', uniqueItems.length);
+        logger.debug('[EstimateBuilder] Items deduplicated:', estimate.items.length, '->', uniqueItems.length);
         setItems(uniqueItems);
       }
     }

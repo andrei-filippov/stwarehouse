@@ -80,6 +80,7 @@ import {
 } from 'lucide-react';
 import type { PDFSettings as PDFSettingsType } from './types';
 import { hasAccess, getRoleLabel, type UserRole, type TabId } from './lib/permissions';
+import { logger } from './lib/logger';
 
 type Tab = TabId;
 
@@ -136,7 +137,7 @@ function AppContent({ user, profile, permissions, signOut }: any) {
 
   // Обработка пути /c/company-slug и query параметров
   useEffect(() => {
-    console.log('[App] useEffect started, reading URL...');
+    logger.debug('[App] useEffect started, reading URL...');
     const slugFromPath = getSlugFromPath();
     if (slugFromPath) {
       saveSelectedCompany(slugFromPath);
@@ -144,17 +145,17 @@ function AppContent({ user, profile, permissions, signOut }: any) {
     
     // Читаем ВСЕ query параметры ОДНОВРЕМЕННО
     const fullUrl = window.location.href;
-    console.log('[App] Full URL:', fullUrl);
+    logger.debug('[App] Full URL:', fullUrl);
     const searchIndex = fullUrl.indexOf('?');
     
     if (searchIndex !== -1) {
       const searchString = fullUrl.substring(searchIndex + 1);
-      console.log('[App] Search string:', searchString);
+      logger.debug('[App] Search string:', searchString);
       const params = new URLSearchParams(searchString);
       
       // Логируем все параметры
       for (const [key, value] of params) {
-        console.log('[App] Param found:', key, '=', value);
+        logger.debug('[App] Param found:', key, '=', value);
       }
       
       // Проверяем createCompany
@@ -165,20 +166,20 @@ function AppContent({ user, profile, permissions, signOut }: any) {
       // Проверяем scan (case-insensitive)
       for (const [key, value] of params) {
         if (key.toLowerCase() === 'scan') {
-          console.log('[App] Found scanCode:', value);
+          logger.debug('[App] Found scanCode:', value);
           setInitialScanCode(value);
           break;
         }
       }
     } else {
-      console.log('[App] No query params found');
+      logger.debug('[App] No query params found');
     }
     
     // Резервное чтение из sessionStorage (если URL уже очищен)
     try {
       const pendingScan = sessionStorage.getItem('pending_scan_code');
       if (pendingScan && !initialScanCode) {
-        console.log('[App] Found scanCode in sessionStorage:', pendingScan);
+        logger.debug('[App] Found scanCode in sessionStorage:', pendingScan);
         setInitialScanCode(pendingScan);
       }
     } catch (e) {
@@ -275,14 +276,14 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
 
   // Отслеживаем изменения activeTab
   useEffect(() => {
-    console.log('[App] activeTab changed to:', activeTab);
+    logger.debug('[App] activeTab changed to:', activeTab);
   }, [activeTab]);
 
   // Если есть QR-код из URL - сразу открываем сканер
   useEffect(() => {
-    console.log('[App] Checking initialScanCode:', initialScanCode, 'companyId:', companyId);
+    logger.debug('[App] Checking initialScanCode:', initialScanCode, 'companyId:', companyId);
     if (initialScanCode && companyId) {
-      console.log('[App] Switching to qr-scan tab');
+      logger.debug('[App] Switching to qr-scan tab');
       setActiveTab('qr-scan');
     }
   }, [initialScanCode, companyId]);
@@ -293,7 +294,7 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
     if (activeTab === 'qr-scan') return; // Уже на нужной вкладке
     const fullUrl = window.location.href;
     if (fullUrl.toLowerCase().includes('?scan=') || fullUrl.toLowerCase().includes('&scan=')) {
-      console.log('[App] Found scan in URL, switching to qr-scan');
+      logger.debug('[App] Found scan in URL, switching to qr-scan');
       setActiveTab('qr-scan');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -302,9 +303,9 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
   // Дополнительная проверка при монтировании (только если не на qr-scan уже)
   useEffect(() => {
     if (activeTab === 'qr-scan') return; // Уже на нужной вкладке
-    console.log('[App] Mount check - initialScanCode:', initialScanCode, 'companyId:', companyId);
+    logger.debug('[App] Mount check - initialScanCode:', initialScanCode, 'companyId:', companyId);
     if (initialScanCode && companyId) {
-      console.log('[App] Mount: Switching to qr-scan tab');
+      logger.debug('[App] Mount: Switching to qr-scan tab');
       setActiveTab('qr-scan');
       return;
     }

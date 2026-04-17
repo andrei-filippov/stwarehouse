@@ -33,6 +33,7 @@ import type { Checklist, ChecklistRule, ChecklistItem, Estimate, CableInventory 
 import { supabase } from '../lib/supabase';
 
 import { Spinner } from './ui/spinner';
+import { logger } from '../lib/logger';
 
 interface ChecklistsProps {
   estimates: Estimate[];
@@ -105,7 +106,7 @@ export const ChecklistsManager = memo(function ChecklistsManager({
   }, []);
 
   const handleCreateRule = useCallback(async (rule: any, items?: any[]) => {
-    console.log('[ChecklistsManager] handleCreateRule called with items:', items?.length, items);
+    logger.debug('[ChecklistsManager] handleCreateRule called with items:', items?.length, items);
     const result = await onCreateRule(rule, items);
     if (!result.error) {
       handleCloseRuleDialog();
@@ -630,7 +631,7 @@ function RuleForm({
               inventory_category,
               inventory_qr_code
             }));
-            console.log('[RuleForm] Submitting with items:', itemsToSubmit);
+            logger.debug('[RuleForm] Submitting with items:', itemsToSubmit);
             onSubmit({ name, condition_type: conditionType, condition_value: conditionValue }, itemsToSubmit);
           }}
           className="flex-1"
@@ -837,8 +838,8 @@ function ChecklistView({
     
     // Отладка: показываем что пришло в чек-листе
     const itemsWithQr = checklist.items?.filter(i => i.qr_code) || [];
-    console.log(`[ChecklistView] Loaded checklist: ${checklist.event_name}, items: ${checklist.items?.length}, with QR: ${itemsWithQr.length}`);
-    console.log('[ChecklistView] Items with QR:', itemsWithQr.map(i => ({ name: i.name, qr: i.qr_code })));
+    logger.debug(`[ChecklistView] Loaded checklist: ${checklist.event_name}, items: ${checklist.items?.length}, with QR: ${itemsWithQr.length}`);
+    logger.debug('[ChecklistView] Items with QR:', itemsWithQr.map(i => ({ name: i.name, qr: i.qr_code })));
   }, [checklist.id]);
 
   // Состояние для pending URL scan кода
@@ -847,7 +848,7 @@ function ChecklistView({
   // Обработка URL scan параметра - только сохраняем код
   useEffect(() => {
     if (urlScanCode && !processedUrlScan.current && checklist.items && checklist.items.length > 0) {
-      console.log('[ChecklistView] Received URL scan code:', urlScanCode);
+      logger.debug('[ChecklistView] Received URL scan code:', urlScanCode);
       processedUrlScan.current = true;
       
       // Определяем режим сканирования на основе текущего состояния чеклиста
@@ -858,7 +859,7 @@ function ChecklistView({
       });
       
       const targetMode: 'load' | 'unload' = hasUnloadedItems ? 'load' : 'unload';
-      console.log('[ChecklistView] Auto-selecting scan mode:', targetMode);
+      logger.debug('[ChecklistView] Auto-selecting scan mode:', targetMode);
       
       setScanMode(targetMode);
       setPendingScanCode(urlScanCode);
@@ -868,7 +869,7 @@ function ChecklistView({
   // Обработка pending scan кода (вызовется после определения handleQRScan)
   useEffect(() => {
     if (pendingScanCode) {
-      console.log('[ChecklistView] Processing pending scan code:', pendingScanCode);
+      logger.debug('[ChecklistView] Processing pending scan code:', pendingScanCode);
       setTimeout(() => {
         handleQRScan(pendingScanCode);
         clearUrlScanCode();
@@ -1001,7 +1002,7 @@ function ChecklistView({
   const handleQRScan = useCallback(async (qrCode: string) => {
     const searchCode = qrCode.toUpperCase();
     
-    console.log('[QR Scan] Scanning:', searchCode);
+    logger.debug('[QR Scan] Scanning:', searchCode);
     
     // Задержка 1 секунда перед обработкой сканирования
     await new Promise(resolve => setTimeout(resolve, 1000));
@@ -1015,7 +1016,7 @@ function ChecklistView({
     
     if (kitData && !kitError) {
       // Это комплект - обрабатываем все его позиции
-      console.log('[QR Scan] Found kit:', kitData.name);
+      logger.debug('[QR Scan] Found kit:', kitData.name);
       await handleKitScan(kitData);
       return;
     }
@@ -1060,7 +1061,7 @@ function ChecklistView({
     const currentLoadedQty = baseLoadedQty + localLoaded;
     const currentUnloadedQty = baseUnloadedQty + localUnloaded;
     
-    console.log(`[Equipment Scan] ${item.name}: base=${baseLoadedQty}, local=${localLoaded}, current=${currentLoadedQty}`);
+    logger.debug(`[Equipment Scan] ${item.name}: base=${baseLoadedQty}, local=${localLoaded}, current=${currentLoadedQty}`);
     
     const targetQty = item.quantity || 1;
     
@@ -1076,7 +1077,7 @@ function ChecklistView({
       scanCounterRef.current[item.id].loaded += 1;
       const newTotalQty = currentLoadedQty + 1;
       const isComplete = newTotalQty >= targetQty;
-      console.log(`[Equipment Scan] ${item.name}: +1, newTotal=${newTotalQty}, target=${targetQty}`);
+      logger.debug(`[Equipment Scan] ${item.name}: +1, newTotal=${newTotalQty}, target=${targetQty}`);
       
       let updates: any = {
         loaded_quantity: newTotalQty,
@@ -1192,7 +1193,7 @@ function ChecklistView({
       const actor = await getCurrentUserDisplayName();
       const now = new Date().toISOString();
       
-      console.log('[Kit Scan] Processing kit:', kitData.id, kitData.name);
+      logger.debug('[Kit Scan] Processing kit:', kitData.id, kitData.name);
       
       // Загружаем содержимое комплекта с количеством
       const { data: kitItemsData, error: kitItemsError } = await supabase
@@ -1220,7 +1221,7 @@ function ChecklistView({
         }
       });
       
-      console.log('[Kit Scan] Kit:', kitData.name, 'Equipment:', Object.fromEntries(kitEquipmentMap));
+      logger.debug('[Kit Scan] Kit:', kitData.name, 'Equipment:', Object.fromEntries(kitEquipmentMap));
       
       // Группируем items чек-листа по названию для подсчета
       const checklistItemsByName = new Map<string, typeof checklist.items>();
@@ -1275,7 +1276,7 @@ function ChecklistView({
         // Сколько еще можно отсканировать (не больше чем в комплекте и не больше чем нужно в чек-листе)
         const checklistRemaining = Math.max(0, totalNeeded - alreadyScanned);
         let remainingToScan = Math.min(requiredQty, checklistRemaining);
-        console.log(`[Kit Scan] ${equipmentName}: kitQty=${requiredQty}, needed=${totalNeeded}, scanned=${alreadyScanned}, canAdd=${remainingToScan}`);
+        logger.debug(`[Kit Scan] ${equipmentName}: kitQty=${requiredQty}, needed=${totalNeeded}, scanned=${alreadyScanned}, canAdd=${remainingToScan}`);
         
         for (const item of uniqueItems) {
           if (remainingToScan <= 0) break;
@@ -1294,7 +1295,7 @@ function ChecklistView({
           
           // Сколько можно добавить к этой позиции
           const canAdd = Math.min(remainingToScan, itemNeeded - currentQty);
-          console.log(`[Kit Scan] ${equipmentName}: item=${item.name}, currentQty=${currentQty}, itemNeeded=${itemNeeded}, canAdd=${canAdd}`);
+          logger.debug(`[Kit Scan] ${equipmentName}: item=${item.name}, currentQty=${currentQty}, itemNeeded=${itemNeeded}, canAdd=${canAdd}`);
           
           if (canAdd > 0) {
             // Увеличиваем локальный счетчик комплекта
@@ -1304,7 +1305,7 @@ function ChecklistView({
             kitScanCounterRef.current[localKey][scanModeField] += canAdd;
             
             const newTotalQty = currentQty + canAdd;
-            console.log(`[Kit Scan] ${equipmentName}: currentQty=${currentQty}, canAdd=${canAdd}, newTotalQty=${newTotalQty}`);
+            logger.debug(`[Kit Scan] ${equipmentName}: currentQty=${currentQty}, canAdd=${canAdd}, newTotalQty=${newTotalQty}`);
             
             // Определяем статус на основе количества
             const isComplete = newTotalQty >= itemNeeded;
@@ -1374,7 +1375,7 @@ function ChecklistView({
         results.push(`${statusIcon} ${equipmentName}: ${finalScanned} из ${requiredQty}`);
       }
       
-      console.log(`[Kit Scan] Total updated: ${updatedCount}, scanMode=${scanMode}`);
+      logger.debug(`[Kit Scan] Total updated: ${updatedCount}, scanMode=${scanMode}`);
       
       // Показываем детальный результат
       if (updatedCount > 0) {

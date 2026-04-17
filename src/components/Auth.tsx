@@ -5,6 +5,7 @@ import { Label } from './ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Package, AlertCircle, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { logger } from '../lib/logger';
 
 interface AuthProps {
   onSignIn: (email: string, password: string) => Promise<{ error: any }>;
@@ -24,11 +25,11 @@ export function Auth({ onSignIn, onSignUp }: AuthProps) {
     setError('');
     setLoading(true);
 
-    console.log('Form submitted:', { isLogin, email: email.trim(), passwordLength: password?.length });
+    logger.debug('Form submitted:', { isLogin, email: email.trim(), passwordLength: password?.length });
 
     if (isLogin) {
       const { error } = await onSignIn(email.trim(), password);
-      console.log('SignIn result:', { error: error?.message || 'none' });
+      logger.debug('SignIn result:', { error: error?.message || 'none' });
       if (error) setError(error.message || 'Ошибка входа');
     } else {
       const { error } = await onSignUp(email.trim(), password, name.trim());

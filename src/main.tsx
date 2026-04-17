@@ -12,7 +12,8 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js')
       .then((registration) => {
-        console.log('SW registered:', registration);
+        logger.debug('SW registered:', registration);
+import { logger } from './lib/logger';
         
         // Проверяем обновления каждые 60 минут
         setInterval(() => {
@@ -26,7 +27,7 @@ if ('serviceWorker' in navigator) {
             newWorker.addEventListener('statechange', () => {
               if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                 // Новый SW установлен, но ждёт активации
-                console.log('New version available!');
+                logger.debug('New version available!');
                 // Можно показать уведомление пользователю
                 if (confirm('Доступна новая версия приложения. Обновить?')) {
                   newWorker.postMessage('SKIP_WAITING');
@@ -38,7 +39,7 @@ if ('serviceWorker' in navigator) {
         });
       })
       .catch((error) => {
-        console.log('SW registration failed:', error);
+        logger.debug('SW registration failed:', error);
       });
     
     // Обработка сообщений от SW
