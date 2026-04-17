@@ -85,13 +85,13 @@ export function AuditLogs() {
     search: search || undefined,
   }), [selectedAction, selectedEntity, dateFrom, dateTo, search]);
 
+  const { logs, loading, error, totalCount, refetch } = useAuditLogs(filters, 200);
+
   // Фильтрация значимых действий (без view/login/logout если не включено)
   const displayedLogs = useMemo(() => {
     if (showAllActions) return logs;
     return logs.filter(log => !['view', 'login', 'logout'].includes(log.action));
   }, [logs, showAllActions]);
-
-  const { logs, loading, error, totalCount, refetch } = useAuditLogs(filters, 200);
 
   const handleRefresh = () => {
     refetch();
