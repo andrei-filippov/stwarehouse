@@ -293,7 +293,174 @@ function cleanText(text: string | undefined | null): string {
   return text.replace(/<[^>]*>/g, '').trim();
 }
 
+function escapeXml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
 
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+}
+
+// Генерация OOXML таблицы спецификации для вставки в DOCX
+function generateSpecTableOOXML(estimates: Contract['estimates']): string {
+  if (!estimates || estimates.length === 0) {
+    return '<w:p><w:r><w:t>Сметы не привязаны</w:t></w:r></w:p>';
+  }
+
+  let globalIndex = 1;
+  let hasItems = false;
+  let rowsXml = '';
+
+  estimates.forEach((ce) => {
+    const estimate = ce.estimate;
+    if (!estimate || !estimate.items || estimate.items.length === 0) return;
+
+    hasItems = true;
+
+    const grouped = estimate.items.reduce((acc, item) => {
+      if (!acc[item.category]) acc[item.category] = [];
+      acc[item.category].push(item);
+      return acc;
+    }, {} as Record<string, NonNullable<typeof estimate.items>>);
+
+    const categoryOrder = estimate.category_order || [];
+    const allCategories = Object.keys(grouped);
+
+    const sortedCategories = [...allCategories].sort((a, b) => {
+      const indexA = categoryOrder.indexOf(a);
+      const indexB = categoryOrder.indexOf(b);
+      if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+      if (indexA !== -1) return -1;
+      if (indexB !== -1) return 1;
+      return allCategories.indexOf(a) - allCategories.indexOf(b);
+    });
+
+    sortedCategories.forEach((category) => {
+      // Строка категории
+      rowsXml += `<w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="5000" w:type="pct"/>
+            <w:gridSpan w:val="7"/>
+            <w:shd w:val="clear" w:color="auto" w:fill="F5F5F5"/>
+          </w:tcPr>
+          <w:p>
+            <w:pPr><w:jc w:val="left"/></w:pPr>
+            <w:r><w:rPr><w:b/><w:bCs/></w:rPr><w:t>${escapeXml(category)}</w:t></w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>`;
+
+      const items = grouped[category];
+      items?.forEach((item) => {
+        const coefficient = item.coefficient || 1;
+        const sum = item.price * item.quantity * coefficient;
+        const coefStr = coefficient !== 1 ? coefficient.toFixed(2).replace(/\.00$/, '') : '-';
+
+        let name = escapeXml(item.name);
+        if (item.description && item.description.trim()) {
+          name += `; ${escapeXml(stripHtml(item.description))}`;
+        }
+
+        rowsXml += `<w:tr>
+          <w:tc>
+            <w:tcPr><w:tcW w:w="5" w:type="pct"/></w:tcPr>
+            <w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:t>${globalIndex++}</w:t></w:r></w:p>
+          </w:tc>
+          <w:tc>
+            <w:tcPr><w:tcW w:w="40" w:type="pct"/></w:tcPr>
+            <w:p><w:pPr><w:jc w:val="left"/></w:pPr><w:r><w:t>${name}</w:t></w:r></w:p>
+          </w:tc>
+          <w:tc>
+            <w:tcPr><w:tcW w:w="8" w:type="pct"/></w:tcPr>
+            <w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:t>${item.quantity}</w:t></w:r></w:p>
+          </w:tc>
+          <w:tc>
+            <w:tcPr><w:tcW w:w="7" w:type="pct"/></w:tcPr>
+            <w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:t>${escapeXml(item.unit || 'шт')}</w:t></w:r></w:p>
+          </w:tc>
+          <w:tc>
+            <w:tcPr><w:tcW w:w="12" w:type="pct"/></w:tcPr>
+            <w:p><w:pPr><w:jc w:val="right"/></w:pPr><w:r><w:t>${item.price.toLocaleString('ru-RU').replace(/\u00A0/g, ' ')}</w:t></w:r></w:p>
+          </w:tc>
+          <w:tc>
+            <w:tcPr><w:tcW w:w="8" w:type="pct"/></w:tcPr>
+            <w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:t>${coefStr}</w:t></w:r></w:p>
+          </w:tc>
+          <w:tc>
+            <w:tcPr><w:tcW w:w="12" w:type="pct"/></w:tcPr>
+            <w:p><w:pPr><w:jc w:val="right"/></w:pPr><w:r><w:t>${sum.toLocaleString('ru-RU').replace(/\u00A0/g, ' ')}</w:t></w:r></w:p>
+          </w:tc>
+        </w:tr>`;
+      });
+    });
+  });
+
+  if (!hasItems) {
+    return '<w:p><w:r><w:t>Позиции сметы не найдены</w:t></w:r></w:p>';
+  }
+
+  return `<w:tbl>
+    <w:tblPr>
+      <w:tblBorders>
+        <w:top w:val="single" w:sz="4" w:space="0" w:color="auto"/>
+        <w:bottom w:val="single" w:sz="4" w:space="0" w:color="auto"/>
+        <w:left w:val="single" w:sz="4" w:space="0" w:color="auto"/>
+        <w:right w:val="single" w:sz="4" w:space="0" w:color="auto"/>
+        <w:insideH w:val="single" w:sz="4" w:space="0" w:color="auto"/>
+        <w:insideV w:val="single" w:sz="4" w:space="0" w:color="auto"/>
+      </w:tblBorders>
+      <w:tblW w:w="5000" w:type="pct"/>
+      <w:tblLayout w:type="fixed"/>
+    </w:tblPr>
+    <w:tblGrid>
+      <w:gridCol w:w="500"/>
+      <w:gridCol w:w="4000"/>
+      <w:gridCol w:w="800"/>
+      <w:gridCol w:w="700"/>
+      <w:gridCol w:w="1200"/>
+      <w:gridCol w:w="800"/>
+      <w:gridCol w:w="1200"/>
+    </w:tblGrid>
+    <w:tr>
+      <w:trPr><w:tblHeader/></w:trPr>
+      <w:tc>
+        <w:tcPr><w:tcW w:w="5" w:type="pct"/><w:shd w:val="clear" w:color="auto" w:fill="E5E5E5"/></w:tcPr>
+        <w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/><w:bCs/></w:rPr><w:t>№</w:t></w:r></w:p>
+      </w:tc>
+      <w:tc>
+        <w:tcPr><w:tcW w:w="40" w:type="pct"/><w:shd w:val="clear" w:color="auto" w:fill="E5E5E5"/></w:tcPr>
+        <w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/><w:bCs/></w:rPr><w:t>Наименование</w:t></w:r></w:p>
+      </w:tc>
+      <w:tc>
+        <w:tcPr><w:tcW w:w="8" w:type="pct"/><w:shd w:val="clear" w:color="auto" w:fill="E5E5E5"/></w:tcPr>
+        <w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/><w:bCs/></w:rPr><w:t>Кол-во</w:t></w:r></w:p>
+      </w:tc>
+      <w:tc>
+        <w:tcPr><w:tcW w:w="7" w:type="pct"/><w:shd w:val="clear" w:color="auto" w:fill="E5E5E5"/></w:tcPr>
+        <w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/><w:bCs/></w:rPr><w:t>Ед.</w:t></w:r></w:p>
+      </w:tc>
+      <w:tc>
+        <w:tcPr><w:tcW w:w="12" w:type="pct"/><w:shd w:val="clear" w:color="auto" w:fill="E5E5E5"/></w:tcPr>
+        <w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/><w:bCs/></w:rPr><w:t>Цена</w:t></w:r></w:p>
+      </w:tc>
+      <w:tc>
+        <w:tcPr><w:tcW w:w="8" w:type="pct"/><w:shd w:val="clear" w:color="auto" w:fill="E5E5E5"/></w:tcPr>
+        <w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/><w:bCs/></w:rPr><w:t>Коэф.</w:t></w:r></w:p>
+      </w:tc>
+      <w:tc>
+        <w:tcPr><w:tcW w:w="12" w:type="pct"/><w:shd w:val="clear" w:color="auto" w:fill="E5E5E5"/></w:tcPr>
+        <w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/><w:bCs/></w:rPr><w:t>Сумма</w:t></w:r></w:p>
+      </w:tc>
+    </w:tr>
+    ${rowsXml}
+  </w:tbl>`;
+}
 
 // Экспорт в DOC формат (Word 97-2003)
 // На самом деле создаем HTML с Word-специфичными тегами, который Word откроет как DOC
@@ -531,6 +698,12 @@ export async function exportContractToDOCX(
   try {
     const arrayBuffer = await blob.arrayBuffer();
     const zip = new PizZip(arrayBuffer);
+
+    // Заменяем плейсхолдер спецификации на raw-тег для вставки OOXML-таблицы
+    let docXml = zip.file('word/document.xml')?.asText() || '';
+    docXml = docXml.replace(/\{\{specification_table\}\}/g, '{@specification_table}');
+    zip.file('word/document.xml', docXml);
+
     const doc = new Docxtemplater(zip, {
       paragraphLoop: true,
       linebreaks: true,
@@ -543,16 +716,8 @@ export async function exportContractToDOCX(
     for (const [key, value] of Object.entries(templateData)) {
       let str = String(value ?? '');
       if (key === 'specification_table') {
-        // Преобразуем HTML-таблицу в текст с переносами строк для Word
-        str = str
-          .replace(/<\/tr>/gi, '\n')
-          .replace(/<\/td>/gi, '\t')
-          .replace(/<\/th>/gi, '\t')
-          .replace(/<[^>]+>/g, '')
-          .replace(/&nbsp;/g, ' ')
-          .replace(/&nbsp;/g, ' ')
-          .replace(/\n\s*\n/g, '\n')
-          .trim();
+        // Вставляем настоящую таблицу Word (OOXML) вместо plain text
+        str = generateSpecTableOOXML(contract.estimates);
       }
       renderData[key] = str;
     }
