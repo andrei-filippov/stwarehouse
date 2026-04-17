@@ -570,7 +570,11 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
         category: category?.name || 'Без категории',
         quantity: 1,
         is_required: true,
-        is_checked: false
+        is_checked: false,
+        inventory_id: item.id || null,
+        qr_code: item.qr_code || null,
+        watts: item.watts || null,
+        category_type: category?.type || 'other'
       };
       
       console.log('[QRScan] Insert data:', insertData);
@@ -1506,6 +1510,59 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
             
             <DialogFooter>
               <Button onClick={() => setActiveAction(null)}>Закрыть</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        
+        {/* Диалог выбора чек-листа */}
+        <Dialog open={activeAction === 'checklist'} onOpenChange={() => setActiveAction(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <ClipboardCheck className="w-5 h-5" />
+                Добавить в чек-лист
+              </DialogTitle>
+            </DialogHeader>
+            
+            <div className="space-y-3">
+              {checklists.length === 0 ? (
+                <div className="text-center py-6 text-muted-foreground">
+                  <p>Нет активных чек-листов</p>
+                  <Button 
+                    variant="link" 
+                    onClick={() => { setActiveAction(null); goToChecklists(); }}
+                    className="mt-2"
+                  >
+                    Перейти к чек-листам
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {checklists.map((checklist) => (
+                    <Button
+                      key={checklist.id}
+                      variant="outline"
+                      className="w-full justify-start h-auto py-3 px-4 text-left"
+                      onClick={() => handleAddToChecklist(checklist.id)}
+                      disabled={submitting}
+                    >
+                      <div className="w-10 h-10 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center mr-3 shrink-0">
+                        <ClipboardCheck className="w-5 h-5 text-green-600 dark:text-green-400" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">{checklist.event_name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(checklist.event_date).toLocaleDateString('ru-RU')} • {checklist.items?.length || 0} позиций
+                        </p>
+                      </div>
+                    </Button>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setActiveAction(null)}>Отмена</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
