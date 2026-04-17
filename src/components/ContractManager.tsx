@@ -23,6 +23,7 @@ import { ContractPreview } from './ContractPreview';
 import { ContractDetail } from './ContractDetail';
 import { useCompanyBankAccounts } from '../hooks/useCompanyBankAccounts';
 import { useCompanyContext } from '../contexts/CompanyContext';
+import { logAction } from '../hooks/useAuditLogs';
 import { toast } from 'sonner';
 
 interface ContractManagerProps {
@@ -84,6 +85,7 @@ export const ContractManager = memo(function ContractManager({
   }, []);
 
   const handleEdit = useCallback((contract: Contract) => {
+    logAction('view', 'contract', contract.id, contract.number || contract.event_name).catch(() => {});
     setEditingContract(contract);
     setIsFormOpen(true);
   }, []);
@@ -94,6 +96,7 @@ export const ContractManager = memo(function ContractManager({
   }, []);
 
   const handleOpenDetail = useCallback((contract: Contract) => {
+    logAction('view', 'contract', contract.id, contract.number || contract.event_name).catch(() => {});
     setSelectedContract(contract);
   }, []);
 

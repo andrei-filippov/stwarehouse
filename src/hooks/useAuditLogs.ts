@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 
 export type AuditAction = 'create' | 'update' | 'delete' | 'view' | 'login' | 'logout';
-export type EntityType = 'estimate' | 'estimate_item' | 'equipment' | 'customer' | 'staff' | 'contract' | 'user' | 'template';
+export type EntityType = 'estimate' | 'estimate_item' | 'equipment' | 'customer' | 'staff' | 'contract' | 'user' | 'template' | 'checklist' | 'checklist_item' | 'inventory' | 'movement' | 'repair' | 'kit';
 
 export interface AuditLog {
   id: string;
@@ -15,6 +15,8 @@ export interface AuditLog {
   entity_name: string | null;
   old_data: any;
   new_data: any;
+  ip_address?: string;
+  user_agent?: string;
   created_at: string;
 }
 
@@ -45,6 +47,12 @@ const ENTITY_LABELS: Record<EntityType, string> = {
   contract: 'Договор',
   user: 'Пользователь',
   template: 'Шаблон',
+  checklist: 'Чек-лист',
+  checklist_item: 'Позиция чек-листа',
+  inventory: 'Инвентарь',
+  movement: 'Перемещение',
+  repair: 'Ремонт',
+  kit: 'Комплект',
 };
 
 export function getActionLabel(action: AuditAction): string {

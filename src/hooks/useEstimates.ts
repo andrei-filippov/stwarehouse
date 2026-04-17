@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
 import { debugLog, debugError } from '../lib/utils';
+import { logAction } from './useAuditLogs';
 import type { Estimate, EstimateItem } from '../types';
 import {
   initOfflineDB,
@@ -263,6 +264,12 @@ export function useEstimates(companyId: string | undefined) {
     const isLocalId = estimateId.startsWith('local_');
     if (isLocalId || !isOnline()) return { error: null };
     
+    // Логируем просмотр сметы
+    const estimate = estimates.find(e => e.id === estimateId);
+    if (estimate) {
+      logAction('view', 'estimate', estimateId, estimate.event_name).catch(() => {});
+    }
+
     const { error } = await supabase
       .from('estimates')
       .update({

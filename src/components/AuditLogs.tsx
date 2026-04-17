@@ -43,6 +43,12 @@ const ENTITY_TYPES: { value: EntityType | 'all'; label: string }[] = [
   { value: 'contract', label: 'Договоры' },
   { value: 'template', label: 'Шаблоны' },
   { value: 'user', label: 'Пользователи' },
+  { value: 'checklist', label: 'Чек-листы' },
+  { value: 'checklist_item', label: 'Позиции чек-листов' },
+  { value: 'inventory', label: 'Инвентарь' },
+  { value: 'movement', label: 'Перемещения' },
+  { value: 'repair', label: 'Ремонты' },
+  { value: 'kit', label: 'Комплекты' },
 ];
 
 const ACTION_COLORS: Record<string, string> = {
@@ -69,6 +75,7 @@ export function AuditLogs() {
   const [dateTo, setDateTo] = useState('');
   const [selectedLog, setSelectedLog] = useState<any>(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [showAllActions, setShowAllActions] = useState(false);
 
   const filters = useMemo(() => ({
     action: selectedAction === 'all' ? undefined : selectedAction,
@@ -77,6 +84,12 @@ export function AuditLogs() {
     dateTo: dateTo || undefined,
     search: search || undefined,
   }), [selectedAction, selectedEntity, dateFrom, dateTo, search]);
+
+  // Фильтрация значимых действий (без view/login/logout если не включено)
+  const displayedLogs = useMemo(() => {
+    if (showAllActions) return logs;
+    return logs.filter(log => !['view', 'login', 'logout'].includes(log.action));
+  }, [logs, showAllActions]);
 
   const { logs, loading, error, totalCount, refetch } = useAuditLogs(filters, 200);
 
@@ -147,6 +160,11 @@ export function AuditLogs() {
                 <CardTitle>Журнал аудита</CardTitle>
                 <p className="text-sm text-gray-500">
                   Всего записей: {totalCount}
+                  {displayedLogs.length !== logs.length && (
+                    <span className="text-xs text-muted-foreground ml-2">
+                      (показано {displayedLogs.length} из {logs.length})
+                    </span>
+                  )}
                 </p>
               </div>
             </div>
@@ -179,6 +197,23 @@ export function AuditLogs() {
                 Фильтры
                 {showFilters ? <ChevronUp className="w-4 h-4 ml-2" /> : <ChevronDown className="w-4 h-4 ml-2" />}
               </Button>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={showAllActions}
+                  onChange={(e) => setShowAllActions(e.target.checked)}
+                  className="rounded border-gray-300"
+                />
+                <span className="text-muted-foreground">Показать просмотры и входы/выходы</span>
+              </label>
+              {!showAllActions && (
+                <Badge variant="secondary" className="text-xs">
+                  Скрыто: просмотры, входы, выходы
+                </Badge>
+              )}
             </div>
 
             {showFilters && (
@@ -253,7 +288,7 @@ export function AuditLogs() {
             <div className="border rounded-lg overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-muted border-b">
+                  <thead className="bg-muted border-b sticky top-0">
                     <tr>
                       <th className="text-left py-2 px-3 font-medium text-gray-600">Время</th>
                       <th className="text-left py-2 px-3 font-medium text-gray-600">Пользователь</th>
@@ -264,42 +299,61 @@ export function AuditLogs() {
                     </tr>
                   </thead>
                   <tbody>
-                    {logs.map((log) => (
-                      <tr key={log.id} className="border-b hover:bg-muted">
-                        <td className="py-2 px-3 text-gray-600 whitespace-nowrap">
-                          {formatDate(log.created_at)}
-                        </td>
-                        <td className="py-2 px-3">
-                          <div className="flex items-center gap-1">
-                            <User className="w-3 h-3 text-gray-400" />
-                            <span className="truncate max-w-[120px]">{log.user_name || 'Unknown'}</span>
-                          </div>
-                        </td>
-                        <td className="py-2 px-3">
-                          <Badge variant="outline" className={getActionColor(log.action)}>
-                            {getActionLabel(log.action as any)}
-                          </Badge>
-                        </td>
-                        <td className="py-2 px-3 text-gray-600">
-                          {getEntityLabel(log.entity_type)}
-                        </td>
-                        <td className="py-2 px-3 truncate max-w-[200px]">
-                          {log.entity_name || '-'}
-                        </td>
-                        <td className="py-2 px-3 text-center">
-                          {(log.old_data || log.new_data) && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0"
-                              onClick={() => setSelectedLog(log)}
-                            >
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                    {(() => {
+                      let lastDate = '';
+                      return displayedLogs.map((log) => {
+                        const logDate = format(new Date(log.created_at), 'dd.MM.yyyy', { locale: ru });
+                        const isNewDate = logDate !== lastDate;
+                        lastDate = logDate;
+                        return (
+                          <>
+                            {isNewDate && (
+                              <tr className="bg-gray-100 dark:bg-gray-800/50">
+                                <td colSpan={6} className="py-1 px-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                  {logDate === format(new Date(), 'dd.MM.yyyy', { locale: ru }) ? 'Сегодня' :
+                                   logDate === format(new Date(Date.now() - 86400000), 'dd.MM.yyyy', { locale: ru }) ? 'Вчера' :
+                                   logDate}
+                                </td>
+                              </tr>
+                            )}
+                            <tr key={log.id} className="border-b hover:bg-muted/50 transition-colors">
+                              <td className="py-2 px-3 text-gray-600 whitespace-nowrap">
+                                {format(new Date(log.created_at), 'HH:mm:ss')}
+                              </td>
+                              <td className="py-2 px-3">
+                                <div className="flex items-center gap-1">
+                                  <User className="w-3 h-3 text-gray-400 shrink-0" />
+                                  <span className="truncate max-w-[120px]">{log.user_name || 'Unknown'}</span>
+                                </div>
+                              </td>
+                              <td className="py-2 px-3">
+                                <Badge variant="outline" className={getActionColor(log.action)}>
+                                  {getActionLabel(log.action as any)}
+                                </Badge>
+                              </td>
+                              <td className="py-2 px-3 text-gray-600">
+                                {getEntityLabel(log.entity_type)}
+                              </td>
+                              <td className="py-2 px-3 truncate max-w-[200px]">
+                                {log.entity_name || '-'}
+                              </td>
+                              <td className="py-2 px-3 text-center">
+                                {(log.old_data || log.new_data) && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0"
+                                    onClick={() => setSelectedLog(log)}
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                  </Button>
+                                )}
+                              </td>
+                            </tr>
+                          </>
+                        );
+                      });
+                    })()}
                   </tbody>
                 </table>
               </div>
@@ -342,6 +396,12 @@ export function AuditLogs() {
                     <p className="text-gray-400 text-xs truncate">{selectedLog.entity_name}</p>
                   )}
                 </div>
+                {selectedLog.ip_address && (
+                  <div>
+                    <p className="text-gray-500">IP-адрес</p>
+                    <p className="font-medium text-xs font-mono">{selectedLog.ip_address}</p>
+                  </div>
+                )}
               </div>
 
               <div className="border rounded-lg p-3 bg-muted">

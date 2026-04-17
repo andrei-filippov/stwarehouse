@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import type { Equipment } from '../types';
 import { TransferToInventoryDialog } from './TransferToInventoryDialog';
 import { useDebounce } from '../hooks/useDebounce';
+import { logAction } from '../hooks/useAuditLogs';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 
@@ -135,6 +136,14 @@ export function EquipmentManager({
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 200); // 200ms задержка
   const [editingItem, setEditingItem] = useState<Equipment | null>(null);
+
+  // Логируем просмотр оборудования при открытии редактирования
+  useEffect(() => {
+    if (editingItem) {
+      logAction('view', 'equipment', editingItem.id, editingItem.name).catch(() => {});
+    }
+  }, [editingItem]);
+
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [importData, setImportData] = useState<any[]>([]);
