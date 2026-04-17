@@ -279,10 +279,15 @@ export function AuditLogs() {
                 Повторить
               </Button>
             </div>
-          ) : logs.length === 0 ? (
+          ) : displayedLogs.length === 0 ? (
             <div className="text-center py-8 text-gray-400">
               <History className="w-12 h-12 mx-auto mb-2 opacity-30" />
               <p>Нет записей в журнале</p>
+              {!showAllActions && logs.length > 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {logs.length} записей скрыто (просмотры, входы, выходы)
+                </p>
+              )}
             </div>
           ) : (
             <div className="border rounded-lg overflow-hidden">
