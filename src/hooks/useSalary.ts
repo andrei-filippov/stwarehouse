@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
 
@@ -46,6 +46,7 @@ export interface SalaryRecord {
 export function useSalary(companyId: string | undefined) {
   const [records, setRecords] = useState<SalaryRecord[]>([]);
   const [loading, setLoading] = useState(false);
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchRecords = useCallback(async () => {
     if (!companyId) return;
@@ -169,13 +170,15 @@ export function useSalary(companyId: string | undefined) {
         }
       }
 
-      await fetchRecords();
+      // Не вызываем fetchRecords — realtime подписка сама обновит данные
+      // Если realtime не сработал, данные обновятся при следующем открытии вкладки
+      toast.success('Сохранено');
       return { error: null };
     } catch (err: any) {
       toast.error('Ошибка при сохранении', { description: err.message });
       return { error: err };
     }
-  }, [companyId, fetchRecords]);
+  }, [companyId]);
 
   const deleteRecord = useCallback(async (id: string) => {
     if (!companyId) return { error: new Error('No company selected') };
@@ -189,17 +192,26 @@ export function useSalary(companyId: string | undefined) {
 
       if (error) throw error;
 
-      await fetchRecords();
       toast.success('Запись удалена');
       return { error: null };
     } catch (err: any) {
       toast.error('Ошибка при удалении', { description: err.message });
       return { error: err };
     }
-  }, [companyId, fetchRecords]);
+  }, [companyId]);
 
   useEffect(() => {
     fetchRecords();
+  }, [fetchRecords]);
+
+  // Debounced fetch для realtime подписки
+  const debouncedFetchRecords = useCallback(() => {
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+    debounceTimeoutRef.current = setTimeout(() => {
+      fetchRecords();
+    }, 500);
   }, [fetchRecords]);
 
   useEffect(() => {
@@ -209,14 +221,17 @@ export function useSalary(companyId: string | undefined) {
       .channel('salary-changes')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'salary_records', filter: `company_id=eq.${companyId}` },
-        () => fetchRecords()
+        () => debouncedFetchRecords()
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
     };
-  }, [fetchRecords, companyId]);
+  }, [debouncedFetchRecords, companyId]);
 
   return {
     records,

@@ -137,7 +137,12 @@ export function StaffSalaryCard({
               <div className="mt-2 space-y-1.5">
                 {projects.map((project, idx) => (
                   <div key={idx} className="flex justify-between text-sm pl-4 py-1 hover:bg-muted/50 rounded">
-                    <span className="text-muted-foreground">{project.name}</span>
+                    <div className="flex flex-col">
+                      <span className="text-muted-foreground">{project.name}</span>
+                      <span className="text-xs text-muted-foreground/60">
+                        {project.date ? new Date(project.date).toLocaleDateString('ru-RU') : '-'}
+                      </span>
+                    </div>
                     <span className="font-medium">{project.amount.toLocaleString('ru-RU')} ₽</span>
                   </div>
                 ))}
