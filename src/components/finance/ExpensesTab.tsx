@@ -114,11 +114,12 @@ export function ExpensesTab({ expenses, onAdd, onDelete }: ExpensesTabProps) {
   }, [expenses, activeFilter, activeMonth, showAllMonths, searchQuery]);
 
   // Суммы за выбранный месяц
-  const monthTotal = useMemo(() => 
-    expenses
-      .filter(e => !showAllMonths || format(new Date(e.date), 'yyyy-MM') === activeMonth)
-      .reduce((sum, e) => sum + e.amount, 0),
-  [expenses, activeMonth, showAllMonths]);
+  const monthTotal = useMemo(() => {
+    const filtered = showAllMonths
+      ? expenses
+      : expenses.filter(e => format(new Date(e.date), 'yyyy-MM') === activeMonth);
+    return filtered.reduce((sum, e) => sum + e.amount, 0);
+  }, [expenses, activeMonth, showAllMonths]);
 
   // Общая сумма
   const totalExpenses = useMemo(() => 
