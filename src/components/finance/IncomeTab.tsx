@@ -1,12 +1,12 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Plus, FileText, CheckCircle2, Clock, Calendar, Trash2, TrendingUp } from 'lucide-react';
+import { Plus, FileText, CheckCircle2, Clock, Calendar, Trash2, TrendingUp, Search, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { format } from 'date-fns';
+import { format, parseISO, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import type { Estimate } from '../../types';
 import type { Income } from '../../types/finance';
@@ -31,6 +31,10 @@ interface LegacyManualIncome {
 
 export function IncomeTab({ estimates, incomes = [], companyId, onAddIncome, onDeleteIncome }: IncomeTabProps) {
   const [activeFilter, setActiveFilter] = useState<IncomeFilter>('all');
+  const [activeMonth, setActiveMonth] = useState(format(new Date(), 'yyyy-MM'));
+  const [showAllMonths, setShowAllMonths] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set([format(new Date(), 'yyyy-MM')]));
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newIncome, setNewIncome] = useState({
     date: format(new Date(), 'yyyy-MM-dd'),
@@ -111,9 +115,90 @@ export function IncomeTab({ estimates, incomes = [], companyId, onAddIncome, onD
     return incomes.filter(i => i.type === 'manual');
   }, [incomes]);
 
+  // Объединяем все доходы для фильтрации по месяцу
+  const allIncomes = useMemo(() => {
+    const combined = [
+      ...estimateIncomes.map(i => ({ ...i, kind: 'estimate' as const })),
+      ...manualIncomes.map(i => ({ ...i, kind: 'manual' as const })),
+      ...pendingIncomes.map(i => ({ ...i, kind: 'pending' as const })),
+    ];
+    // Сортировка по дате — свежие сверху
+    return combined.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [estimateIncomes, manualIncomes, pendingIncomes]);
+
+  // Фильтрация по месяцу и поиску
+  const filteredByMonth = useMemo(() => {
+    let result = allIncomes;
+    
+    // Фильтр по месяцу (если не "Все время")
+    if (!showAllMonths) {
+      result = result.filter(i => {
+        const d = new Date(i.date);
+        return format(d, 'yyyy-MM') === activeMonth;
+      });
+    }
+    
+    // Поиск
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(i => 
+        i.source.toLowerCase().includes(q) ||
+        (i as any).description?.toLowerCase().includes(q)
+      );
+    }
+    
+    return result;
+  }, [allIncomes, activeMonth, showAllMonths, searchQuery]);
+
+  // Суммы за выбранный месяц
+  const monthEstimateIncome = useMemo(() => 
+    filteredByMonth.filter(i => i.kind === 'estimate').reduce((sum, i) => sum + i.amount, 0),
+  [filteredByMonth]);
+  const monthManualIncome = useMemo(() => 
+    filteredByMonth.filter(i => i.kind === 'manual').reduce((sum, i) => sum + i.amount, 0),
+  [filteredByMonth]);
+  const monthPendingIncome = useMemo(() => 
+    filteredByMonth.filter(i => i.kind === 'pending').reduce((sum, i) => sum + i.amount, 0),
+  [filteredByMonth]);
+
+  // Общие суммы (всё время)
   const totalEstimateIncome = estimateIncomes.reduce((sum, i) => sum + i.amount, 0);
   const totalManualIncome = manualIncomes.reduce((sum, i) => sum + i.amount, 0);
   const totalPendingIncome = pendingIncomes.reduce((sum, i) => sum + i.amount, 0);
+
+  // Группировка по месяцам для отображения
+  const groupedByMonth = useMemo(() => {
+    const groups: Record<string, typeof filteredByMonth> = {};
+    filteredByMonth.forEach(item => {
+      const monthKey = format(new Date(item.date), 'yyyy-MM');
+      if (!groups[monthKey]) groups[monthKey] = [];
+      groups[monthKey].push(item);
+    });
+    // Сортировка месяцев — свежие сверху
+    return Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]));
+  }, [filteredByMonth]);
+
+  // Список месяцев для селектора (последние 24)
+  const monthOptions = useMemo(() => {
+    const options = [];
+    const now = new Date();
+    for (let i = 0; i < 24; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const value = format(d, 'yyyy-MM');
+      const label = format(d, 'MMMM yyyy', { locale: ru });
+      options.push({ value, label: label.charAt(0).toUpperCase() + label.slice(1) });
+    }
+    return options;
+  }, []);
+
+  const toggleMonth = (monthKey: string) => {
+    setExpandedMonths(prev => {
+      const next = new Set(prev);
+      if (next.has(monthKey)) next.delete(monthKey);
+      else next.add(monthKey);
+      return next;
+    });
+  };
 
   const handleAddIncome = async () => {
     if (!newIncome.source || !newIncome.amount || !onAddIncome) return;
@@ -142,6 +227,53 @@ export function IncomeTab({ estimates, incomes = [], companyId, onAddIncome, onD
 
   return (
     <div className="space-y-6">
+      {/* Month Selector + Search */}
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 bg-muted rounded-lg p-1">
+            <button
+              onClick={() => setShowAllMonths(false)}
+              className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                !showAllMonths ? 'bg-background shadow-sm font-medium' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Месяц
+            </button>
+            <button
+              onClick={() => setShowAllMonths(true)}
+              className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                showAllMonths ? 'bg-background shadow-sm font-medium' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Всё время
+            </button>
+          </div>
+          {!showAllMonths && (
+            <select
+              value={activeMonth}
+              onChange={(e) => {
+                setActiveMonth(e.target.value);
+                setExpandedMonths(new Set([e.target.value]));
+              }}
+              className="border rounded-md px-3 py-2 text-sm bg-background"
+            >
+              {monthOptions.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          )}
+        </div>
+        <div className="relative w-full sm:w-64">
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Поиск..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+      </div>
+
       {/* Summary - Filter Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card 
@@ -153,14 +285,22 @@ export function IncomeTab({ estimates, incomes = [], companyId, onAddIncome, onD
           onClick={() => setActiveFilter('all')}
         >
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-foreground">Всего</CardTitle>
+            <CardTitle className="text-sm text-foreground">
+              {showAllMonths ? 'Всего' : 'Всего за месяц'}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-foreground">
-              {(totalEstimateIncome + totalManualIncome).toLocaleString('ru-RU')} ₽
+              {showAllMonths 
+                ? (totalEstimateIncome + totalManualIncome).toLocaleString('ru-RU')
+                : (monthEstimateIncome + monthManualIncome).toLocaleString('ru-RU')
+              } ₽
             </div>
             <p className="text-xs text-muted-foreground">
-              {estimateIncomes.length + manualIncomes.length} записей
+              {showAllMonths 
+                ? `${estimateIncomes.length + manualIncomes.length} записей`
+                : `${filteredByMonth.filter(i => i.kind !== 'pending').length} записей`
+              }
             </p>
           </CardContent>
         </Card>
@@ -174,13 +314,17 @@ export function IncomeTab({ estimates, incomes = [], companyId, onAddIncome, onD
           onClick={() => setActiveFilter('estimates')}
         >
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-green-700 dark:text-green-300">Получено (сметы)</CardTitle>
+            <CardTitle className="text-sm text-green-700 dark:text-green-300">
+              {showAllMonths ? 'Получено (сметы)' : 'Сметы'}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-700 dark:text-green-300">
-              {totalEstimateIncome.toLocaleString('ru-RU')} ₽
+              {(showAllMonths ? totalEstimateIncome : monthEstimateIncome).toLocaleString('ru-RU')} ₽
             </div>
-            <p className="text-xs text-green-600 dark:text-green-400">{estimateIncomes.length} завершенных смет</p>
+            <p className="text-xs text-green-600 dark:text-green-400">
+              {showAllMonths ? estimateIncomes.length : filteredByMonth.filter(i => i.kind === 'estimate').length} смет
+            </p>
           </CardContent>
         </Card>
 
@@ -193,13 +337,17 @@ export function IncomeTab({ estimates, incomes = [], companyId, onAddIncome, onD
           onClick={() => setActiveFilter('manual')}
         >
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-blue-700 dark:text-blue-300">Ручные поступления</CardTitle>
+            <CardTitle className="text-sm text-blue-700 dark:text-blue-300">
+              {showAllMonths ? 'Ручные поступления' : 'Ручные'}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">
-              {totalManualIncome.toLocaleString('ru-RU')} ₽
+              {(showAllMonths ? totalManualIncome : monthManualIncome).toLocaleString('ru-RU')} ₽
             </div>
-            <p className="text-xs text-blue-600 dark:text-blue-400">{manualIncomes.length} записей</p>
+            <p className="text-xs text-blue-600 dark:text-blue-400">
+              {showAllMonths ? manualIncomes.length : filteredByMonth.filter(i => i.kind === 'manual').length} записей
+            </p>
           </CardContent>
         </Card>
 
@@ -216,9 +364,11 @@ export function IncomeTab({ estimates, incomes = [], companyId, onAddIncome, onD
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-amber-700 dark:text-amber-300">
-              {totalPendingIncome.toLocaleString('ru-RU')} ₽
+              {(showAllMonths ? totalPendingIncome : monthPendingIncome).toLocaleString('ru-RU')} ₽
             </div>
-            <p className="text-xs text-amber-600 dark:text-amber-400">{pendingIncomes.length} ожидают оплаты</p>
+            <p className="text-xs text-amber-600 dark:text-amber-400">
+              {showAllMonths ? pendingIncomes.length : filteredByMonth.filter(i => i.kind === 'pending').length} ожидают
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -298,129 +448,9 @@ export function IncomeTab({ estimates, incomes = [], companyId, onAddIncome, onD
         </div>
       )}
 
-      {/* Income List */}
+      {/* Income List — Grouped by Month */}
       <div className="space-y-4">
-        {/* From Estimates */}
-        {(activeFilter === 'all' || activeFilter === 'estimates') && estimateIncomes.length > 0 && (
-          <div className="space-y-2">
-            <h4 className="text-sm font-medium text-gray-500">От смет</h4>
-            {estimateIncomes.map((income) => (
-              <Card key={income.id} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
-                        <FileText className="w-5 h-5 text-green-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-foreground">{income.source}</p>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Calendar className="w-3 h-3" />
-                          {format(new Date(income.date), 'dd MMMM yyyy', { locale: ru })}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-lg font-bold text-green-600 dark:text-green-400">
-                        +{income.amount.toLocaleString('ru-RU')} ₽
-                      </p>
-                      <Badge variant="outline" className="text-green-600 border-green-200">
-                        <CheckCircle2 className="w-3 h-3 mr-1" />
-                        Получено
-                      </Badge>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-
-        {/* Manual Incomes */}
-        {(activeFilter === 'all' || activeFilter === 'manual') && manualIncomes.length > 0 && (
-          <div className="space-y-2">
-            <h4 className="text-sm font-medium text-gray-500">Ручные поступления</h4>
-            {manualIncomes.map((income) => (
-              <Card key={income.id} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
-                        <Plus className="w-5 h-5 text-blue-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-foreground">{income.source}</p>
-                        {income.description && (
-                          <p className="text-sm text-muted-foreground">{income.description}</p>
-                        )}
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Calendar className="w-3 h-3" />
-                          {format(new Date(income.date), 'dd MMMM yyyy', { locale: ru })}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
-                        +{income.amount.toLocaleString('ru-RU')} ₽
-                      </p>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteIncome(income.id)}
-                        className="text-gray-400 hover:text-red-500 mt-1"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-
-        {/* Pending */}
-        {(activeFilter === 'all' || activeFilter === 'pending') && pendingIncomes.length > 0 && (
-          <div className="space-y-2">
-            <h4 className="text-sm font-medium text-gray-500">Ожидается оплата</h4>
-            {pendingIncomes.map((income) => (
-              <Card key={income.id} className="hover:shadow-md transition-shadow opacity-70">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
-                        <Clock className="w-5 h-5 text-amber-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-foreground">{income.source}</p>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Calendar className="w-3 h-3" />
-                          {format(new Date(income.date), 'dd MMMM yyyy', { locale: ru })}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-lg font-bold text-amber-600 dark:text-amber-400">
-                        {income.amount.toLocaleString('ru-RU')} ₽
-                      </p>
-                      <Badge variant="outline" className="text-amber-600 border-amber-200">
-                        <Clock className="w-3 h-3 mr-1" />
-                        Ожидается
-                      </Badge>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-
-        {(
-          (activeFilter === 'all' && estimateIncomes.length === 0 && manualIncomes.length === 0 && pendingIncomes.length === 0) ||
-          (activeFilter === 'estimates' && estimateIncomes.length === 0) ||
-          (activeFilter === 'manual' && manualIncomes.length === 0) ||
-          (activeFilter === 'pending' && pendingIncomes.length === 0)
-        ) && (
+        {groupedByMonth.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
             <TrendingUp className="w-12 h-12 mx-auto mb-4 opacity-50" />
             <p>
@@ -430,10 +460,103 @@ export function IncomeTab({ estimates, incomes = [], companyId, onAddIncome, onD
               {activeFilter === 'pending' && 'Нет ожидаемых поступлений'}
             </p>
             <p className="text-sm">
-              {activeFilter === 'all' && 'Завершите сметы или добавьте поступления вручную'}
-              {activeFilter !== 'all' && 'Выберите другой фильтр или добавьте запись'}
+              {searchQuery ? 'Попробуйте изменить поисковый запрос' : 'Завершите сметы или добавьте поступления вручную'}
             </p>
           </div>
+        ) : (
+          groupedByMonth.map(([monthKey, items]) => {
+            const isExpanded = expandedMonths.has(monthKey);
+            const monthTotal = items.reduce((sum, i) => sum + i.amount, 0);
+            const monthLabel = format(new Date(monthKey + '-01'), 'MMMM yyyy', { locale: ru });
+            
+            // Фильтруем по типу
+            const filteredItems = activeFilter === 'all' 
+              ? items 
+              : items.filter(i => i.kind === activeFilter);
+            
+            if (filteredItems.length === 0) return null;
+            
+            return (
+              <div key={monthKey} className="space-y-2">
+                {/* Month Header */}
+                <button
+                  onClick={() => toggleMonth(monthKey)}
+                  className="w-full flex items-center justify-between py-2 px-1 hover:bg-muted/50 rounded-lg transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+                    <h4 className="font-medium text-foreground capitalize">{monthLabel}</h4>
+                    <Badge variant="secondary" className="text-xs">{filteredItems.length}</Badge>
+                  </div>
+                  <span className="font-semibold text-green-600">
+                    +{monthTotal.toLocaleString('ru-RU')} ₽
+                  </span>
+                </button>
+                
+                {isExpanded && (
+                  <div className="space-y-2">
+                    {filteredItems.map((income) => (
+                      <Card key={income.id} className={`hover:shadow-md transition-shadow ${income.kind === 'pending' ? 'opacity-70' : ''}`}>
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                                income.kind === 'estimate' ? 'bg-green-500/20' :
+                                income.kind === 'manual' ? 'bg-blue-500/20' :
+                                'bg-amber-500/20'
+                              }`}>
+                                {income.kind === 'estimate' && <FileText className="w-5 h-5 text-green-600" />}
+                                {income.kind === 'manual' && <Plus className="w-5 h-5 text-blue-600" />}
+                                {income.kind === 'pending' && <Clock className="w-5 h-5 text-amber-600" />}
+                              </div>
+                              <div>
+                                <p className="font-medium text-foreground">{income.source}</p>
+                                {(income as any).description && (
+                                  <p className="text-sm text-muted-foreground">{(income as any).description}</p>
+                                )}
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                  <Calendar className="w-3 h-3" />
+                                  {format(new Date(income.date), 'dd MMMM yyyy', { locale: ru })}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className={`text-lg font-bold ${
+                                income.kind === 'estimate' ? 'text-green-600 dark:text-green-400' :
+                                income.kind === 'manual' ? 'text-blue-600 dark:text-blue-400' :
+                                'text-amber-600 dark:text-amber-400'
+                              }`}>
+                                {income.kind === 'pending' ? '' : '+'}{income.amount.toLocaleString('ru-RU')} ₽
+                              </p>
+                              <Badge variant="outline" className={`${
+                                income.kind === 'estimate' ? 'text-green-600 border-green-200' :
+                                income.kind === 'manual' ? 'text-blue-600 border-blue-200' :
+                                'text-amber-600 border-amber-200'
+                              }`}>
+                                {income.kind === 'estimate' && <><CheckCircle2 className="w-3 h-3 mr-1" />Получено</>}
+                                {income.kind === 'manual' && 'Ручное'}
+                                {income.kind === 'pending' && <><Clock className="w-3 h-3 mr-1" />Ожидается</>}
+                              </Badge>
+                              {income.kind === 'manual' && onDeleteIncome && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteIncome(income.id)}
+                                  className="text-gray-400 hover:text-red-500 mt-1 ml-2"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })
         )}
       </div>
     </div>

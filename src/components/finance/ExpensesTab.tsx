@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
-import { Plus, Package, Wrench, ShoppingCart, Home, Store, Fuel, MoreHorizontal, Trash2 } from 'lucide-react';
+import { Plus, Package, Wrench, ShoppingCart, Home, Store, Fuel, MoreHorizontal, Trash2, Search, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
@@ -37,6 +37,10 @@ type ExpenseFilter = 'all' | ExpenseCategory;
 export function ExpensesTab({ expenses, onAdd, onDelete }: ExpensesTabProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState<ExpenseFilter>('all');
+  const [activeMonth, setActiveMonth] = useState(format(new Date(), 'yyyy-MM'));
+  const [showAllMonths, setShowAllMonths] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set([format(new Date(), 'yyyy-MM')]));
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [newExpense, setNewExpense] = useState({
     date: format(new Date(), 'yyyy-MM-dd'),
@@ -64,15 +68,95 @@ export function ExpensesTab({ expenses, onAdd, onDelete }: ExpensesTabProps) {
     }));
   }, [expensesByCategory]);
 
+  // Месячные суммы по категориям
+  const monthByCategory = useMemo(() => {
+    const monthExpenses = showAllMonths 
+      ? expenses 
+      : expenses.filter(e => format(new Date(e.date), 'yyyy-MM') === activeMonth);
+    
+    const grouped: Record<string, Expense[]> = {};
+    monthExpenses.forEach(e => {
+      if (!grouped[e.category]) grouped[e.category] = [];
+      grouped[e.category].push(e);
+    });
+    return Object.entries(grouped).map(([category, items]) => ({
+      category,
+      total: items.reduce((sum, i) => sum + i.amount, 0),
+      count: items.length
+    }));
+  }, [expenses, activeMonth, showAllMonths]);
+
+  // Фильтрация по месяцу, категории и поиску
+  const filteredExpenses = useMemo(() => {
+    let result = [...expenses];
+    
+    // Фильтр по месяцу
+    if (!showAllMonths) {
+      result = result.filter(e => format(new Date(e.date), 'yyyy-MM') === activeMonth);
+    }
+    
+    // Фильтр по категории
+    if (activeFilter !== 'all') {
+      result = result.filter(e => e.category === activeFilter);
+    }
+    
+    // Поиск
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(e => 
+        e.description.toLowerCase().includes(q) ||
+        getExpenseCategoryLabel(e.category).toLowerCase().includes(q)
+      );
+    }
+    
+    // Сортировка по дате — свежие сверху
+    return result.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [expenses, activeFilter, activeMonth, showAllMonths, searchQuery]);
+
+  // Суммы за выбранный месяц
+  const monthTotal = useMemo(() => 
+    expenses
+      .filter(e => !showAllMonths || format(new Date(e.date), 'yyyy-MM') === activeMonth)
+      .reduce((sum, e) => sum + e.amount, 0),
+  [expenses, activeMonth, showAllMonths]);
+
+  // Общая сумма
   const totalExpenses = useMemo(() => 
     expenses.reduce((sum, e) => sum + e.amount, 0),
   [expenses]);
 
-  // Фильтрованные расходы
-  const filteredExpenses = useMemo(() => {
-    if (activeFilter === 'all') return expenses;
-    return expenses.filter(e => e.category === activeFilter);
-  }, [expenses, activeFilter]);
+  // Группировка по месяцам
+  const groupedByMonth = useMemo(() => {
+    const groups: Record<string, Expense[]> = {};
+    filteredExpenses.forEach(expense => {
+      const monthKey = format(new Date(expense.date), 'yyyy-MM');
+      if (!groups[monthKey]) groups[monthKey] = [];
+      groups[monthKey].push(expense);
+    });
+    return Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]));
+  }, [filteredExpenses]);
+
+  // Список месяцев для селектора
+  const monthOptions = useMemo(() => {
+    const options = [];
+    const now = new Date();
+    for (let i = 0; i < 24; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const value = format(d, 'yyyy-MM');
+      const label = format(d, 'MMMM yyyy', { locale: ru });
+      options.push({ value, label: label.charAt(0).toUpperCase() + label.slice(1) });
+    }
+    return options;
+  }, []);
+
+  const toggleMonth = (monthKey: string) => {
+    setExpandedMonths(prev => {
+      const next = new Set(prev);
+      if (next.has(monthKey)) next.delete(monthKey);
+      else next.add(monthKey);
+      return next;
+    });
+  };
 
   const handleAddExpense = async () => {
     if (!onAdd) return;
@@ -100,8 +184,55 @@ export function ExpensesTab({ expenses, onAdd, onDelete }: ExpensesTabProps) {
 
   return (
     <div className="space-y-6">
+      {/* Month Selector + Search */}
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 bg-muted rounded-lg p-1">
+            <button
+              onClick={() => setShowAllMonths(false)}
+              className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                !showAllMonths ? 'bg-background shadow-sm font-medium' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Месяц
+            </button>
+            <button
+              onClick={() => setShowAllMonths(true)}
+              className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                showAllMonths ? 'bg-background shadow-sm font-medium' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Всё время
+            </button>
+          </div>
+          {!showAllMonths && (
+            <select
+              value={activeMonth}
+              onChange={(e) => {
+                setActiveMonth(e.target.value);
+                setExpandedMonths(new Set([e.target.value]));
+              }}
+              className="border rounded-md px-3 py-2 text-sm bg-background"
+            >
+              {monthOptions.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          )}
+        </div>
+        <div className="relative w-full sm:w-64">
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Поиск..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+      </div>
+
       {/* Summary by Category - Filter Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4">
         {/* All */}
         <Card 
           className={`cursor-pointer transition-all hover:shadow-md ${
@@ -113,17 +244,23 @@ export function ExpensesTab({ expenses, onAdd, onDelete }: ExpensesTabProps) {
         >
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs font-medium text-foreground">Всего</span>
+              <span className="text-xs font-medium text-foreground">
+                {showAllMonths ? 'Всего' : 'За месяц'}
+              </span>
             </div>
             <p className="text-lg font-bold text-foreground">
-              {totalExpenses.toLocaleString('ru-RU')} ₽
+              {(showAllMonths ? totalExpenses : monthTotal).toLocaleString('ru-RU')} ₽
             </p>
-            <p className="text-xs text-muted-foreground">{expenses.length} записей</p>
+            <p className="text-xs text-muted-foreground">
+              {showAllMonths ? expenses.length : expenses.filter(e => format(new Date(e.date), 'yyyy-MM') === activeMonth).length} записей
+            </p>
           </CardContent>
         </Card>
 
         {EXPENSE_CATEGORIES.map(({ value, label }) => {
-          const data = totalByCategory.find(t => t.category === value);
+          const data = showAllMonths 
+            ? totalByCategory.find(t => t.category === value)
+            : monthByCategory.find(t => t.category === value);
           const amount = data?.total || 0;
           const iconData = categoryIcons[value] || categoryIcons.other;
           const Icon = iconData.icon;
@@ -280,9 +417,9 @@ export function ExpensesTab({ expenses, onAdd, onDelete }: ExpensesTabProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Expenses List */}
+      {/* Expenses List — Grouped by Month */}
       <div className="space-y-4">
-        {filteredExpenses.length === 0 ? (
+        {groupedByMonth.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
             <ShoppingCart className="w-12 h-12 mx-auto mb-4 opacity-50" />
             <p>
@@ -291,51 +428,78 @@ export function ExpensesTab({ expenses, onAdd, onDelete }: ExpensesTabProps) {
                 : `Нет расходов в категории "${getExpenseCategoryLabel(activeFilter)}"`}
             </p>
             <p className="text-sm">
-              {activeFilter === 'all' 
-                ? 'Добавьте первый расход' 
-                : 'Выберите другой фильтр или добавьте расход'}
+              {searchQuery ? 'Попробуйте изменить поисковый запрос' : 'Добавьте первый расход'}
             </p>
           </div>
         ) : (
-          filteredExpenses.map((expense) => {
-            const iconData = categoryIcons[expense.category] || categoryIcons.other;
-            const Icon = iconData.icon;
-            const color = iconData.color;
+          groupedByMonth.map(([monthKey, items]) => {
+            const isExpanded = expandedMonths.has(monthKey);
+            const monthTotal = items.reduce((sum, e) => sum + e.amount, 0);
+            const monthLabel = format(new Date(monthKey + '-01'), 'MMMM yyyy', { locale: ru });
             
             return (
-              <Card key={expense.id} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-full bg-${color}-100 flex items-center justify-center`}>
-                        <Icon className={`w-5 h-5 text-${color}-600`} />
-                      </div>
-                      <div>
-                        <p className="font-medium">{expense.description}</p>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Badge variant="outline">{getExpenseCategoryLabel(expense.category)}</Badge>
-                          <span>{format(new Date(expense.date), 'dd MMMM yyyy', { locale: ru })}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <p className="text-lg font-bold text-red-600">
-                        -{expense.amount.toLocaleString('ru-RU')} ₽
-                      </p>
-                      {onDelete && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onDelete(expense.id)}
-                          className="text-muted-foreground hover:text-red-500"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      )}
-                    </div>
+              <div key={monthKey} className="space-y-2">
+                {/* Month Header */}
+                <button
+                  onClick={() => toggleMonth(monthKey)}
+                  className="w-full flex items-center justify-between py-2 px-1 hover:bg-muted/50 rounded-lg transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+                    <h4 className="font-medium text-foreground capitalize">{monthLabel}</h4>
+                    <Badge variant="secondary" className="text-xs">{items.length}</Badge>
                   </div>
-                </CardContent>
-              </Card>
+                  <span className="font-semibold text-red-600">
+                    -{monthTotal.toLocaleString('ru-RU')} ₽
+                  </span>
+                </button>
+                
+                {isExpanded && (
+                  <div className="space-y-2">
+                    {items.map((expense) => {
+                      const iconData = categoryIcons[expense.category] || categoryIcons.other;
+                      const Icon = iconData.icon;
+                      const color = iconData.color;
+                      
+                      return (
+                        <Card key={expense.id} className="hover:shadow-md transition-shadow">
+                          <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className={`w-10 h-10 rounded-full bg-${color}-100 flex items-center justify-center`}>
+                                  <Icon className={`w-5 h-5 text-${color}-600`} />
+                                </div>
+                                <div>
+                                  <p className="font-medium">{expense.description}</p>
+                                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                    <Badge variant="outline">{getExpenseCategoryLabel(expense.category)}</Badge>
+                                    <span>{format(new Date(expense.date), 'dd MMMM yyyy', { locale: ru })}</span>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-4">
+                                <p className="text-lg font-bold text-red-600">
+                                  -{expense.amount.toLocaleString('ru-RU')} ₽
+                                </p>
+                                {onDelete && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => onDelete(expense.id)}
+                                    className="text-muted-foreground hover:text-red-500"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             );
           })
         )}
