@@ -51,11 +51,33 @@ export function useSalary(companyId: string | undefined) {
     if (!companyId) return;
     setLoading(true);
     
-    const { data, error } = await supabase
-      .from('salary_records')
-      .select('*')
-      .eq('company_id', companyId)
-      .order('month', { ascending: false });
+    // Пробуем загрузить с колонкой payments (для новых схем)
+    let data: any[] | null = null;
+    let error: any = null;
+    
+    try {
+      const result = await supabase
+        .from('salary_records')
+        .select('id, company_id, staff_id, month, projects, payments, total_calculated, paid, payment_date, notes, created_at, updated_at')
+        .eq('company_id', companyId)
+        .order('month', { ascending: false });
+      
+      if (result.error && result.error.message?.includes('payments')) {
+        // Fallback: колонка payments ещё не создана в БД
+        const fallback = await supabase
+          .from('salary_records')
+          .select('id, company_id, staff_id, month, projects, total_calculated, paid, payment_date, notes, created_at, updated_at')
+          .eq('company_id', companyId)
+          .order('month', { ascending: false });
+        data = fallback.data;
+        error = fallback.error;
+      } else {
+        data = result.data;
+        error = result.error;
+      }
+    } catch (e) {
+      error = e;
+    }
     
     if (error) {
       toast.error('Ошибка при загрузке зарплат', { description: error.message });
@@ -84,41 +106,67 @@ export function useSalary(companyId: string | undefined) {
     if (!companyId) return { error: new Error('No company selected') };
     
     try {
-      // Проверяем существование записи
+      // Проверяем существование записи (без payments — может не быть в схеме)
       const { data: existing } = await supabase
         .from('salary_records')
-        .select('id, projects, payments, paid, payment_date, notes')
+        .select('id, projects, paid, payment_date, notes')
         .eq('company_id', companyId)
         .eq('staff_id', record.staff_id)
         .eq('month', record.month)
         .maybeSingle();
 
       if (existing) {
-        // Обновляем существующую
+        // Обновляем существующую — пробуем с payments, fallback без
+        const updateData: any = {
+          projects: record.projects || existing.projects,
+          total_calculated: record.total_calculated || 0,
+          paid: record.paid !== undefined ? record.paid : existing.paid,
+          payment_date: record.payment_date || existing.payment_date,
+          notes: record.notes || existing.notes
+        };
+        
+        // Пробуем добавить payments, если есть
+        if (record.payments) {
+          updateData.payments = record.payments;
+        }
+
         const { error } = await supabase
           .from('salary_records')
-          .update({
-            projects: record.projects || existing.projects,
-            payments: record.payments || existing.payments,
-            total_calculated: record.total_calculated || 0,
-            paid: record.paid !== undefined ? record.paid : existing.paid,
-            payment_date: record.payment_date || existing.payment_date,
-            notes: record.notes || existing.notes
-          })
+          .update(updateData)
           .eq('id', existing.id);
 
-        if (error) throw error;
+        if (error && error.message?.includes('payments')) {
+          // Fallback: обновляем без payments
+          delete updateData.payments;
+          const { error: retryError } = await supabase
+            .from('salary_records')
+            .update(updateData)
+            .eq('id', existing.id);
+          if (retryError) throw retryError;
+        } else if (error) {
+          throw error;
+        }
       } else {
-        // Создаём новую
+        // Создаём новую — пробуем с payments, fallback без
+        const insertData: any = {
+          ...record,
+          company_id: companyId
+        };
+        
         const { error } = await supabase
           .from('salary_records')
-          .insert({
-            ...record,
-            payments: record.payments || [],
-            company_id: companyId
-          });
+          .insert(insertData);
 
-        if (error) throw error;
+        if (error && error.message?.includes('payments')) {
+          // Fallback: создаём без payments
+          delete insertData.payments;
+          const { error: retryError } = await supabase
+            .from('salary_records')
+            .insert(insertData);
+          if (retryError) throw retryError;
+        } else if (error) {
+          throw error;
+        }
       }
 
       await fetchRecords();
