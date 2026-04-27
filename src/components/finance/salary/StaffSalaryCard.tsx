@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Plus, Wallet, Trash2, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
+import { Plus, Wallet, Trash2, ChevronDown, ChevronUp, AlertTriangle, Pencil, Check, X } from 'lucide-react';
 import { Button } from '../../ui/button';
 import { Card, CardContent } from '../../ui/card';
 import { Badge } from '../../ui/badge';
+import { Input } from '../../ui/input';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../../ui/collapsible';
 import type { Staff } from '../../../types';
 import type { SalaryRecord } from '../../../hooks/useSalary';
@@ -16,6 +17,8 @@ interface StaffSalaryCardProps {
   onAddProject: (staff: Staff) => void;
   onPayment: (staff: Staff) => void;
   onDelete: (recordId: string) => void;
+  onEditProject: (staffId: string, projectIndex: number, data: { name: string; amount: number; date: string }) => void;
+  onDeleteProject: (staffId: string, projectIndex: number) => void;
 }
 
 export function StaffSalaryCard({
@@ -25,9 +28,13 @@ export function StaffSalaryCard({
   onAddProject,
   onPayment,
   onDelete,
+  onEditProject,
+  onDeleteProject,
 }: StaffSalaryCardProps) {
   const [projectsOpen, setProjectsOpen] = useState(false);
   const [paymentsOpen, setPaymentsOpen] = useState(false);
+  const [editingProjectIndex, setEditingProjectIndex] = useState<number | null>(null);
+  const [editProjectData, setEditProjectData] = useState<{ name: string; amount: number; date: string }>({ name: '', amount: 0, date: '' });
 
   const calculated = record?.total_calculated || 0;
   const paid = record?.paid || 0;
@@ -136,14 +143,80 @@ export function StaffSalaryCard({
             <CollapsibleContent>
               <div className="mt-2 space-y-1.5">
                 {projects.map((project, idx) => (
-                  <div key={idx} className="flex justify-between text-sm pl-4 py-1 hover:bg-muted/50 rounded">
-                    <div className="flex flex-col">
-                      <span className="text-muted-foreground">{project.name}</span>
-                      <span className="text-xs text-muted-foreground/60">
-                        {project.date ? new Date(project.date).toLocaleDateString('ru-RU') : '-'}
-                      </span>
-                    </div>
-                    <span className="font-medium">{project.amount.toLocaleString('ru-RU')} ₽</span>
+                  <div key={idx} className="group flex justify-between text-sm pl-4 py-1 hover:bg-muted/50 rounded items-center">
+                    {editingProjectIndex === idx ? (
+                      <div className="flex items-center gap-2 flex-1">
+                        <Input
+                          value={editProjectData.name}
+                          onChange={(e) => setEditProjectData({ ...editProjectData, name: e.target.value })}
+                          className="h-7 text-sm flex-1"
+                          placeholder="Название"
+                        />
+                        <Input
+                          type="number"
+                          value={editProjectData.amount}
+                          onChange={(e) => setEditProjectData({ ...editProjectData, amount: Number(e.target.value) })}
+                          className="h-7 text-sm w-24"
+                          placeholder="Сумма"
+                        />
+                        <Input
+                          type="date"
+                          value={editProjectData.date}
+                          onChange={(e) => setEditProjectData({ ...editProjectData, date: e.target.value })}
+                          className="h-7 text-sm w-32"
+                        />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0"
+                          onClick={() => {
+                            onEditProject(member.id, idx, editProjectData);
+                            setEditingProjectIndex(null);
+                          }}
+                        >
+                          <Check className="w-4 h-4 text-green-600" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0"
+                          onClick={() => setEditingProjectIndex(null)}
+                        >
+                          <X className="w-4 h-4 text-red-500" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex flex-col">
+                          <span className="text-muted-foreground">{project.name}</span>
+                          <span className="text-xs text-muted-foreground/60">
+                            {project.date ? new Date(project.date).toLocaleDateString('ru-RU') : '-'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{project.amount.toLocaleString('ru-RU')} ₽</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={() => {
+                              setEditProjectData({ name: project.name, amount: project.amount, date: project.date });
+                              setEditingProjectIndex(idx);
+                            }}
+                          >
+                            <Pencil className="w-3 h-3 text-muted-foreground" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={() => onDeleteProject(member.id, idx)}
+                          >
+                            <Trash2 className="w-3 h-3 text-red-500" />
+                          </Button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 ))}
               </div>

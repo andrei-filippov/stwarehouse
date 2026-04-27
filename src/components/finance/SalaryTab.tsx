@@ -123,6 +123,52 @@ export function SalaryTab({ staff, companyId, records = [], onAddOrUpdate, onDel
     setSelectedStaff(null);
   };
 
+  // Редактировать проект сотрудника
+  const handleEditProject = async (staffId: string, projectIndex: number, data: { name: string; amount: number; date: string }) => {
+    if (!onAddOrUpdate || !companyId) return;
+
+    const existingRecord = getRecordForStaff(staffId, activeMonth);
+    if (!existingRecord) return;
+
+    const projects = existingRecord.projects.map((p, idx) =>
+      idx === projectIndex ? data : p
+    );
+
+    const totalCalculated = projects.reduce((sum, p) => sum + p.amount, 0);
+
+    await onAddOrUpdate({
+      staff_id: staffId,
+      company_id: companyId,
+      month: activeMonth,
+      projects,
+      payments: existingRecord.payments || [],
+      total_calculated: totalCalculated,
+      paid: existingRecord.paid || 0,
+    });
+  };
+
+  // Удалить проект сотрудника
+  const handleDeleteProject = async (staffId: string, projectIndex: number) => {
+    if (!onAddOrUpdate || !companyId) return;
+
+    const existingRecord = getRecordForStaff(staffId, activeMonth);
+    if (!existingRecord) return;
+
+    const projects = existingRecord.projects.filter((_, idx) => idx !== projectIndex);
+
+    const totalCalculated = projects.reduce((sum, p) => sum + p.amount, 0);
+
+    await onAddOrUpdate({
+      staff_id: staffId,
+      company_id: companyId,
+      month: activeMonth,
+      projects,
+      payments: existingRecord.payments || [],
+      total_calculated: totalCalculated,
+      paid: existingRecord.paid || 0,
+    });
+  };
+
   // Отметить выплату
   const handlePayment = async (data: { amount: number; date: string; type: PaymentType; notes?: string }) => {
     if (!selectedStaff || !onAddOrUpdate || !companyId) return;
@@ -215,6 +261,7 @@ export function SalaryTab({ staff, companyId, records = [], onAddOrUpdate, onDel
   }, [filteredRecords, staff]);
 
   // Фильтрация и сортировка сотрудников
+  // records убран из зависимостей для мягкого обновления — сортировка не сбрасывается при обновлении данных
   const filteredStaff = useMemo(() => {
     let result = staff.filter(s => {
       if (!searchQuery) return true;
@@ -253,7 +300,7 @@ export function SalaryTab({ staff, companyId, records = [], onAddOrUpdate, onDel
     });
 
     return result;
-  }, [staff, searchQuery, sortField, sortDir, activeMonth, records]);
+  }, [staff, searchQuery, sortField, sortDir, activeMonth]);
 
   const periodLabel = useMemo(() => {
     if (periodMode === 'month') {
@@ -390,6 +437,8 @@ export function SalaryTab({ staff, companyId, records = [], onAddOrUpdate, onDel
                   setIsPaymentDialogOpen(true);
                 }}
                 onDelete={handleDeleteClick}
+                onEditProject={handleEditProject}
+                onDeleteProject={handleDeleteProject}
               />
             );
           })
