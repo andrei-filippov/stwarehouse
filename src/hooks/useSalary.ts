@@ -49,7 +49,11 @@ export function useSalary(companyId: string | undefined) {
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchRecords = useCallback(async () => {
-    if (!companyId) return;
+    console.log('[useSalary] fetchRecords called, companyId:', companyId);
+    if (!companyId) {
+      console.log('[useSalary] no companyId, skipping');
+      return;
+    }
     setLoading(true);
     
     // Пробуем загрузить с колонкой payments (для новых схем)
@@ -63,8 +67,22 @@ export function useSalary(companyId: string | undefined) {
         .eq('company_id', companyId)
         .order('month', { ascending: false });
       
-      if (result.error && result.error.message?.includes('payments')) {
+      // Логируем ошибку для отладки
+      if (result.error) {
+        console.log('[useSalary] fetch error:', result.error.message, result.error.code, result.error.details);
+      }
+      
+      // Проверяем разные варианты ошибки с колонкой payments
+      const isPaymentsError = result.error && (
+        result.error.message?.includes('payments') ||
+        result.error.message?.includes('column') ||
+        result.error.message?.includes('schema cache') ||
+        result.error.code === 'PGRST204'
+      );
+      
+      if (isPaymentsError) {
         // Fallback: колонка payments ещё не создана в БД
+        console.log('[useSalary] Fallback: loading without payments column');
         const fallback = await supabase
           .from('salary_records')
           .select('id, company_id, staff_id, month, projects, total_calculated, paid, payment_date, notes, created_at, updated_at')
@@ -76,17 +94,28 @@ export function useSalary(companyId: string | undefined) {
         data = result.data;
         error = result.error;
       }
+      
+      // Если есть данные, но есть и ошибка — используем данные (частичный success)
+      if (!data && result.data) {
+        data = result.data;
+        error = null;
+      }
     } catch (e) {
+      console.error('[useSalary] fetch exception:', e);
       error = e;
     }
     
+    console.log('[useSalary] fetch result — error:', error?.message, 'data count:', data?.length, 'data:', data);
     if (error) {
       toast.error('Ошибка при загрузке зарплат', { description: error.message });
+    } else if (!data) {
+      console.log('[useSalary] data is null/undefined');
+      setRecords([]);
     } else {
-      // Миграция: если payments нет, но paid > 0 — создаём legacy-запись в памяти
-      // и фоново обновляем БД (без await, чтобы не блокировать UI)
+      // Миграция: если payments нет/null/пустой, но paid > 0 — создаём legacy-запись
       const migrated = (data || []).map((r: any) => {
-        if (!r.payments && r.paid > 0) {
+        const hasPayments = r.payments && Array.isArray(r.payments) && r.payments.length > 0;
+        if (!hasPayments && r.paid > 0) {
           // Фоново сохраняем payments в БД
           supabase
             .from('salary_records')
@@ -217,6 +246,7 @@ export function useSalary(companyId: string | undefined) {
   }, [companyId]);
 
   useEffect(() => {
+    console.log('[useSalary] initial fetch effect, companyId:', companyId);
     fetchRecords();
   }, [fetchRecords]);
 

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Users, Search } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Input } from '../ui/input';
@@ -29,6 +29,12 @@ type SortField = 'name' | 'calculated' | 'paid' | 'balance';
 type SortDir = 'asc' | 'desc';
 
 export function SalaryTab({ staff, companyId, records = [], onAddOrUpdate, onDelete, loading }: SalaryTabProps) {
+  // Логирование для отладки
+  useEffect(() => {
+    console.log('[SalaryTab] records count:', records.length);
+    console.log('[SalaryTab] records:', records.map(r => ({ id: r.id, staff_id: r.staff_id, month: r.month, paid: r.paid, payments: r.payments?.length })));
+  }, [records]);
+
   const [periodMode, setPeriodMode] = useState<PeriodMode>('month');
   const [activeMonth, setActiveMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
