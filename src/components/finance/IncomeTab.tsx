@@ -178,15 +178,20 @@ export function IncomeTab({ estimates, incomes = [], companyId, onAddIncome, onD
     return Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]));
   }, [filteredByMonth]);
 
-  // Список месяцев для селектора (последние 24)
+  // Список месяцев для селектора (с января 2026)
   const monthOptions = useMemo(() => {
+    const monthNames = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
     const options = [];
+    const startYear = 2026;
+    const startMonth = 0; // Январь
     const now = new Date();
-    for (let i = 0; i < 24; i++) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const value = format(d, 'yyyy-MM');
-      const label = format(d, 'MMMM yyyy', { locale: ru });
-      options.push({ value, label: label.charAt(0).toUpperCase() + label.slice(1) });
+    
+    let current = new Date(startYear, startMonth, 1);
+    while (current <= now) {
+      const value = format(current, 'yyyy-MM');
+      const label = `${monthNames[current.getMonth()]} ${current.getFullYear()}`;
+      options.unshift({ value, label }); // Добавляем в начало — свежие сверху
+      current = new Date(current.getFullYear(), current.getMonth() + 1, 1);
     }
     return options;
   }, []);
