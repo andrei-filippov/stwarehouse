@@ -80,8 +80,7 @@ export function useEstimates(companyId: string | undefined) {
             const { data: items, error: itemsError } = await supabase
               .from('estimate_items')
               .select('*')
-              .in('estimate_id', estimateIds)
-              .eq('company_id', companyId);
+              .in('estimate_id', estimateIds);
             
             if (itemsError) {
               console.warn('[fetchEstimates] Error loading items:', itemsError.message);
