@@ -1,15 +1,19 @@
 import { useState, useMemo } from 'react';
-import { Users, Calendar, CheckCircle2, DollarSign, Plus, Wallet, Trash2, BarChart3 } from 'lucide-react';
-import { Button } from '../ui/button';
+import { Users, Search } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Badge } from '../ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { format, startOfMonth, endOfMonth, parseISO } from 'date-fns';
-import { ru } from 'date-fns/locale';
+import { Spinner } from '../ui/spinner';
+import { format, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import type { Staff } from '../../types';
-import type { SalaryRecord, SalaryProject } from '../../hooks/useSalary';
+import type { SalaryRecord, SalaryProject, SalaryPaymentEntry, PaymentType } from '../../hooks/useSalary';
+import {
+  PeriodSelector,
+  AddProjectDialog,
+  PaymentDialog,
+  DeleteConfirmDialog,
+  StaffSalaryCard,
+  SalaryAnalyticsTable,
+} from './salary';
 
 interface SalaryTabProps {
   staff: Staff[];
@@ -17,21 +21,28 @@ interface SalaryTabProps {
   records?: SalaryRecord[];
   onAddOrUpdate?: (record: Partial<SalaryRecord>) => Promise<{ error: any }>;
   onDelete?: (id: string) => Promise<{ error: any }>;
+  loading?: boolean;
 }
 
 type PeriodMode = 'month' | 'range';
+type SortField = 'name' | 'calculated' | 'paid' | 'balance';
+type SortDir = 'asc' | 'desc';
 
-export function SalaryTab({ staff, records = [], onAddOrUpdate, onDelete }: SalaryTabProps) {
+export function SalaryTab({ staff, companyId, records = [], onAddOrUpdate, onDelete, loading }: SalaryTabProps) {
   const [periodMode, setPeriodMode] = useState<PeriodMode>('month');
   const [activeMonth, setActiveMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
 
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortField, setSortField] = useState<SortField>('name');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
+
   const [isProjectDialogOpen, setIsProjectDialogOpen] = useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
-  const [newProject, setNewProject] = useState({ name: '', amount: '', date: format(new Date(), 'yyyy-MM-dd') });
-  const [paymentAmount, setPaymentAmount] = useState('');
+  const [recordToDelete, setRecordToDelete] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Фильтрация записей по периоду
@@ -39,69 +50,121 @@ export function SalaryTab({ staff, records = [], onAddOrUpdate, onDelete }: Sala
     if (periodMode === 'month') {
       return records.filter(r => r.month === activeMonth);
     }
-    const start = startDate.slice(0, 7); // yyyy-MM
-    const end = endDate.slice(0, 7);
-    return records.filter(r => r.month >= start && r.month <= end);
+    // Для диапазона фильтруем по payment_date и датам проектов
+    const s = new Date(startDate);
+    const e = new Date(endDate);
+    return records.filter(r => {
+      // Проверяем даты выплат
+      if (r.payments && r.payments.length > 0) {
+        return r.payments.some(p => {
+          const pd = new Date(p.date);
+          return pd >= s && pd <= e;
+        });
+      }
+      // Проверяем даты проектов
+      if (r.projects && r.projects.length > 0) {
+        return r.projects.some(p => {
+          const pd = new Date(p.date);
+          return pd >= s && pd <= e;
+        });
+      }
+      // Fallback на месяц записи
+      const rMonth = new Date(r.month + '-01');
+      return rMonth >= s && rMonth <= e;
+    });
   }, [records, periodMode, activeMonth, startDate, endDate]);
 
-  // Получаем запись для сотрудника на текущий месяц (для диалогов)
+  // Получаем запись для сотрудника на текущий месяц
   const getRecordForStaff = (staffId: string, month: string): SalaryRecord | undefined => {
     return records.find(r => r.staff_id === staffId && r.month === month);
   };
 
   // Добавить проект сотруднику
-  const handleAddProject = async () => {
-    if (!selectedStaff || !newProject.name || !newProject.amount || !onAddOrUpdate) return;
-    
+  const handleAddProject = async (data: { name: string; amount: number; date: string }) => {
+    if (!selectedStaff || !onAddOrUpdate || !companyId) return;
     setIsSubmitting(true);
-    const projectAmount = parseFloat(newProject.amount);
+
     const existingRecord = getRecordForStaff(selectedStaff.id, activeMonth);
-    
-    const projects: SalaryProject[] = existingRecord 
-      ? [...existingRecord.projects, { name: newProject.name, amount: projectAmount, date: newProject.date }]
-      : [{ name: newProject.name, amount: projectAmount, date: newProject.date }];
-    
+    const baseSalary = selectedStaff.base_salary || 0;
+
+    const projects: SalaryProject[] = existingRecord
+      ? [...existingRecord.projects, data]
+      : [data];
+
+    // Если есть оклад и это первый проект — добавляем оклад как проект
+    if (baseSalary > 0 && !existingRecord) {
+      projects.unshift({
+        name: 'Оклад',
+        amount: baseSalary,
+        date: activeMonth + '-01',
+      });
+    }
+
     const totalCalculated = projects.reduce((sum, p) => sum + p.amount, 0);
-    
+
     await onAddOrUpdate({
       staff_id: selectedStaff.id,
+      company_id: companyId,
       month: activeMonth,
       projects,
+      payments: existingRecord?.payments || [],
       total_calculated: totalCalculated,
-      paid: existingRecord?.paid || 0
+      paid: existingRecord?.paid || 0,
     });
-    
+
     setIsSubmitting(false);
-    setNewProject({ name: '', amount: '', date: format(new Date(), 'yyyy-MM-dd') });
     setIsProjectDialogOpen(false);
+    setSelectedStaff(null);
   };
 
   // Отметить выплату
-  const handlePayment = async () => {
-    if (!selectedStaff || !paymentAmount || !onAddOrUpdate) return;
-    
+  const handlePayment = async (data: { amount: number; date: string; type: PaymentType; notes?: string }) => {
+    if (!selectedStaff || !onAddOrUpdate || !companyId) return;
     setIsSubmitting(true);
-    const amount = parseFloat(paymentAmount);
+
     const existingRecord = getRecordForStaff(selectedStaff.id, activeMonth);
-    
+
+    const newPayment: SalaryPaymentEntry = {
+      id: `pay_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      amount: data.amount,
+      date: data.date,
+      type: data.type,
+      notes: data.notes,
+    };
+
+    const payments: SalaryPaymentEntry[] = existingRecord
+      ? [...existingRecord.payments, newPayment]
+      : [newPayment];
+
+    const totalPaid = (existingRecord?.paid || 0) + data.amount;
+
     await onAddOrUpdate({
       staff_id: selectedStaff.id,
+      company_id: companyId,
       month: activeMonth,
       projects: existingRecord?.projects || [],
+      payments,
       total_calculated: existingRecord?.total_calculated || 0,
-      paid: (existingRecord?.paid || 0) + amount,
-      payment_date: format(new Date(), 'yyyy-MM-dd')
+      paid: totalPaid,
+      payment_date: data.date,
     });
-    
+
     setIsSubmitting(false);
-    setPaymentAmount('');
     setIsPaymentDialogOpen(false);
+    setSelectedStaff(null);
   };
 
   // Удалить запись
-  const handleDelete = async (recordId: string) => {
-    if (!onDelete) return;
-    await onDelete(recordId);
+  const handleDeleteClick = (recordId: string) => {
+    setRecordToDelete(recordId);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!recordToDelete || !onDelete || !companyId) return;
+    await onDelete(recordToDelete);
+    setIsDeleteDialogOpen(false);
+    setRecordToDelete(null);
   };
 
   // Статистика по периоду
@@ -116,6 +179,7 @@ export function SalaryTab({ staff, records = [], onAddOrUpdate, onDelete }: Sala
     const map = new Map<string, {
       staff: Staff;
       projectsCount: number;
+      paymentsCount: number;
       totalCalculated: number;
       totalPaid: number;
     }>();
@@ -127,12 +191,14 @@ export function SalaryTab({ staff, records = [], onAddOrUpdate, onDelete }: Sala
       const existing = map.get(record.staff_id);
       if (existing) {
         existing.projectsCount += record.projects.length;
+        existing.paymentsCount += record.payments.length;
         existing.totalCalculated += record.total_calculated;
         existing.totalPaid += record.paid;
       } else {
         map.set(record.staff_id, {
           staff: member,
           projectsCount: record.projects.length,
+          paymentsCount: record.payments.length,
           totalCalculated: record.total_calculated,
           totalPaid: record.paid,
         });
@@ -142,16 +208,46 @@ export function SalaryTab({ staff, records = [], onAddOrUpdate, onDelete }: Sala
     return Array.from(map.values()).sort((a, b) => b.totalCalculated - a.totalCalculated);
   }, [filteredRecords, staff]);
 
-  // Генерация списка месяцев
-  const months = useMemo(() => {
-    const list = [];
-    for (let i = 0; i < 12; i++) {
-      const date = new Date();
-      date.setMonth(date.getMonth() - i);
-      list.push(format(date, 'yyyy-MM'));
-    }
-    return list;
-  }, []);
+  // Фильтрация и сортировка сотрудников
+  const filteredStaff = useMemo(() => {
+    let result = staff.filter(s => {
+      if (!searchQuery) return true;
+      const q = searchQuery.toLowerCase();
+      return (
+        s.full_name.toLowerCase().includes(q) ||
+        s.position.toLowerCase().includes(q)
+      );
+    });
+
+    result = [...result].sort((a, b) => {
+      const dir = sortDir === 'asc' ? 1 : -1;
+      switch (sortField) {
+        case 'name':
+          return dir * a.full_name.localeCompare(b.full_name);
+        case 'calculated': {
+          const ra = getRecordForStaff(a.id, activeMonth)?.total_calculated || 0;
+          const rb = getRecordForStaff(b.id, activeMonth)?.total_calculated || 0;
+          return dir * (ra - rb);
+        }
+        case 'paid': {
+          const ra = getRecordForStaff(a.id, activeMonth)?.paid || 0;
+          const rb = getRecordForStaff(b.id, activeMonth)?.paid || 0;
+          return dir * (ra - rb);
+        }
+        case 'balance': {
+          const ra = getRecordForStaff(a.id, activeMonth);
+          const rb = getRecordForStaff(b.id, activeMonth);
+          const ba = (ra?.total_calculated || 0) - (ra?.paid || 0);
+          const bb = (rb?.total_calculated || 0) - (rb?.paid || 0);
+          return dir * (ba - bb);
+        }
+        default:
+          return 0;
+      }
+    });
+
+    return result;
+  }, [staff, searchQuery, sortField, sortDir, activeMonth, records]);
 
   const periodLabel = useMemo(() => {
     if (periodMode === 'month') {
@@ -161,6 +257,14 @@ export function SalaryTab({ staff, records = [], onAddOrUpdate, onDelete }: Sala
     }
     return `${format(parseISO(startDate), 'dd.MM.yyyy')} – ${format(parseISO(endDate), 'dd.MM.yyyy')}`;
   }, [periodMode, activeMonth, startDate, endDate]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Spinner className="w-8 h-8" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -203,316 +307,110 @@ export function SalaryTab({ staff, records = [], onAddOrUpdate, onDelete }: Sala
       </div>
 
       {/* Period Selector */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Button
-                variant={periodMode === 'month' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setPeriodMode('month')}
-              >
-                Месяц
-              </Button>
-              <Button
-                variant={periodMode === 'range' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setPeriodMode('range')}
-              >
-                Период
-              </Button>
-            </div>
-
-            {periodMode === 'month' ? (
-              <select
-                value={activeMonth}
-                onChange={(e) => setActiveMonth(e.target.value)}
-                className="border rounded-md px-3 py-2"
-              >
-                {months.map(m => {
-                  const [year, month] = m.split('-');
-                  const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
-                  const monthName = monthNames[parseInt(month) - 1];
-                  return (
-                    <option key={m} value={m}>
-                      {monthName} {year}
-                    </option>
-                  );
-                })}
-              </select>
-            ) : (
-              <div className="flex items-center gap-2">
-                <Input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="w-auto"
-                />
-                <span className="text-muted-foreground">–</span>
-                <Input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="w-auto"
-                />
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      <PeriodSelector
+        periodMode={periodMode}
+        setPeriodMode={setPeriodMode}
+        activeMonth={activeMonth}
+        setActiveMonth={setActiveMonth}
+        startDate={startDate}
+        setStartDate={setStartDate}
+        endDate={endDate}
+        setEndDate={setEndDate}
+      />
 
       {/* Analytics Table */}
-      {staffAnalytics.length > 0 && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <BarChart3 className="w-4 h-4" />
-              Аналитика за период: {periodLabel}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-muted">
-                  <tr>
-                    <th className="text-left px-4 py-2 font-medium">Сотрудник</th>
-                    <th className="text-center px-4 py-2 font-medium">Проекты</th>
-                    <th className="text-right px-4 py-2 font-medium">Начислено</th>
-                    <th className="text-right px-4 py-2 font-medium">Выдано</th>
-                    <th className="text-right px-4 py-2 font-medium">Остаток</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {staffAnalytics.map(({ staff: member, projectsCount, totalCalculated, totalPaid }) => {
-                    const balance = totalCalculated - totalPaid;
-                    return (
-                      <tr key={member.id} className="hover:bg-muted/50">
-                        <td className="px-4 py-2">
-                          <div className="font-medium">{member.full_name || 'Без имени'}</div>
-                          <div className="text-xs text-muted-foreground">{member.position || 'Сотрудник'}</div>
-                        </td>
-                        <td className="px-4 py-2 text-center">{projectsCount}</td>
-                        <td className="px-4 py-2 text-right">{totalCalculated.toLocaleString('ru-RU')} ₽</td>
-                        <td className="px-4 py-2 text-right text-green-600">{totalPaid.toLocaleString('ru-RU')} ₽</td>
-                        <td className="px-4 py-2 text-right">
-                          <span className={balance > 0 ? 'text-amber-600' : balance < 0 ? 'text-red-600' : ''}>
-                            {balance.toLocaleString('ru-RU')} ₽
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  <tr className="bg-muted/70 font-medium">
-                    <td className="px-4 py-2">Итого</td>
-                    <td className="px-4 py-2 text-center">
-                      {staffAnalytics.reduce((sum, s) => sum + s.projectsCount, 0)}
-                    </td>
-                    <td className="px-4 py-2 text-right">
-                      {staffAnalytics.reduce((sum, s) => sum + s.totalCalculated, 0).toLocaleString('ru-RU')} ₽
-                    </td>
-                    <td className="px-4 py-2 text-right text-green-700">
-                      {staffAnalytics.reduce((sum, s) => sum + s.totalPaid, 0).toLocaleString('ru-RU')} ₽
-                    </td>
-                    <td className="px-4 py-2 text-right">
-                      {staffAnalytics.reduce((sum, s) => sum + (s.totalCalculated - s.totalPaid), 0).toLocaleString('ru-RU')} ₽
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <SalaryAnalyticsTable data={staffAnalytics} periodLabel={periodLabel} />
 
       {/* Staff List */}
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold">Сотрудники ({staff.length})</h3>
-        
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <h3 className="text-lg font-semibold">Сотрудники ({filteredStaff.length})</h3>
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Поиск..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 w-48"
+              />
+            </div>
+            <select
+              value={`${sortField}-${sortDir}`}
+              onChange={(e) => {
+                const [field, dir] = e.target.value.split('-') as [SortField, SortDir];
+                setSortField(field);
+                setSortDir(dir);
+              }}
+              className="border rounded-md px-2 py-2 text-sm bg-background"
+            >
+              <option value="name-asc">Имя А→Я</option>
+              <option value="name-desc">Имя Я→А</option>
+              <option value="calculated-desc">Начислено ↓</option>
+              <option value="calculated-asc">Начислено ↑</option>
+              <option value="paid-desc">Выдано ↓</option>
+              <option value="balance-desc">Остаток ↓</option>
+            </select>
+          </div>
+        </div>
+
         {staff.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
             <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
             <p>Нет сотрудников</p>
             <p className="text-sm">Добавьте сотрудников во вкладке "Персонал"</p>
           </div>
+        ) : filteredStaff.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground">
+            <Search className="w-12 h-12 mx-auto mb-4 opacity-50" />
+            <p>Сотрудники не найдены</p>
+            <p className="text-sm">Попробуйте изменить поисковый запрос</p>
+          </div>
         ) : (
-          staff.map((member) => {
+          filteredStaff.map((member) => {
             const record = getRecordForStaff(member.id, activeMonth);
-            const balance = (record?.total_calculated || 0) - (record?.paid || 0);
-            
             return (
-              <Card key={member.id} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between flex-wrap gap-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center">
-                        <span className="font-bold text-indigo-600 dark:text-indigo-400">
-                          {member.full_name?.charAt(0).toUpperCase() || '?'}
-                        </span>
-                      </div>
-                      <div>
-                        <p className="font-medium text-foreground">{member.full_name || 'Без имени'}</p>
-                        <p className="text-sm text-muted-foreground">{member.position || 'Сотрудник'}</p>
-                        {record?.projects && record.projects.length > 0 && (
-                          <div className="text-xs text-muted-foreground mt-1">
-                            {record.projects.length} проектов
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-4 sm:gap-6 flex-wrap">
-                      <div className="text-right">
-                        <p className="text-sm text-muted-foreground">Начислено</p>
-                        <p className="font-semibold">{record?.total_calculated?.toLocaleString('ru-RU') || 0} ₽</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm text-muted-foreground">Выдано</p>
-                        <p className="font-semibold text-green-600 dark:text-green-400">{record?.paid?.toLocaleString('ru-RU') || 0} ₽</p>
-                      </div>
-                      <div className="text-right min-w-[80px]">
-                        <p className="text-sm text-muted-foreground">Остаток</p>
-                        <Badge variant={balance <= 0 ? "default" : "secondary"}>
-                          {balance.toLocaleString('ru-RU')} ₽
-                        </Badge>
-                      </div>
-                      
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedStaff(member);
-                            setIsProjectDialogOpen(true);
-                          }}
-                        >
-                          <Plus className="w-4 h-4 mr-1" />
-                          Проект
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedStaff(member);
-                            setIsPaymentDialogOpen(true);
-                          }}
-                        >
-                          <Wallet className="w-4 h-4 mr-1" />
-                          Выдано
-                        </Button>
-                        {record && onDelete && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDelete(record.id)}
-                            className="text-muted-foreground hover:text-red-500"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Projects Detail */}
-                  {record && record.projects.length > 0 && (
-                    <div className="mt-4 pt-4 border-t space-y-2">
-                      <p className="text-sm font-medium text-gray-500">Проекты:</p>
-                      {record.projects.map((project, idx) => (
-                        <div key={idx} className="flex justify-between text-sm pl-4">
-                          <span>{project.name}</span>
-                          <span className="font-medium">{project.amount.toLocaleString('ru-RU')} ₽</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              <StaffSalaryCard
+                key={member.id}
+                member={member}
+                record={record}
+                activeMonth={activeMonth}
+                onAddProject={(s) => {
+                  setSelectedStaff(s);
+                  setIsProjectDialogOpen(true);
+                }}
+                onPayment={(s) => {
+                  setSelectedStaff(s);
+                  setIsPaymentDialogOpen(true);
+                }}
+                onDelete={handleDeleteClick}
+              />
             );
           })
         )}
       </div>
 
-      {/* Add Project Dialog */}
-      <Dialog open={isProjectDialogOpen} onOpenChange={setIsProjectDialogOpen}>
-        <DialogContent className="max-w-lg w-[95%] rounded-xl p-4 sm:p-6">
-          <DialogHeader>
-            <DialogTitle>Добавить проект - {selectedStaff?.full_name}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 pt-4">
-            <div className="space-y-2">
-              <Label>Название проекта / мероприятия</Label>
-              <Input
-                placeholder="Например: Концерт в Крокусе"
-                value={newProject.name}
-                onChange={(e) => setNewProject(prev => ({ ...prev, name: e.target.value }))}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Сумма (₽)</Label>
-                <Input
-                  type="number"
-                  placeholder="0"
-                  value={newProject.amount}
-                  onChange={(e) => setNewProject(prev => ({ ...prev, amount: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Дата</Label>
-                <Input
-                  type="date"
-                  value={newProject.date}
-                  onChange={(e) => setNewProject(prev => ({ ...prev, date: e.target.value }))}
-                />
-              </div>
-            </div>
-            <Button 
-              onClick={handleAddProject} 
-              className="w-full"
-              disabled={isSubmitting || !newProject.name || !newProject.amount}
-            >
-              {isSubmitting ? 'Сохранение...' : 'Добавить проект'}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Dialogs */}
+      <AddProjectDialog
+        open={isProjectDialogOpen}
+        onOpenChange={setIsProjectDialogOpen}
+        staff={selectedStaff}
+        onSubmit={handleAddProject}
+      />
 
-      {/* Payment Dialog */}
-      <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
-        <DialogContent className="max-w-lg w-[95%] rounded-xl p-4 sm:p-6">
-          <DialogHeader>
-            <DialogTitle>Отметить выплату - {selectedStaff?.full_name}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 pt-4">
-            {selectedStaff && (
-              <div className="bg-muted p-3 rounded-lg text-sm">
-                <p>Начислено: {getRecordForStaff(selectedStaff.id, activeMonth)?.total_calculated?.toLocaleString('ru-RU') || 0} ₽</p>
-                <p>Уже выдано: {getRecordForStaff(selectedStaff.id, activeMonth)?.paid?.toLocaleString('ru-RU') || 0} ₽</p>
-                <p className="font-medium">
-                  Остаток: {((getRecordForStaff(selectedStaff.id, activeMonth)?.total_calculated || 0) - 
-                    (getRecordForStaff(selectedStaff.id, activeMonth)?.paid || 0)).toLocaleString('ru-RU')} ₽
-                </p>
-              </div>
-            )}
-            <div className="space-y-2">
-              <Label>Сумма выплаты (₽)</Label>
-              <Input
-                type="number"
-                placeholder="0"
-                value={paymentAmount}
-                onChange={(e) => setPaymentAmount(e.target.value)}
-              />
-            </div>
-            <Button 
-              onClick={handlePayment} 
-              className="w-full"
-              disabled={isSubmitting || !paymentAmount}
-            >
-              {isSubmitting ? 'Сохранение...' : 'Отметить как выдано'}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <PaymentDialog
+        open={isPaymentDialogOpen}
+        onOpenChange={setIsPaymentDialogOpen}
+        staff={selectedStaff}
+        record={selectedStaff ? getRecordForStaff(selectedStaff.id, activeMonth) : undefined}
+        onSubmit={handlePayment}
+      />
+
+      <DeleteConfirmDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   );
 }

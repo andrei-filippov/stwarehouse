@@ -60,7 +60,9 @@ export function useEstimates(companyId: string | undefined) {
           const { data, error } = await supabase
             .from('estimates')
             .select(`
-              *,
+              id, user_id, event_name, venue, event_date, event_start_date, event_end_date,
+              total, customer_id, customer_name, created_at, updated_at, status,
+              creator_name, category_order, color, is_editing, editing_by, editing_since, editing_session_id, editor_name,
               items:estimate_items(*)
             `)
             .eq('company_id', companyId)

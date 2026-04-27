@@ -2,10 +2,30 @@ import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
 
+export type PaymentType = 'regular' | 'advance' | 'bonus';
+
+export const PAYMENT_TYPE_LABELS: Record<PaymentType, string> = {
+  regular: 'Зарплата',
+  advance: 'Аванс',
+  bonus: 'Бонус',
+};
+
+export function getPaymentTypeLabel(type: PaymentType): string {
+  return PAYMENT_TYPE_LABELS[type] || type;
+}
+
 export interface SalaryProject {
   name: string;
   amount: number;
   date: string;
+}
+
+export interface SalaryPaymentEntry {
+  id: string;
+  amount: number;
+  date: string;
+  type: PaymentType;
+  notes?: string;
 }
 
 export interface SalaryRecord {
@@ -14,6 +34,7 @@ export interface SalaryRecord {
   staff_id: string;
   month: string; // YYYY-MM
   projects: SalaryProject[];
+  payments: SalaryPaymentEntry[];
   total_calculated: number;
   paid: number;
   payment_date?: string;
@@ -39,7 +60,22 @@ export function useSalary(companyId: string | undefined) {
     if (error) {
       toast.error('Ошибка при загрузке зарплат', { description: error.message });
     } else {
-      setRecords(data || []);
+      // Миграция: если payments нет, но payment_date и paid есть — создаём одну запись
+      const migrated = (data || []).map((r: any) => {
+        if (!r.payments && r.paid > 0) {
+          return {
+            ...r,
+            payments: [{
+              id: `legacy_${r.id}`,
+              amount: r.paid,
+              date: r.payment_date || r.created_at || new Date().toISOString(),
+              type: 'regular' as PaymentType,
+            }],
+          };
+        }
+        return { ...r, payments: r.payments || [] };
+      });
+      setRecords(migrated);
     }
     setLoading(false);
   }, [companyId]);
@@ -51,7 +87,7 @@ export function useSalary(companyId: string | undefined) {
       // Проверяем существование записи
       const { data: existing } = await supabase
         .from('salary_records')
-        .select('id, projects, paid, payment_date, notes')
+        .select('id, projects, payments, paid, payment_date, notes')
         .eq('company_id', companyId)
         .eq('staff_id', record.staff_id)
         .eq('month', record.month)
@@ -63,6 +99,7 @@ export function useSalary(companyId: string | undefined) {
           .from('salary_records')
           .update({
             projects: record.projects || existing.projects,
+            payments: record.payments || existing.payments,
             total_calculated: record.total_calculated || 0,
             paid: record.paid !== undefined ? record.paid : existing.paid,
             payment_date: record.payment_date || existing.payment_date,
@@ -77,6 +114,7 @@ export function useSalary(companyId: string | undefined) {
           .from('salary_records')
           .insert({
             ...record,
+            payments: record.payments || [],
             company_id: companyId
           });
 

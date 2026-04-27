@@ -25,6 +25,7 @@ interface FinanceManagerProps {
   salaryRecords?: SalaryRecord[];
   onAddOrUpdateSalary?: (record: Partial<SalaryRecord>) => Promise<{ error: any }>;
   onDeleteSalary?: (id: string) => Promise<{ error: any }>;
+  salaryLoading?: boolean;
 }
 
 export function FinanceManager({ 
@@ -39,7 +40,8 @@ export function FinanceManager({
   onDeleteIncome,
   salaryRecords = [],
   onAddOrUpdateSalary,
-  onDeleteSalary
+  onDeleteSalary,
+  salaryLoading
 }: FinanceManagerProps) {
   const [activeTab, setActiveTab] = useState('income');
 
@@ -273,6 +275,7 @@ export function FinanceManager({
             records={salaryRecords}
             onAddOrUpdate={onAddOrUpdateSalary}
             onDelete={onDeleteSalary}
+            loading={salaryLoading}
           />
         </TabsContent>
 

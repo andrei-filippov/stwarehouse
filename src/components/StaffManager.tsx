@@ -21,7 +21,8 @@ import {
   Mail,
   Calendar,
   Car,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Wallet
 } from 'lucide-react';
 import type { Staff } from '../types';
 
@@ -427,6 +428,7 @@ export const StaffManager = memo(function StaffManager({ staff, onAdd, onUpdate,
                   <TableHead>Должность</TableHead>
                   <TableHead>Телефон</TableHead>
                   <TableHead>Email</TableHead>
+                  <TableHead>Оклад</TableHead>
                   <TableHead className="w-24">Статус</TableHead>
                   <TableHead className="text-right">Действия</TableHead>
                 </TableRow>
@@ -454,6 +456,7 @@ export const StaffManager = memo(function StaffManager({ staff, onAdd, onUpdate,
                       <TableCell>{s.position}</TableCell>
                       <TableCell>{s.phone || '-'}</TableCell>
                       <TableCell>{s.email || '-'}</TableCell>
+                      <TableCell>{s.base_salary ? `${s.base_salary.toLocaleString('ru-RU')} ₽` : '-'}</TableCell>
                       <TableCell>
                         {s.is_active ? (
                           <Badge className="bg-green-100 text-green-800 rounded-md">Активен</Badge>
@@ -596,6 +599,7 @@ function StaffForm({ initialData, onSubmit, onCancel, submitting }: StaffFormPro
     passport_issued_by: initialData?.passport_issued_by || '',
     passport_issue_date: initialData?.passport_issue_date || '',
     car_info: initialData?.car_info || '',
+    base_salary: initialData?.base_salary || '',
     notes: initialData?.notes || '',
     is_active: initialData?.is_active ?? true
   });
@@ -607,6 +611,7 @@ function StaffForm({ initialData, onSubmit, onCancel, submitting }: StaffFormPro
       ...formData,
       birth_date: formData.birth_date || null,
       passport_issue_date: formData.passport_issue_date || null,
+      base_salary: formData.base_salary ? parseFloat(formData.base_salary as string) : null,
     };
     onSubmit(cleanedData);
   }, [onSubmit, formData]);
@@ -732,6 +737,24 @@ function StaffForm({ initialData, onSubmit, onCancel, submitting }: StaffFormPro
             placeholder="Ford Focus, А123БС777"
             className="rounded-lg"
           />
+        </div>
+      </div>
+
+      <div className="border-t pt-4">
+        <h4 className="font-medium mb-3">Финансы</h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="base_salary">Оклад (₽)</Label>
+            <Input
+              id="base_salary"
+              type="number"
+              min="0"
+              value={formData.base_salary}
+              onChange={(e) => setFormData({ ...formData, base_salary: e.target.value })}
+              placeholder="50000"
+              className="rounded-lg"
+            />
+          </div>
         </div>
       </div>
 

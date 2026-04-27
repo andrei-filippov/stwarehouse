@@ -206,6 +206,7 @@ export type Staff = {
   passport_issued_by?: string;
   passport_issue_date?: string;
   car_info?: string; // Марка, модель, номер авто
+  base_salary?: number; // Оклад (фиксированная ставка)
   notes?: string;
   is_active: boolean;
   created_at?: string;

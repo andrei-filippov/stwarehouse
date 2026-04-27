@@ -343,7 +343,7 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
   const { categories: cableCategories, inventory: cableInventory, movements: cableMovements, repairs: cableRepairs, stats: cableStats, loading: cableLoading, addCategory: addCableCategory, updateCategory: updateCableCategory, deleteCategory: deleteCableCategory, reorderCategories: reorderCableCategories,
 importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInventory, updateInventoryQty: updateCableInventoryQty, deleteInventory: deleteCableInventory, issueCable, returnCable, sendToRepair, updateRepairStatus, deleteRepair, refresh: refreshCableInventory } = useCableInventory(companyId);
   const { expenses, loading: expensesLoading, addExpense, updateExpense, deleteExpense } = useExpenses(companyId);
-  const { records: salaryRecords, addOrUpdateRecord: addOrUpdateSalary, deleteRecord: deleteSalary } = useSalary(companyId);
+  const { records: salaryRecords, loading: salaryLoading, addOrUpdateRecord: addOrUpdateSalary, deleteRecord: deleteSalary } = useSalary(companyId);
   const { incomes, addIncome, deleteIncome } = useIncomes(companyId);
   const { contracts, templates: contractTemplates, loading: contractsLoading, createContract, updateContract, deleteContract, getNextContractNumber } = useContracts(companyId);
   const { accounts: bankAccounts } = useCompanyBankAccounts(companyId);
@@ -700,6 +700,7 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
                 salaryRecords={salaryRecords}
                 onAddOrUpdateSalary={addOrUpdateSalary}
                 onDeleteSalary={deleteSalary}
+                salaryLoading={salaryLoading}
               />
             </LazyComponent>
           )}

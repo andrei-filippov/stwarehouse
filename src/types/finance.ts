@@ -2,6 +2,16 @@ export type IncomeType = 'estimate' | 'manual';
 export type ExpenseCategory = 'equipment' | 'repair' | 'supplies' | 'subrent' | 'rent' | 'fuel' | 'other';
 export type PaymentType = 'regular' | 'advance' | 'bonus';
 
+export const PAYMENT_TYPE_LABELS: Record<PaymentType, string> = {
+  regular: 'Зарплата',
+  advance: 'Аванс',
+  bonus: 'Бонус',
+};
+
+export function getPaymentTypeLabel(type: PaymentType): string {
+  return PAYMENT_TYPE_LABELS[type] || type;
+}
+
 export interface Income {
   id: string;
   company_id: string;
@@ -27,33 +37,6 @@ export interface Expense {
   created_by?: string;
   created_at: string;
   updated_at: string;
-}
-
-export interface PayrollEntry {
-  id: string;
-  company_id: string;
-  staff_id: string;
-  month: string; // YYYY-MM
-  project_name: string;
-  amount: number;
-  project_date?: string;
-  notes?: string;
-  created_by?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface SalaryPayment {
-  id: string;
-  company_id: string;
-  staff_id: string;
-  month: string; // YYYY-MM
-  amount: number;
-  payment_date: string;
-  payment_type: PaymentType;
-  notes?: string;
-  created_by?: string;
-  created_at: string;
 }
 
 export interface SalarySummary {
