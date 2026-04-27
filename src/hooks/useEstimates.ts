@@ -57,21 +57,44 @@ export function useEstimates(companyId: string | undefined) {
       if (isOnline()) {
         // ОНЛАЙН: загружаем с сервера и мержим с локальными
         try {
-          const { data, error } = await supabase
+          // Шаг 1: загружаем сметы
+          const { data: estimatesData, error: estimatesError } = await supabase
             .from('estimates')
             .select(`
               id, user_id, event_name, venue, event_date, event_start_date, event_end_date,
               total, customer_id, customer_name, created_at, updated_at, status,
-              creator_name, category_order, color, is_editing, editing_by, editing_since, editing_session_id, editor_name,
-              items:estimate_items(*)
+              creator_name, category_order, color, is_editing, editing_by, editing_since, editing_session_id, editor_name
             `)
             .eq('company_id', companyId)
             .order('created_at', { ascending: false })
             .limit(500); // Защита от перегрузки при большом количестве смет
           
-          if (error) {
-            throw error;
+          if (estimatesError) {
+            throw estimatesError;
           }
+          
+          // Шаг 2: загружаем позиции смет отдельно
+          let itemsData: any[] = [];
+          if (estimatesData && estimatesData.length > 0) {
+            const estimateIds = estimatesData.map(e => e.id);
+            const { data: items, error: itemsError } = await supabase
+              .from('estimate_items')
+              .select('*')
+              .in('estimate_id', estimateIds)
+              .eq('company_id', companyId);
+            
+            if (itemsError) {
+              console.warn('[fetchEstimates] Error loading items:', itemsError.message);
+            } else {
+              itemsData = items || [];
+            }
+          }
+          
+          // Собираем сметы с позициями
+          const data = (estimatesData || []).map(estimate => ({
+            ...estimate,
+            items: itemsData.filter((item: any) => item.estimate_id === estimate.id)
+          }));
           
           // Фильтруем серверные данные - убираем удалённые локально
           const filteredServer = (data || []).filter(e => !isDeleted(e.id));
