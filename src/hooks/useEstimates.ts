@@ -58,7 +58,7 @@ export function useEstimates(companyId: string | undefined) {
         // ОНЛАЙН: загружаем с сервера и мержим с локальными
         try {
           // Шаг 1: загружаем сметы
-          const { data: estimatesData, error: estimatesError } = await supabase
+          let { data: estimatesData, error: estimatesError } = await supabase
             .from('estimates')
             .select(`
               id, user_id, event_name, venue, event_date, event_start_date, event_end_date,
@@ -70,7 +70,22 @@ export function useEstimates(companyId: string | undefined) {
             .limit(500); // Защита от перегрузки при большом количестве смет
           
           if (estimatesError) {
-            throw estimatesError;
+            console.error('[fetchEstimates] Error loading estimates:', estimatesError.message, estimatesError.code, estimatesError.details);
+            // Fallback: пробуем загрузить с минимальным набором колонок
+            console.log('[fetchEstimates] Trying fallback with minimal columns...');
+            const fallback = await supabase
+              .from('estimates')
+              .select('id, event_name, venue, event_date, total, status, created_at, updated_at')
+              .eq('company_id', companyId)
+              .order('created_at', { ascending: false })
+              .limit(500);
+            if (fallback.error) {
+              console.error('[fetchEstimates] Fallback also failed:', fallback.error.message);
+              throw estimatesError;
+            }
+            console.log('[fetchEstimates] Fallback success, count:', fallback.data?.length);
+            // @ts-ignore
+            estimatesData = fallback.data;
           }
           
           // Шаг 2: загружаем позиции смет отдельно
