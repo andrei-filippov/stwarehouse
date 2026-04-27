@@ -46,7 +46,10 @@ export interface SalaryRecord {
 export function useSalary(companyId: string | undefined) {
   const [records, setRecords] = useState<SalaryRecord[]>([]);
   const [loading, setLoading] = useState(false);
-  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Ref для отслеживания ID записей, которые мы только что изменили
+  // Чтобы realtime подписка не вызывала fetchRecords на собственные изменения
+  const recentlyUpdatedIds = useRef<Set<string>>(new Set());
+  const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchRecords = useCallback(async () => {
     console.log('[useSalary] fetchRecords called, companyId:', companyId);
@@ -192,6 +195,14 @@ export function useSalary(companyId: string | undefined) {
         } else if (error) {
           throw error;
         }
+
+        // Оптимистичное обновление локального состояния
+        recentlyUpdatedIds.current.add(existing.id);
+        setRecords(prev => prev.map(r => 
+          r.id === existing.id 
+            ? { ...r, ...updateData, payments: record.payments || r.payments || [] }
+            : r
+        ));
       } else {
         // Создаём новую — пробуем с payments, fallback без
         const insertData: any = {
@@ -199,24 +210,38 @@ export function useSalary(companyId: string | undefined) {
           company_id: companyId
         };
         
-        const { error } = await supabase
+        const { data: inserted, error } = await supabase
           .from('salary_records')
-          .insert(insertData);
+          .insert(insertData)
+          .select()
+          .single();
 
         if (error && error.message?.includes('payments')) {
           // Fallback: создаём без payments
           delete insertData.payments;
-          const { error: retryError } = await supabase
+          const { data: insertedRetry, error: retryError } = await supabase
             .from('salary_records')
-            .insert(insertData);
+            .insert(insertData)
+            .select()
+            .single();
           if (retryError) throw retryError;
+          
+          // Оптимистичное обновление для fallback
+          if (insertedRetry) {
+            recentlyUpdatedIds.current.add(insertedRetry.id);
+            setRecords(prev => [...prev, { ...insertedRetry, payments: [] }]);
+          }
         } else if (error) {
           throw error;
+        } else if (inserted) {
+          // Оптимистичное обновление
+          recentlyUpdatedIds.current.add(inserted.id);
+          setRecords(prev => [...prev, { ...inserted, payments: record.payments || [] }]);
         }
       }
 
-      // Не вызываем fetchRecords — realtime подписка сама обновит данные
-      // Если realtime не сработал, данные обновятся при следующем открытии вкладки
+      // Не вызываем fetchRecords — данные уже обновлены оптимистично
+      // Realtime подписка придёт позже и синхронизирует с сервером
       toast.success('Сохранено');
       return { error: null };
     } catch (err: any) {
@@ -237,6 +262,10 @@ export function useSalary(companyId: string | undefined) {
 
       if (error) throw error;
 
+      // Оптимистичное удаление из локального состояния
+      recentlyUpdatedIds.current.add(id);
+      setRecords(prev => prev.filter(r => r.id !== id));
+
       toast.success('Запись удалена');
       return { error: null };
     } catch (err: any) {
@@ -250,16 +279,8 @@ export function useSalary(companyId: string | undefined) {
     fetchRecords();
   }, [fetchRecords]);
 
-  // Debounced fetch для realtime подписки
-  const debouncedFetchRecords = useCallback(() => {
-    if (debounceTimeoutRef.current) {
-      clearTimeout(debounceTimeoutRef.current);
-    }
-    debounceTimeoutRef.current = setTimeout(() => {
-      fetchRecords();
-    }, 500);
-  }, [fetchRecords]);
-
+  // Realtime подписка — обновляет данные только при ВНЕШНИХ изменениях
+  // Собственные изменения (оптимистичные) игнорируются через recentlyUpdatedIds
   useEffect(() => {
     if (!companyId) return;
 
@@ -267,7 +288,21 @@ export function useSalary(companyId: string | undefined) {
       .channel('salary-changes')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'salary_records', filter: `company_id=eq.${companyId}` },
-        () => debouncedFetchRecords()
+        (payload) => {
+          const changedId = payload.new?.id || payload.old?.id;
+          // Если это наше собственное изменение — игнорируем
+          if (changedId && recentlyUpdatedIds.current.has(changedId)) {
+            recentlyUpdatedIds.current.delete(changedId);
+            return;
+          }
+          // Внешнее изменение — мягко обновляем через debounce
+          if (debounceTimeoutRef.current) {
+            clearTimeout(debounceTimeoutRef.current);
+          }
+          debounceTimeoutRef.current = setTimeout(() => {
+            fetchRecords();
+          }, 500);
+        }
       )
       .subscribe();
 
@@ -277,7 +312,7 @@ export function useSalary(companyId: string | undefined) {
         clearTimeout(debounceTimeoutRef.current);
       }
     };
-  }, [debouncedFetchRecords, companyId]);
+  }, [companyId, fetchRecords]);
 
   return {
     records,
