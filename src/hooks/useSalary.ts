@@ -83,9 +83,25 @@ export function useSalary(companyId: string | undefined) {
     if (error) {
       toast.error('Ошибка при загрузке зарплат', { description: error.message });
     } else {
-      // Миграция: если payments нет, но payment_date и paid есть — создаём одну запись
+      // Миграция: если payments нет, но paid > 0 — создаём legacy-запись в памяти
+      // и фоново обновляем БД (без await, чтобы не блокировать UI)
       const migrated = (data || []).map((r: any) => {
         if (!r.payments && r.paid > 0) {
+          // Фоново сохраняем payments в БД
+          supabase
+            .from('salary_records')
+            .update({
+              payments: [{
+                id: `legacy_${r.id}`,
+                amount: r.paid,
+                date: r.payment_date || r.created_at || new Date().toISOString(),
+                type: 'regular',
+              }]
+            })
+            .eq('id', r.id)
+            .then(() => {})
+            .catch(() => {});
+          
           return {
             ...r,
             payments: [{
