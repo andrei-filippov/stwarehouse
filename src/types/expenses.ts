@@ -6,6 +6,7 @@ export type ExpenseCategory =
   | 'subrent'        // Субаренда
   | 'rent'           // Аренда
   | 'transport'      // Транспорт
+  | 'taxes'          // Налоги
   | 'other';         // Прочее
 
 export interface Expense {
@@ -27,6 +28,7 @@ export const EXPENSE_CATEGORIES: { value: ExpenseCategory; label: string }[] = [
   { value: 'subrent', label: 'Субаренда' },
   { value: 'rent', label: 'Аренда' },
   { value: 'transport', label: 'Транспорт' },
+  { value: 'taxes', label: 'Налоги' },
   { value: 'other', label: 'Прочее' },
 ];
 

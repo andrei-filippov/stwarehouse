@@ -1,5 +1,5 @@
 export type IncomeType = 'estimate' | 'manual';
-export type ExpenseCategory = 'equipment' | 'repair' | 'supplies' | 'subrent' | 'rent' | 'fuel' | 'other';
+export type ExpenseCategory = 'equipment' | 'repair' | 'supplies' | 'subrent' | 'rent' | 'fuel' | 'taxes' | 'other';
 export type PaymentType = 'regular' | 'advance' | 'bonus';
 
 export const PAYMENT_TYPE_LABELS: Record<PaymentType, string> = {

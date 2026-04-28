@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
-import { Plus, Package, Wrench, ShoppingCart, Home, Store, Fuel, MoreHorizontal, Trash2, Search, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Package, Wrench, ShoppingCart, Home, Store, Fuel, MoreHorizontal, Trash2, Search, ChevronDown, ChevronUp, Receipt } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
@@ -26,6 +26,7 @@ const categoryIcons: Record<string, { icon: React.ElementType; color: string }> 
   subrent: { icon: Store, color: 'teal' },
   rent: { icon: Home, color: 'green' },
   transport: { icon: Fuel, color: 'red' },
+  taxes: { icon: Receipt, color: 'indigo' },
   other: { icon: MoreHorizontal, color: 'gray' },
   repair: { icon: Wrench, color: 'orange' },
   supplies: { icon: ShoppingCart, color: 'purple' },
