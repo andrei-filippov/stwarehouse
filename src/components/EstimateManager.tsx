@@ -165,6 +165,7 @@ export const EstimateManager = memo(function EstimateManager({
   }, [groupedEstimates]);
 
   const handleEdit = useCallback(async (estimate: Estimate) => {
+    console.log('[EstimateManager] handleEdit called:', estimate.id, estimate.event_name, 'items:', estimate.items?.length, 'sections:', estimate.sections?.length);
     // Устанавливаем статус редактирования
     if (onStartEditing && estimate.id !== 'new') {
       await onStartEditing(estimate.id);
@@ -214,6 +215,7 @@ export const EstimateManager = memo(function EstimateManager({
   }, []);
 
   const handleSave = useCallback(async (estimateData: any, items: any[], categoryOrder?: string[]) => {
+    console.log('[EstimateManager] handleSave called:', editingEstimate?.id, 'items count:', items.length);
     if (editingEstimate && editingEstimate.id !== 'new') {
       await onUpdate(editingEstimate.id, estimateData, items, categoryOrder);
       // Обновляем editingEstimate актуальными данными чтобы избежать рассинхронизации

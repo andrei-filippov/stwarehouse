@@ -155,7 +155,11 @@ export function EstimateBuilder({
 
   // Загружаем items при открытии сметы (без дедупликации — одинаковое оборудование может быть в разных секциях)
   useEffect(() => {
+    console.log('[EstimateBuilder] useEffect triggered, estimate?.id:', estimate?.id, 'estimate:', estimate ? 'exists' : 'null');
     if (estimate) {
+      console.log('[EstimateBuilder] Loading estimate:', estimate.id, 'event:', estimate.event_name);
+      console.log('[EstimateBuilder] Items from estimate:', estimate.items?.length || 0, estimate.items);
+      console.log('[EstimateBuilder] Sections from estimate:', estimate.sections?.length || 0, estimate.sections);
       setEventName(estimate.event_name || '');
       setVenue(estimate.venue || '');
       setEventStartDate(estimate.event_start_date || '');
@@ -166,6 +170,8 @@ export function EstimateBuilder({
       setCategoryOrder(estimate.category_order || equipmentCategories);
       setEventColor(estimate.color || 'blue');
     }
+    // Сбрасываем активную секцию при открытии сметы
+    setActiveSectionId(null);
   }, [estimate?.id]); // Запускаем только при изменении сметы
 
   // Загрузка items из выбранного шаблона (только один раз при создании новой сметы)
@@ -317,6 +323,7 @@ export function EstimateBuilder({
 
   // Добавление позиции с проверкой доступного количества
   const handleAddItem = (equipment: Equipment) => {
+    console.log('[EstimateBuilder] handleAddItem called:', equipment.name, 'activeSectionId:', activeSectionId);
     // Проверяем, не в ремонте ли оборудование
     const repairCheck = checkEquipmentInRepair(equipment.name, equipment.category);
     if (repairCheck.inRepair) {
@@ -382,6 +389,7 @@ export function EstimateBuilder({
 
   // === Функции для работы с секциями ===
   const addSection = () => {
+    console.log('[EstimateBuilder] addSection called, newSectionName:', newSectionName);
     if (!newSectionName.trim()) return;
     const newSection: EstimateSection = {
       id: `sec-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
@@ -453,11 +461,15 @@ export function EstimateBuilder({
       color: eventColor,
       sections: sections.length > 0 ? sections : undefined,
     };
+    console.log('[EstimateBuilder] Saving estimate:', estimate?.id, 'items:', items.length, 'sections:', sections.length);
+    console.log('[EstimateBuilder] Items to save:', items);
     try {
       await onSave(estimateData, items, categoryOrder);
       setHasUnsavedChanges(false);
+      console.log('[EstimateBuilder] Save successful');
     } catch (e) {
       // Сохранение не удалось — оставляем флаг несохранённых изменений
+      console.error('[EstimateBuilder] Save failed:', e);
       toast.error('Ошибка сохранения', { description: 'Попробуйте ещё раз' });
     }
   };

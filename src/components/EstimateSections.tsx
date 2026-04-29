@@ -73,6 +73,7 @@ export function EstimateSections({
   equipment,
   total,
 }: EstimateSectionsProps) {
+  console.log('[EstimateSections] Render:', items.length, 'items,', sections.length, 'sections');
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
   const [copiedSectionId, setCopiedSectionId] = useState<string | null>(null);
 
@@ -393,6 +394,8 @@ export function EstimateSections({
   const noSectionItems = items.filter(item => !item.section_id);
   const noSectionGrouped = groupByCategory(noSectionItems);
   const noSectionTotal = noSectionItems.reduce((sum, item) => sum + (item.price * item.quantity * (item.coefficient || 1)), 0);
+  
+  console.log('[EstimateSections] noSectionItems:', noSectionItems.length, 'items with section:', items.filter(i => !!i.section_id).length);
 
   return (
     <div className="space-y-3">

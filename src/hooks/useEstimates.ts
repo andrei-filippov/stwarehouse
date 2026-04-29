@@ -96,24 +96,43 @@ export function useEstimates(companyId: string | undefined) {
             
             for (let i = 0; i < estimateIds.length; i += BATCH_SIZE) {
               const batch = estimateIds.slice(i, i + BATCH_SIZE);
+              console.log('[fetchEstimates] Loading items batch', i, 'of', estimateIds.length, 'ids:', batch);
               const { data: items, error: itemsError } = await supabase
                 .from('estimate_items')
                 .select('*')
-                .in('estimate_id', batch);
+                .in('estimate_id', batch)
+                .eq('company_id', companyId);
               
               if (itemsError) {
-                console.warn('[fetchEstimates] Error loading items batch:', itemsError.message);
+                console.error('[fetchEstimates] Error loading items batch:', itemsError.message, itemsError.code, itemsError.details);
               } else {
+                console.log('[fetchEstimates] Loaded items batch:', items?.length || 0, 'items');
+                if (items && items.length > 0) {
+                  console.log('[fetchEstimates] First item sample:', { 
+                    id: items[0].id, 
+                    estimate_id: items[0].estimate_id, 
+                    name: items[0].name,
+                    section_id: items[0].section_id 
+                  });
+                }
                 itemsData.push(...(items || []));
               }
             }
           }
           
+          console.log('[fetchEstimates] Total items loaded:', itemsData.length);
+          
           // Собираем сметы с позициями
-          const data = (estimatesData || []).map(estimate => ({
-            ...estimate,
-            items: itemsData.filter((item: any) => item.estimate_id === estimate.id)
-          }));
+          const data = (estimatesData || []).map(estimate => {
+            const estimateItems = itemsData.filter((item: any) => item.estimate_id === estimate.id);
+            if (estimateItems.length > 0) {
+              console.log('[fetchEstimates] Estimate:', estimate.id, 'event:', estimate.event_name, 'items count:', estimateItems.length);
+            }
+            return {
+              ...estimate,
+              items: estimateItems
+            };
+          });
           
           // Фильтруем серверные данные - убираем удалённые локально
           const filteredServer = (data || []).filter(e => !isDeleted(e.id));
@@ -206,6 +225,12 @@ export function useEstimates(companyId: string | undefined) {
             return true;
           });
           
+          console.log('[fetchEstimates] Setting estimates:', deduplicated.length, 'estimates with items');
+          deduplicated.forEach((e: any) => {
+            if (e.items && e.items.length > 0) {
+              console.log('[fetchEstimates] Estimate in state:', e.id, e.event_name, 'items:', e.items.length);
+            }
+          });
           setEstimates(deduplicated);
           
           // СОХРАНЯЕМ серверные данные в локальную базу для офлайн-доступа
