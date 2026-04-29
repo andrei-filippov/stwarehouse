@@ -1804,10 +1804,6 @@ export function EstimateBuilder({
                       <p>Добавьте оборудование из списка слева</p>
                       <p className="text-xs mt-1">или создайте секцию для группировки</p>
                     </div>
-                  ) : items.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground/70">
-                      <p>Кликните на секцию, затем добавьте оборудование слева</p>
-                    </div>
                   ) : (
                     <EstimateSections
                       sections={sections}
