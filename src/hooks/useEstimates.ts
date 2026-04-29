@@ -113,6 +113,8 @@ export function useEstimates(companyId: string | undefined) {
                     id: items[0].id, 
                     estimate_id: items[0].estimate_id, 
                     name: items[0].name,
+                    category: items[0].category,
+                    equipment_id: items[0].equipment_id,
                     section_id: items[0].section_id 
                   });
                 }
@@ -143,6 +145,7 @@ export function useEstimates(companyId: string | undefined) {
               console.log('[fetchEstimates] BACKLINE DEBUG - itemsData length:', itemsData.length);
               console.log('[fetchEstimates] BACKLINE DEBUG - all estimate_ids in items:', itemsData.map(i => i.estimate_id));
               console.log('[fetchEstimates] BACKLINE DEBUG - matched items:', estimateItems.length);
+              console.log('[fetchEstimates] BACKLINE DEBUG - matched items details:', estimateItems.map(i => ({ name: i.name, equipment_id: i.equipment_id, category: i.category, company_id: i.company_id })));
             }
             console.log('[fetchEstimates] Merging estimate:', estimate.id, 'event:', estimate.event_name, 'matched items:', estimateItems.length);
             return {
@@ -561,15 +564,16 @@ export function useEstimates(companyId: string | undefined) {
             });
             console.log('[updateEstimate] Items to insert:', itemsWithIds);
 
-            const { error: itemsError } = await supabase
+            const { data: insertedItems, error: itemsError } = await supabase
               .from('estimate_items')
-              .insert(itemsWithIds);
+              .insert(itemsWithIds)
+              .select();
 
             if (itemsError) {
               console.error('[updateEstimate] Items insert error:', itemsError);
               throw itemsError;
             }
-            console.log('[updateEstimate] Items inserted successfully');
+            console.log('[updateEstimate] Items inserted successfully:', insertedItems?.length, 'sample:', insertedItems?.[0]);
           } else {
             console.log('[updateEstimate] No items to insert');
           }

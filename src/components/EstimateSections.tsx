@@ -396,6 +396,7 @@ export function EstimateSections({
   const noSectionTotal = noSectionItems.reduce((sum, item) => sum + (item.price * item.quantity * (item.coefficient || 1)), 0);
   
   console.log('[EstimateSections] noSectionItems:', noSectionItems.length, 'items with section:', items.filter(i => !!i.section_id).length);
+  console.log('[EstimateSections] noSectionGrouped categories:', noSectionGrouped.map(g => g.category));
 
   return (
     <div className="space-y-3">

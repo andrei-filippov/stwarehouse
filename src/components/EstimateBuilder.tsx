@@ -168,6 +168,10 @@ export function EstimateBuilder({
     if (estimate) {
       console.log('[EstimateBuilder] Loading estimate:', estimate.id, 'event:', estimate.event_name);
       console.log('[EstimateBuilder] Items from estimate:', estimate.items?.length || 0, estimate.items);
+      if (estimate.items && estimate.items.length > 0) {
+        const itemsWithEquipment = estimate.items.filter(i => i.equipment_id);
+        console.log('[EstimateBuilder] Items with equipment_id:', itemsWithEquipment.length, 'sample:', itemsWithEquipment[0]);
+      }
       console.log('[EstimateBuilder] Sections from estimate:', estimate.sections?.length || 0, estimate.sections);
       setEventName(estimate.event_name || '');
       setVenue(estimate.venue || '');
