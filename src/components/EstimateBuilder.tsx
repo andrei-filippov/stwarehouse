@@ -345,7 +345,7 @@ export function EstimateBuilder({
     }
     
     const existingIndex = items.findIndex(
-      item => item.equipment_id === equipment.id && item.price === equipment.price && (item.coefficient || 1) === 1
+      item => item.equipment_id === equipment.id && item.price === equipment.price && (item.coefficient || 1) === 1 && item.section_id === activeSectionId
     );
     
     if (existingIndex >= 0) {
