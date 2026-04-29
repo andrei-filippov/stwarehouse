@@ -27,7 +27,9 @@ export function groupItemsBySections(
   });
 
   // Потом без секции (без заголовка, просто список)
-  const noSectionItems = items.filter(item => !item.section_id);
+  // Также сюда попадают items с несуществующим section_id (например, после удаления секции)
+  const validSectionIds = new Set(sections.map(s => s.id));
+  const noSectionItems = items.filter(item => !item.section_id || !validSectionIds.has(item.section_id));
   if (noSectionItems.length > 0) {
     const grouped = groupByCategory(noSectionItems, categoryOrder);
     const total = noSectionItems.reduce((sum, item) => sum + (item.price * item.quantity * (item.coefficient || 1)), 0);

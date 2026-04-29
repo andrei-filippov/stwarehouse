@@ -89,17 +89,15 @@ export const EstimateManager = memo(function EstimateManager({
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
   
   // Синхронизируем editingEstimate с актуальными данными из estimates
+  // Только когда конструктор закрыт, чтобы не перезаписывать несохранённые изменения
   useEffect(() => {
-    if (editingEstimate && editingEstimate.id && !editingEstimate.id.startsWith('local_')) {
+    if (!isBuilderOpen && editingEstimate && editingEstimate.id && !editingEstimate.id.startsWith('local_')) {
       const freshEstimate = estimates.find(e => e.id === editingEstimate.id);
-      if (freshEstimate && freshEstimate.items && (
-        JSON.stringify(freshEstimate.items) !== JSON.stringify(editingEstimate.items) ||
-        JSON.stringify(freshEstimate.sections) !== JSON.stringify(editingEstimate.sections)
-      )) {
+      if (freshEstimate) {
         setEditingEstimate(freshEstimate);
       }
     }
-  }, [estimates, editingEstimate?.id]);
+  }, [estimates, isBuilderOpen, editingEstimate?.id]);
   
   // Поиск и группировка
   const [searchQuery, setSearchQuery] = useState('');
@@ -200,7 +198,7 @@ export const EstimateManager = memo(function EstimateManager({
       event_name: estimateData.event_name,
       venue: estimateData.venue,
       event_date: estimateData.event_date,
-      total: (items || []).reduce((sum, item) => sum + (item.price * item.quantity * item.coefficient), 0),
+      total: (items || []).reduce((sum, item) => sum + (item.price * item.quantity * (item.coefficient || 1)), 0),
       items: items
     } as Estimate);
     setIsImportDialogOpen(false);

@@ -156,9 +156,15 @@ export function EstimateBuilder({
   // Загружаем items при открытии сметы (без дедупликации — одинаковое оборудование может быть в разных секциях)
   useEffect(() => {
     if (estimate) {
+      setEventName(estimate.event_name || '');
+      setVenue(estimate.venue || '');
+      setEventStartDate(estimate.event_start_date || '');
+      setEventEndDate(estimate.event_end_date || '');
+      setCustomerId(estimate.customer_id || '');
       setItems(estimate.items || []);
       setSections(estimate.sections || []);
       setCategoryOrder(estimate.category_order || equipmentCategories);
+      setEventColor(estimate.color || 'blue');
     }
   }, [estimate?.id]); // Запускаем только при изменении сметы
 
@@ -359,7 +365,7 @@ export function EstimateBuilder({
     } else {
       // Добавляем новую позицию (с привязкой к активной секции)
       const newItem: EstimateItem = {
-        id: Math.random().toString(36).substr(2, 9),
+        id: crypto.randomUUID(),
         equipment_id: equipment.id,
         section_id: activeSectionId || undefined,
         name: equipment.name,
@@ -378,7 +384,7 @@ export function EstimateBuilder({
   const addSection = () => {
     if (!newSectionName.trim()) return;
     const newSection: EstimateSection = {
-      id: `sec-${Date.now()}`,
+      id: `sec-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
       name: newSectionName.trim(),
     };
     setSections(prev => [...prev, newSection]);
@@ -426,12 +432,12 @@ export function EstimateBuilder({
   const handleDuplicateItem = (item: EstimateItem) => {
     const newItem: EstimateItem = {
       ...item,
-      id: Math.random().toString(36).substr(2, 9),
+      id: crypto.randomUUID(),
     };
     setItems(prev => [...prev, newItem]);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     // event_date - обязательное поле для обратной совместимости
     const eventDate = eventStartDate || eventEndDate || new Date().toISOString();
     
@@ -447,8 +453,13 @@ export function EstimateBuilder({
       color: eventColor,
       sections: sections.length > 0 ? sections : undefined,
     };
-    setHasUnsavedChanges(false);
-    onSave(estimateData, items, categoryOrder);
+    try {
+      await onSave(estimateData, items, categoryOrder);
+      setHasUnsavedChanges(false);
+    } catch (e) {
+      // Сохранение не удалось — оставляем флаг несохранённых изменений
+      toast.error('Ошибка сохранения', { description: 'Попробуйте ещё раз' });
+    }
   };
   
   const handleClose = () => {
@@ -506,6 +517,16 @@ export function EstimateBuilder({
   const touchCurrentY = useRef<number>(0);
   const scrollInterval = useRef<NodeJS.Timeout | null>(null);
   const touchItemRef = useRef<string | null>(null);
+  
+  // Очистка интервала при размонтировании
+  useEffect(() => {
+    return () => {
+      if (scrollInterval.current) {
+        clearInterval(scrollInterval.current);
+        scrollInterval.current = null;
+      }
+    };
+  }, []);
 
   const clearScrollInterval = () => {
     if (scrollInterval.current) {
@@ -757,7 +778,7 @@ export function EstimateBuilder({
     printWindow.document.write(html);
     printWindow.document.close();
     setTimeout(() => printWindow.print(), 500);
-  }, [eventName, venue, eventStartDate, eventEndDate, groupedItems, total, pdfSettings]);
+  }, [eventName, venue, eventStartDate, eventEndDate, items, sections, categoryOrder, total, pdfSettings, company]);
 
   // Экспорт Excel
   const exportExcel = useCallback(async () => {
@@ -1016,7 +1037,7 @@ export function EstimateBuilder({
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  }, [eventName, eventStartDate, eventEndDate, groupedItems, total, customerId, customers, pdfSettings, venue]);
+  }, [eventName, eventStartDate, eventEndDate, items, sections, categoryOrder, total, customerId, customers, pdfSettings, venue]);
 
   const handlePrint = () => {
     window.print();
@@ -1779,7 +1800,7 @@ export function EstimateBuilder({
                         const name = prompt('Название секции:');
                         if (name?.trim()) {
                           const newSection: EstimateSection = {
-                            id: `sec-${Date.now()}`,
+                            id: `sec-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
                             name: name.trim(),
                           };
                           setSections(prev => [...prev, newSection]);
@@ -1806,7 +1827,7 @@ export function EstimateBuilder({
                       onActiveSectionChange={setActiveSectionId}
                       onAddSection={(name) => {
                         const newSection: EstimateSection = {
-                          id: `sec-${Date.now()}`,
+                          id: `sec-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
                           name,
                         };
                         setSections(prev => [...prev, newSection]);
@@ -1829,6 +1850,13 @@ export function EstimateBuilder({
                           id: crypto.randomUUID(),
                           section_id: targetSectionId,
                         }));
+                        // Добавляем новые категории в categoryOrder если их ещё нет
+                        const newCategories = [...new Set(newItems.map(i => i.category))];
+                        setCategoryOrder(prev => {
+                          const existing = new Set(prev);
+                          const toAdd = newCategories.filter(c => !existing.has(c));
+                          return toAdd.length > 0 ? [...prev, ...toAdd] : prev;
+                        });
                         setItems(prev => [...prev, ...newItems]);
                         setHasUnsavedChanges(true);
                         toast.success(`Скопировано ${newItems.length} позиций в секцию`);

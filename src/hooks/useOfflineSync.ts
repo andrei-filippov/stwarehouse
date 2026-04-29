@@ -246,7 +246,7 @@ export function useOfflineSync(companyId: string | undefined) {
                   }
                 }
               } else if (item.operation === 'update') {
-                const { id, items, created_at, updated_at, user_id, company_id, ...data } = item.data;
+                const { id, items: estimateItems, created_at, updated_at, user_id, company_id, ...data } = item.data;
                 debugLog('[Sync] Estimate update - original ID:', id);
                 
                 let serverId = id?.startsWith('local_') ? idMapping[id] : id;
@@ -279,6 +279,30 @@ export function useOfflineSync(companyId: string | undefined) {
                 // Удаляем старые позиции перед обновлением (чтобы избежать дубликатов)
                 await supabase.from('estimate_items').delete().eq('estimate_id', serverId);
                 debugLog('[Sync] Deleted old estimate_items for:', serverId);
+                
+                // Вставляем новые позиции из данных update (если есть)
+                if (estimateItems && estimateItems.length > 0) {
+                  const validItems = estimateItems
+                    .filter((item: any) => item.name || item.equipment_id)
+                    .map((item: any, idx: number) => {
+                      const { id: itemId, estimate_id, ...itemData } = item;
+                      return {
+                        ...itemData,
+                        estimate_id: serverId,
+                        company_id: companyId,
+                        order_index: idx
+                      };
+                    });
+                  
+                  if (validItems.length > 0) {
+                    const { error: itemsInsertError } = await supabase.from('estimate_items').insert(validItems);
+                    if (itemsInsertError) {
+                      debugError('[Sync] Error inserting items during update:', itemsInsertError);
+                    } else {
+                      debugLog('[Sync] Inserted items during update:', validItems.length);
+                    }
+                  }
+                }
                 
                 result = await supabase.from('estimates').update(data).eq('id', serverId);
               } else if (item.operation === 'delete') {
@@ -496,14 +520,7 @@ export function useOfflineSync(companyId: string | undefined) {
                 });
               
               if (validItems.length > 0) {
-                // Сначала удаляем старые позиции, чтобы избежать дублирования
-                debugLog('[Sync] Deleting old estimate_items for:', serverEstimateId);
-                const { error: deleteError } = await supabase.from('estimate_items').delete().eq('estimate_id', serverEstimateId);
-                if (deleteError) {
-                  debugError('[Sync] Error deleting old items:', deleteError);
-                }
-                
-                // Вставляем новые позиции
+                // Вставляем новые позиции (удаление уже произведено в первом проходе при update, или не нужно при create)
                 debugLog('[Sync] Inserting estimate_items:', validItems.length);
                 debugLog('[Sync] First item:', JSON.stringify(validItems[0]));
                 result = await supabase.from('estimate_items').insert(validItems);

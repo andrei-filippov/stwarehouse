@@ -88,19 +88,24 @@ export function useEstimates(companyId: string | undefined) {
             estimatesData = fallback.data;
           }
           
-          // Шаг 2: загружаем позиции смет отдельно
+          // Шаг 2: загружаем позиции смет отдельно (батчами по 100 для обхода лимитов Supabase)
           let itemsData: any[] = [];
           if (estimatesData && estimatesData.length > 0) {
             const estimateIds = estimatesData.map(e => e.id);
-            const { data: items, error: itemsError } = await supabase
-              .from('estimate_items')
-              .select('*')
-              .in('estimate_id', estimateIds);
+            const BATCH_SIZE = 100;
             
-            if (itemsError) {
-              console.warn('[fetchEstimates] Error loading items:', itemsError.message);
-            } else {
-              itemsData = items || [];
+            for (let i = 0; i < estimateIds.length; i += BATCH_SIZE) {
+              const batch = estimateIds.slice(i, i + BATCH_SIZE);
+              const { data: items, error: itemsError } = await supabase
+                .from('estimate_items')
+                .select('*')
+                .in('estimate_id', batch);
+              
+              if (itemsError) {
+                console.warn('[fetchEstimates] Error loading items batch:', itemsError.message);
+              } else {
+                itemsData.push(...(items || []));
+              }
             }
           }
           
