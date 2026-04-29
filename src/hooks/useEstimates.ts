@@ -481,6 +481,9 @@ export function useEstimates(companyId: string | undefined) {
   ) => {
     if (!companyId) return { error: new Error('No company selected') };
     
+    console.log('[updateEstimate] Called with id:', id, 'items count:', items.length);
+    console.log('[updateEstimate] Items:', items);
+    
     try {
       const estimateData = {
         ...estimate,
@@ -504,6 +507,7 @@ export function useEstimates(companyId: string | undefined) {
       if (isOnline() && !isLocalId) {
         try {
           // Пробуем обновить на сервере
+          console.log('[updateEstimate] Updating estimate:', id);
           const { error: estimateError } = await supabase
             .from('estimates')
             .update({
@@ -514,18 +518,25 @@ export function useEstimates(companyId: string | undefined) {
             .eq('id', id)
             .eq('company_id', companyId);
 
-          if (estimateError) throw estimateError;
+          if (estimateError) {
+            console.error('[updateEstimate] Estimate update error:', estimateError);
+            throw estimateError;
+          }
+          console.log('[updateEstimate] Estimate updated successfully');
 
           // Удаляем старые позиции
+          console.log('[updateEstimate] Deleting old items for estimate:', id);
           await supabase
             .from('estimate_items')
             .delete()
             .eq('estimate_id', id);
+          console.log('[updateEstimate] Old items deleted');
 
           // Создаём новые позиции
           if (items.length > 0) {
+            console.log('[updateEstimate] Inserting', items.length, 'items');
             const itemsWithIds = items.map((item, index) => {
-              const { id: _, ...itemWithoutId } = item;
+              const { id: itemId, ...itemWithoutId } = item;
               return {
                 ...itemWithoutId,
                 estimate_id: id,
@@ -533,12 +544,19 @@ export function useEstimates(companyId: string | undefined) {
                 order_index: index
               };
             });
+            console.log('[updateEstimate] Items to insert:', itemsWithIds);
 
             const { error: itemsError } = await supabase
               .from('estimate_items')
               .insert(itemsWithIds);
 
-            if (itemsError) throw itemsError;
+            if (itemsError) {
+              console.error('[updateEstimate] Items insert error:', itemsError);
+              throw itemsError;
+            }
+            console.log('[updateEstimate] Items inserted successfully');
+          } else {
+            console.log('[updateEstimate] No items to insert');
           }
 
           // Удаляем локальную версию если была (чтобы не было конфликтов)
