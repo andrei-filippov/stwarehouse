@@ -107,7 +107,7 @@ export function useEstimates(companyId: string | undefined) {
               if (itemsError) {
                 console.error('[fetchEstimates] Error loading items batch:', itemsError.message, itemsError.code, itemsError.details);
               } else {
-                console.log('[fetchEstimates] Loaded items batch:', items?.length || 0, 'items');
+                console.log('[fetchEstimates] Loaded items batch:', items?.length || 0, 'items for batch', i, 'estimate_ids:', batch);
                 if (items && items.length > 0) {
                   console.log('[fetchEstimates] First item sample:', { 
                     id: items[0].id, 
