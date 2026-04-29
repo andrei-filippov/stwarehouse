@@ -39,7 +39,7 @@ export function useEstimates(companyId: string | undefined) {
     fetchInProgressRef.current = true;
     setLoading(true);
     
-    debugLog('[fetchEstimates] ========== START ==========', new Date().toISOString());
+    console.log('[fetchEstimates] ========== START ==========', new Date().toISOString());
     
     try {
       // Всегда загружаем локальные сметы (на случай если есть несинхронизированные)
@@ -226,9 +226,7 @@ export function useEstimates(companyId: string | undefined) {
           
           console.log('[fetchEstimates] Setting estimates:', deduplicated.length, 'estimates with items');
           deduplicated.forEach((e: any) => {
-            if (e.items && e.items.length > 0) {
-              console.log('[fetchEstimates] Estimate in state:', e.id, e.event_name, 'items:', e.items.length);
-            }
+            console.log('[fetchEstimates] Estimate in state:', e.id, e.event_name, 'items:', e.items?.length || 0);
           });
           setEstimates(deduplicated);
           
