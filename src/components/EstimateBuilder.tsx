@@ -1828,6 +1828,17 @@ export function EstimateBuilder({
                         if (activeSectionId === id) setActiveSectionId(null);
                         setHasUnsavedChanges(true);
                       }}
+                      onDuplicateSection={(sourceSectionId, targetSectionId) => {
+                        const sourceItems = items.filter(item => item.section_id === sourceSectionId);
+                        const newItems = sourceItems.map(item => ({
+                          ...item,
+                          id: crypto.randomUUID(),
+                          section_id: targetSectionId,
+                        }));
+                        setItems(prev => [...prev, ...newItems]);
+                        setHasUnsavedChanges(true);
+                        toast.success(`Скопировано ${newItems.length} позиций в секцию`);
+                      }}
                       onUpdateItem={handleUpdateItem}
                       onRemoveItem={handleRemoveItem}
                       categoryOrder={categoryOrder}

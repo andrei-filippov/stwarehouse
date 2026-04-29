@@ -9,7 +9,9 @@ import {
   ChevronDown,
   ChevronUp,
   GripVertical,
-  MapPin
+  MapPin,
+  Copy,
+  ClipboardPaste
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import type { EstimateItem, EstimateSection } from '../types';
@@ -21,6 +23,7 @@ interface EstimateSectionsProps {
   onActiveSectionChange: (id: string | null) => void;
   onAddSection: (name: string) => void;
   onRemoveSection: (id: string) => void;
+  onDuplicateSection?: (sourceSectionId: string, targetSectionId: string) => void;
   onUpdateItem: (itemId: string, updates: Partial<EstimateItem>) => void;
   onRemoveItem: (itemId: string) => void;
   categoryOrder: string[];
@@ -49,6 +52,7 @@ export function EstimateSections({
   onActiveSectionChange,
   onAddSection,
   onRemoveSection,
+  onDuplicateSection,
   onUpdateItem,
   onRemoveItem,
   categoryOrder,
@@ -70,6 +74,7 @@ export function EstimateSections({
   total,
 }: EstimateSectionsProps) {
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+  const [copiedSectionId, setCopiedSectionId] = useState<string | null>(null);
 
   const toggleSection = (sectionId: string) => {
     setCollapsedSections(prev => {
@@ -321,6 +326,39 @@ export function EstimateSections({
             >
               {isCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
             </Button>
+            {/* Копировать секцию */}
+            {sectionItems.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCopiedSectionId(section.id);
+                }}
+                className="h-7 w-7 p-0 text-muted-foreground hover:text-blue-600 hover:bg-blue-50"
+                title="Копировать содержимое секции"
+              >
+                <Copy className="w-3.5 h-3.5" />
+              </Button>
+            )}
+            {/* Вставить в пустую секцию */}
+            {sectionItems.length === 0 && copiedSectionId && copiedSectionId !== section.id && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onDuplicateSection && copiedSectionId) {
+                    onDuplicateSection(copiedSectionId, section.id);
+                    setCopiedSectionId(null);
+                  }
+                }}
+                className="h-7 w-7 p-0 text-muted-foreground hover:text-green-600 hover:bg-green-50"
+                title="Вставить содержимое скопированной секции"
+              >
+                <ClipboardPaste className="w-3.5 h-3.5" />
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="sm"
