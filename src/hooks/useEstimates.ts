@@ -63,7 +63,7 @@ export function useEstimates(companyId: string | undefined) {
             .select(`
               id, user_id, event_name, venue, event_date, event_start_date, event_end_date,
               total, customer_id, customer_name, created_at, updated_at, status,
-              creator_name, category_order, color, is_editing, editing_by, editing_since, editing_session_id, editor_name
+              creator_name, category_order, sections, color, is_editing, editing_by, editing_since, editing_session_id, editor_name
             `)
             .eq('company_id', companyId)
             .order('created_at', { ascending: false })
@@ -75,7 +75,7 @@ export function useEstimates(companyId: string | undefined) {
             console.log('[fetchEstimates] Trying fallback with minimal columns...');
             const fallback = await supabase
               .from('estimates')
-              .select('id, event_name, venue, event_date, total, status, created_at, updated_at')
+              .select('id, event_name, venue, event_date, total, status, created_at, updated_at, sections')
               .eq('company_id', companyId)
               .order('created_at', { ascending: false })
               .limit(500);
@@ -372,6 +372,7 @@ export function useEstimates(companyId: string | undefined) {
         user_id: userId,
         creator_name: creatorName,
         category_order: categoryOrder || [],
+        sections: estimate.sections || [],
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         items: items.map((item, index) => ({
@@ -395,7 +396,8 @@ export function useEstimates(companyId: string | undefined) {
               company_id: companyId,
               user_id: userId,
               creator_name: creatorName,
-              category_order: categoryOrder || []
+              category_order: categoryOrder || [],
+              sections: estimate.sections || []
             })
             .select()
             .single();
@@ -487,6 +489,7 @@ export function useEstimates(companyId: string | undefined) {
         id,
         company_id: companyId,
         category_order: categoryOrder || [],
+        sections: estimate.sections || [],
         updated_at: new Date().toISOString(),
         items: items.map((item, index) => ({
           ...item,
@@ -507,7 +510,8 @@ export function useEstimates(companyId: string | undefined) {
             .from('estimates')
             .update({
               ...estimate,
-              category_order: categoryOrder || []
+              category_order: categoryOrder || [],
+              sections: estimate.sections || []
             })
             .eq('id', id)
             .eq('company_id', companyId);

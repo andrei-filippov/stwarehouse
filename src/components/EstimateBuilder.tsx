@@ -29,12 +29,16 @@ import {
   X,
   AlertTriangle,
   PackagePlus,
-  Settings2
+  Settings2,
+  LayoutGrid,
+  MapPin
 } from 'lucide-react';
-import type { Equipment, Estimate, EstimateItem, Customer, PDFSettings, EquipmentRepair, CableCategory } from '../types';
+import type { Equipment, Estimate, EstimateItem, EstimateSection, Customer, PDFSettings, EquipmentRepair, CableCategory } from '../types';
+import { EstimateSections } from './EstimateSections';
 import { cn } from '../lib/utils';
 import { toast } from 'sonner';
 import { logger } from '../lib/logger';
+import { groupItemsBySections } from '../lib/estimateExport';
 
 interface EstimateBuilderProps {
   equipment: Equipment[];
@@ -106,6 +110,10 @@ export function EstimateBuilder({
   const [eventEndDate, setEventEndDate] = useState(estimate?.event_end_date || '');
   const [customerId, setCustomerId] = useState(estimate?.customer_id || '');
   const [items, setItems] = useState<EstimateItem[]>(estimate?.items || []);
+  const [sections, setSections] = useState<EstimateSection[]>(estimate?.sections || []);
+  const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
+  const [showSectionDialog, setShowSectionDialog] = useState(false);
+  const [newSectionName, setNewSectionName] = useState('');
   const [eventColor, setEventColor] = useState(estimate?.color || 'blue');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -355,10 +363,11 @@ export function EstimateBuilder({
       };
       setItems(updatedItems);
     } else {
-      // Добавляем новую позицию
+      // Добавляем новую позицию (с привязкой к активной секции)
       const newItem: EstimateItem = {
         id: Math.random().toString(36).substr(2, 9),
         equipment_id: equipment.id,
+        section_id: activeSectionId || undefined,
         name: equipment.name,
         description: equipment.description || '',
         category: equipment.category,
@@ -369,6 +378,33 @@ export function EstimateBuilder({
       };
       setItems(prev => [...prev, newItem]);
     }
+  };
+
+  // === Функции для работы с секциями ===
+  const addSection = () => {
+    if (!newSectionName.trim()) return;
+    const newSection: EstimateSection = {
+      id: `sec-${Date.now()}`,
+      name: newSectionName.trim(),
+    };
+    setSections(prev => [...prev, newSection]);
+    setNewSectionName('');
+    setShowSectionDialog(false);
+    setActiveSectionId(newSection.id);
+    setHasUnsavedChanges(true);
+  };
+
+  const removeSection = (sectionId: string) => {
+    if (!confirm('Удалить секцию? Позиции внутри секции останутся без секции.')) return;
+    setSections(prev => prev.filter(s => s.id !== sectionId));
+    // Убираем section_id у позиций этой секции (они становятся "без секции")
+    setItems(prev => prev.map(item => 
+      item.section_id === sectionId ? { ...item, section_id: undefined } : item
+    ));
+    if (activeSectionId === sectionId) {
+      setActiveSectionId(null);
+    }
+    setHasUnsavedChanges(true);
   };
 
   const handleRemoveItem = (itemId: string) => {
@@ -415,6 +451,7 @@ export function EstimateBuilder({
       customer_name: selectedCustomer?.name || null,
       total,
       color: eventColor,
+      sections: sections.length > 0 ? sections : undefined,
     };
     setHasUnsavedChanges(false);
     onSave(estimateData, items, categoryOrder);
@@ -662,47 +699,57 @@ export function EstimateBuilder({
           <p><strong>Дата окончания:</strong> ${eventEndDate ? new Date(eventEndDate).toLocaleDateString('ru-RU') : '-'}</p>
         </div>
         
-        ${groupedItems.map(([category, categoryItems]) => {
-          const catTotal = categoryItems.reduce((sum, item) => sum + (item.price * item.quantity * (item.coefficient || 1)), 0);
+        ${groupItemsBySections(items, sections, categoryOrder).map(({ section, categories, total: sectionTotal, isNoSection }) => {
           return `
-          <table>
-            <thead>
-              <tr style="background:#e3f2fd;">
-                <th colspan="8" style="text-align:left;padding:8px;font-size:13px;">
-                  ${category}
-                </th>
-              </tr>
-              <tr>
-                <th style="width:5%">№</th>
-                <th style="width:25%">Наименование</th>
-                <th style="width:20%">Описание</th>
-                <th style="width:8%">Ед.</th>
-                <th style="width:8%">Кол-во</th>
-                <th style="width:10%">Цена</th>
-                <th style="width:8%">Коэф.</th>
-                <th style="width:10%">Сумма</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${categoryItems.map((item, idx) => `
-                <tr>
-                  <td>${idx + 1}</td>
-                  <td>${item.name}</td>
-                  <td>${item.description || '-'}</td>
-                  <td>${item.unit || 'шт'}</td>
-                  <td>${item.quantity}</td>
-                  <td class="nowrap">${item.price.toLocaleString('ru-RU')}₽</td>
-                  <td>${item.coefficient || 1}</td>
-                  <td class="nowrap">${(item.price * item.quantity * (item.coefficient || 1)).toLocaleString('ru-RU')}₽</td>
+          ${section ? `<h2 style="background:#e3f2fd;padding:10px;margin:15px 0 5px 0;font-size:15px;border-radius:4px;">🏛️ ${section.name}</h2>` : ''}
+          ${categories.map(({ category, items: catItems }) => {
+            const catTotal = catItems.reduce((sum, item) => sum + (item.price * item.quantity * (item.coefficient || 1)), 0);
+            return `
+            <table>
+              <thead>
+                <tr style="background:${isNoSection ? '#e3f2fd' : '#f5f5f5'};">
+                  <th colspan="8" style="text-align:left;padding:6px;font-size:12px;">
+                    ${category}
+                  </th>
                 </tr>
-              `).join('')}
-              <tr style="background:#f5f5f5;font-weight:bold;">
-                <td colspan="7" style="text-align:right;padding:8px;">Итого по категории:</td>
-                <td style="text-align:right;padding:8px;" class="nowrap">${catTotal.toLocaleString('ru-RU')}₽</td>
-              </tr>
-            </tbody>
-          </table>
-          <div style="height:10px;"></div>
+                <tr>
+                  <th style="width:5%">№</th>
+                  <th style="width:25%">Наименование</th>
+                  <th style="width:20%">Описание</th>
+                  <th style="width:8%">Ед.</th>
+                  <th style="width:8%">Кол-во</th>
+                  <th style="width:10%">Цена</th>
+                  <th style="width:8%">Коэф.</th>
+                  <th style="width:10%">Сумма</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${catItems.map((item, idx) => `
+                  <tr>
+                    <td>${idx + 1}</td>
+                    <td>${item.name}</td>
+                    <td>${item.description || '-'}</td>
+                    <td>${item.unit || 'шт'}</td>
+                    <td>${item.quantity}</td>
+                    <td class="nowrap">${item.price.toLocaleString('ru-RU')}₽</td>
+                    <td>${item.coefficient || 1}</td>
+                    <td class="nowrap">${(item.price * item.quantity * (item.coefficient || 1)).toLocaleString('ru-RU')}₽</td>
+                  </tr>
+                `).join('')}
+                <tr style="background:#fafafa;font-weight:bold;">
+                  <td colspan="7" style="text-align:right;padding:6px;">Итого по категории:</td>
+                  <td style="text-align:right;padding:6px;" class="nowrap">${catTotal.toLocaleString('ru-RU')}₽</td>
+                </tr>
+              </tbody>
+            </table>
+            <div style="height:5px;"></div>
+            `;
+          }).join('')}
+          ${section ? `
+          <div style="background:#fff9c4;padding:8px;margin:5px 0 15px 0;border-radius:4px;font-weight:bold;text-align:right;">
+            Итого ${section.name}: ${sectionTotal.toLocaleString('ru-RU')}₽
+          </div>
+          ` : ''}
           `;
         }).join('')}
         
@@ -847,53 +894,86 @@ export function EstimateBuilder({
 
     const dataStartRow = currentRow;
 
-    // Данные
-    groupedItems.forEach(([category, categoryItems]) => {
-      const categoryRow = worksheet.getRow(currentRow);
-      categoryRow.values = [category, '', '', '', '', '', ''];
-      categoryRow.font = { bold: true };
-      categoryRow.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: 'FFF5F5F5' }
-      };
-      worksheet.mergeCells(`A${currentRow}:G${currentRow}`);
-      categoryRow.getCell(1).alignment = { horizontal: 'left' };
-      currentRow++;
+    // Данные с группировкой по секциям
+    const groupedBySections = groupItemsBySections(items, sections, categoryOrder);
+    
+    groupedBySections.forEach(({ section, categories, total: sectionTotal, isNoSection }) => {
+      // Заголовок секции (только для именованных секций, не для "Без секции")
+      if (section) {
+        const sectionRow = worksheet.getRow(currentRow);
+        sectionRow.values = [`🏛️ ${section.name}`, '', '', '', '', '', ''];
+        sectionRow.font = { bold: true, size: 13 };
+        sectionRow.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFE3F2FD' }
+        };
+        worksheet.mergeCells(`A${currentRow}:G${currentRow}`);
+        sectionRow.getCell(1).alignment = { horizontal: 'left' };
+        currentRow++;
+      }
 
-      const categoryStartRow = currentRow;
-      categoryItems.forEach((item, idx) => {
-        const row = worksheet.getRow(currentRow);
-        row.values = [
-          idx + 1,
-          item.description ? `${item.name} - ${item.description}` : item.name,
-          item.unit || 'шт',
-          item.quantity,
-          item.price,
-          item.coefficient || 1,
-          { formula: `D${currentRow}*E${currentRow}*F${currentRow}` }
-        ];
-        
-        // Перенос текста для наименования
-        row.getCell(2).alignment = { wrapText: true, vertical: 'top' };
-        
-        row.getCell(4).numFmt = '#,##0';
-        row.getCell(5).numFmt = '#,##0.00" ₽"';
-        row.getCell(7).numFmt = '#,##0.00" ₽"';
+      // Категории внутри секции
+      categories.forEach(({ category, items: catItems }) => {
+        const categoryRow = worksheet.getRow(currentRow);
+        categoryRow.values = [category, '', '', '', '', '', ''];
+        categoryRow.font = { bold: true };
+        categoryRow.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFF5F5F5' }
+        };
+        worksheet.mergeCells(`A${currentRow}:G${currentRow}`);
+        categoryRow.getCell(1).alignment = { horizontal: 'left' };
+        currentRow++;
+
+        const categoryStartRow = currentRow;
+        catItems.forEach((item, idx) => {
+          const row = worksheet.getRow(currentRow);
+          row.values = [
+            idx + 1,
+            item.description ? `${item.name} - ${item.description}` : item.name,
+            item.unit || 'шт',
+            item.quantity,
+            item.price,
+            item.coefficient || 1,
+            { formula: `D${currentRow}*E${currentRow}*F${currentRow}` }
+          ];
+          
+          row.getCell(2).alignment = { wrapText: true, vertical: 'top' };
+          row.getCell(4).numFmt = '#,##0';
+          row.getCell(5).numFmt = '#,##0.00" ₽"';
+          row.getCell(7).numFmt = '#,##0.00" ₽"';
+          
+          currentRow++;
+        });
+
+        if (catItems.length > 0) {
+          const totalRow = worksheet.getRow(currentRow);
+          totalRow.values = ['', '', '', '', '', 'Итого:', { formula: `SUM(G${categoryStartRow}:G${currentRow - 1})` }];
+          totalRow.font = { bold: true };
+          totalRow.getCell(6).alignment = { horizontal: 'right' };
+          totalRow.getCell(7).numFmt = '#,##0.00" ₽"';
+          currentRow++;
+        }
         
         currentRow++;
       });
 
-      if (categoryItems.length > 0) {
-        const totalRow = worksheet.getRow(currentRow);
-        totalRow.values = ['', '', '', '', '', 'Итого:', { formula: `SUM(G${categoryStartRow}:G${currentRow - 1})` }];
-        totalRow.font = { bold: true };
-        totalRow.getCell(6).alignment = { horizontal: 'right' };
-        totalRow.getCell(7).numFmt = '#,##0.00" ₽"';
-        currentRow++;
+      // Итого по секции (только для именованных секций)
+      if (section && categories.length > 0) {
+        const secTotalRow = worksheet.getRow(currentRow);
+        secTotalRow.values = ['', '', '', '', '', `Итого ${section.name}:`, sectionTotal];
+        secTotalRow.font = { bold: true, size: 11 };
+        secTotalRow.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFFFF9C4' }
+        };
+        secTotalRow.getCell(6).alignment = { horizontal: 'right' };
+        secTotalRow.getCell(7).numFmt = '#,##0.00" ₽"';
+        currentRow += 2;
       }
-      
-      currentRow++;
     });
 
     // Общий итог - формула SUMIF, суммирует только строки с количеством (позиции)
@@ -1688,206 +1768,58 @@ export function EstimateBuilder({
                 </CollapsibleContent>
               </Collapsible>
 
-              {/* Список позиций */}
+              {/* Список позиций с секциями */}
               <div className="flex-1 overflow-y-auto">
                 <div className="p-3 space-y-4">
-                  {groupedItems.length === 0 ? (
+                  {items.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground/70">
                       <p>Добавьте оборудование из списка слева</p>
                     </div>
                   ) : (
-                    groupedItems.map(([category, categoryItems]) => (
-                      <Card key={category} className={cn(
-                        "transition-all",
-                        isDragging && draggedCategory === category && "shadow-lg scale-[1.01] ring-2 ring-blue-400 z-10",
-                        isDragging && dropTarget === category && "ring-2 ring-blue-300"
-                      )}>
-                        <CardHeader 
-                          className={cn(
-                            "p-2.5 cursor-move touch-manipulation transition-all",
-                            isDragging && draggedCategory === category ? "bg-primary/20" : "bg-muted",
-                            isDragging && dropTarget === category && "bg-primary/10"
-                          )}
-                          data-category={category}
-                          draggable
-                          onDragStart={() => handleDragStart(category)}
-                          onDragOver={(e) => handleDragOver(e, category)}
-                          onDrop={(e) => handleDrop(e, category)}
-                          onDragEnd={handleDragEnd}
-                          onTouchStart={(e) => handleTouchStart(e, category)}
-                          onTouchMove={(e) => handleTouchMove(e, category)}
-                          onTouchEnd={handleTouchEnd}
-                        >
-                          <div className="flex items-center justify-between">
-                            <CardTitle className="text-sm flex items-center gap-2">
-                              <GripVertical className="w-4 h-4 text-muted-foreground/70 shrink-0" />
-                              <span className="truncate">{category}</span>
-                              <Badge variant="secondary" className="shrink-0 text-xs">{categoryItems.length}</Badge>
-                            </CardTitle>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => toggleCategory(category)}
-                              className="shrink-0 h-7 w-7 p-0"
-                            >
-                              {collapsedCategories.has(category) ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
-                            </Button>
-                          </div>
-                        </CardHeader>
-                        
-                        {!collapsedCategories.has(category) && (
-                          <CardContent className="p-0">
-                            <div className="space-y-2 p-2">
-                              {categoryItems.map((item, idx) => {
-                                const itemTotal = item.price * item.quantity * (item.coefficient || 1);
-                                
-                                return (
-                                  <div key={item.id} className="flex items-start gap-2 p-2 bg-muted rounded">
-                                    <span className="text-xs text-muted-foreground/70 w-5 shrink-0 mt-1">{idx + 1}</span>
-                                    <div className="flex-1 min-w-0">
-                                      <p className="font-medium text-sm truncate">{item.name}</p>
-                                      {/* Описание позиции */}
-                                      <Input
-                                        placeholder="Описание (необязательно)"
-                                        value={item.description || ''}
-                                        onChange={(e) => handleUpdateItem(item.id, { description: e.target.value })}
-                                        className="h-6 mt-1 text-xs bg-card/50 border-0 focus:bg-card focus:ring-1 focus:ring-blue-500"
-                                      />
-                                    </div>
-                                    
-                                    <div className="flex items-center gap-1 shrink-0 mt-1">
-                                      {/* Количество с кнопками +/- */}
-                                      <div className="flex items-center bg-card rounded-lg border">
-                                        <button
-                                          onClick={() => handleUpdateItem(item.id, { quantity: Math.max(0, item.quantity - 1) })}
-                                          className="w-7 h-8 flex items-center justify-center text-muted-foreground hover:bg-muted rounded-l-lg transition-colors"
-                                        >
-                                          −
-                                        </button>
-                                        <input
-                                          type="text"
-                                          value={item.quantity}
-                                          onChange={(e) => {
-                                            const val = e.target.value.replace(/\D/g, '');
-                                            const num = val === '' ? 0 : parseInt(val);
-                                            handleUpdateItem(item.id, { quantity: num });
-                                          }}
-                                          className="w-10 h-8 text-center bg-transparent text-sm font-medium text-foreground outline-none"
-                                        />
-                                        <button
-                                          onClick={() => {
-                                            // Проверяем лимит оборудования
-                                            if (item.equipment_id) {
-                                              const usedQty = getUsedQuantity(item.equipment_id);
-                                              const bookedQty = getBookedQuantity(item.equipment_id);
-                                              const equipmentItem = equipment.find(e => e.id === item.equipment_id);
-                                              const totalAvailable = equipmentItem ? equipmentItem.quantity : Infinity;
-                                              const currentQty = item.quantity;
-                                              
-                                              // Сколько уже занято (включая текущую позицию)
-                                              const otherUsed = usedQty - currentQty;
-                                              const totalBooked = otherUsed + bookedQty;
-                                              const available = totalAvailable - totalBooked;
-                                              
-                                              if (available > 0) {
-                                                handleUpdateItem(item.id, { quantity: currentQty + 1 });
-                                              } else {
-                                                toast.warning(`Достигнут лимит: ${equipmentItem?.name || 'оборудование'}`, {
-                                                  description: `В наличии ${totalAvailable} шт., все занято`
-                                                });
-                                              }
-                                            } else {
-                                              // Для импортированного оборудования без equipment_id - без лимита
-                                              handleUpdateItem(item.id, { quantity: item.quantity + 1 });
-                                            }
-                                          }}
-                                          className="w-7 h-8 flex items-center justify-center text-muted-foreground hover:bg-muted rounded-r-lg transition-colors"
-                                        >
-                                          +
-                                        </button>
-                                      </div>
-                                      
-                                      {/* Коэффициент с кнопками +/- шаг 0.1 */}
-                                      <div className="flex items-center bg-card rounded-lg border ml-1">
-                                        <button
-                                          onClick={() => {
-                                            const current = item.coefficient || 1;
-                                            const newVal = Math.max(0, Math.round((current - 0.1) * 10) / 10);
-                                            handleUpdateItem(item.id, { coefficient: newVal });
-                                          }}
-                                          className="w-7 h-8 flex items-center justify-center text-muted-foreground hover:bg-muted rounded-l-lg transition-colors"
-                                        >
-                                          −
-                                        </button>
-                                        <input
-                                          type="text"
-                                          value={item.coefficient || 1}
-                                          onChange={(e) => {
-                                            const val = e.target.value.replace(/[^0-9.]/g, '');
-                                            const num = val === '' ? 0 : parseFloat(val);
-                                            if (!isNaN(num) && num >= 0) {
-                                              handleUpdateItem(item.id, { coefficient: num });
-                                            }
-                                          }}
-                                          className="w-10 h-8 text-center bg-transparent text-sm font-medium text-foreground outline-none"
-                                        />
-                                        <button
-                                          onClick={() => {
-                                            const current = item.coefficient || 1;
-                                            const newVal = Math.round((current + 0.1) * 10) / 10;
-                                            handleUpdateItem(item.id, { coefficient: newVal });
-                                          }}
-                                          className="w-7 h-8 flex items-center justify-center text-muted-foreground hover:bg-muted rounded-r-lg transition-colors"
-                                        >
-                                          +
-                                        </button>
-                                      </div>
-                                      
-                                      <input
-                                        type="text"
-                                        value={Math.round(itemTotal)}
-                                        onChange={(e) => {
-                                          const val = e.target.value.replace(/\D/g, '');
-                                          const num = val === '' ? 0 : parseInt(val);
-                                          handleUpdateTotal(item.id, num);
-                                        }}
-                                        className="w-20 h-8 text-sm text-right font-medium bg-card text-foreground rounded border px-2 outline-none focus:ring-1 focus:ring-blue-500"
-                                      />
-                                      
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => handleDuplicateItem(item)}
-                                        className="h-8 w-8 p-0"
-                                      >
-                                        <Copy className="w-4 h-4" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => handleRemoveItem(item.id)}
-                                        className="h-8 w-8 p-0"
-                                      >
-                                        <Trash2 className="w-4 h-4 text-red-500" />
-                                      </Button>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </CardContent>
-                        )}
-                      </Card>
-                    ))
+                    <EstimateSections
+                      sections={sections}
+                      items={items}
+                      activeSectionId={activeSectionId}
+                      onActiveSectionChange={setActiveSectionId}
+                      onAddSection={(name) => {
+                        const newSection: EstimateSection = {
+                          id: `sec-${Date.now()}`,
+                          name,
+                        };
+                        setSections(prev => [...prev, newSection]);
+                        setActiveSectionId(newSection.id);
+                        setHasUnsavedChanges(true);
+                      }}
+                      onRemoveSection={(id) => {
+                        if (!confirm('Удалить секцию? Позиции останутся без секции.')) return;
+                        setSections(prev => prev.filter(s => s.id !== id));
+                        setItems(prev => prev.map(item =>
+                          item.section_id === id ? { ...item, section_id: undefined } : item
+                        ));
+                        if (activeSectionId === id) setActiveSectionId(null);
+                        setHasUnsavedChanges(true);
+                      }}
+                      onUpdateItem={handleUpdateItem}
+                      onRemoveItem={handleRemoveItem}
+                      categoryOrder={categoryOrder}
+                      collapsedCategories={collapsedCategories}
+                      onToggleCategory={toggleCategory}
+                      isDragging={isDragging}
+                      draggedCategory={draggedCategory}
+                      dropTarget={dropTarget}
+                      onDragStart={handleDragStart}
+                      onDragOver={handleDragOver}
+                      onDrop={handleDrop}
+                      onDragEnd={handleDragEnd}
+                      onTouchStart={handleTouchStart}
+                      onTouchMove={handleTouchMove}
+                      onTouchEnd={handleTouchEnd}
+                      getUsedQuantity={getUsedQuantity}
+                      getBookedQuantity={getBookedQuantity}
+                      equipment={equipment}
+                      total={total}
+                    />
                   )}
-                </div>
-              </div>
-
-              {/* Панель Итого */}
-              <div className="border-t bg-muted p-3 px-4 shrink-0">
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Итого:</span>
-                  <span className="text-2xl font-bold">{total.toLocaleString('ru-RU')} ₽</span>
                 </div>
               </div>
             </div>

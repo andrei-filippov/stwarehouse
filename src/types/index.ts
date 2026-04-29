@@ -16,9 +16,15 @@ export type Category = {
   name: string;
 };
 
+export type EstimateSection = {
+  id: string;
+  name: string;
+};
+
 export type EstimateItem = {
   id?: string;
   estimate_id?: string;
+  section_id?: string; // ID секции (локации), опционально
   equipment_id?: string; // Опционально — для импортированного оборудования может не быть
   name: string;
   description: string;
@@ -58,6 +64,8 @@ export type Estimate = {
   editor_name?: string;
   // Цвет события в календаре
   color?: string;
+  // Секции (локации) внутри сметы
+  sections?: EstimateSection[];
 };
 
 export type TemplateItem = {
