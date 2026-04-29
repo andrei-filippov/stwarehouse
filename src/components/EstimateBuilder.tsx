@@ -701,7 +701,7 @@ export function EstimateBuilder({
         
         ${groupItemsBySections(items, sections, categoryOrder).map(({ section, categories, total: sectionTotal, isNoSection }) => {
           return `
-          ${section ? `<h2 style="background:#e3f2fd;padding:10px;margin:15px 0 5px 0;font-size:15px;border-radius:4px;">🏛️ ${section.name}</h2>` : ''}
+          ${section ? `<h2 style="background:#e3f2fd;padding:10px;margin:15px 0 5px 0;font-size:15px;border-radius:4px;">${section.name}</h2>` : ''}
           ${categories.map(({ category, items: catItems }) => {
             const catTotal = catItems.reduce((sum, item) => sum + (item.price * item.quantity * (item.coefficient || 1)), 0);
             return `
@@ -901,7 +901,7 @@ export function EstimateBuilder({
       // Заголовок секции (только для именованных секций, не для "Без секции")
       if (section) {
         const sectionRow = worksheet.getRow(currentRow);
-        sectionRow.values = [`🏛️ ${section.name}`, '', '', '', '', '', ''];
+        sectionRow.values = [`${section.name}`, '', '', '', '', '', ''];
         sectionRow.font = { bold: true, size: 13 };
         sectionRow.fill = {
           type: 'pattern',
