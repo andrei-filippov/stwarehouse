@@ -92,6 +92,8 @@ export function useEstimates(companyId: string | undefined) {
           let itemsData: any[] = [];
           if (estimatesData && estimatesData.length > 0) {
             const estimateIds = estimatesData.map(e => e.id);
+            console.log('[fetchEstimates] Estimates loaded:', estimatesData.length);
+            console.log('[fetchEstimates] Looking for Backline estimate:', estimatesData.find(e => e.event_name?.toLowerCase().includes('бэклайн'))?.id);
             const BATCH_SIZE = 100;
             
             for (let i = 0; i < estimateIds.length; i += BATCH_SIZE) {
@@ -122,11 +124,27 @@ export function useEstimates(companyId: string | undefined) {
           console.log('[fetchEstimates] Total items loaded:', itemsData.length);
           
           // Собираем сметы с позициями
+          console.log('[fetchEstimates] All loaded items:', itemsData.length);
+          console.log('[fetchEstimates] All estimate IDs:', estimatesData?.map(e => e.id));
+          if (itemsData.length > 0) {
+            console.log('[fetchEstimates] Sample item IDs:', itemsData.slice(0, 5).map(i => ({ id: i.id, estimate_id: i.estimate_id, name: i.name })));
+            const uniqueEstimateIds = [...new Set(itemsData.map(i => i.estimate_id))];
+            console.log('[fetchEstimates] Unique estimate_ids in items:', uniqueEstimateIds.length, uniqueEstimateIds.slice(0, 10));
+          }
+          
           const data = (estimatesData || []).map(estimate => {
-            const estimateItems = itemsData.filter((item: any) => item.estimate_id === estimate.id);
-            if (estimateItems.length > 0) {
-              console.log('[fetchEstimates] Estimate:', estimate.id, 'event:', estimate.event_name, 'items count:', estimateItems.length);
+            const estimateIdLower = estimate.id?.toLowerCase?.() || estimate.id;
+            const estimateItems = itemsData.filter((item: any) => {
+              const itemEstimateId = item.estimate_id?.toLowerCase?.() || item.estimate_id;
+              return itemEstimateId === estimateIdLower;
+            });
+            if (estimate.event_name?.toLowerCase().includes('бэклайн')) {
+              console.log('[fetchEstimates] BACKLINE DEBUG - estimate.id:', estimate.id);
+              console.log('[fetchEstimates] BACKLINE DEBUG - itemsData length:', itemsData.length);
+              console.log('[fetchEstimates] BACKLINE DEBUG - all estimate_ids in items:', itemsData.map(i => i.estimate_id));
+              console.log('[fetchEstimates] BACKLINE DEBUG - matched items:', estimateItems.length);
             }
+            console.log('[fetchEstimates] Merging estimate:', estimate.id, 'event:', estimate.event_name, 'matched items:', estimateItems.length);
             return {
               ...estimate,
               items: estimateItems
