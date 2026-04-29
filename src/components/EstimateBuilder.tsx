@@ -153,24 +153,10 @@ export function EstimateBuilder({
   const [draggedCategory, setDraggedCategory] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
 
-  // Дедуплицируем items при изменении estimate (защита от дубликатов после синхронизации)
+  // Загружаем items при открытии сметы (без дедупликации — одинаковое оборудование может быть в разных секциях)
   useEffect(() => {
-    if (estimate?.items && estimate.items.length > 0) {
-      const seenKeys = new Set<string>();
-      const uniqueItems = estimate.items.filter((item: any) => {
-        const key = `${item.name}_${item.category}_${item.price}_${item.quantity}`;
-        if (seenKeys.has(key)) {
-          logger.debug('[EstimateBuilder] Removing duplicate item:', item.name);
-          return false;
-        }
-        seenKeys.add(key);
-        return true;
-      });
-      
-      if (uniqueItems.length !== estimate.items.length) {
-        logger.debug('[EstimateBuilder] Items deduplicated:', estimate.items.length, '->', uniqueItems.length);
-        setItems(uniqueItems);
-      }
+    if (estimate?.items) {
+      setItems(estimate.items);
     }
   }, [estimate?.id]); // Запускаем только при изменении сметы
 
@@ -344,8 +330,14 @@ export function EstimateBuilder({
       return;
     }
     
+    // Нормализуем section_id для корректного сравнения (null/undefined/'' = без секции)
+    const normalizeSectionId = (sid: string | null | undefined) => {
+      if (sid === null || sid === undefined || sid === '') return null;
+      return sid;
+    };
+
     const existingIndex = items.findIndex(
-      item => item.equipment_id === equipment.id && item.price === equipment.price && (item.coefficient || 1) === 1 && item.section_id === activeSectionId
+      item => item.equipment_id === equipment.id && item.price === equipment.price && (item.coefficient || 1) === 1 && normalizeSectionId(item.section_id) === normalizeSectionId(activeSectionId)
     );
     
     if (existingIndex >= 0) {

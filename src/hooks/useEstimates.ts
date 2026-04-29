@@ -201,30 +201,7 @@ export function useEstimates(companyId: string | undefined) {
             return true;
           });
           
-          // Дедуплицируем items внутри каждой сметы
-          // (если есть items с одинаковым name - оставляем только первый)
-          const deduplicatedWithCleanItems = deduplicated.map(e => {
-            if (!e.items || e.items.length === 0) return e;
-            
-            const seenItemNames = new Set<string>();
-            const uniqueItems = e.items.filter((item: any) => {
-              const key = `${item.name}_${item.category}_${item.price}`;
-              if (seenItemNames.has(key)) {
-                debugLog('[fetchEstimates] Removing duplicate item:', item.name, 'from estimate:', e.id);
-                return false;
-              }
-              seenItemNames.add(key);
-              return true;
-            });
-            
-            if (uniqueItems.length !== e.items.length) {
-              debugLog('[fetchEstimates] Cleaned items for estimate:', e.id, 'was:', e.items.length, 'now:', uniqueItems.length);
-              return { ...e, items: uniqueItems };
-            }
-            return e;
-          });
-          
-          setEstimates(deduplicatedWithCleanItems);
+          setEstimates(deduplicated);
           
           // СОХРАНЯЕМ серверные данные в локальную базу для офлайн-доступа
           // Перезаписываем существующие локальные записи, если серверная версия актуальнее
@@ -257,16 +234,7 @@ export function useEstimates(companyId: string | undefined) {
               // Кэшируем если нет локальной копии или серверная версия актуальнее
               if (!localVersion || serverUpdated >= localUpdated) {
                 try {
-                  // Дедуплицируем items перед кэшированием
-                  const estimateToCache = estimate.items && estimate.items.length > 0
-                    ? { ...estimate, items: estimate.items.filter((item: any, idx: number, self: any[]) => 
-                        idx === self.findIndex((t: any) => 
-                          t.name === item.name && t.category === item.category && t.price === item.price
-                        )
-                      )}
-                    : estimate;
-                  
-                  await saveEstimateLocal(estimateToCache, companyId);
+                  await saveEstimateLocal(estimate, companyId);
                   debugLog('[fetchEstimates] Cached server estimate:', estimate.id, 'items:', estimateToCache.items?.length, 'forced:', !!localVersion);
                 } catch (saveErr) {
                   logger.warn('[fetchEstimates] Failed to cache estimate:', estimate.id, saveErr);
