@@ -153,6 +153,41 @@ export function EstimateSections({
             </button>
           </div>
           <span className="text-xs text-muted-foreground w-8 text-center">{item.unit || 'шт'}</span>
+          {/* Коэффициент */}
+          <div className="flex items-center bg-card rounded-lg border">
+            <button
+              onClick={() => {
+                const current = item.coefficient || 1;
+                const newVal = Math.max(0, Math.round((current - 0.1) * 10) / 10);
+                onUpdateItem(item.id!, { coefficient: newVal });
+              }}
+              className="w-7 h-8 flex items-center justify-center text-muted-foreground hover:bg-muted rounded-l-lg transition-colors"
+            >
+              −
+            </button>
+            <input
+              type="text"
+              value={item.coefficient || 1}
+              onChange={(e) => {
+                const val = e.target.value.replace(/[^0-9.]/g, '');
+                const num = val === '' ? 0 : parseFloat(val);
+                if (!isNaN(num) && num >= 0) {
+                  onUpdateItem(item.id!, { coefficient: num });
+                }
+              }}
+              className="w-12 h-8 text-center bg-transparent text-sm font-medium text-foreground outline-none"
+            />
+            <button
+              onClick={() => {
+                const current = item.coefficient || 1;
+                const newVal = Math.round((current + 0.1) * 10) / 10;
+                onUpdateItem(item.id!, { coefficient: newVal });
+              }}
+              className="w-7 h-8 flex items-center justify-center text-muted-foreground hover:bg-muted rounded-r-lg transition-colors"
+            >
+              +
+            </button>
+          </div>
           <Input
             type="text"
             value={item.price}
