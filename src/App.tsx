@@ -314,7 +314,7 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
 
   // Хуки с companyId
   const { equipment, categories, loading: equipmentLoading, addEquipment, updateEquipment, deleteEquipment, bulkInsert, addCategory, deleteCategory, refresh: refreshEquipment } = useEquipment(companyId);
-  const { estimates, loading: estimatesLoading, createEstimate, updateEstimate, deleteEstimate, updateEstimateStatus, startEditing, stopEditing, refresh: refreshEstimates } = useEstimates(companyId);
+  const { estimates, loading: estimatesLoading, createEstimate, updateEstimate, deleteEstimate, updateEstimateStatus, startEditing, stopEditing, refresh: refreshEstimates, fetchEstimateItems } = useEstimates(companyId);
   const { templates, loading: templatesLoading, createTemplate, updateTemplate, deleteTemplate } = useTemplates(companyId);
   const { checklists, rules, loading: checklistsLoading, createRule, deleteRule, createChecklist, updateChecklistItem, deleteChecklist, refresh: refreshChecklists } = useChecklists(companyId, estimates);
   const { checklists: checklistsV2, kits, fetchChecklists, createChecklistFromEstimate, createKit, updateKit, deleteKit } = useChecklistsV2(companyId);
@@ -560,6 +560,7 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
                 onCreateEquipment={addEquipment}
                 onStartEditing={startEditing}
                 onStopEditing={stopEditing}
+                fetchEstimateItems={fetchEstimateItems}
                 currentUserId={user?.id}
                 fabAction={fabAction}
               />

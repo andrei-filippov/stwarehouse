@@ -30,6 +30,7 @@ interface EstimateManagerProps {
   onCreateEquipment?: (equipment: any) => Promise<{ error: any; data?: any }>;
   onStartEditing?: (estimateId: string) => Promise<{ error: any }>;
   onStopEditing?: (estimateId?: string) => Promise<{ error: any }>;
+  fetchEstimateItems?: (estimateId: string) => Promise<{ error: any; items: EstimateItem[] }>;
   currentUserId?: string;
   fabAction?: number;
 }
@@ -51,6 +52,7 @@ export const EstimateManager = memo(function EstimateManager({
   onCreateEquipment,
   onStartEditing,
   onStopEditing,
+  fetchEstimateItems,
   currentUserId,
   fabAction,
 }: EstimateManagerProps) {
@@ -166,14 +168,27 @@ export const EstimateManager = memo(function EstimateManager({
 
   const handleEdit = useCallback(async (estimate: Estimate) => {
     console.log('[EstimateManager] handleEdit called:', estimate.id, estimate.event_name, 'items:', estimate.items?.length, 'sections:', estimate.sections?.length);
+    
+    // Загружаем items напрямую из Supabase, чтобы быть уверенными что все items на месте
+    let estimateWithItems = estimate;
+    if (fetchEstimateItems && estimate.id !== 'new') {
+      const { error, items } = await fetchEstimateItems(estimate.id);
+      if (!error && items.length > 0) {
+        console.log('[EstimateManager] Loaded fresh items:', items.length, 'for estimate:', estimate.id);
+        estimateWithItems = { ...estimate, items };
+      } else if (error) {
+        console.error('[EstimateManager] Failed to load fresh items:', error);
+      }
+    }
+    
     // Устанавливаем статус редактирования
     if (onStartEditing && estimate.id !== 'new') {
       await onStartEditing(estimate.id);
     }
-    setEditingEstimate(estimate);
+    setEditingEstimate(estimateWithItems);
     setSelectedTemplate(null);
     setIsBuilderOpen(true);
-  }, [onStartEditing]);
+  }, [onStartEditing, fetchEstimateItems]);
 
   const handleClose = useCallback(async () => {
     // Снимаем статус редактирования

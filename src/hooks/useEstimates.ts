@@ -842,6 +842,30 @@ export function useEstimates(companyId: string | undefined) {
     };
   }, [stopEditing]);
 
+  // Загрузка items для конкретной сметы напрямую из Supabase
+  const fetchEstimateItems = useCallback(async (estimateId: string) => {
+    if (!companyId) return { error: new Error('No company selected'), items: [] as EstimateItem[] };
+    
+    try {
+      const { data: items, error } = await supabase
+        .from('estimate_items')
+        .select('*')
+        .eq('estimate_id', estimateId)
+        .eq('company_id', companyId);
+      
+      if (error) {
+        console.error('[fetchEstimateItems] Error:', error);
+        return { error, items: [] as EstimateItem[] };
+      }
+      
+      console.log('[fetchEstimateItems] Loaded', items?.length || 0, 'items for estimate:', estimateId);
+      return { error: null, items: (items || []) as EstimateItem[] };
+    } catch (e) {
+      console.error('[fetchEstimateItems] Exception:', e);
+      return { error: e, items: [] as EstimateItem[] };
+    }
+  }, [companyId]);
+
   return {
     estimates,
     loading,
@@ -852,7 +876,8 @@ export function useEstimates(companyId: string | undefined) {
     updateEstimateStatus,
     startEditing,
     stopEditing,
-    refresh: fetchEstimates
+    refresh: fetchEstimates,
+    fetchEstimateItems
   };
 }
 
