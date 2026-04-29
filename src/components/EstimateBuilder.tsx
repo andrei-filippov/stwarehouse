@@ -153,9 +153,18 @@ export function EstimateBuilder({
   const [draggedCategory, setDraggedCategory] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
 
+  // Загрузка items из выбранного шаблона (только один раз при создании новой сметы)
+  const templateLoadedRef = useRef(false);
+
   // Загружаем items при открытии сметы (без дедупликации — одинаковое оборудование может быть в разных секциях)
+  // Создаём ключ на основе ID + количества items/sections + времени обновления
+  const estimateKey = useMemo(() => {
+    if (!estimate) return null;
+    return `${estimate.id}_${estimate.items?.length || 0}_${estimate.sections?.length || 0}_${estimate.updated_at || ''}`;
+  }, [estimate]);
+  
   useEffect(() => {
-    console.log('[EstimateBuilder] useEffect triggered, estimate?.id:', estimate?.id, 'estimate:', estimate ? 'exists' : 'null');
+    console.log('[EstimateBuilder] useEffect triggered, estimateKey:', estimateKey, 'estimate:', estimate ? 'exists' : 'null');
     if (estimate) {
       console.log('[EstimateBuilder] Loading estimate:', estimate.id, 'event:', estimate.event_name);
       console.log('[EstimateBuilder] Items from estimate:', estimate.items?.length || 0, estimate.items);
@@ -172,10 +181,9 @@ export function EstimateBuilder({
     }
     // Сбрасываем активную секцию при открытии сметы
     setActiveSectionId(null);
-  }, [estimate?.id]); // Запускаем только при изменении сметы
-
-  // Загрузка items из выбранного шаблона (только один раз при создании новой сметы)
-  const templateLoadedRef = useRef(false);
+    // Сбрасываем флаг шаблона, чтобы при открытии существующей сметы шаблон не подгрузился
+    templateLoadedRef.current = false;
+  }, [estimateKey]); // Запускаем при изменении ключа сметы (включая изменения items/sections)
   useEffect(() => {
     // Загружаем шаблон только если:
     // 1. Есть selectedTemplate с items
