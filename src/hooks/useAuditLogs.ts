@@ -27,6 +27,7 @@ export interface AuditLogFilters {
   dateFrom?: string;
   dateTo?: string;
   search?: string;
+  companyId?: string;
 }
 
 const ACTION_LABELS: Record<AuditAction, string> = {
@@ -77,6 +78,11 @@ export function useAuditLogs(filters?: AuditLogFilters, limit: number = 100) {
       let query = supabase
         .from('audit_logs')
         .select('*', { count: 'exact' });
+
+      // Фильтр по компании (обязательный для изоляции данных)
+      if (filters?.companyId) {
+        query = query.eq('company_id', filters.companyId);
+      }
 
       // Применяем фильтры
       if (filters?.userId) {

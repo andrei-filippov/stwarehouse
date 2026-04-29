@@ -8,6 +8,7 @@ import { ScrollArea } from './ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { useAuditLogs, getActionLabel, getEntityLabel, type AuditAction, type EntityType } from '../hooks/useAuditLogs';
 import { useAuth } from '../hooks/useAuth';
+import { useCompany } from '../hooks/useCompany';
 import { 
   History, 
   Search, 
@@ -68,6 +69,7 @@ const getActionColor = (action: string | undefined): string => {
 
 export function AuditLogs() {
   const { profile } = useAuth();
+  const { company } = useCompany();
   const [search, setSearch] = useState('');
   const [selectedAction, setSelectedAction] = useState<AuditAction | 'all'>('all');
   const [selectedEntity, setSelectedEntity] = useState<EntityType | 'all'>('all');
@@ -78,12 +80,13 @@ export function AuditLogs() {
   const [showAllActions, setShowAllActions] = useState(false);
 
   const filters = useMemo(() => ({
+    companyId: company?.id,
     action: selectedAction === 'all' ? undefined : selectedAction,
     entityType: selectedEntity === 'all' ? undefined : selectedEntity,
     dateFrom: dateFrom || undefined,
     dateTo: dateTo || undefined,
     search: search || undefined,
-  }), [selectedAction, selectedEntity, dateFrom, dateTo, search]);
+  }), [company?.id, selectedAction, selectedEntity, dateFrom, dateTo, search]);
 
   const { logs, loading, error, totalCount, refetch } = useAuditLogs(filters, 200);
 
