@@ -1771,9 +1771,42 @@ export function EstimateBuilder({
               {/* Список позиций с секциями */}
               <div className="flex-1 overflow-y-auto">
                 <div className="p-3 space-y-4">
-                  {items.length === 0 ? (
+                  {/* Кнопка создания секции — всегда видна */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <LayoutGrid className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-sm font-medium text-muted-foreground">Секции</span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs gap-1"
+                      onClick={() => {
+                        const name = prompt('Название секции:');
+                        if (name?.trim()) {
+                          const newSection: EstimateSection = {
+                            id: `sec-${Date.now()}`,
+                            name: name.trim(),
+                          };
+                          setSections(prev => [...prev, newSection]);
+                          setActiveSectionId(newSection.id);
+                          setHasUnsavedChanges(true);
+                        }
+                      }}
+                    >
+                      <Plus className="w-3 h-3" />
+                      Секция
+                    </Button>
+                  </div>
+
+                  {items.length === 0 && sections.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground/70">
                       <p>Добавьте оборудование из списка слева</p>
+                      <p className="text-xs mt-1">или создайте секцию для группировки</p>
+                    </div>
+                  ) : items.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground/70">
+                      <p>Кликните на секцию, затем добавьте оборудование слева</p>
                     </div>
                   ) : (
                     <EstimateSections

@@ -1,18 +1,12 @@
-import { useState } from 'react';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
 import {
-  Plus,
   Trash2,
   ChevronDown,
   ChevronUp,
   GripVertical,
-  MapPin,
-  LayoutGrid,
-  X
+  MapPin
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import type { EstimateItem, EstimateSection } from '../types';
@@ -72,8 +66,6 @@ export function EstimateSections({
   equipment,
   total,
 }: EstimateSectionsProps) {
-  const [showAddDialog, setShowAddDialog] = useState(false);
-  const [newName, setNewName] = useState('');
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
   const toggleSection = (sectionId: string) => {
@@ -83,13 +75,6 @@ export function EstimateSections({
       else next.add(sectionId);
       return next;
     });
-  };
-
-  const handleAdd = () => {
-    if (!newName.trim()) return;
-    onAddSection(newName.trim());
-    setNewName('');
-    setShowAddDialog(false);
   };
 
   // Группировка позиций по категориям
@@ -335,42 +320,6 @@ export function EstimateSections({
 
   return (
     <div className="space-y-3">
-      {/* Заголовок и кнопка добавления */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <LayoutGrid className="w-4 h-4 text-muted-foreground" />
-          <span className="text-sm font-medium text-muted-foreground">Секции</span>
-        </div>
-        {showAddDialog ? (
-          <div className="flex items-center gap-1">
-            <Input
-              autoFocus
-              placeholder="Название секции"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-              className="h-7 text-xs w-40"
-            />
-            <Button size="sm" className="h-7 px-2 text-xs" onClick={handleAdd}>
-              <Plus className="w-3 h-3" />
-            </Button>
-            <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => { setShowAddDialog(false); setNewName(''); }}>
-              <X className="w-3 h-3" />
-            </Button>
-          </div>
-        ) : (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 text-xs gap-1"
-            onClick={() => setShowAddDialog(true)}
-          >
-            <Plus className="w-3 h-3" />
-            Секция
-          </Button>
-        )}
-      </div>
-
       {/* Активная секция — подсказка */}
       {activeSectionId && (
         <div className="text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded">
