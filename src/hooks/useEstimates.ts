@@ -235,7 +235,7 @@ export function useEstimates(companyId: string | undefined) {
               if (!localVersion || serverUpdated >= localUpdated) {
                 try {
                   await saveEstimateLocal(estimate, companyId);
-                  debugLog('[fetchEstimates] Cached server estimate:', estimate.id, 'items:', estimateToCache.items?.length, 'forced:', !!localVersion);
+                  debugLog('[fetchEstimates] Cached server estimate:', estimate.id, 'items:', estimate.items?.length, 'forced:', !!localVersion);
                 } catch (saveErr) {
                   logger.warn('[fetchEstimates] Failed to cache estimate:', estimate.id, saveErr);
                 }

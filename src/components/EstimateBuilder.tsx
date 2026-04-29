@@ -155,8 +155,10 @@ export function EstimateBuilder({
 
   // Загружаем items при открытии сметы (без дедупликации — одинаковое оборудование может быть в разных секциях)
   useEffect(() => {
-    if (estimate?.items) {
-      setItems(estimate.items);
+    if (estimate) {
+      setItems(estimate.items || []);
+      setSections(estimate.sections || []);
+      setCategoryOrder(estimate.category_order || equipmentCategories);
     }
   }, [estimate?.id]); // Запускаем только при изменении сметы
 

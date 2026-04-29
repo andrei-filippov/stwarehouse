@@ -88,6 +88,19 @@ export const EstimateManager = memo(function EstimateManager({
   const [editingEstimate, setEditingEstimate] = useState<Estimate | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
   
+  // Синхронизируем editingEstimate с актуальными данными из estimates
+  useEffect(() => {
+    if (editingEstimate && editingEstimate.id && !editingEstimate.id.startsWith('local_')) {
+      const freshEstimate = estimates.find(e => e.id === editingEstimate.id);
+      if (freshEstimate && freshEstimate.items && (
+        JSON.stringify(freshEstimate.items) !== JSON.stringify(editingEstimate.items) ||
+        JSON.stringify(freshEstimate.sections) !== JSON.stringify(editingEstimate.sections)
+      )) {
+        setEditingEstimate(freshEstimate);
+      }
+    }
+  }, [estimates, editingEstimate?.id]);
+  
   // Поиск и группировка
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set());
@@ -205,6 +218,8 @@ export const EstimateManager = memo(function EstimateManager({
   const handleSave = useCallback(async (estimateData: any, items: any[], categoryOrder?: string[]) => {
     if (editingEstimate && editingEstimate.id !== 'new') {
       await onUpdate(editingEstimate.id, estimateData, items, categoryOrder);
+      // Обновляем editingEstimate актуальными данными чтобы избежать рассинхронизации
+      setEditingEstimate(prev => prev ? { ...prev, ...estimateData, items, category_order: categoryOrder } as Estimate : prev);
     } else {
       const result = await onCreate(estimateData, items, categoryOrder);
       // После создания новой сметы, обновляем editingEstimate чтобы можно было продолжить редактирование
