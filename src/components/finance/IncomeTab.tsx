@@ -476,7 +476,6 @@ export function IncomeTab({ estimates, incomes = [], companyId, onAddIncome, onD
         ) : (
           groupedByMonth.map(([monthKey, items]) => {
             const isExpanded = expandedMonths.has(monthKey);
-            const monthTotal = filteredItems.reduce((sum, i) => sum + i.amount, 0);
             const monthLabel = format(new Date(monthKey + '-01'), 'MMMM yyyy', { locale: ru });
             
             // Фильтруем по типу
@@ -485,6 +484,8 @@ export function IncomeTab({ estimates, incomes = [], companyId, onAddIncome, onD
               : items.filter(i => i.kind === activeFilter);
             
             if (filteredItems.length === 0) return null;
+            
+            const monthTotal = filteredItems.reduce((sum, i) => sum + i.amount, 0);
             
             return (
               <div key={monthKey} className="space-y-2">
