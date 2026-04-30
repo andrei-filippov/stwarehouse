@@ -126,14 +126,9 @@ export function IncomeTab({ estimates, incomes = [], companyId, onAddIncome, onD
     return combined.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [estimateIncomes, manualIncomes, pendingIncomes]);
 
-  // Фильтрация по месяцу, типу и поиску
-  const filteredByMonth = useMemo(() => {
+  // Фильтрация по месяцу и поиску (для карточек сверху — всегда все типы)
+  const monthFilteredByMonth = useMemo(() => {
     let result = allIncomes;
-    
-    // Фильтр по типу (если не "Все")
-    if (activeFilter !== 'all') {
-      result = result.filter(i => i.kind === activeFilter);
-    }
     
     // Фильтр по месяцу (если не "Все время")
     if (!showAllMonths) {
@@ -153,18 +148,30 @@ export function IncomeTab({ estimates, incomes = [], companyId, onAddIncome, onD
     }
     
     return result;
-  }, [allIncomes, activeFilter, activeMonth, showAllMonths, searchQuery]);
+  }, [allIncomes, activeMonth, showAllMonths, searchQuery]);
 
-  // Суммы за выбранный месяц
+  // Суммы за выбранный месяц (карточки сверху — всегда все типы)
   const monthEstimateIncome = useMemo(() => 
-    filteredByMonth.filter(i => i.kind === 'estimate').reduce((sum, i) => sum + i.amount, 0),
-  [filteredByMonth]);
+    monthFilteredByMonth.filter(i => i.kind === 'estimate').reduce((sum, i) => sum + i.amount, 0),
+  [monthFilteredByMonth]);
   const monthManualIncome = useMemo(() => 
-    filteredByMonth.filter(i => i.kind === 'manual').reduce((sum, i) => sum + i.amount, 0),
-  [filteredByMonth]);
+    monthFilteredByMonth.filter(i => i.kind === 'manual').reduce((sum, i) => sum + i.amount, 0),
+  [monthFilteredByMonth]);
   const monthPendingIncome = useMemo(() => 
-    filteredByMonth.filter(i => i.kind === 'pending').reduce((sum, i) => sum + i.amount, 0),
-  [filteredByMonth]);
+    monthFilteredByMonth.filter(i => i.kind === 'pending').reduce((sum, i) => sum + i.amount, 0),
+  [monthFilteredByMonth]);
+
+  // Фильтрация по месяцу, типу и поиску (для списка — с учётом activeFilter)
+  const filteredByMonth = useMemo(() => {
+    let result = monthFilteredByMonth;
+    
+    // Фильтр по типу (если не "Все")
+    if (activeFilter !== 'all') {
+      result = result.filter(i => i.kind === activeFilter);
+    }
+    
+    return result;
+  }, [monthFilteredByMonth, activeFilter]);
 
   // Общие суммы (всё время)
   const totalEstimateIncome = estimateIncomes.reduce((sum, i) => sum + i.amount, 0);
@@ -309,7 +316,7 @@ export function IncomeTab({ estimates, incomes = [], companyId, onAddIncome, onD
             <p className="text-xs text-muted-foreground">
               {showAllMonths 
                 ? `${estimateIncomes.length + manualIncomes.length} записей`
-                : `${filteredByMonth.filter(i => i.kind !== 'pending').length} записей`
+                : `${monthFilteredByMonth.filter(i => i.kind !== 'pending').length} записей`
               }
             </p>
           </CardContent>
@@ -333,7 +340,7 @@ export function IncomeTab({ estimates, incomes = [], companyId, onAddIncome, onD
               {(showAllMonths ? totalEstimateIncome : monthEstimateIncome).toLocaleString('ru-RU')} ₽
             </div>
             <p className="text-xs text-green-600 dark:text-green-400">
-              {showAllMonths ? estimateIncomes.length : filteredByMonth.filter(i => i.kind === 'estimate').length} смет
+              {showAllMonths ? estimateIncomes.length : monthFilteredByMonth.filter(i => i.kind === 'estimate').length} смет
             </p>
           </CardContent>
         </Card>
@@ -356,7 +363,7 @@ export function IncomeTab({ estimates, incomes = [], companyId, onAddIncome, onD
               {(showAllMonths ? totalManualIncome : monthManualIncome).toLocaleString('ru-RU')} ₽
             </div>
             <p className="text-xs text-blue-600 dark:text-blue-400">
-              {showAllMonths ? manualIncomes.length : filteredByMonth.filter(i => i.kind === 'manual').length} записей
+              {showAllMonths ? manualIncomes.length : monthFilteredByMonth.filter(i => i.kind === 'manual').length} записей
             </p>
           </CardContent>
         </Card>
@@ -377,7 +384,7 @@ export function IncomeTab({ estimates, incomes = [], companyId, onAddIncome, onD
               {(showAllMonths ? totalPendingIncome : monthPendingIncome).toLocaleString('ru-RU')} ₽
             </div>
             <p className="text-xs text-amber-600 dark:text-amber-400">
-              {showAllMonths ? pendingIncomes.length : filteredByMonth.filter(i => i.kind === 'pending').length} ожидают
+              {showAllMonths ? pendingIncomes.length : monthFilteredByMonth.filter(i => i.kind === 'pending').length} ожидают
             </p>
           </CardContent>
         </Card>
