@@ -119,7 +119,9 @@ export function EstimateBuilder({
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [activeMobileTab, setActiveMobileTab] = useState<'equipment' | 'estimate'>('equipment');
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
-  const [categoryOrder, setCategoryOrder] = useState<string[]>(estimate?.category_order || equipmentCategories);
+  const [categoryOrder, setCategoryOrder] = useState<string[]>(
+    Array.isArray(estimate?.category_order) ? estimate.category_order : (equipmentCategories || [])
+  );
   
   // Состояние для сворачивания шапки сметы на мобильном
   const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(true);
