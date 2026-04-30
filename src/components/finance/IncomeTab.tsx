@@ -328,7 +328,7 @@ export function IncomeTab({ estimates, incomes = [], companyId, onAddIncome, onD
               ? 'bg-green-500/20 border-green-500/50 ring-2 ring-green-500/30'
               : 'bg-green-500/10 border-green-500/20 dark:bg-green-500/10 dark:border-green-500/30'
           }`}
-          onClick={() => setActiveFilter('estimates')}
+          onClick={() => setActiveFilter('estimate')}
         >
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-green-700 dark:text-green-300">
