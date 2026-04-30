@@ -19,7 +19,7 @@ interface IncomeTabProps {
   onDeleteIncome?: (id: string) => Promise<{ error: any }>;
 }
 
-type IncomeFilter = 'all' | 'estimates' | 'manual' | 'pending';
+type IncomeFilter = 'all' | 'estimate' | 'manual' | 'pending';
 
 interface LegacyManualIncome {
   id: string;
@@ -82,10 +82,10 @@ export function IncomeTab({ estimates, incomes = [], companyId, onAddIncome, onD
     migrate();
   }, [companyId, onAddIncome, incomes, isMigrating]);
 
-  // Доходы от смет (завершенные)
+  // Доходы от смет (завершенные и подтвержденные)
   const estimateIncomes = useMemo(() => {
     return estimates
-      .filter(e => e.status === 'completed')
+      .filter(e => e.status === 'completed' || e.status === 'approved')
       .map(e => ({
         id: e.id,
         date: e.event_date || e.created_at,
@@ -324,7 +324,7 @@ export function IncomeTab({ estimates, incomes = [], companyId, onAddIncome, onD
 
         <Card 
           className={`cursor-pointer transition-all hover:shadow-md ${
-            activeFilter === 'estimates'
+            activeFilter === 'estimate'
               ? 'bg-green-500/20 border-green-500/50 ring-2 ring-green-500/30'
               : 'bg-green-500/10 border-green-500/20 dark:bg-green-500/10 dark:border-green-500/30'
           }`}
@@ -457,7 +457,7 @@ export function IncomeTab({ estimates, incomes = [], companyId, onAddIncome, onD
             className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
             onClick={() => setActiveFilter('all')}
           >
-            {activeFilter === 'estimates' && 'Получено от смет'}
+            {activeFilter === 'estimate' && 'Получено от смет'}
             {activeFilter === 'manual' && 'Ручные поступления'}
             {activeFilter === 'pending' && 'Ожидается'}
             <span className="ml-1">×</span>
@@ -472,7 +472,7 @@ export function IncomeTab({ estimates, incomes = [], companyId, onAddIncome, onD
             <TrendingUp className="w-12 h-12 mx-auto mb-4 opacity-50" />
             <p>
               {activeFilter === 'all' && 'Нет данных о поступлениях'}
-              {activeFilter === 'estimates' && 'Нет полученных доходов от смет'}
+              {activeFilter === 'estimate' && 'Нет полученных доходов от смет'}
               {activeFilter === 'manual' && 'Нет ручных поступлений'}
               {activeFilter === 'pending' && 'Нет ожидаемых поступлений'}
             </p>
