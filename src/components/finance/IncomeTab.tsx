@@ -126,9 +126,14 @@ export function IncomeTab({ estimates, incomes = [], companyId, onAddIncome, onD
     return combined.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [estimateIncomes, manualIncomes, pendingIncomes]);
 
-  // Фильтрация по месяцу и поиску
+  // Фильтрация по месяцу, типу и поиску
   const filteredByMonth = useMemo(() => {
     let result = allIncomes;
+    
+    // Фильтр по типу (если не "Все")
+    if (activeFilter !== 'all') {
+      result = result.filter(i => i.kind === activeFilter);
+    }
     
     // Фильтр по месяцу (если не "Все время")
     if (!showAllMonths) {
@@ -148,7 +153,7 @@ export function IncomeTab({ estimates, incomes = [], companyId, onAddIncome, onD
     }
     
     return result;
-  }, [allIncomes, activeMonth, showAllMonths, searchQuery]);
+  }, [allIncomes, activeFilter, activeMonth, showAllMonths, searchQuery]);
 
   // Суммы за выбранный месяц
   const monthEstimateIncome = useMemo(() => 
@@ -471,7 +476,7 @@ export function IncomeTab({ estimates, incomes = [], companyId, onAddIncome, onD
         ) : (
           groupedByMonth.map(([monthKey, items]) => {
             const isExpanded = expandedMonths.has(monthKey);
-            const monthTotal = items.reduce((sum, i) => sum + i.amount, 0);
+            const monthTotal = filteredItems.reduce((sum, i) => sum + i.amount, 0);
             const monthLabel = format(new Date(monthKey + '-01'), 'MMMM yyyy', { locale: ru });
             
             // Фильтруем по типу
