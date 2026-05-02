@@ -82,6 +82,9 @@ export function useAuditLogs(filters?: AuditLogFilters, limit: number = 100) {
       // Фильтр по компании (обязательный для изоляции данных)
       if (filters?.companyId) {
         query = query.eq('company_id', filters.companyId);
+      } else {
+        // Если companyId не указан — не показываем ничего (изоляция данных)
+        query = query.eq('company_id', 'no-company');
       }
 
       // Применяем фильтры
@@ -139,6 +142,7 @@ export function useAuditLogs(filters?: AuditLogFilters, limit: number = 100) {
         const newLog = payload.new as AuditLog;
         
         // Проверяем, соответствует ли новый лог текущим фильтрам
+        if (filters?.companyId && (newLog as any).company_id !== filters.companyId) return;
         if (filters?.action && newLog.action !== filters.action) return;
         if (filters?.entityType && newLog.entity_type !== filters.entityType) return;
         if (filters?.userId && newLog.user_id !== filters.userId) return;

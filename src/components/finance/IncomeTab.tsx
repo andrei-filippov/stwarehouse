@@ -82,10 +82,10 @@ export function IncomeTab({ estimates, incomes = [], companyId, onAddIncome, onD
     migrate();
   }, [companyId, onAddIncome, incomes, isMigrating]);
 
-  // Доходы от смет (завершенные и подтвержденные)
+  // Доходы от смет (только выполненные)
   const estimateIncomes = useMemo(() => {
     return estimates
-      .filter(e => e.status === 'completed' || e.status === 'approved')
+      .filter(e => e.status === 'completed')
       .map(e => ({
         id: e.id,
         date: e.event_date || e.created_at,
@@ -96,10 +96,10 @@ export function IncomeTab({ estimates, incomes = [], companyId, onAddIncome, onD
       }));
   }, [estimates]);
 
-  // Ожидаемые доходы (pending сметы)
+  // Ожидаемые доходы (сметы в работе и согласованные)
   const pendingIncomes = useMemo(() => {
     return estimates
-      .filter(e => e.status === 'pending')
+      .filter(e => e.status === 'pending' || e.status === 'approved')
       .map(e => ({
         id: e.id,
         date: e.event_date || e.created_at,
