@@ -22,7 +22,7 @@
 3. Нажмите **Создать функцию**
 4. Название: `proxy-supabase`
 5. Создайте версию функции:
-   - Среда выполнения: `python311` (или `python312`)
+   - Среда выполнения: `python312` (или `python314`)
    - Точка входа: `index.handler`
    - Загрузите файлы `index.py` и `requirements.txt` из папки `proxy-supabase/`
    - Переменные окружения:
@@ -100,7 +100,7 @@ yc serverless function create --name=proxy-supabase
 # Создать версию
 yc serverless function version create \
   --function-name=proxy-supabase \
-  --runtime python311 \
+  --runtime python312 \
   --entrypoint index.handler \
   --memory 128m \
   --execution-timeout 30s \

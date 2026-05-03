@@ -21,7 +21,7 @@ yc config get token > /dev/null 2>&1 || {
 # Параметры
 FUNCTION_NAME="proxy-supabase"
 API_GATEWAY_NAME="supabase-proxy"
-RUNTIME="python311"
+RUNTIME="python312"
 MEMORY="128m"
 TIMEOUT="30s"
 
