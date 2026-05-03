@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { DollarSign, TrendingUp, TrendingDown, Users, BarChart3 } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, Users, BarChart3, Calendar, Infinity } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
@@ -44,6 +44,7 @@ export function FinanceManager({
   salaryLoading
 }: FinanceManagerProps) {
   const [activeTab, setActiveTab] = useState('income');
+  const [summaryMode, setSummaryMode] = useState<'month' | 'all'>('month');
 
   // Фильтруем подтвержденные/завершенные сметы для доходов
   const completedEstimates = estimates.filter(e => 
@@ -56,6 +57,8 @@ export function FinanceManager({
   const currentYear = now.getFullYear();
   const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
   const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+
+  // ========== МЕСЯЧНЫЕ РАСЧЁТЫ ==========
 
   // Расчёт доходов за месяц (completed сметы + ручные поступления)
   const monthlyIncome = useMemo(() => {
@@ -155,80 +158,222 @@ export function FinanceManager({
       }, 0);
   }, [expenses, prevMonth, prevYear]);
 
-  // Прибыль
+  // Месячная прибыль и маржа
   const monthlyProfit = monthlyIncome - monthlyExpenses - monthlySalary;
-  const profitMargin = monthlyIncome > 0 ? (monthlyProfit / monthlyIncome) * 100 : 0;
+  const monthlyProfitMargin = monthlyIncome > 0 ? (monthlyProfit / monthlyIncome) * 100 : 0;
 
-  // Рост/падение в процентах
+  // Рост/падение в процентах (месячные)
   const incomeChange = prevMonthIncome > 0 ? ((monthlyIncome - prevMonthIncome) / prevMonthIncome) * 100 : 0;
   const expensesChange = prevMonthExpenses > 0 ? ((monthlyExpenses - prevMonthExpenses) / prevMonthExpenses) * 100 : 0;
+
+  // ========== РАСЧЁТЫ ЗА ВСЁ ВРЕМЯ ==========
+
+  // Общие доходы за всё время
+  const totalIncomeAllTime = useMemo(() => {
+    const estimateIncome = estimates
+      .filter(e => e.status === 'completed')
+      .reduce((sum, e) => sum + (e.total || 0), 0);
+
+    const manualIncome = incomes
+      .filter(i => i.type === 'manual')
+      .reduce((sum, i) => sum + (i.amount || 0), 0);
+
+    return estimateIncome + manualIncome;
+  }, [estimates, incomes]);
+
+  // Общие расходы за всё время
+  const totalExpensesAllTime = useMemo(() => {
+    return expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+  }, [expenses]);
+
+  // Общие зарплаты за всё время
+  const totalSalaryAllTime = useMemo(() => {
+    return salaryRecords.reduce((sum, r) => sum + (r.paid || 0), 0);
+  }, [salaryRecords]);
+
+  // Общая прибыль и маржа за всё время
+  const totalProfitAllTime = totalIncomeAllTime - totalExpensesAllTime - totalSalaryAllTime;
+  const totalProfitMarginAllTime = totalIncomeAllTime > 0 ? (totalProfitAllTime / totalIncomeAllTime) * 100 : 0;
+
+  // Количество месяцев с данными (для средних)
+  const monthsWithData = useMemo(() => {
+    const months = new Set<string>();
+    
+    estimates
+      .filter(e => e.status === 'completed' && e.event_date)
+      .forEach(e => {
+        const d = new Date(e.event_date!);
+        months.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+      });
+    
+    incomes
+      .filter(i => i.type === 'manual' && i.date)
+      .forEach(i => {
+        const d = new Date(i.date);
+        months.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+      });
+    
+    expenses
+      .filter(e => e.date)
+      .forEach(e => {
+        const d = new Date(e.date);
+        months.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+      });
+    
+    salaryRecords
+      .forEach(r => {
+        months.add(r.month);
+      });
+    
+    return months.size;
+  }, [estimates, incomes, expenses, salaryRecords]);
+
+  // Среднемесячные показатели
+  const avgMonthlyIncome = monthsWithData > 0 ? totalIncomeAllTime / monthsWithData : 0;
+  const avgMonthlyExpenses = monthsWithData > 0 ? totalExpensesAllTime / monthsWithData : 0;
+  const avgMonthlySalary = monthsWithData > 0 ? totalSalaryAllTime / monthsWithData : 0;
+  const avgMonthlyProfit = monthsWithData > 0 ? totalProfitAllTime / monthsWithData : 0;
+
+  // ========== ВЫБОР АКТИВНЫХ ЗНАЧЕНИЙ ==========
+
+  const isMonthMode = summaryMode === 'month';
+
+  const displayIncome = isMonthMode ? monthlyIncome : totalIncomeAllTime;
+  const displayExpenses = isMonthMode ? monthlyExpenses : totalExpensesAllTime;
+  const displaySalary = isMonthMode ? monthlySalary : totalSalaryAllTime;
+  const displayProfit = isMonthMode ? monthlyProfit : totalProfitAllTime;
+  const displayProfitMargin = isMonthMode ? monthlyProfitMargin : totalProfitMarginAllTime;
+
+  // Подписи для карточек
+  const incomeLabel = isMonthMode ? 'Доходы (мес)' : 'Доходы (всё время)';
+  const expensesLabel = isMonthMode ? 'Расходы (мес)' : 'Расходы (всё время)';
+  const salaryLabel = isMonthMode ? 'Зарплаты (мес)' : 'Зарплаты (всё время)';
+  const profitLabel = isMonthMode ? 'Прибыль (мес)' : 'Прибыль (всё время)';
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Финансы</h1>
           <p className="text-muted-foreground mt-1">Управление доходами, расходами и зарплатами</p>
         </div>
 
+        {/* Переключатель Месяц / Всё время */}
+        <div className="flex items-center gap-2 bg-muted rounded-lg p-1">
+          <button
+            onClick={() => setSummaryMode('month')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors ${
+              isMonthMode 
+                ? 'bg-background shadow-sm font-medium text-foreground' 
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Calendar className="w-3.5 h-3.5" />
+            Месяц
+          </button>
+          <button
+            onClick={() => setSummaryMode('all')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors ${
+              !isMonthMode 
+                ? 'bg-background shadow-sm font-medium text-foreground' 
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Infinity className="w-3.5 h-3.5" />
+            Всё время
+          </button>
+        </div>
       </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {/* Доходы */}
         <Card className="bg-gradient-to-br from-green-500/10 to-green-600/5 dark:from-green-500/20 dark:to-green-600/10 border-green-200">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-green-700 dark:text-green-300 flex items-center gap-2">
               <TrendingUp className="w-4 h-4" />
-              Доходы (мес)
+              {incomeLabel}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-700 dark:text-green-300">{monthlyIncome.toLocaleString('ru-RU')} ₽</div>
-            <p className={`text-xs mt-1 ${incomeChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {incomeChange >= 0 ? '+' : ''}{incomeChange.toFixed(1)}% к прошлому месяцу
-            </p>
+            <div className="text-2xl font-bold text-green-700 dark:text-green-300">
+              {displayIncome.toLocaleString('ru-RU')} ₽
+            </div>
+            {isMonthMode ? (
+              <p className={`text-xs mt-1 ${incomeChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {incomeChange >= 0 ? '+' : ''}{incomeChange.toFixed(1)}% к прошлому месяцу
+              </p>
+            ) : (
+              <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                ~{avgMonthlyIncome.toLocaleString('ru-RU')} ₽/мес
+              </p>
+            )}
           </CardContent>
         </Card>
 
+        {/* Расходы */}
         <Card className="bg-gradient-to-br from-red-500/10 to-red-600/5 dark:from-red-500/20 dark:to-red-600/10 border-red-200">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-red-700 dark:text-red-300 flex items-center gap-2">
               <TrendingDown className="w-4 h-4" />
-              Расходы (мес)
+              {expensesLabel}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-700 dark:text-red-300">{monthlyExpenses.toLocaleString('ru-RU')} ₽</div>
-            <p className={`text-xs mt-1 ${expensesChange >= 0 ? 'text-red-600' : 'text-green-600'}`}>
-              {expensesChange >= 0 ? '+' : ''}{expensesChange.toFixed(1)}% к прошлому месяцу
-            </p>
+            <div className="text-2xl font-bold text-red-700 dark:text-red-300">
+              {displayExpenses.toLocaleString('ru-RU')} ₽
+            </div>
+            {isMonthMode ? (
+              <p className={`text-xs mt-1 ${expensesChange >= 0 ? 'text-red-600' : 'text-green-600'}`}>
+                {expensesChange >= 0 ? '+' : ''}{expensesChange.toFixed(1)}% к прошлому месяцу
+              </p>
+            ) : (
+              <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                ~{avgMonthlyExpenses.toLocaleString('ru-RU')} ₽/мес
+              </p>
+            )}
           </CardContent>
         </Card>
 
+        {/* Зарплаты */}
         <Card className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 dark:from-blue-500/20 dark:to-blue-600/10 border-blue-200">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-blue-700 dark:text-blue-300 flex items-center gap-2">
               <Users className="w-4 h-4" />
-              Зарплаты (мес)
+              {salaryLabel}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">{monthlySalary.toLocaleString('ru-RU')} ₽</div>
-            <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">{staff.length} сотрудников</p>
+            <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">
+              {displaySalary.toLocaleString('ru-RU')} ₽
+            </div>
+            {isMonthMode ? (
+              <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">{staff.length} сотрудников</p>
+            ) : (
+              <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                ~{avgMonthlySalary.toLocaleString('ru-RU')} ₽/мес • {staff.length} сотрудников
+              </p>
+            )}
           </CardContent>
         </Card>
 
+        {/* Прибыль */}
         <Card className="bg-gradient-to-br from-purple-500/10 to-purple-600/5 dark:from-purple-500/20 dark:to-purple-600/10 border-purple-200">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-purple-700 dark:text-purple-300 flex items-center gap-2">
               <DollarSign className="w-4 h-4" />
-              Прибыль (мес)
+              {profitLabel}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-purple-700 dark:text-purple-300">{monthlyProfit.toLocaleString('ru-RU')} ₽</div>
-            <p className="text-xs text-purple-600 dark:text-purple-400 mt-1">Маржа: {profitMargin.toFixed(1)}%</p>
+            <div className="text-2xl font-bold text-purple-700 dark:text-purple-300">
+              {displayProfit.toLocaleString('ru-RU')} ₽
+            </div>
+            <p className="text-xs text-purple-600 dark:text-purple-400 mt-1">
+              Маржа: {displayProfitMargin.toFixed(1)}%
+              {!isMonthMode && ` • ~${avgMonthlyProfit.toLocaleString('ru-RU')} ₽/мес`}
+            </p>
           </CardContent>
         </Card>
       </div>
