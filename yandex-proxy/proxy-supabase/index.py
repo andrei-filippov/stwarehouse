@@ -38,8 +38,9 @@ def handler(event, context):
       /rest/v1/table?select=*        (прямой путь)
       /proxy/rest/v1/table?select=*  (с префиксом /proxy)
     """
-    http_method = event.get('httpMethod', 'GET')
-    headers = {k.lower(): v for k, v in event.get('headers', {}).items()}
+    http_method = event.get('httpMethod', 'GET') if event else 'GET'
+    raw_headers = event.get('headers', {}) if event else {}
+    headers = {k.lower(): v for k, v in (raw_headers or {}).items()}
     origin = headers.get('origin', '')
     
     # Обработка preflight OPTIONS запроса
