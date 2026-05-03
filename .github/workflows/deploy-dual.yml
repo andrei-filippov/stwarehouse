@@ -32,6 +32,7 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_SUPABASE_PROXY_URL: ${{ secrets.VITE_SUPABASE_PROXY_URL }}
           VITE_DADATA_API_KEY: ${{ secrets.VITE_DADATA_API_KEY }}
           VITE_YANDEX_CLIENT_ID: ${{ secrets.VITE_YANDEX_CLIENT_ID }}
 

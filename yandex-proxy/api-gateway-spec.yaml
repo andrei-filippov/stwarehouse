@@ -1,0 +1,202 @@
+# Спецификация Yandex API Gateway для проксирования Supabase
+openapi: 3.0.0
+info:
+  title: Supabase Proxy API
+  version: 1.0.0
+
+# Базовый путь — будет заменён на URL API Gateway
+servers:
+  - url: /
+
+paths:
+  # Прокси для всех запросов к Supabase REST API
+  # supabase-js формирует URL вида: /rest/v1/table?select=*
+  # Мы проксируем всё что начинается с /rest/v1/
+  /rest/v1/{path+}:
+    x-yc-apigateway-integration:
+      type: cloud_functions
+      function_id: ${PROXY_FUNCTION_ID}
+      service_account_id: ${SERVICE_ACCOUNT_ID}
+      tag: $latest
+    options:
+      summary: CORS preflight
+      operationId: corsProxy
+      responses:
+        '200':
+          description: CORS OK
+    get:
+      summary: Proxy GET request
+      operationId: proxyGet
+      parameters:
+        - name: path
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+    post:
+      summary: Proxy POST request
+      operationId: proxyPost
+      parameters:
+        - name: path
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+    put:
+      summary: Proxy PUT request
+      operationId: proxyPut
+      parameters:
+        - name: path
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+    patch:
+      summary: Proxy PATCH request
+      operationId: proxyPatch
+      parameters:
+        - name: path
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+    delete:
+      summary: Proxy DELETE request
+      operationId: proxyDelete
+      parameters:
+        - name: path
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+
+  # Альтернативный путь через /proxy (для совместимости)
+  /proxy/rest/v1/{path+}:
+    x-yc-apigateway-integration:
+      type: cloud_functions
+      function_id: ${PROXY_FUNCTION_ID}
+      service_account_id: ${SERVICE_ACCOUNT_ID}
+      tag: $latest
+    options:
+      summary: CORS preflight (proxy prefix)
+      operationId: corsProxyPrefix
+      responses:
+        '200':
+          description: CORS OK
+    get:
+      summary: Proxy GET request (with prefix)
+      operationId: proxyGetPrefix
+      parameters:
+        - name: path
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+    post:
+      summary: Proxy POST request (with prefix)
+      operationId: proxyPostPrefix
+      parameters:
+        - name: path
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+    put:
+      summary: Proxy PUT request (with prefix)
+      operationId: proxyPutPrefix
+      parameters:
+        - name: path
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+    patch:
+      summary: Proxy PATCH request (with prefix)
+      operationId: proxyPatchPrefix
+      parameters:
+        - name: path
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+    delete:
+      summary: Proxy DELETE request (with prefix)
+      operationId: proxyDeletePrefix
+      parameters:
+        - name: path
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+
+  # Корневой путь — health check
+  /:
+    get:
+      summary: Health check
+      operationId: healthCheck
+      x-yc-apigateway-integration:
+        type: dummy
+        content:
+          '*':
+            '{"status":"ok","service":"supabase-proxy"}'
+        http_code: 200
+      responses:
+        '200':
+          description: Service is running
+
+# CORS на уровне API Gateway
+x-yc-apigateway-cors:
+  enabled: true
+  allow-credentials: true
+  allow-headers:
+    - authorization
+    - x-client-info
+    - apikey
+    - content-type
+    - x-requested-with
+    - accept
+    - origin
+    - prefer
+    - range
+  allow-methods:
+    - GET
+    - POST
+    - PUT
+    - PATCH
+    - DELETE
+    - OPTIONS
+  allow-origins:
+    - 'https://stwarehouse.website.yandexcloud.net'
+    - 'https://stwarehouse.vercel.app'
+    - 'http://localhost:5173'
+    - 'http://localhost:3000'
