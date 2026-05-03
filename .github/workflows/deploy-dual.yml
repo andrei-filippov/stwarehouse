@@ -71,7 +71,8 @@ jobs:
             --cache-control "public, max-age=31536000, immutable" \
             --exclude "index.html" \
             --exclude "sw.js" \
-            --exclude "manifest.json"
+            --exclude "manifest.json" \
+            --exclude "sw-yandex.js"
 
       - name: Upload index.html (no cache)
         run: |
@@ -79,10 +80,11 @@ jobs:
             cp ./dist/index.html s3://${{ env.YANDEX_BUCKET }}/index.html \
             --cache-control "public, max-age=0, must-revalidate"
 
-      - name: Upload sw.js (no cache)
+      - name: Upload sw.js for Yandex (no cache)
         run: |
+          # Используем специальный SW для Yandex (без падения на отсутствующих файлах)
           aws s3 --endpoint-url=${{ env.YANDEX_ENDPOINT }} \
-            cp ./dist/sw.js s3://${{ env.YANDEX_BUCKET }}/sw.js \
+            cp ./public/sw-yandex.js s3://${{ env.YANDEX_BUCKET }}/sw.js \
             --cache-control "public, max-age=0, must-revalidate"
 
       - name: Upload manifest.json (no cache)
