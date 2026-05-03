@@ -323,7 +323,7 @@ export function useEstimates(companyId: string | undefined) {
     // Логируем просмотр сметы
     const estimate = estimates.find(e => e.id === estimateId);
     if (estimate) {
-      logAction('view', 'estimate', estimateId, estimate.event_name).catch(() => {});
+      logAction('view', 'estimate', estimateId, estimate.event_name, undefined, undefined, companyId).catch(() => {});
     }
 
     const { error } = await supabase

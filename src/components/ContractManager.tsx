@@ -85,10 +85,10 @@ export const ContractManager = memo(function ContractManager({
   }, []);
 
   const handleEdit = useCallback((contract: Contract) => {
-    logAction('view', 'contract', contract.id, contract.number || contract.event_name).catch(() => {});
+    logAction('view', 'contract', contract.id, contract.number || contract.event_name, undefined, undefined, company?.id).catch(() => {});
     setEditingContract(contract);
     setIsFormOpen(true);
-  }, []);
+  }, [company?.id]);
 
   const handlePreview = useCallback((contract: Contract) => {
     setPreviewContract(contract);
@@ -96,7 +96,7 @@ export const ContractManager = memo(function ContractManager({
   }, []);
 
   const handleOpenDetail = useCallback((contract: Contract) => {
-    logAction('view', 'contract', contract.id, contract.number || contract.event_name).catch(() => {});
+    logAction('view', 'contract', contract.id, contract.number || contract.event_name, undefined, undefined, company?.id).catch(() => {});
     setSelectedContract(contract);
   }, []);
 

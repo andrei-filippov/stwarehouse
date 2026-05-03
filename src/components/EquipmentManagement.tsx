@@ -12,6 +12,7 @@ import type { Equipment } from '../types';
 import { TransferToInventoryDialog } from './TransferToInventoryDialog';
 import { useDebounce } from '../hooks/useDebounce';
 import { logAction } from '../hooks/useAuditLogs';
+import { useCompanyContext } from '../contexts/CompanyContext';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import { logger } from '../lib/logger';
@@ -122,6 +123,7 @@ export function EquipmentManager({
   loading,
   fabAction
 }: EquipmentManagerProps) {
+  const { company } = useCompanyContext();
   // Открываем диалог при нажатии FAB (пропускаем первый рендер)
   const isFirstRender = useRef(true);
   useEffect(() => {
@@ -141,9 +143,9 @@ export function EquipmentManager({
   // Логируем просмотр оборудования при открытии редактирования
   useEffect(() => {
     if (editingItem) {
-      logAction('view', 'equipment', editingItem.id, editingItem.name).catch(() => {});
+      logAction('view', 'equipment', editingItem.id, editingItem.name, undefined, undefined, company?.id).catch(() => {});
     }
-  }, [editingItem]);
+  }, [editingItem, company?.id]);
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);

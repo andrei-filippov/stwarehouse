@@ -17,6 +17,7 @@ export interface AuditLog {
   new_data: any;
   ip_address?: string;
   user_agent?: string;
+  company_id?: string | null;
   created_at: string;
 }
 
@@ -173,7 +174,8 @@ export async function logAction(
   entityId?: string,
   entityName?: string,
   oldData?: any,
-  newData?: any
+  newData?: any,
+  companyId?: string
 ): Promise<{ error: Error | null }> {
   try {
     const { error } = await supabase.rpc('create_audit_log', {
@@ -183,6 +185,7 @@ export async function logAction(
       p_entity_name: entityName || null,
       p_old_data: oldData || null,
       p_new_data: newData || null,
+      p_company_id: companyId || null,
     });
 
     if (error) throw error;
