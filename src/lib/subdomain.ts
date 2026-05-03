@@ -17,6 +17,11 @@ export function getSubdomain(): string | null {
     return match ? match[1] : null;
   }
   
+  // Yandex Object Storage — не поддомен, а имя бакета
+  if (hostname.includes('yandexcloud.net') || hostname.includes('storage.yandexcloud.net')) {
+    return null;
+  }
+  
   // Кастомный домен: company.stwarehouse.ru
   const parts = hostname.split('.');
   if (parts.length >= 3) {
