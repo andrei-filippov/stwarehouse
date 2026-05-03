@@ -35,6 +35,9 @@ jobs:
           VITE_DADATA_API_KEY: ${{ secrets.VITE_DADATA_API_KEY }}
           VITE_YANDEX_CLIENT_ID: ${{ secrets.VITE_YANDEX_CLIENT_ID }}
 
+      - name: Copy Yandex SW to dist
+        run: cp ./public/sw-yandex.js ./dist/sw-yandex.js
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -84,7 +87,7 @@ jobs:
         run: |
           # Используем специальный SW для Yandex (без падения на отсутствующих файлах)
           aws s3 --endpoint-url=${{ env.YANDEX_ENDPOINT }} \
-            cp ./public/sw-yandex.js s3://${{ env.YANDEX_BUCKET }}/sw.js \
+            cp ./dist/sw-yandex.js s3://${{ env.YANDEX_BUCKET }}/sw.js \
             --cache-control "public, max-age=0, must-revalidate"
 
       - name: Upload manifest.json (no cache)
