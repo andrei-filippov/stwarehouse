@@ -77,6 +77,11 @@ export function useCompany() {
       const savedSlug = getSelectedCompany();
       const targetSlug = subdomain || savedSlug;
       
+      console.log('[useCompany] Auth user:', user.id);
+      console.log('[useCompany] Subdomain:', subdomain);
+      console.log('[useCompany] Saved slug:', savedSlug);
+      console.log('[useCompany] Target slug:', targetSlug);
+      
       if (targetSlug) {
         // Ищем компанию по slug
         const { data: companyBySlug, error: slugError } = await supabase
@@ -117,8 +122,11 @@ export function useCompany() {
         .limit(1)
         .maybeSingle();
 
+      console.log('[useCompany] Member query result:', { memberData, memberError });
+      
       if (memberError) {
         logger.error('Member error:', memberError);
+        console.log('[useCompany] Member error code:', memberError.code);
         if (memberError.code === 'PGRST116') {
           // Нет активной компании
         logger.info('No active company found for user');
