@@ -4,11 +4,11 @@ info:
   version: 1.0.0
 
 paths:
-  /rest/v1/{path+}:
+  /{proxy+}:
     get:
       operationId: proxyGet
       parameters:
-        - name: path
+        - name: proxy
           in: path
           required: true
           schema:
@@ -23,7 +23,7 @@ paths:
     post:
       operationId: proxyPost
       parameters:
-        - name: path
+        - name: proxy
           in: path
           required: true
           schema:
@@ -38,7 +38,7 @@ paths:
     put:
       operationId: proxyPut
       parameters:
-        - name: path
+        - name: proxy
           in: path
           required: true
           schema:
@@ -53,7 +53,7 @@ paths:
     patch:
       operationId: proxyPatch
       parameters:
-        - name: path
+        - name: proxy
           in: path
           required: true
           schema:
@@ -68,7 +68,7 @@ paths:
     delete:
       operationId: proxyDelete
       parameters:
-        - name: path
+        - name: proxy
           in: path
           required: true
           schema:
@@ -82,6 +82,12 @@ paths:
           description: OK
     options:
       operationId: corsProxy
+      parameters:
+        - name: proxy
+          in: path
+          required: true
+          schema:
+            type: string
       x-yc-apigateway-integration:
         type: cloud_functions
         function_id: d4e8tkatoo41i2417l4m
