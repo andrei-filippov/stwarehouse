@@ -1,0 +1,127 @@
+name: Deploy to Vercel + Yandex Object Storage
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # Ручной запуск из GitHub UI
+
+env:
+  NODE_VERSION: '20'
+  YANDEX_ENDPOINT: https://storage.yandexcloud.net
+  YANDEX_BUCKET: stwarehouse
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_DADATA_API_KEY: ${{ secrets.VITE_DADATA_API_KEY }}
+          VITE_YANDEX_CLIENT_ID: ${{ secrets.VITE_YANDEX_CLIENT_ID }}
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: ./dist
+          retention-days: 1
+
+  deploy-yandex:
+    name: Deploy to Yandex Object Storage
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: ./dist
+
+      - name: Install AWS CLI
+        run: |
+          pip install awscli
+
+      - name: Configure AWS credentials for Yandex
+        run: |
+          aws configure set aws_access_key_id ${{ secrets.YANDEX_ACCESS_KEY_ID }}
+          aws configure set aws_secret_access_key ${{ secrets.YANDEX_SECRET_ACCESS_KEY }}
+          aws configure set region ru-central1
+
+      - name: Sync static assets to Yandex Object Storage
+        run: |
+          aws s3 --endpoint-url=${{ env.YANDEX_ENDPOINT }} \
+            sync ./dist s3://${{ env.YANDEX_BUCKET }} \
+            --delete \
+            --cache-control "public, max-age=31536000, immutable" \
+            --exclude "index.html" \
+            --exclude "sw.js" \
+            --exclude "manifest.json"
+
+      - name: Upload index.html (no cache)
+        run: |
+          aws s3 --endpoint-url=${{ env.YANDEX_ENDPOINT }} \
+            cp ./dist/index.html s3://${{ env.YANDEX_BUCKET }}/index.html \
+            --cache-control "public, max-age=0, must-revalidate"
+
+      - name: Upload sw.js (no cache)
+        run: |
+          aws s3 --endpoint-url=${{ env.YANDEX_ENDPOINT }} \
+            cp ./dist/sw.js s3://${{ env.YANDEX_BUCKET }}/sw.js \
+            --cache-control "public, max-age=0, must-revalidate"
+
+      - name: Upload manifest.json (no cache)
+        run: |
+          aws s3 --endpoint-url=${{ env.YANDEX_ENDPOINT }} \
+            cp ./dist/manifest.json s3://${{ env.YANDEX_BUCKET }}/manifest.json \
+            --cache-control "public, max-age=0, must-revalidate"
+
+      - name: Verify Yandex deployment
+        run: |
+          echo "✅ Деплой в Yandex Object Storage завершён"
+          echo "🌐 https://${{ env.YANDEX_BUCKET }}.website.yandexcloud.net"
+
+  deploy-vercel:
+    name: Deploy to Vercel
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: ./dist
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      - name: Deploy to Vercel (Production)
+        run: |
+          vercel deploy --prod --yes \
+            --token=${{ secrets.VERCEL_TOKEN }} \
+            --scope=${{ secrets.VERCEL_ORG_ID }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Verify Vercel deployment
+        run: |
+          echo "✅ Деплой в Vercel завершён"
