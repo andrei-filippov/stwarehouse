@@ -23,8 +23,7 @@ def get_cors_headers(origin=None):
     return {
         'Access-Control-Allow-Origin': allowed_origin,
         'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-requested-with, accept, origin, prefer, range',
-        'Access-Control-Allow-Credentials': 'true',
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-requested-with, accept, origin, prefer, range, x-supabase-api-version',
         'Access-Control-Max-Age': '86400',
     }
 
@@ -32,11 +31,7 @@ def get_cors_headers(origin=None):
 def handler(event, context):
     """
     Yandex Cloud Function handler.
-    Проксирует запросы к Supabase REST API.
-    
-    Ожидает пути вида:
-      /rest/v1/table?select=*        (прямой путь)
-      /proxy/rest/v1/table?select=*  (с префиксом /proxy)
+    Проксирует запросы к Supabase REST API и Auth API.
     """
     http_method = event.get('httpMethod', 'GET') if event else 'GET'
     raw_headers = event.get('headers', {}) if event else {}
@@ -60,19 +55,18 @@ def handler(event, context):
         }
     
     # Получаем путь из запроса
-    path = event.get('path', '')
+    # API Gateway передаёт реальный URI в request_uri, а path содержит шаблон
+    request_uri = event.get('request_uri', event.get('path', ''))
     query_params = event.get('queryStringParameters', {}) or {}
     
-    # Убираем префикс /proxy если есть
-    if path.startswith('/proxy'):
-        path = path[len('/proxy'):]
+    # Убираем query string из URI
+    path = request_uri.split('?')[0] if '?' in request_uri else request_uri
     
     # Убеждаемся что путь начинается с /
     if not path.startswith('/'):
         path = '/' + path
     
     # Строим полный URL к Supabase
-    # Путь уже должен содержать /rest/v1/...
     query_string = ''
     if query_params:
         query_string = '?' + urlencode(query_params, doseq=True)
@@ -94,7 +88,7 @@ def handler(event, context):
         req_headers['Authorization'] = f'Bearer {SUPABASE_ANON_KEY}'
     
     # Прокидываем дополнительные заголовки Supabase
-    for key in ['x-client-info', 'prefer', 'range']:
+    for key in ['x-client-info', 'prefer', 'range', 'x-supabase-api-version']:
         if key in headers:
             req_headers[key] = headers[key]
     

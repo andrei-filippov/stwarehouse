@@ -42,6 +42,27 @@ if (!supabaseKey) {
   throw new Error('Missing VITE_SUPABASE_ANON_KEY environment variable');
 }
 
+// Custom fetch to fix proxy issues:
+// 1. Replace apikey header (JWT) with actual anon key
+// 2. Remove accept-profile and content-profile headers (CORS issues with API Gateway)
+const customFetch = (url: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+  const headers = new Headers(init?.headers);
+  
+  // Fix 1: apikey must be the anon key, not JWT token
+  // Supabase JS client sometimes puts JWT in apikey header
+  headers.set('apikey', supabaseKey);
+  
+  // Fix 2: Remove profile headers that cause CORS preflight failures
+  // API Gateway doesn't allow these in Access-Control-Allow-Headers
+  headers.delete('accept-profile');
+  headers.delete('content-profile');
+  
+  return fetch(url, {
+    ...init,
+    headers,
+  });
+};
+
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
     persistSession: true,
@@ -49,6 +70,9 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
     detectSessionInUrl: true,
     storage: localStorage,
     storageKey: 'sb-trivdyjfiyxsmrkihqet-auth-token',
+  },
+  global: {
+    fetch: customFetch,
   },
 });
 
