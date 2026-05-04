@@ -42,6 +42,12 @@ if (!supabaseKey) {
   throw new Error('Missing VITE_SUPABASE_ANON_KEY environment variable');
 }
 
+// Detect if we're using proxy (no WebSocket support)
+export const isProxyMode = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  return supabaseUrl.includes('apigw.yandexcloud.net') || window.location.hostname.includes('yandexcloud.net');
+};
+
 // Custom fetch to fix proxy issues:
 // 1. Replace apikey header (JWT) with actual anon key
 // 2. Remove accept-profile and content-profile headers (CORS issues with API Gateway)
@@ -74,6 +80,8 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
   global: {
     fetch: customFetch,
   },
+  // Disable realtime when using proxy (API Gateway doesn't support WebSocket)
+  realtime: isProxyMode() ? false : undefined,
 });
 
 export const getEstimates = async () => {

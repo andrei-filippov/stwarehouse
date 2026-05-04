@@ -17,6 +17,7 @@ import {
   clearDeletedEstimates
 } from '../lib/offlineDB';
 import { logger } from '../lib/logger';
+import { usePolling, isProxyMode } from './usePolling';
 
 // Генерируем уникальный ID сессии для этой вкладки
 const SESSION_ID = Math.random().toString(36).substring(2, 15);
@@ -790,9 +791,21 @@ export function useEstimates(companyId: string | undefined) {
   }, [fetchEstimates]);
 
   // Подписка на изменения (только в онлайн режиме)
+  // Используем polling fallback для прокси (нет WebSocket поддержки)
   useEffect(() => {
     if (!companyId || !isOnline()) return;
 
+    // Если работаем через прокси — используем polling вместо realtime
+    if (isProxyMode()) {
+      const interval = setInterval(() => {
+        if (!(window as any).__syncing) {
+          fetchEstimates();
+        }
+      }, 15000); // Poll every 15 seconds
+      return () => clearInterval(interval);
+    }
+
+    // Иначе — используем Supabase Realtime (WebSocket)
     const channel = supabase
       .channel('estimates-changes')
       .on('postgres_changes', 
@@ -831,7 +844,7 @@ export function useEstimates(companyId: string | undefined) {
         clearTimeout(debounceTimeoutRef.current);
       }
     };
-  }, [debouncedFetchEstimates, companyId]);
+  }, [debouncedFetchEstimates, companyId, fetchEstimates]);
 
   // Очистка при размонтировании
   useEffect(() => {
