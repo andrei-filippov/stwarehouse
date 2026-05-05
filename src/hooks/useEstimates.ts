@@ -40,7 +40,7 @@ export function useEstimates(companyId: string | undefined) {
     fetchInProgressRef.current = true;
     setLoading(true);
     
-    console.log('[fetchEstimates] ========== START ==========', new Date().toISOString());
+    debugLog('[fetchEstimates] ========== START ==========', new Date().toISOString());
     
     try {
       // Всегда загружаем локальные сметы (на случай если есть несинхронизированные)
@@ -73,7 +73,7 @@ export function useEstimates(companyId: string | undefined) {
           if (estimatesError) {
             console.error('[fetchEstimates] Error loading estimates:', estimatesError.message, estimatesError.code, estimatesError.details);
             // Fallback: пробуем загрузить с минимальным набором колонок
-            console.log('[fetchEstimates] Trying fallback with minimal columns...');
+            debugLog('[fetchEstimates] Trying fallback with minimal columns...');
             const fallback = await supabase
               .from('estimates')
               .select('id, event_name, venue, event_date, total, status, created_at, updated_at, sections')
@@ -84,7 +84,7 @@ export function useEstimates(companyId: string | undefined) {
               console.error('[fetchEstimates] Fallback also failed:', fallback.error.message);
               throw estimatesError;
             }
-            console.log('[fetchEstimates] Fallback success, count:', fallback.data?.length);
+            debugLog('[fetchEstimates] Fallback success, count:', fallback.data?.length);
             // @ts-ignore
             estimatesData = fallback.data;
           }
@@ -94,13 +94,12 @@ export function useEstimates(companyId: string | undefined) {
           let itemsData: any[] = [];
           if (estimatesData && estimatesData.length > 0) {
             const estimateIds = estimatesData.map(e => e.id);
-            console.log('[fetchEstimates] Estimates loaded:', estimatesData.length);
-            console.log('[fetchEstimates] Looking for Backline estimate:', estimatesData.find(e => e.event_name?.toLowerCase().includes('бэклайн'))?.id);
+            debugLog('[fetchEstimates] Estimates loaded:', estimatesData.length);
             const BATCH_SIZE = 50; // Уменьшили с 100 до 50
             
             for (let i = 0; i < estimateIds.length; i += BATCH_SIZE) {
               const batch = estimateIds.slice(i, i + BATCH_SIZE);
-              console.log('[fetchEstimates] Loading items batch', i, 'of', estimateIds.length, 'ids count:', batch.length);
+              debugLog('[fetchEstimates] Loading items batch', i, 'of', estimateIds.length, 'ids count:', batch.length);
               
               // Загружаем items с пагинацией (по 1000 за раз)
               let batchItems: any[] = [];
@@ -122,37 +121,18 @@ export function useEstimates(companyId: string | undefined) {
                 if (!items || items.length === 0) break;
                 
                 batchItems.push(...items);
-                console.log('[fetchEstimates] Loaded items page:', items.length, 'offset:', offset, 'total so far:', batchItems.length);
+                debugLog('[fetchEstimates] Loaded items page:', items.length, 'offset:', offset, 'total so far:', batchItems.length);
                 
                 if (items.length < PAGE_SIZE) break; // Последняя страница
                 offset += PAGE_SIZE;
               }
               
-              console.log('[fetchEstimates] Loaded items batch total:', batchItems.length, 'for batch', i);
-              if (batchItems.length > 0) {
-                console.log('[fetchEstimates] First item sample:', { 
-                  id: batchItems[0].id, 
-                  estimate_id: batchItems[0].estimate_id, 
-                  name: batchItems[0].name,
-                  category: batchItems[0].category,
-                  equipment_id: batchItems[0].equipment_id,
-                  section_id: batchItems[0].section_id 
-                });
-              }
+              debugLog('[fetchEstimates] Loaded items batch total:', batchItems.length, 'for batch', i);
               itemsData.push(...batchItems);
             }
           }
           
-          console.log('[fetchEstimates] Total items loaded:', itemsData.length);
-          
-          // Собираем сметы с позициями
-          console.log('[fetchEstimates] All loaded items:', itemsData.length);
-          console.log('[fetchEstimates] All estimate IDs:', estimatesData?.map(e => e.id));
-          if (itemsData.length > 0) {
-            console.log('[fetchEstimates] Sample item IDs:', itemsData.slice(0, 5).map(i => ({ id: i.id, estimate_id: i.estimate_id, name: i.name })));
-            const uniqueEstimateIds = [...new Set(itemsData.map(i => i.estimate_id))];
-            console.log('[fetchEstimates] Unique estimate_ids in items:', uniqueEstimateIds.length, uniqueEstimateIds.slice(0, 10));
-          }
+          debugLog('[fetchEstimates] Total items loaded:', itemsData.length);
           
           const data = (estimatesData || []).map(estimate => {
             const estimateIdLower = estimate.id?.toLowerCase?.() || estimate.id;
@@ -160,21 +140,7 @@ export function useEstimates(companyId: string | undefined) {
               const itemEstimateId = item.estimate_id?.toLowerCase?.() || item.estimate_id;
               return itemEstimateId === estimateIdLower;
             });
-            if (estimate.event_name?.toLowerCase().includes('бэклайн') || estimate.event_name?.toLowerCase().includes('test')) {
-              console.log('[fetchEstimates] DEBUG - estimate.id:', estimate.id, 'type:', typeof estimate.id);
-              console.log('[fetchEstimates] DEBUG - itemsData length:', itemsData.length);
-              console.log('[fetchEstimates] DEBUG - looking for estimate_id:', estimate.id);
-              // Проверяем, есть ли этот estimate_id в itemsData
-              const foundItems = itemsData.filter((item: any) => item.estimate_id === estimate.id);
-              console.log('[fetchEstimates] DEBUG - found items by exact match:', foundItems.length);
-              // Проверяем с lowerCase
-              const foundItemsLower = itemsData.filter((item: any) => (item.estimate_id?.toLowerCase?.() || item.estimate_id) === estimateIdLower);
-              console.log('[fetchEstimates] DEBUG - found items by lowerCase:', foundItemsLower.length);
-              // Показываем первые 5 estimate_id из itemsData
-              console.log('[fetchEstimates] DEBUG - sample estimate_ids:', itemsData.slice(0, 5).map(i => i.estimate_id));
-              console.log('[fetchEstimates] DEBUG - matched items:', estimateItems.length);
-            }
-            console.log('[fetchEstimates] Merging estimate:', estimate.id, 'event:', estimate.event_name, 'matched items:', estimateItems.length);
+            debugLog('[fetchEstimates] Merging estimate:', estimate.id, 'event:', estimate.event_name, 'matched items:', estimateItems.length);
             return {
               ...estimate,
               items: estimateItems
@@ -272,10 +238,7 @@ export function useEstimates(companyId: string | undefined) {
             return true;
           });
           
-          console.log('[fetchEstimates] Setting estimates:', deduplicated.length, 'estimates with items');
-          deduplicated.forEach((e: any) => {
-            console.log('[fetchEstimates] Estimate in state:', e.id, e.event_name, 'items:', e.items?.length || 0);
-          });
+          debugLog('[fetchEstimates] Setting estimates:', deduplicated.length, 'estimates with items');
           setEstimates(deduplicated);
           
           // СОХРАНЯЕМ серверные данные в локальную базу для офлайн-доступа
