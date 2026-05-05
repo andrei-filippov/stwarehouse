@@ -104,6 +104,7 @@ export function useEstimates(companyId: string | undefined) {
                 .from('estimate_items')
                 .select('*')
                 .in('estimate_id', batch)
+                .order('created_at', { ascending: false })
                 .limit(10000);
               
               if (itemsError) {
