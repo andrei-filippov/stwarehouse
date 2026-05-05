@@ -55,8 +55,9 @@ def handler(event, context):
         }
     
     # Получаем путь из запроса
-    # API Gateway передаёт реальный URI в request_uri, а path содержит шаблон
-    request_uri = event.get('request_uri', event.get('path', ''))
+    # API Gateway передаёт реальный URI в 'url', а 'path' содержит шаблон
+    # 'request_uri' также может содержать реальный путь
+    request_uri = event.get('url', event.get('request_uri', event.get('path', '')))
     query_params = event.get('queryStringParameters', {}) or {}
     
     # Убираем query string из URI
@@ -91,6 +92,10 @@ def handler(event, context):
     for key in ['x-client-info', 'prefer', 'range', 'x-supabase-api-version']:
         if key in headers:
             req_headers[key] = headers[key]
+    
+    # Fix for DELETE: force return=minimal to avoid selecting non-existent columns
+    if http_method == 'DELETE' and 'prefer' not in req_headers:
+        req_headers['Prefer'] = 'return=minimal'
     
     # Получаем тело запроса
     body = event.get('body', '')
@@ -136,6 +141,9 @@ def handler(event, context):
     except urllib.error.HTTPError as e:
         # Ошибки HTTP (4xx, 5xx)
         error_body = e.read().decode('utf-8') if e.fp else json.dumps({'error': str(e)})
+        
+        # Log error details for debugging
+        print(f'PROXY ERROR: {http_method} {target_url} -> {e.code}: {error_body}')
         
         return {
             'statusCode': e.code,

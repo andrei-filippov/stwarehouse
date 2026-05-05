@@ -141,12 +141,12 @@ export function useEstimates(companyId: string | undefined) {
               const itemEstimateId = item.estimate_id?.toLowerCase?.() || item.estimate_id;
               return itemEstimateId === estimateIdLower;
             });
-            if (estimate.event_name?.toLowerCase().includes('бэклайн')) {
-              console.log('[fetchEstimates] BACKLINE DEBUG - estimate.id:', estimate.id);
-              console.log('[fetchEstimates] BACKLINE DEBUG - itemsData length:', itemsData.length);
-              console.log('[fetchEstimates] BACKLINE DEBUG - all estimate_ids in items:', itemsData.map(i => i.estimate_id));
-              console.log('[fetchEstimates] BACKLINE DEBUG - matched items:', estimateItems.length);
-              console.log('[fetchEstimates] BACKLINE DEBUG - matched items details:', estimateItems.map(i => ({ name: i.name, equipment_id: i.equipment_id, category: i.category, company_id: i.company_id })));
+            if (estimate.event_name?.toLowerCase().includes('бэклайн') || estimate.event_name?.toLowerCase().includes('test')) {
+              console.log('[fetchEstimates] DEBUG - estimate.id:', estimate.id, 'type:', typeof estimate.id);
+              console.log('[fetchEstimates] DEBUG - itemsData length:', itemsData.length);
+              console.log('[fetchEstimates] DEBUG - looking for estimate_id:', estimate.id);
+              console.log('[fetchEstimates] DEBUG - all estimate_ids in items:', itemsData.map(i => ({ id: i.id, estimate_id: i.estimate_id, type: typeof i.estimate_id })));
+              console.log('[fetchEstimates] DEBUG - matched items:', estimateItems.length);
             }
             console.log('[fetchEstimates] Merging estimate:', estimate.id, 'event:', estimate.event_name, 'matched items:', estimateItems.length);
             return {
@@ -445,7 +445,8 @@ export function useEstimates(companyId: string | undefined) {
           return { error: null, data: newEstimate };
         } catch (err: any) {
           // Если ошибка сети - переключаемся на оффлайн режим
-          debugLog('Network error, switching to offline mode:', err);
+          debugError('Error creating estimate online:', err);
+          toast.error('Ошибка создания сметы на сервере', { description: err.message });
           // Продолжаем в оффлайн-блок ниже
         }
       }
