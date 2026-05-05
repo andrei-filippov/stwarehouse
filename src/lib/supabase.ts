@@ -64,6 +64,11 @@ const customFetch = (url: RequestInfo | URL, init?: RequestInit): Promise<Respon
   headers.delete('accept-profile');
   headers.delete('content-profile');
   
+  // Fix 2a: Ensure Accept header is set for API Gateway
+  if (!headers.has('accept')) {
+    headers.set('accept', 'application/json');
+  }
+  
   // Fix 3: Force return=minimal for DELETE requests
   // Supabase tries to return deleted row with all columns, but some columns
   // (like created_at) may not exist, causing 400 error
@@ -74,6 +79,13 @@ const customFetch = (url: RequestInfo | URL, init?: RequestInit): Promise<Respon
   return fetch(url, {
     ...init,
     headers,
+  }).then(response => {
+    // Log proxy errors for debugging
+    if (!response.ok && isProxyMode()) {
+      const urlStr = url.toString();
+      console.warn(`[Supabase] ${response.status} ${response.statusText}: ${init?.method || 'GET'} ${urlStr.substring(0, 120)}`);
+    }
+    return response;
   });
 };
 

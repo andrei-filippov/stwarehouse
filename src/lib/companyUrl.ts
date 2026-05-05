@@ -8,7 +8,7 @@ export function getCompanyPath(slug: string): string {
 export function getSlugFromPath(): string | null {
   const path = window.location.pathname;
   const match = path.match(/^\/c\/([^\/]+)/);
-  return match ? match[1] : null;
+  return match ? decodeURIComponent(match[1]) : null;
 }
 
 // Сохранение выбранной компании
