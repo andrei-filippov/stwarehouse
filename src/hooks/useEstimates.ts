@@ -147,7 +147,14 @@ export function useEstimates(companyId: string | undefined) {
               console.log('[fetchEstimates] DEBUG - estimate.id:', estimate.id, 'type:', typeof estimate.id);
               console.log('[fetchEstimates] DEBUG - itemsData length:', itemsData.length);
               console.log('[fetchEstimates] DEBUG - looking for estimate_id:', estimate.id);
-              console.log('[fetchEstimates] DEBUG - all estimate_ids in items:', itemsData.map(i => ({ id: i.id, estimate_id: i.estimate_id, type: typeof i.estimate_id })));
+              // Проверяем, есть ли этот estimate_id в itemsData
+              const foundItems = itemsData.filter((item: any) => item.estimate_id === estimate.id);
+              console.log('[fetchEstimates] DEBUG - found items by exact match:', foundItems.length);
+              // Проверяем с lowerCase
+              const foundItemsLower = itemsData.filter((item: any) => (item.estimate_id?.toLowerCase?.() || item.estimate_id) === estimateIdLower);
+              console.log('[fetchEstimates] DEBUG - found items by lowerCase:', foundItemsLower.length);
+              // Показываем первые 5 estimate_id из itemsData
+              console.log('[fetchEstimates] DEBUG - sample estimate_ids:', itemsData.slice(0, 5).map(i => i.estimate_id));
               console.log('[fetchEstimates] DEBUG - matched items:', estimateItems.length);
             }
             console.log('[fetchEstimates] Merging estimate:', estimate.id, 'event:', estimate.event_name, 'matched items:', estimateItems.length);
