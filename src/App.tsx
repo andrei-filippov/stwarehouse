@@ -163,6 +163,8 @@ function AppContent({ user, profile, permissions, signOut }: any) {
         // Очищаем сохранённую компанию, чтобы не перенаправляло на старую
         clearSelectedCompany();
         setShowRegister(true);
+        // Убираем параметр из URL, чтобы не блокировать загрузку компании при обновлении
+        window.history.replaceState({}, '', window.location.pathname);
       }
       
       // Проверяем scan (case-insensitive)
