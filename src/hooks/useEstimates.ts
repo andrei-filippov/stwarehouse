@@ -89,39 +89,57 @@ export function useEstimates(companyId: string | undefined) {
             estimatesData = fallback.data;
           }
           
-          // Шаг 2: загружаем позиции смет отдельно (батчами по 100 для обхода лимитов Supabase)
+          // Шаг 2: загружаем позиции смет отдельно (батчами по 50 для обхода лимитов Supabase)
+          // Supabase PostgREST имеет дефолтный лимит 1000 строк на запрос
           let itemsData: any[] = [];
           if (estimatesData && estimatesData.length > 0) {
             const estimateIds = estimatesData.map(e => e.id);
             console.log('[fetchEstimates] Estimates loaded:', estimatesData.length);
             console.log('[fetchEstimates] Looking for Backline estimate:', estimatesData.find(e => e.event_name?.toLowerCase().includes('бэклайн'))?.id);
-            const BATCH_SIZE = 100;
+            const BATCH_SIZE = 50; // Уменьшили с 100 до 50
             
             for (let i = 0; i < estimateIds.length; i += BATCH_SIZE) {
               const batch = estimateIds.slice(i, i + BATCH_SIZE);
-              console.log('[fetchEstimates] Loading items batch', i, 'of', estimateIds.length, 'ids:', batch);
-              const { data: items, error: itemsError } = await supabase
-                .from('estimate_items')
-                .select('*')
-                .in('estimate_id', batch)
-                .limit(10000);
+              console.log('[fetchEstimates] Loading items batch', i, 'of', estimateIds.length, 'ids count:', batch.length);
               
-              if (itemsError) {
-                console.error('[fetchEstimates] Error loading items batch:', itemsError.message, itemsError.code, itemsError.details);
-              } else {
-                console.log('[fetchEstimates] Loaded items batch:', items?.length || 0, 'items for batch', i, 'estimate_ids:', batch);
-                if (items && items.length > 0) {
-                  console.log('[fetchEstimates] First item sample:', { 
-                    id: items[0].id, 
-                    estimate_id: items[0].estimate_id, 
-                    name: items[0].name,
-                    category: items[0].category,
-                    equipment_id: items[0].equipment_id,
-                    section_id: items[0].section_id 
-                  });
+              // Загружаем items с пагинацией (по 1000 за раз)
+              let batchItems: any[] = [];
+              let offset = 0;
+              const PAGE_SIZE = 1000;
+              
+              while (true) {
+                const { data: items, error: itemsError } = await supabase
+                  .from('estimate_items')
+                  .select('*')
+                  .in('estimate_id', batch)
+                  .range(offset, offset + PAGE_SIZE - 1);
+                
+                if (itemsError) {
+                  console.error('[fetchEstimates] Error loading items batch:', itemsError.message, itemsError.code, itemsError.details);
+                  break;
                 }
-                itemsData.push(...(items || []));
+                
+                if (!items || items.length === 0) break;
+                
+                batchItems.push(...items);
+                console.log('[fetchEstimates] Loaded items page:', items.length, 'offset:', offset, 'total so far:', batchItems.length);
+                
+                if (items.length < PAGE_SIZE) break; // Последняя страница
+                offset += PAGE_SIZE;
               }
+              
+              console.log('[fetchEstimates] Loaded items batch total:', batchItems.length, 'for batch', i);
+              if (batchItems.length > 0) {
+                console.log('[fetchEstimates] First item sample:', { 
+                  id: batchItems[0].id, 
+                  estimate_id: batchItems[0].estimate_id, 
+                  name: batchItems[0].name,
+                  category: batchItems[0].category,
+                  equipment_id: batchItems[0].equipment_id,
+                  section_id: batchItems[0].section_id 
+                });
+              }
+              itemsData.push(...batchItems);
             }
           }
           
