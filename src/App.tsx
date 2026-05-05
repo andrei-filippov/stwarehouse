@@ -181,6 +181,18 @@ function AppContent({ user, profile, permissions, signOut }: any) {
       logger.debug('[App] No query params found');
     }
     
+    // Проверяем localStorage флаг даже если нет query params
+    try {
+      if (localStorage.getItem('show_create_company') === '1') {
+        logger.debug('[App] show_create_company flag found in localStorage');
+        clearSelectedCompany();
+        localStorage.removeItem('show_create_company');
+        setShowRegister(true);
+      }
+    } catch (e) {
+      // Игнорируем ошибки localStorage
+    }
+    
     // Резервное чтение из sessionStorage (если URL уже очищен)
     try {
       const pendingScan = sessionStorage.getItem('pending_scan_code');

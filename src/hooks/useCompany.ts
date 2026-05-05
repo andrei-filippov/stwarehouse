@@ -8,7 +8,7 @@ import { createLogger } from '../lib/logger';
 
 const logger = createLogger('company');
 
-export function useCompany() {
+export function useCompany(options?: { skipAutoLoad?: boolean }) {
   const [company, setCompany] = useState<Company | null>(null);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [members, setMembers] = useState<CompanyMember[]>([]);
@@ -32,6 +32,20 @@ export function useCompany() {
       setLoading(false);
       isLoadingRef.current = false;
       return;
+    }
+    
+    // Проверяем localStorage флаг (устанавливается при "Создать компанию")
+    try {
+      if (localStorage.getItem('show_create_company') === '1') {
+        logger.info('[loadCompany] show_create_company flag detected, skipping load');
+        setCompany(null);
+        setMyMember(null);
+        setLoading(false);
+        isLoadingRef.current = false;
+        return;
+      }
+    } catch (e) {
+      // localStorage недоступен
     }
     
     try {
@@ -408,6 +422,13 @@ export function useCompany() {
   useEffect(() => {
     if (hasInitialized.current) return;
     hasInitialized.current = true;
+    
+    // Если явно пропущен авто-загрузчик (например, при создании компании)
+    if (options?.skipAutoLoad) {
+      logger.info('[useCompany] skipAutoLoad=true, skipping initial load');
+      setLoading(false);
+      return;
+    }
     
     loadCompany();
     loadUserCompanies();
