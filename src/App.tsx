@@ -196,14 +196,18 @@ function AppContent({ user, profile, permissions, signOut }: any) {
   }, [company]);
 
   // Перезагружаем компанию один раз когда появляется пользователь
+  // ТОЛЬКО если есть сохранённый slug или поддомен
   useEffect(() => {
     if (user && !company && !companyLoading && !companyLoadAttempted.current) {
-      // Если пользователь хочет создать компанию — не загружаем существующую
-      const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.get('createCompany') === '1') {
+      const savedSlug = getSelectedCompany();
+      const subdomain = getSubdomain();
+      
+      // Если нет явного указания на компанию — показываем выбор
+      if (!savedSlug && !subdomain) {
         companyLoadAttempted.current = true;
         return;
       }
+      
       companyLoadAttempted.current = true;
       loadCompany();
     }
@@ -239,6 +243,10 @@ function AppContent({ user, profile, permissions, signOut }: any) {
             onCreateCompany={() => setShowRegister(true)}
             onCheckInvitations={() => {
               // Перезагружаем чтобы проверить приглашения
+              loadCompany();
+            }}
+            onLoadExistingCompany={() => {
+              // Загружаем существующую компанию
               loadCompany();
             }}
             onSignOut={signOut}
