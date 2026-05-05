@@ -17,7 +17,7 @@ import {
   clearDeletedEstimates
 } from '../lib/offlineDB';
 import { logger } from '../lib/logger';
-import { usePolling, isProxyMode, hasChangesSince } from './usePolling';
+import { usePolling, isProxyMode } from './usePolling';
 
 // Генерируем уникальный ID сессии для этой вкладки
 const SESSION_ID = Math.random().toString(36).substring(2, 15);
@@ -790,25 +790,12 @@ export function useEstimates(companyId: string | undefined) {
   }, [fetchEstimates]);
 
   // Подписка на изменения (только в онлайн режиме)
-  // Proxy mode: smart polling with visibility API
+  // Proxy mode: polling every 30 seconds
   // Normal mode: Supabase Realtime (WebSocket)
-  const lastCheckRef = useRef<Date>(new Date());
-  
   usePolling(
-    async () => {
+    () => {
       if ((window as any).__syncing) return;
-      
-      // Optimized: check if anything changed before full reload
-      if (companyId) {
-        const hasChanges = await hasChangesSince('estimates', lastCheckRef.current, {
-          column: 'company_id',
-          value: companyId,
-        });
-        if (!hasChanges) return;
-      }
-      
       fetchEstimates();
-      lastCheckRef.current = new Date();
     },
     {
       intervalMs: 30000, // 30 seconds for estimates (not critical)

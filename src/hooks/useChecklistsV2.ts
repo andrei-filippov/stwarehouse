@@ -4,7 +4,7 @@ import { supabase, safeChannel, isProxyMode } from '../lib/supabase';
 import type { ChecklistV2, EquipmentKit } from '../types/checklist';
 import type { Estimate } from '../types';
 import { logger } from '../lib/logger';
-import { usePolling, hasChangesSince } from './usePolling';
+import { usePolling } from './usePolling';
 
 export function useChecklistsV2(companyId: string | undefined) {
   const [checklists, setChecklists] = useState<ChecklistV2[]>([]);
@@ -247,20 +247,14 @@ export function useChecklistsV2(companyId: string | undefined) {
   }, [fetchKits]);
 
   // Realtime / Polling подписки
-  const lastCheckRef = useRef<Date>(new Date());
-  
-  // Proxy mode: smart polling with visibility API
+  // Proxy mode: polling every 5 seconds for checklists (critical for scanning)
   usePolling(
-    async () => {
-      const hasChanges = await hasChangesSince('checklist_items', lastCheckRef.current);
-      if (hasChanges) {
-        fetchChecklists();
-        fetchKits();
-      }
-      lastCheckRef.current = new Date();
+    () => {
+      fetchChecklists();
+      fetchKits();
     },
     {
-      intervalMs: 5000, // 5 seconds for checklists (critical for scanning)
+      intervalMs: 5000,
       enabled: !!companyId && isProxyMode(),
       pauseWhenHidden: true,
     }

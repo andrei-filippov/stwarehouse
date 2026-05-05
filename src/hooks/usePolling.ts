@@ -107,37 +107,6 @@ export function usePolling(
 }
 
 /**
- * Lightweight change checker using Supabase
- * Returns true if any record was updated since lastCheck
- */
-export async function hasChangesSince(
-  table: string,
-  lastCheck: Date,
-  filter?: { column: string; value: string }
-): Promise<boolean> {
-  const { supabase } = await import('../lib/supabase');
-  
-  let query = supabase
-    .from(table)
-    .select('id')
-    .gt('updated_at', lastCheck.toISOString())
-    .limit(1);
-
-  if (filter) {
-    query = query.eq(filter.column, filter.value);
-  }
-
-  const { data, error } = await query;
-  
-  if (error) {
-    // Silently assume changes on error to trigger reload
-    return true;
-  }
-
-  return (data?.length ?? 0) > 0;
-}
-
-/**
  * Check if we're running through proxy (no WebSocket support)
  */
 export function isProxyMode(): boolean {
