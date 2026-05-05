@@ -198,6 +198,12 @@ function AppContent({ user, profile, permissions, signOut }: any) {
   // Перезагружаем компанию один раз когда появляется пользователь
   useEffect(() => {
     if (user && !company && !companyLoading && !companyLoadAttempted.current) {
+      // Если пользователь хочет создать компанию — не загружаем существующую
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('createCompany') === '1') {
+        companyLoadAttempted.current = true;
+        return;
+      }
       companyLoadAttempted.current = true;
       loadCompany();
     }
