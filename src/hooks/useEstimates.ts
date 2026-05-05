@@ -656,13 +656,22 @@ export function useEstimates(companyId: string | undefined) {
             .eq('id', id)
             .eq('company_id', companyId);
 
-          if (error) throw error;
+          if (error) {
+            debugError('Delete estimate error:', error);
+            throw error;
+          }
           
           // Успешно удалено на сервере
           setEstimates(prev => prev.filter(e => e.id !== id));
           toast.success('Смета удалена');
           return { error: null };
-        } catch (err) {
+        } catch (err: any) {
+          debugError('Failed to delete estimate from server:', err);
+          // Don't fallback to offline for permission errors
+          if (err.message?.includes('permission') || err.code === '42501') {
+            toast.error('Нет прав на удаление сметы');
+            return { error: err };
+          }
           debugLog('Network error, switching to offline mode:', err);
         }
       }

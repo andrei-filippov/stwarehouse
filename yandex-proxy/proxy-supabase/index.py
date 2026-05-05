@@ -108,7 +108,8 @@ def handler(event, context):
             headers=req_headers,
         )
         
-        if body and http_method in ['POST', 'PUT', 'PATCH']:
+        # Pass body for all methods that may have it (including DELETE)
+        if body and http_method in ['POST', 'PUT', 'PATCH', 'DELETE']:
             req.data = body.encode('utf-8') if isinstance(body, str) else body
         
         # Выполняем запрос
