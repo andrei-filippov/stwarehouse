@@ -3,7 +3,7 @@ import { Package, User, Cloud } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from './hooks/useAuth';
 import { CompanyProvider, useCompanyContext } from './contexts/CompanyContext';
-import { getSlugFromPath, saveSelectedCompany } from './lib/companyUrl';
+import { getSlugFromPath, saveSelectedCompany, clearSelectedCompany } from './lib/companyUrl';
 import { RegisterCompanyForm } from './components/auth/RegisterCompanyForm';
 import { CompanySelector } from './components/auth/CompanySelector';
 import { CompanyWelcome } from './components/CompanyWelcome';
@@ -160,6 +160,8 @@ function AppContent({ user, profile, permissions, signOut }: any) {
       
       // Проверяем createCompany
       if (params.get('createCompany') === '1') {
+        // Очищаем сохранённую компанию, чтобы не перенаправляло на старую
+        clearSelectedCompany();
         setShowRegister(true);
       }
       
