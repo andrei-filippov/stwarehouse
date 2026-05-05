@@ -119,21 +119,22 @@ export async function hasChangesSince(
   
   let query = supabase
     .from(table)
-    .select('id', { count: 'exact', head: true })
-    .gt('updated_at', lastCheck.toISOString());
+    .select('id')
+    .gt('updated_at', lastCheck.toISOString())
+    .limit(1);
 
   if (filter) {
     query = query.eq(filter.column, filter.value);
   }
 
-  const { count, error } = await query;
+  const { data, error } = await query;
   
   if (error) {
-    console.warn(`[hasChangesSince] Error checking ${table}:`, error);
-    return true; // Assume changes on error to trigger reload
+    // Silently assume changes on error to trigger reload
+    return true;
   }
 
-  return (count ?? 0) > 0;
+  return (data?.length ?? 0) > 0;
 }
 
 /**

@@ -77,6 +77,18 @@ const customFetch = (url: RequestInfo | URL, init?: RequestInit): Promise<Respon
   });
 };
 
+// Suppress WebSocket connection errors in proxy mode
+if (isProxyMode()) {
+  const originalConsoleError = console.error;
+  console.error = (...args: any[]) => {
+    const msg = args[0]?.toString?.() || '';
+    if (msg.includes('WebSocket') || msg.includes('wss://') || msg.includes('realtime')) {
+      return; // Silently ignore WebSocket errors
+    }
+    originalConsoleError.apply(console, args);
+  };
+}
+
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
     persistSession: true,
