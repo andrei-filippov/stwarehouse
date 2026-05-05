@@ -103,7 +103,8 @@ export function useEstimates(companyId: string | undefined) {
               const { data: items, error: itemsError } = await supabase
                 .from('estimate_items')
                 .select('*')
-                .in('estimate_id', batch);
+                .in('estimate_id', batch)
+                .limit(10000);
               
               if (itemsError) {
                 console.error('[fetchEstimates] Error loading items batch:', itemsError.message, itemsError.code, itemsError.details);
