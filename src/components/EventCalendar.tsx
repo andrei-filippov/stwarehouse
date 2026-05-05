@@ -252,6 +252,16 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
   const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 
                       'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
 
+  // Функция для получения класса цвета точки-индикатора по статусу
+  const getDotColorClass = (status?: string) => {
+    const statusColorMap: Record<string, string> = {
+      pending: 'bg-yellow-400',
+      approved: 'bg-blue-500',
+      completed: 'bg-green-500',
+    };
+    return statusColorMap[status || 'pending'] || 'bg-yellow-400';
+  };
+
   // Функция для получения класса цвета события
   const getEventColorClass = (color?: string, status?: string, isMultiDay: boolean = false) => {
     // Если задан пользовательский цвет — используем его
@@ -317,8 +327,8 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
         <div className="sm:hidden">
           {hasEvents && (
             <div className="flex flex-wrap gap-0.5 mt-1">
-              {dayEstimates.slice(0, 3).map((_, i) => (
-                <div key={i} className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+              {dayEstimates.slice(0, 3).map((estimate, i) => (
+                <div key={i} className={cn("w-1.5 h-1.5 rounded-full", getDotColorClass(estimate.status))} />
               ))}
               {dayEstimates.length > 3 && (
                 <span className="text-[8px] text-muted-foreground/70">+</span>
@@ -358,8 +368,8 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
           {/* Индикатор наличия событий */}
           {hasEvents && dayEstimates.length <= 2 && (
             <div className="absolute bottom-2 right-2 flex gap-0.5">
-              {dayEstimates.map((_, i) => (
-                <div key={i} className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+              {dayEstimates.map((estimate, i) => (
+                <div key={i} className={cn("w-1.5 h-1.5 rounded-full", getDotColorClass(estimate.status))} />
               ))}
             </div>
           )}
