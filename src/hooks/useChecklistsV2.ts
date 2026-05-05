@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
-import { supabase } from '../lib/supabase';
+import { supabase, safeChannel, isProxyMode } from '../lib/supabase';
 import type { ChecklistV2, EquipmentKit } from '../types/checklist';
 import type { Estimate } from '../types';
 import { logger } from '../lib/logger';
+import { usePolling, hasChangesSince } from './usePolling';
 
 export function useChecklistsV2(companyId: string | undefined) {
   const [checklists, setChecklists] = useState<ChecklistV2[]>([]);
@@ -245,16 +246,36 @@ export function useChecklistsV2(companyId: string | undefined) {
     }
   }, [fetchKits]);
 
-  // Realtime подписки
+  // Realtime / Polling подписки
+  const lastCheckRef = useRef<Date>(new Date());
+  
+  // Proxy mode: smart polling with visibility API
+  usePolling(
+    async () => {
+      const hasChanges = await hasChangesSince('checklist_items', lastCheckRef.current);
+      if (hasChanges) {
+        fetchChecklists();
+        fetchKits();
+      }
+      lastCheckRef.current = new Date();
+    },
+    {
+      intervalMs: 5000, // 5 seconds for checklists (critical for scanning)
+      enabled: !!companyId && isProxyMode(),
+      pauseWhenHidden: true,
+    }
+  );
+
+  // Normal mode: Supabase Realtime (WebSocket)
   useEffect(() => {
-    if (!companyId) return;
+    if (!companyId || isProxyMode()) return;
 
     const channels = [
-      supabase.channel('checklists_v2_changes')
+      safeChannel('checklists_v2_changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'checklists' }, fetchChecklists)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'checklist_items' }, fetchChecklists)
         .subscribe(),
-      supabase.channel('equipment_kits_changes')
+      safeChannel('equipment_kits_changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'equipment_kits' }, fetchKits)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'kit_items' }, fetchKits)
         .subscribe()

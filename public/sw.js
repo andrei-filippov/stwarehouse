@@ -1,7 +1,7 @@
-// Service Worker для оффлайн-режима
-const CACHE_NAME = 'stwarehouse-v9';
-const STATIC_CACHE = 'stwarehouse-static-v9';
-const ASSETS_CACHE = 'stwarehouse-assets-v9';
+// Service Worker для оффлайн-режима и фоновой синхронизации
+const CACHE_NAME = 'stwarehouse-v10';
+const STATIC_CACHE = 'stwarehouse-static-v10';
+const ASSETS_CACHE = 'stwarehouse-assets-v10';
 
 // Критические ресурсы для кэширования при установке
 const PRECACHE_URLS = [
@@ -12,6 +12,15 @@ const PRECACHE_URLS = [
   '/icon-512x512.png',
   '/favicon.ico'
 ];
+
+// ===== BACKGROUND SYNC =====
+// Периодическая синхронизация данных с сервером
+const SYNC_INTERVAL_MS = 3 * 60 * 1000; // 3 минуты
+const SYNC_TAG = 'stwarehouse-data-sync';
+
+// Хранилище для данных синхронизации (используем IndexedDB через сообщения)
+let lastSyncTime = 0;
+let syncInProgress = false;
 
 // При установке кэшируем критические ресурсы
 self.addEventListener('install', (event) => {
@@ -24,7 +33,7 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// При активации чистим старые кэши
+// При активации чистим старые кэши и запускаем периодическую синхронизацию
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -35,9 +44,54 @@ self.addEventListener('activate', (event) => {
       );
     }).then(() => {
       return self.clients.claim();
+    }).then(() => {
+      // Запускаем периодическую синхронизацию
+      startPeriodicSync();
     })
   );
 });
+
+// Периодическая синхронизация через setInterval (fallback для старых браузеров)
+function startPeriodicSync() {
+  setInterval(async () => {
+    if (syncInProgress) return;
+    
+    const now = Date.now();
+    if (now - lastSyncTime < SYNC_INTERVAL_MS) return;
+    
+    syncInProgress = true;
+    try {
+      await performBackgroundSync();
+      lastSyncTime = now;
+    } catch (e) {
+      console.error('[SW] Background sync failed:', e);
+    } finally {
+      syncInProgress = false;
+    }
+  }, 30000); // Проверяем каждые 30 секунд, но синхронизируемся только раз в 3 минуты
+}
+
+// Фоновая синхронизация данных
+async function performBackgroundSync() {
+  console.log('[SW] Starting background sync...');
+  
+  // Получаем список клиентов (вкладок)
+  const clients = await self.clients.matchAll({ type: 'window' });
+  if (clients.length === 0) {
+    console.log('[SW] No clients, skipping sync');
+    return;
+  }
+  
+  // Отправляем сообщение клиентам для синхронизации
+  clients.forEach(client => {
+    client.postMessage({
+      type: 'BACKGROUND_SYNC_REQUEST',
+      timestamp: Date.now()
+    });
+  });
+  
+  console.log('[SW] Background sync request sent to clients');
+}
 
 // Проверяем, является ли запрос навигационным
 function isNavigationRequest(request) {
@@ -192,5 +246,23 @@ self.addEventListener('message', (event) => {
     }).then(() => {
       event.ports[0]?.postMessage({ cleared: true });
     });
+  }
+  
+  // Приложение сообщает что синхронизация завершена
+  if (event.data?.type === 'SYNC_COMPLETE') {
+    lastSyncTime = event.data.timestamp || Date.now();
+    console.log('[SW] Client sync completed at', new Date(lastSyncTime).toISOString());
+  }
+  
+  // Приложение запрашивает немедленную синхронизацию
+  if (event.data === 'TRIGGER_SYNC') {
+    performBackgroundSync();
+  }
+});
+
+// Background Sync API (для оффлайн-запросов)
+self.addEventListener('sync', (event) => {
+  if (event.tag === SYNC_TAG) {
+    event.waitUntil(performBackgroundSync());
   }
 });

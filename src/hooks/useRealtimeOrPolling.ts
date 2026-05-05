@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, safeChannel } from '../lib/supabase';
 import { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 
 /**
@@ -60,7 +60,7 @@ export function useRealtimeOrPolling(
     }
 
     // Realtime mode: use Supabase WebSocket
-    const channel = supabase.channel(config.channelName);
+    const channel = safeChannel(config.channelName);
     
     config.tables.forEach(t => {
       channel.on(

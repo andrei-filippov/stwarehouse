@@ -48,6 +48,15 @@ if ('serviceWorker' in navigator) {
       if (event.data === 'RELOAD_PAGE') {
         window.location.reload();
       }
+      
+      // Background sync request from SW (every 3-5 minutes)
+      if (event.data?.type === 'BACKGROUND_SYNC_REQUEST') {
+        logger.debug('[SW] Background sync requested');
+        // Dispatch global event that hooks can listen to
+        window.dispatchEvent(new CustomEvent('background-sync', {
+          detail: { timestamp: event.data.timestamp }
+        }));
+      }
     });
   });
 }

@@ -1,49 +1,139 @@
 import { useEffect, useRef, useCallback } from 'react';
 
+interface PollingOptions {
+  /** Polling interval in ms (default: 10000) */
+  intervalMs?: number;
+  /** Whether polling is enabled */
+  enabled?: boolean;
+  /** Pause when tab is hidden (default: true) */
+  pauseWhenHidden?: boolean;
+  /** Run immediately on start (default: true) */
+  immediate?: boolean;
+}
+
 /**
- * Universal polling hook for environments without WebSocket support (e.g., Yandex proxy)
+ * Smart polling hook for environments without WebSocket support (e.g., Yandex proxy)
  * 
- * @param callback - function to call on each poll
- * @param intervalMs - polling interval in milliseconds (default: 10000 = 10s)
- * @param enabled - whether polling is enabled (default: true when using proxy)
+ * Features:
+ * - Pausable when tab is hidden (visibility API)
+ * - Configurable interval
+ * - Immediate first run
+ * - Clean start/stop controls
  */
 export function usePolling(
-  callback: () => void,
-  intervalMs: number = 10000,
-  enabled: boolean = true
+  callback: () => void | Promise<void>,
+  options: PollingOptions = {}
 ) {
+  const {
+    intervalMs = 10000,
+    enabled = true,
+    pauseWhenHidden = true,
+    immediate = true,
+  } = options;
+
   const savedCallback = useRef(callback);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isRunningRef = useRef(false);
 
   // Remember the latest callback
   useEffect(() => {
     savedCallback.current = callback;
   }, [callback]);
 
+  const tick = useCallback(async () => {
+    if (pauseWhenHidden && document.hidden) return;
+    await savedCallback.current();
+  }, [pauseWhenHidden]);
+
   const startPolling = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-    }
-    if (enabled) {
-      intervalRef.current = setInterval(() => {
-        savedCallback.current();
-      }, intervalMs);
-    }
-  }, [enabled, intervalMs]);
+    if (intervalRef.current || !enabled) return;
+    
+    isRunningRef.current = true;
+    
+    // Immediate first tick
+    tick();
+    
+    intervalRef.current = setInterval(() => {
+      tick();
+    }, intervalMs);
+  }, [enabled, intervalMs, tick]);
 
   const stopPolling = useCallback(() => {
+    isRunningRef.current = false;
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
   }, []);
 
+  // Handle visibility changes
   useEffect(() => {
-    startPolling();
-    return () => stopPolling();
-  }, [startPolling, stopPolling]);
+    if (!pauseWhenHidden) return;
 
-  return { startPolling, stopPolling };
+    const handleVisibility = () => {
+      if (!document.hidden && isRunningRef.current) {
+        // Immediate check when tab becomes visible
+        tick();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [pauseWhenHidden, tick]);
+
+  // Listen for background sync events from Service Worker
+  useEffect(() => {
+    if (!enabled) return;
+    
+    const handleBackgroundSync = () => {
+      if (!document.hidden) {
+        tick();
+      }
+    };
+    
+    window.addEventListener('background-sync', handleBackgroundSync);
+    return () => window.removeEventListener('background-sync', handleBackgroundSync);
+  }, [enabled, tick]);
+
+  // Auto-start/stop
+  useEffect(() => {
+    if (enabled && immediate) {
+      startPolling();
+    }
+    return () => stopPolling();
+  }, [enabled, immediate, startPolling, stopPolling]);
+
+  return { startPolling, stopPolling, isRunning: () => isRunningRef.current };
+}
+
+/**
+ * Lightweight change checker using Supabase
+ * Returns true if any record was updated since lastCheck
+ */
+export async function hasChangesSince(
+  table: string,
+  lastCheck: Date,
+  filter?: { column: string; value: string }
+): Promise<boolean> {
+  const { supabase } = await import('../lib/supabase');
+  
+  let query = supabase
+    .from(table)
+    .select('id', { count: 'exact', head: true })
+    .gt('updated_at', lastCheck.toISOString());
+
+  if (filter) {
+    query = query.eq(filter.column, filter.value);
+  }
+
+  const { count, error } = await query;
+  
+  if (error) {
+    console.warn(`[hasChangesSince] Error checking ${table}:`, error);
+    return true; // Assume changes on error to trigger reload
+  }
+
+  return (count ?? 0) > 0;
 }
 
 /**

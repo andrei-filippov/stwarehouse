@@ -92,6 +92,22 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
   realtime: isProxyMode() ? false : undefined,
 });
 
+// Safe channel wrapper: returns a no-op channel in proxy mode to prevent WebSocket errors
+const noopChannel = {
+  on: () => noopChannel,
+  subscribe: (callback?: (status: string) => void) => {
+    callback?.('CLOSED');
+    return noopChannel;
+  },
+} as any;
+
+export const safeChannel = (name: string) => {
+  if (isProxyMode()) {
+    return noopChannel;
+  }
+  return supabase.channel(name);
+};
+
 export const getEstimates = async () => {
 	const { data, error } = await supabase
 		.from('estimates')
