@@ -23,6 +23,17 @@ export function useCompany() {
     if (isLoadingRef.current) return;
     isLoadingRef.current = true;
     
+    // Если пользователь явно хочет создать компанию — не загружаем существующую
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('createCompany') === '1') {
+      logger.info('[loadCompany] createCompany=1 detected, skipping load');
+      setCompany(null);
+      setMyMember(null);
+      setLoading(false);
+      isLoadingRef.current = false;
+      return;
+    }
+    
     try {
       setLoading(true);
       setError(null);
