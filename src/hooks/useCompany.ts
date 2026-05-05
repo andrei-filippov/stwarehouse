@@ -248,12 +248,15 @@ export function useCompany() {
       if (error) throw error;
       if (data.error) throw new Error(data.error);
 
-      await loadCompany();
+      // Сохраняем slug новой компании и перенаправляем
+      saveSelectedCompany(data.slug);
+      window.location.href = getCompanyPath(data.slug);
+      
       return { data: { id: data.company_id, slug: data.slug, ...companyData }, error: null };
     } catch (err) {
       return { data: null, error: err instanceof Error ? err.message : 'Ошибка создания компании' };
     }
-  }, [loadCompany]);
+  }, []);
 
   // Обновление компании
   const updateCompany = useCallback(async (updates: Partial<Company>) => {
