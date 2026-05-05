@@ -94,7 +94,9 @@ def handler(event, context):
             req_headers[key] = headers[key]
     
     # Fix for DELETE: force return=minimal to avoid selecting non-existent columns
-    if http_method == 'DELETE' and 'prefer' not in req_headers:
+    # Supabase client may send 'prefer: return=representation' which causes 400
+    # if the table doesn't have all expected columns (e.g. 'created_at')
+    if http_method == 'DELETE':
         req_headers['Prefer'] = 'return=minimal'
     
     # Получаем тело запроса

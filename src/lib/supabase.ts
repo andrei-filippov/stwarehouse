@@ -51,6 +51,7 @@ export const isProxyMode = (): boolean => {
 // Custom fetch to fix proxy issues:
 // 1. Replace apikey header (JWT) with actual anon key
 // 2. Remove accept-profile and content-profile headers (CORS issues with API Gateway)
+// 3. Force return=minimal for DELETE to avoid 'column created_at does not exist' error
 const customFetch = (url: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
   const headers = new Headers(init?.headers);
   
@@ -62,6 +63,13 @@ const customFetch = (url: RequestInfo | URL, init?: RequestInit): Promise<Respon
   // API Gateway doesn't allow these in Access-Control-Allow-Headers
   headers.delete('accept-profile');
   headers.delete('content-profile');
+  
+  // Fix 3: Force return=minimal for DELETE requests
+  // Supabase tries to return deleted row with all columns, but some columns
+  // (like created_at) may not exist, causing 400 error
+  if (init?.method === 'DELETE') {
+    headers.set('Prefer', 'return=minimal');
+  }
   
   return fetch(url, {
     ...init,
