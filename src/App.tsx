@@ -158,12 +158,14 @@ function AppContent({ user, profile, permissions, signOut }: any) {
         logger.debug('[App] Param found:', key, '=', value);
       }
       
-      // Проверяем createCompany
-      if (params.get('createCompany') === '1') {
+      // Проверяем createCompany из URL или localStorage
+      const showCreateCompany = params.get('createCompany') === '1' || localStorage.getItem('show_create_company') === '1';
+      if (showCreateCompany) {
         // Очищаем сохранённую компанию, чтобы не перенаправляло на старую
         clearSelectedCompany();
+        localStorage.removeItem('show_create_company');
         setShowRegister(true);
-        // Убираем параметр из URL, чтобы не блокировать загрузку компании при обновлении
+        // Убираем параметр из URL
         window.history.replaceState({}, '', window.location.pathname);
       }
       

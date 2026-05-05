@@ -213,7 +213,10 @@ export function Sidebar(props: SidebarProps) {
                 </DropdownMenuItem>
               ))}
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => window.location.href = '/?createCompany=1'}>
+              <DropdownMenuItem onClick={() => {
+                localStorage.setItem('show_create_company', '1');
+                window.location.reload();
+              }}>
                 <Plus className="w-4 h-4 mr-2" />
                 Создать компанию
               </DropdownMenuItem>
