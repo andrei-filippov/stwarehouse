@@ -114,7 +114,7 @@ export function EstimateBuilder({
   const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
   const [showSectionDialog, setShowSectionDialog] = useState(false);
   const [newSectionName, setNewSectionName] = useState('');
-  const [eventColor, setEventColor] = useState(estimate?.color || 'blue');
+  const [eventColor, setEventColor] = useState(estimate?.color || '');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [activeMobileTab, setActiveMobileTab] = useState<'equipment' | 'estimate'>('equipment');
@@ -183,7 +183,7 @@ export function EstimateBuilder({
       setItems(estimate.items || []);
       setSections(estimate.sections || []);
       setCategoryOrder(estimate.category_order || equipmentCategories);
-      setEventColor(estimate.color || 'blue');
+      setEventColor(estimate.color || '');
     }
     // Сбрасываем активную секцию при открытии сметы
     setActiveSectionId(null);
@@ -1316,7 +1316,8 @@ export function EstimateBuilder({
                       <Label className="text-[10px] text-muted-foreground mb-1 block">Цвет в календаре</Label>
                       <div className="flex flex-wrap gap-2">
                         {[
-                          { value: 'blue', label: 'Синий', class: 'bg-primary/100' },
+                          { value: '', label: 'Без цвета', class: 'bg-gray-100 border-2 border-gray-300' },
+                          { value: 'blue', label: 'Синий', class: 'bg-blue-500' },
                           { value: 'green', label: 'Зеленый', class: 'bg-green-500' },
                           { value: 'red', label: 'Красный', class: 'bg-red-500' },
                           { value: 'purple', label: 'Фиолетовый', class: 'bg-purple-500' },
@@ -1326,7 +1327,7 @@ export function EstimateBuilder({
                           { value: 'amber', label: 'Желтый', class: 'bg-amber-500' },
                         ].map((color) => (
                           <button
-                            key={color.value}
+                            key={color.value || 'none'}
                             type="button"
                             onClick={() => setEventColor(color.value)}
                             title={color.label}
@@ -1782,7 +1783,8 @@ export function EstimateBuilder({
                       <Label className="text-[10px] text-muted-foreground mb-1 block">Цвет в календаре</Label>
                       <div className="flex flex-wrap gap-1.5">
                         {[
-                          { value: 'blue', label: 'Синий', class: 'bg-primary/100' },
+                          { value: '', label: 'Без цвета', class: 'bg-gray-100 border-2 border-gray-300' },
+                          { value: 'blue', label: 'Синий', class: 'bg-blue-500' },
                           { value: 'green', label: 'Зеленый', class: 'bg-green-500' },
                           { value: 'red', label: 'Красный', class: 'bg-red-500' },
                           { value: 'purple', label: 'Фиолетовый', class: 'bg-purple-500' },
@@ -1792,7 +1794,7 @@ export function EstimateBuilder({
                           { value: 'amber', label: 'Желтый', class: 'bg-amber-500' },
                         ].map((color) => (
                           <button
-                            key={color.value}
+                            key={color.value || 'none'}
                             type="button"
                             onClick={() => setEventColor(color.value)}
                             title={color.label}
