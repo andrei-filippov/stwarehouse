@@ -8,7 +8,7 @@ import { createLogger } from '../lib/logger';
 
 const logger = createLogger('company');
 
-export function useCompany() {
+export function useCompany(options?: { skipAutoLoad?: boolean }) {
   const [company, setCompany] = useState<Company | null>(null);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [members, setMembers] = useState<CompanyMember[]>([]);
@@ -22,6 +22,31 @@ export function useCompany() {
     // Защита от повторных вызовов через ref
     if (isLoadingRef.current) return;
     isLoadingRef.current = true;
+    
+    // Если пользователь явно хочет создать компанию — не загружаем существующую
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('createCompany') === '1') {
+      logger.info('[loadCompany] createCompany=1 detected, skipping load');
+      setCompany(null);
+      setMyMember(null);
+      setLoading(false);
+      isLoadingRef.current = false;
+      return;
+    }
+    
+    // Проверяем localStorage флаг (устанавливается при "Создать компанию")
+    try {
+      if (localStorage.getItem('show_create_company') === '1') {
+        logger.info('[loadCompany] show_create_company flag detected, skipping load');
+        setCompany(null);
+        setMyMember(null);
+        setLoading(false);
+        isLoadingRef.current = false;
+        return;
+      }
+    } catch (e) {
+      // localStorage недоступен
+    }
     
     try {
       setLoading(true);
@@ -248,12 +273,15 @@ export function useCompany() {
       if (error) throw error;
       if (data.error) throw new Error(data.error);
 
-      await loadCompany();
+      // Сохраняем slug новой компании и перенаправляем
+      saveSelectedCompany(data.slug);
+      window.location.href = getCompanyPath(data.slug);
+      
       return { data: { id: data.company_id, slug: data.slug, ...companyData }, error: null };
     } catch (err) {
       return { data: null, error: err instanceof Error ? err.message : 'Ошибка создания компании' };
     }
-  }, [loadCompany]);
+  }, []);
 
   // Обновление компании
   const updateCompany = useCallback(async (updates: Partial<Company>) => {
@@ -394,6 +422,13 @@ export function useCompany() {
   useEffect(() => {
     if (hasInitialized.current) return;
     hasInitialized.current = true;
+    
+    // Если явно пропущен авто-загрузчик (например, при создании компании)
+    if (options?.skipAutoLoad) {
+      logger.info('[useCompany] skipAutoLoad=true, skipping initial load');
+      setLoading(false);
+      return;
+    }
     
     loadCompany();
     loadUserCompanies();

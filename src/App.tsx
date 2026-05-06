@@ -3,7 +3,7 @@ import { Package, User, Cloud } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from './hooks/useAuth';
 import { CompanyProvider, useCompanyContext } from './contexts/CompanyContext';
-import { getSlugFromPath, saveSelectedCompany } from './lib/companyUrl';
+import { getSlugFromPath, saveSelectedCompany, clearSelectedCompany } from './lib/companyUrl';
 import { RegisterCompanyForm } from './components/auth/RegisterCompanyForm';
 import { CompanySelector } from './components/auth/CompanySelector';
 import { CompanyWelcome } from './components/CompanyWelcome';
@@ -158,9 +158,15 @@ function AppContent({ user, profile, permissions, signOut }: any) {
         logger.debug('[App] Param found:', key, '=', value);
       }
       
-      // Проверяем createCompany
-      if (params.get('createCompany') === '1') {
+      // Проверяем createCompany из URL или localStorage
+      const showCreateCompany = params.get('createCompany') === '1' || localStorage.getItem('show_create_company') === '1';
+      if (showCreateCompany) {
+        // Очищаем сохранённую компанию, чтобы не перенаправляло на старую
+        clearSelectedCompany();
+        localStorage.removeItem('show_create_company');
         setShowRegister(true);
+        // Убираем параметр из URL
+        window.history.replaceState({}, '', window.location.pathname);
       }
       
       // Проверяем scan (case-insensitive)
@@ -173,6 +179,18 @@ function AppContent({ user, profile, permissions, signOut }: any) {
       }
     } else {
       logger.debug('[App] No query params found');
+    }
+    
+    // Проверяем localStorage флаг даже если нет query params
+    try {
+      if (localStorage.getItem('show_create_company') === '1') {
+        logger.debug('[App] show_create_company flag found in localStorage');
+        clearSelectedCompany();
+        localStorage.removeItem('show_create_company');
+        setShowRegister(true);
+      }
+    } catch (e) {
+      // Игнорируем ошибки localStorage
     }
     
     // Резервное чтение из sessionStorage (если URL уже очищен)
@@ -192,8 +210,18 @@ function AppContent({ user, profile, permissions, signOut }: any) {
   }, [company]);
 
   // Перезагружаем компанию один раз когда появляется пользователь
+  // ТОЛЬКО если есть сохранённый slug или поддомен
   useEffect(() => {
     if (user && !company && !companyLoading && !companyLoadAttempted.current) {
+      const savedSlug = getSelectedCompany();
+      const subdomain = getSubdomain();
+      
+      // Если нет явного указания на компанию — показываем выбор
+      if (!savedSlug && !subdomain) {
+        companyLoadAttempted.current = true;
+        return;
+      }
+      
       companyLoadAttempted.current = true;
       loadCompany();
     }
@@ -229,6 +257,10 @@ function AppContent({ user, profile, permissions, signOut }: any) {
             onCreateCompany={() => setShowRegister(true)}
             onCheckInvitations={() => {
               // Перезагружаем чтобы проверить приглашения
+              loadCompany();
+            }}
+            onLoadExistingCompany={() => {
+              // Загружаем существующую компанию
               loadCompany();
             }}
             onSignOut={signOut}

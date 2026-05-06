@@ -35,14 +35,23 @@ DECLARE
 BEGIN
   v_user_id := auth.uid();
 
-  -- Получаем информацию о пользователе и его компании
-  SELECT p.name, p.email, p.company_id 
-  INTO v_user_name, v_user_email, v_company_id
+  -- Получаем информацию о пользователе
+  SELECT p.name, p.email
+  INTO v_user_name, v_user_email
   FROM profiles p 
   WHERE p.id = v_user_id;
 
-  -- Используем переданный company_id или из профиля
-  v_company_id := COALESCE(p_company_id, v_company_id);
+  -- Если company_id не передан явно, берём из company_members
+  IF p_company_id IS NULL THEN
+    SELECT company_id INTO v_company_id
+    FROM company_members
+    WHERE user_id = v_user_id
+      AND status = 'active'
+    ORDER BY created_at DESC
+    LIMIT 1;
+  ELSE
+    v_company_id := p_company_id;
+  END IF;
 
   -- Пытаемся получить IP и User-Agent из заголовков запроса
   BEGIN
@@ -494,13 +503,14 @@ CREATE POLICY "Вставка логов для авторизованных"
   WITH CHECK (auth.uid() IS NOT NULL);
 
 -- ============================================
--- Обновляем существующие записи - проставляем company_id из профиля
+-- Обновляем существующие записи - проставляем company_id из company_members
 -- ============================================
 UPDATE audit_logs al
-SET company_id = p.company_id
-FROM profiles p
-WHERE al.user_id = p.id
+SET company_id = cm.company_id
+FROM company_members cm
+WHERE al.user_id = cm.user_id
   AND al.company_id IS NULL
-  AND p.company_id IS NOT NULL;
+  AND cm.status = 'active'
+  AND cm.company_id IS NOT NULL;
 
 SELECT 'Миграция company_id для audit_logs завершена' as status;

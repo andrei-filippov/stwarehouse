@@ -5,10 +5,11 @@ import { Button } from './ui/button';
 interface CompanyWelcomeProps {
   onCreateCompany: () => void;
   onCheckInvitations: () => void;
+  onLoadExistingCompany?: () => void;
   onSignOut?: () => void;
 }
 
-export function CompanyWelcome({ onCreateCompany, onCheckInvitations, onSignOut }: CompanyWelcomeProps) {
+export function CompanyWelcome({ onCreateCompany, onCheckInvitations, onLoadExistingCompany, onSignOut }: CompanyWelcomeProps) {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-background">
       <Card className="w-full max-w-lg">
@@ -41,11 +42,32 @@ export function CompanyWelcome({ onCreateCompany, onCheckInvitations, onSignOut 
             </div>
           </div>
 
-          {/* Вариант 2: Проверить приглашения */}
+          {/* Вариант 2: Войти в существующую компанию */}
+          {onLoadExistingCompany && (
+            <div className="border rounded-lg p-4 hover:border-blue-500 transition-colors">
+              <div className="flex items-start gap-4">
+                <div className="w-10 h-10 bg-blue-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Building2 className="w-5 h-5 text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-medium text-lg">Моя компания</h3>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Войти в существующую компанию
+                  </p>
+                  <Button onClick={onLoadExistingCompany} variant="outline" className="w-full">
+                    Войти в компанию
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Вариант 3: Проверить приглашения */}
           <div className="border rounded-lg p-4 hover:border-blue-500 transition-colors">
             <div className="flex items-start gap-4">
-              <div className="w-10 h-10 bg-blue-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                <Mail className="w-5 h-5 text-blue-600" />
+              <div className="w-10 h-10 bg-purple-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                <Mail className="w-5 h-5 text-purple-600" />
               </div>
               <div className="flex-1">
                 <h3 className="font-medium text-lg">У меня есть приглашение</h3>

@@ -773,10 +773,12 @@ export const CableManager = memo(function CableManager({
       const category = categories.find(c => c.id === item.category_id);
       return {
         'Категория': category?.name || '',
-        'Название': item.name || '',
+        'Название': item.name || item.equipment_name || '',
         'Длина (м)': item.length || '',
         'Количество': item.quantity,
         'Мин. остаток': item.min_quantity || 0,
+        'Цена (₽)': item.price || '',
+        'Единица': item.unit || 'шт',
         'Мощность (Вт)': item.watts || '',
         'Комментарий': item.notes || '',
       };
@@ -842,13 +844,31 @@ export const CableManager = memo(function CableManager({
         continue;
       }
 
+      const name = row['Название'] || row['name'] || row['equipment_name'];
+      if (!name) {
+        errorCount++;
+        continue;
+      }
+
+      const lengthValue = row['Длина (м)'] || row['length'];
+      const length = lengthValue !== undefined && lengthValue !== '' ? parseFloat(lengthValue) : undefined;
+
+      const wattsValue = row['Мощность (Вт)'] || row['watts'];
+      const watts = wattsValue !== undefined && wattsValue !== '' ? parseInt(wattsValue) : undefined;
+
+      const priceValue = row['Цена (₽)'] || row['price'];
+      const price = priceValue !== undefined && priceValue !== '' ? parseFloat(priceValue) : undefined;
+
       const { error } = await onUpsertInventory({
         category_id: categoryId,
-        name: row['Название'] || row['name'] || undefined,
-        length: row['Длина (м)'] || row['length'] ? parseFloat(row['Длина (м)'] || row['length']) : undefined,
+        name: name,
+        equipment_name: name,
+        length: length,
         quantity: parseInt(row['Количество'] || row['quantity']) || 0,
         min_quantity: parseInt(row['Мин. остаток'] || row['min_quantity']) || 0,
-        watts: row['Мощность (Вт)'] || row['watts'] ? parseInt(row['Мощность (Вт)'] || row['watts']) : undefined,
+        price: price,
+        unit: row['Единица'] || row['unit'] || 'шт',
+        watts: watts,
         notes: row['Комментарий'] || row['notes'] || undefined,
       });
 
