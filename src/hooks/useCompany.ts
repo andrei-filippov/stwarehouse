@@ -113,6 +113,7 @@ export function useCompany(options?: { skipAutoLoad?: boolean }) {
           .from('companies')
           .select('*')
           .eq('slug', targetSlug)
+          .is('deleted_at', null)
           .single();
         
         if (companyBySlug && !slugError) {
@@ -203,10 +204,14 @@ export function useCompany(options?: { skipAutoLoad?: boolean }) {
         `)
         .eq('user_id', user.id)
         .eq('status', 'active');
-
+      
       if (error) throw error;
-
-      const userCompanies = (data || []).map((m: any) => m.company).filter(Boolean);
+      
+      // Filter out deleted companies
+      const userCompanies = (data || [])
+        .map((m: any) => m.company)
+        .filter(Boolean)
+        .filter((c: any) => !c.deleted_at);
       setCompanies(userCompanies);
     } catch (err) {
       logger.error('Error loading user companies:', err);
@@ -301,6 +306,51 @@ export function useCompany(options?: { skipAutoLoad?: boolean }) {
       return { error: err instanceof Error ? err.message : 'Ошибка обновления компании' };
     }
   }, [company, loadCompany]);
+
+  // Soft delete компании (только для владельца)
+  const deleteCompany = useCallback(async () => {
+    try {
+      if (!company) throw new Error('Компания не выбрана');
+      if (myMember?.role !== 'owner') throw new Error('Только владелец может удалить компанию');
+
+      const { error } = await supabase
+        .from('companies')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', company.id);
+
+      if (error) throw error;
+
+      // Очищаем выбранную компанию
+      clearSelectedCompany();
+      setCompany(null);
+      setMembers([]);
+      setMyMember(null);
+      
+      // Перезагружаем список компаний
+      await loadUserCompanies();
+      
+      return { error: null };
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : 'Ошибка удаления компании' };
+    }
+  }, [company, myMember, loadUserCompanies]);
+
+  // Восстановление компании
+  const restoreCompany = useCallback(async (companyId: string) => {
+    try {
+      const { error } = await supabase
+        .from('companies')
+        .update({ deleted_at: null })
+        .eq('id', companyId);
+
+      if (error) throw error;
+
+      await loadUserCompanies();
+      return { error: null };
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : 'Ошибка восстановления компании' };
+    }
+  }, [loadUserCompanies]);
 
   // Приглашение сотрудника через RPC + email
   const inviteMember = useCallback(async (email: string, role: CompanyRole, position?: string) => {
@@ -468,6 +518,8 @@ export function useCompany(options?: { skipAutoLoad?: boolean }) {
     loadUserCompanies,
     createCompany,
     updateCompany,
+    deleteCompany,
+    restoreCompany,
     inviteMember,
     removeMember,
     updateMemberRole,

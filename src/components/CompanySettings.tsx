@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Building2, Save, Loader2, Mail, Phone, FileText, SearchIcon, Landmark, Plus, Trash2, Star } from 'lucide-react';
+import { Building2, Save, Loader2, Mail, Phone, FileText, SearchIcon, Landmark, Plus, Trash2, Star, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -71,7 +71,7 @@ const CURRENCY_OPTIONS: { value: Currency; label: string }[] = [
 ];
 
 export function CompanySettings() {
-  const { company, updateCompany, canManage } = useCompanyContext();
+  const { company, updateCompany, canManage, isOwner, deleteCompany } = useCompanyContext();
   const { accounts, loading: accountsLoading, addAccount, updateAccount, deleteAccount, setDefaultAccount } = useCompanyBankAccounts(company?.id);
   
   const [activeTab, setActiveTab] = useState<'main' | 'bank'>('main');
@@ -412,6 +412,28 @@ export function CompanySettings() {
             </CardContent>
           </Card>
 
+          {/* Опасная зона — удаление компании */}
+          {isOwner && company && (
+            <DangerZone 
+              companyName={company.name}
+              onDelete={async () => {
+                const confirmed = window.confirm(
+                  `Вы уверены, что хотите удалить компанию "${company.name}"?\n\n` +
+                  'Компания будет скрыта из списка, но все данные сохранятся в системе.\n' +
+                  'Вы сможете восстановить компанию позже через поддержку.'
+                );
+                if (confirmed) {
+                  const { error } = await deleteCompany();
+                  if (error) {
+                    toast.error('Ошибка удаления: ' + error);
+                  } else {
+                    toast.success('Компания удалена');
+                  }
+                }
+              }}
+            />
+          )}
+
           {!canManage && (
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
               У вас нет прав на редактирование данных компании.
@@ -596,5 +618,86 @@ export function CompanySettings() {
         </div>
       )}
     </div>
+  );
+}
+
+// Компонент "Опасная зона" для удаления компании
+function DangerZone({ 
+  companyName, 
+  onDelete 
+}: { 
+  companyName: string; 
+  onDelete: () => Promise<void>;
+}) {
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [confirmText, setConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    if (confirmText !== companyName) {
+      toast.error('Введите название компании точно для подтверждения');
+      return;
+    }
+    setDeleting(true);
+    await onDelete();
+    setDeleting(false);
+  };
+
+  return (
+    <Card className="border-red-200">
+      <CardHeader>
+        <CardTitle className="text-lg flex items-center gap-2 text-red-600">
+          <AlertTriangle className="w-5 h-5" />
+          Опасная зона
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-sm text-muted-foreground">
+          Удаление компании скроет её из вашего списка. Все данные (сметы, оборудование, сотрудники) 
+          останутся в системе и могут быть восстановлены.
+        </p>
+        
+        {!showConfirm ? (
+          <Button 
+            variant="outline" 
+            className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+            onClick={() => setShowConfirm(true)}
+          >
+            <Trash2 className="w-4 h-4 mr-2" />
+            Удалить компанию
+          </Button>
+        ) : (
+          <div className="space-y-3 bg-red-50 border border-red-200 rounded-lg p-4">
+            <p className="text-sm text-red-700 font-medium">
+              Для подтверждения введите название компании: <strong>{companyName}</strong>
+            </p>
+            <Input
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              placeholder="Введите название компании"
+              className="bg-white"
+            />
+            <div className="flex gap-2">
+              <Button 
+                variant="destructive" 
+                onClick={handleDelete}
+                disabled={deleting || confirmText !== companyName}
+              >
+                {deleting ? 'Удаление...' : 'Подтвердить удаление'}
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setShowConfirm(false);
+                  setConfirmText('');
+                }}
+              >
+                Отмена
+              </Button>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

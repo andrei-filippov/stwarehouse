@@ -37,6 +37,7 @@ export type Company = {
   
   created_at?: string;
   updated_at?: string;
+  deleted_at?: string | null;
 };
 
 // Член компании (сотрудник)
@@ -87,6 +88,8 @@ export type CompanyContextType = {
   removeMember: (memberId: string) => Promise<{ error?: string }>;
   updateMemberRole: (memberId: string, role: CompanyRole) => Promise<{ error?: string }>;
   updateCompany: (updates: Partial<Company>) => Promise<{ error?: string }>;
+  deleteCompany: () => Promise<{ error?: string }>;
+  restoreCompany: (companyId: string) => Promise<{ error?: string }>;
 };
 
 // Метки для ролей
