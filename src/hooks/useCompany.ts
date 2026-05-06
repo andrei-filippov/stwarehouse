@@ -108,12 +108,11 @@ export function useCompany(options?: { skipAutoLoad?: boolean }) {
       console.log('[useCompany] Target slug:', targetSlug);
       
       if (targetSlug) {
-        // Ищем компанию по slug
+        // Сначала ищем компанию по slug (включая удалённые — для владельца)
         const { data: companyBySlug, error: slugError } = await supabase
           .from('companies')
           .select('*')
           .eq('slug', targetSlug)
-          .is('deleted_at', null)
           .single();
         
         if (companyBySlug && !slugError) {
@@ -127,9 +126,20 @@ export function useCompany(options?: { skipAutoLoad?: boolean }) {
             .single();
           
           if (memberData) {
+            // Если компания удалена — только владелец может видеть данные
+            if (companyBySlug.deleted_at) {
+              if (memberData.role !== 'owner') {
+                // Не-владелец — показываем null (компания удалена)
+                setCompany(null);
+                setMyMember(null);
+                setLoading(false);
+                return;
+              }
+              // Владелец — загружаем но помечаем как удалённую
+            }
+            
             setCompany(companyBySlug);
             setMyMember(memberData);
-            // Сохраняем для оффлайн
             saveCompanyLocal(companyBySlug);
             await loadMembers(companyBySlug.id);
             setLoading(false);
@@ -465,7 +475,8 @@ export function useCompany(options?: { skipAutoLoad?: boolean }) {
   const myRole = myMember?.role || null;
   const isOwner = myRole === 'owner';
   const isAdmin = myRole === 'admin' || myRole === 'owner';
-  const canManage = isAdmin || isOwner;
+  const canManage = (isAdmin || isOwner) && !company?.deleted_at;
+  const isDeleted = !!company?.deleted_at;
 
   // Загрузка при монтировании (только один раз)
   const hasInitialized = useRef(false);
@@ -510,6 +521,7 @@ export function useCompany(options?: { skipAutoLoad?: boolean }) {
     isOwner,
     isAdmin,
     canManage,
+    isDeleted,
     loading,
     error,
     

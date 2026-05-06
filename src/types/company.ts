@@ -77,7 +77,8 @@ export type CompanyContextType = {
   loading: boolean;
   isOwner: boolean;
   isAdmin: boolean;
-  canManage: boolean; // owner или admin
+  canManage: boolean; // owner или admin (false если компания удалена)
+  isDeleted: boolean; // компания удалена (soft delete)
   error: string | null;
   
   // Действия

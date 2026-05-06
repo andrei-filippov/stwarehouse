@@ -10,6 +10,7 @@ import { CompanyWelcome } from './components/CompanyWelcome';
 import { InvitationsList } from './components/InvitationsList';
 import { Auth } from './components/Auth';
 import { ResetPassword } from './components/ResetPassword';
+import { DeletedCompanyBanner } from './components/DeletedCompanyBanner';
 // Ленивая загрузка тяжелых компонентов
 const EquipmentManager = lazy(() => import('./components/EquipmentManagement'));
 const EstimateManager = lazy(() => import('./components/EstimateManager'));
@@ -519,7 +520,11 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
   }, [profile, permissions, navItems, activeTab]);
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Баннер удалённой компании */}
+      <DeletedCompanyBanner />
+      
+      <div className="flex flex-1">
       {/* Desktop Sidebar */}
       <div className="hidden md:block">
         <Sidebar 
@@ -854,6 +859,7 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
         companyId={companyId}
         onSync={syncNow}
       />
+      </div>
     </div>
   );
 }
