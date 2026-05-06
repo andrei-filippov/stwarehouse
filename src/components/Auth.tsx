@@ -3,35 +3,39 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Package, AlertCircle, Trash2 } from 'lucide-react';
+import { Package, AlertCircle, Trash2, ArrowLeft, KeyRound } from 'lucide-react';
 import { toast } from 'sonner';
 import { logger } from '../lib/logger';
 
 interface AuthProps {
   onSignIn: (email: string, password: string) => Promise<{ error: any }>;
   onSignUp: (email: string, password: string, name: string) => Promise<{ error: any }>;
+  onResetPassword: (email: string) => Promise<{ error: any }>;
 }
 
-export function Auth({ onSignIn, onSignUp }: AuthProps) {
-  const [isLogin, setIsLogin] = useState(true);
+type AuthView = 'login' | 'register' | 'forgot';
+
+export function Auth({ onSignIn, onSignUp, onResetPassword }: AuthProps) {
+  const [view, setView] = useState<AuthView>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
-    logger.debug('Form submitted:', { isLogin, email: email.trim(), passwordLength: password?.length });
+    logger.debug('Form submitted:', { view, email: email.trim(), passwordLength: password?.length });
 
-    if (isLogin) {
+    if (view === 'login') {
       const { error } = await onSignIn(email.trim(), password);
       logger.debug('SignIn result:', { error: error?.message || 'none' });
       if (error) setError(error.message || 'Ошибка входа');
-    } else {
+    } else if (view === 'register') {
       const { error } = await onSignUp(email.trim(), password, name.trim());
       if (error) {
         setError(error.message || 'Ошибка регистрации');
@@ -40,8 +44,18 @@ export function Auth({ onSignIn, onSignUp }: AuthProps) {
           description: 'На ваш email отправлено письмо для подтверждения. Пожалуйста, проверьте почту и перейдите по ссылке.',
           duration: 10000,
         });
-        // Переключаемся на форму входа
-        setIsLogin(true);
+        setView('login');
+      }
+    } else if (view === 'forgot') {
+      const { error } = await onResetPassword(email.trim());
+      if (error) {
+        setError(error.message || 'Ошибка отправки письма');
+      } else {
+        setResetSent(true);
+        toast.success('Письмо отправлено', {
+          description: 'Проверьте вашу почту и перейдите по ссылке для сброса пароля.',
+          duration: 10000,
+        });
       }
     }
 
@@ -49,19 +63,23 @@ export function Auth({ onSignIn, onSignUp }: AuthProps) {
   };
 
   const handleClearData = () => {
-    // Очищаем все данные Supabase из localStorage
     Object.keys(localStorage).forEach(key => {
       if (key.startsWith('sb-') || key.includes('supabase')) {
         localStorage.removeItem(key);
       }
     });
-    // Перезагружаем страницу
     window.location.reload();
   };
 
   const isTokenError = error?.toLowerCase().includes('refresh') || 
                        error?.toLowerCase().includes('token') ||
                        error?.toLowerCase().includes('session');
+
+  const switchView = (newView: AuthView) => {
+    setView(newView);
+    setError('');
+    setResetSent(false);
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -74,8 +92,18 @@ export function Auth({ onSignIn, onSignUp }: AuthProps) {
           <p className="text-muted-foreground mt-2">Система учета оборудования</p>
         </CardHeader>
         <CardContent>
+          {view === 'forgot' && (
+            <button
+              onClick={() => switchView('login')}
+              className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Назад к входу
+            </button>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
-            {!isLogin && (
+            {view === 'register' && (
               <div className="space-y-2">
                 <Label htmlFor="name">Имя</Label>
                 <Input
@@ -98,17 +126,19 @@ export function Auth({ onSignIn, onSignUp }: AuthProps) {
                 className="rounded-lg"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Пароль</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="rounded-lg"
-              />
-            </div>
+            {view !== 'forgot' && (
+              <div className="space-y-2">
+                <Label htmlFor="password">Пароль</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="rounded-lg"
+                />
+              </div>
+            )}
             
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-3">
@@ -130,28 +160,59 @@ export function Auth({ onSignIn, onSignUp }: AuthProps) {
                 </div>
               </div>
             )}
+
+            {resetSent && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                <p className="text-green-700 text-sm">
+                  Письмо отправлено! Проверьте вашу почту (включая папку "Спам") и перейдите по ссылке для сброса пароля.
+                </p>
+              </div>
+            )}
             
             <Button 
               type="submit" 
               className="w-full rounded-lg shadow-md hover:shadow-lg transition-all" 
-              disabled={loading}
+              disabled={loading || resetSent}
             >
-              {loading ? 'Загрузка...' : isLogin ? 'Войти' : 'Зарегистрироваться'}
+              {loading ? 'Загрузка...' : 
+                view === 'login' ? 'Войти' : 
+                view === 'register' ? 'Зарегистрироваться' : 
+                'Отправить ссылку'}
             </Button>
           </form>
           
-          <p className="text-center mt-4 text-sm">
-            {isLogin ? 'Нет аккаунта? ' : 'Уже есть аккаунт? '}
-            <button
-              onClick={() => {
-                setIsLogin(!isLogin);
-                setError('');
-              }}
-              className="text-blue-600 hover:underline font-medium"
-            >
-              {isLogin ? 'Зарегистрироваться' : 'Войти'}
-            </button>
-          </p>
+          {view === 'login' && (
+            <div className="mt-4 space-y-2 text-center">
+              <button
+                onClick={() => switchView('forgot')}
+                className="text-sm text-muted-foreground hover:text-blue-600 transition-colors flex items-center justify-center gap-1 mx-auto"
+              >
+                <KeyRound className="w-3.5 h-3.5" />
+                Забыли пароль?
+              </button>
+              <p className="text-sm">
+                Нет аккаунта?{' '}
+                <button
+                  onClick={() => switchView('register')}
+                  className="text-blue-600 hover:underline font-medium"
+                >
+                  Зарегистрироваться
+                </button>
+              </p>
+            </div>
+          )}
+
+          {view === 'register' && (
+            <p className="text-center mt-4 text-sm">
+              Уже есть аккаунт?{' '}
+              <button
+                onClick={() => switchView('login')}
+                className="text-blue-600 hover:underline font-medium"
+              >
+                Войти
+              </button>
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -190,6 +190,28 @@ export function useAuth() {
     }
   };
 
+  const resetPassword = async (email: string) => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/auth/callback?type=recovery`,
+      });
+      return { error };
+    } catch (err) {
+      logger.error('Reset password error:', err);
+      return { error: err as Error };
+    }
+  };
+
+  const updatePassword = async (newPassword: string) => {
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      return { error };
+    } catch (err) {
+      logger.error('Update password error:', err);
+      return { error: err as Error };
+    }
+  };
+
   return {
     user,
     profile,
@@ -198,5 +220,7 @@ export function useAuth() {
     signIn,
     signUp,
     signOut,
+    resetPassword,
+    updatePassword,
   };
 }

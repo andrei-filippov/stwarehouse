@@ -9,6 +9,7 @@ import { CompanySelector } from './components/auth/CompanySelector';
 import { CompanyWelcome } from './components/CompanyWelcome';
 import { InvitationsList } from './components/InvitationsList';
 import { Auth } from './components/Auth';
+import { ResetPassword } from './components/ResetPassword';
 // Ленивая загрузка тяжелых компонентов
 const EquipmentManager = lazy(() => import('./components/EquipmentManagement'));
 const EstimateManager = lazy(() => import('./components/EstimateManager'));
@@ -89,7 +90,22 @@ function App() {
   // Инициализируем Service Worker
   useServiceWorker();
   
-  const { user, profile, permissions, loading: authLoading, signIn, signUp, signOut } = useAuth();
+  const { user, profile, permissions, loading: authLoading, signIn, signUp, signOut, resetPassword, updatePassword } = useAuth();
+  
+  // Check for password recovery token in URL
+  const [isRecoveryMode, setIsRecoveryMode] = useState(false);
+  
+  useEffect(() => {
+    // Check if we're in recovery mode (from email link)
+    const hash = window.location.hash;
+    const search = window.location.search;
+    const hasRecoveryToken = hash.includes('type=recovery') || search.includes('type=recovery');
+    
+    if (hasRecoveryToken) {
+      logger.debug('[App] Recovery mode detected');
+      setIsRecoveryMode(true);
+    }
+  }, []);
 
   if (authLoading) {
     return (
@@ -102,8 +118,21 @@ function App() {
     );
   }
 
+  if (isRecoveryMode) {
+    return (
+      <ResetPassword
+        onUpdatePassword={updatePassword}
+        onComplete={() => {
+          // Clear recovery params from URL
+          window.history.replaceState({}, document.title, window.location.pathname);
+          setIsRecoveryMode(false);
+        }}
+      />
+    );
+  }
+
   if (!user) {
-    return <Auth onSignIn={signIn} onSignUp={signUp} />;
+    return <Auth onSignIn={signIn} onSignUp={signUp} onResetPassword={resetPassword} />;
   }
 
   return (
