@@ -2757,8 +2757,8 @@ function CategoryItem({
                 const isLow = minQty > 0 && actualQty < minQty;
                 
                 return (
-                  <div 
-                    key={item.id}
+                  <div key={item.id}>
+                    <div
                     className={`flex flex-col sm:flex-row sm:items-center justify-between p-2 rounded gap-2 ${
                       isSelected ? 'bg-primary/10 border border-primary/30' : 
                       selectionMode && selectedInventoryIds?.has(item.id) ? 'bg-green-500/10 border border-green-500/30' :
@@ -2893,6 +2893,7 @@ function CategoryItem({
                       </div>
                     </div>
                     {/* Управление экземплярами */}
+                    </div>
                     {item.track_items && expandedInventory === item.id && companyId && (
                       <div className="mt-2 pt-2 border-t border-dashed border-border/50">
                         <InventoryItemsManager
