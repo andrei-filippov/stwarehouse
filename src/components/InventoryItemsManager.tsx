@@ -74,12 +74,30 @@ export default function InventoryItemsManager({ inventory, companyId, onRefresh 
   useEffect(() => {
     fetchItems();
 
-    // Polling каждые 15 секунд (realtime не работает через Yandex Cloud прокси)
+    // Realtime подписка на изменения экземпляров
+    const channel = supabase
+      .channel(`inventory_items_${inventory.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'inventory_items',
+          filter: `inventory_id=eq.${inventory.id}`,
+        },
+        () => fetchItems()
+      )
+      .subscribe();
+
+    // Polling fallback (на случай если realtime не работает)
     const interval = setInterval(() => {
       fetchItems();
     }, 15000);
 
-    return () => clearInterval(interval);
+    return () => {
+      channel.unsubscribe();
+      clearInterval(interval);
+    };
   }, [inventory.id, companyId]);
 
   const handleCreateItems = async () => {
