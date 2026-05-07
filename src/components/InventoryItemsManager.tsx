@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { 
@@ -11,13 +10,12 @@ import {
   QrCode,
   Package,
   Search,
-  X,
   Printer,
   Save,
   RotateCcw,
   Wrench,
-  CheckCircle2,
-  AlertTriangle
+  MessageSquare,
+  X
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
@@ -47,9 +45,14 @@ export default function InventoryItemsManager({ inventory, companyId, onRefresh 
   const [editForm, setEditForm] = useState({ serial_number: '', notes: '', condition: 'good' as InventoryItem['condition'] });
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [isQRPrintOpen, setIsQRPrintOpen] = useState(false);
+  const [viewingItem, setViewingItem] = useState<InventoryItem | null>(null);
   const [comments, setComments] = useState<ItemComment[]>([]);
   const [newComment, setNewComment] = useState('');
-  const [viewingItem, setViewingItem] = useState<InventoryItem | null>(null);
+  
+  // Диалог ремонта
+  const [repairItem, setRepairItem] = useState<InventoryItem | null>(null);
+  const [repairReason, setRepairReason] = useState('');
+  const [repairNotes, setRepairNotes] = useState('');
 
   const fetchItems = async () => {
     setLoading(true);
@@ -93,7 +96,7 @@ export default function InventoryItemsManager({ inventory, companyId, onRefresh 
       await fetchItems();
       onRefresh?.();
     } catch (err: any) {
-      // Fallback: создаём вручную
+      // Fallback
       try {
         const existingCount = items.length;
         const groupQr = inventory.qr_code || `EQ-${inventory.id.slice(0, 6).toUpperCase()}`;
@@ -174,21 +177,83 @@ export default function InventoryItemsManager({ inventory, companyId, onRefresh 
     }
   };
 
-  const handleStatusChange = async (itemId: string, newStatus: InventoryItem['status']) => {
-    const { error } = await supabase
-      .from('inventory_items')
-      .update({ status: newStatus })
-      .eq('id', itemId)
-      .eq('company_id', companyId);
+  // Отправка в ремонт с созданием записи в equipment_repairs
+  const handleSendToRepair = async () => {
+    if (!repairItem || !repairReason.trim()) {
+      toast.error('Укажите причину ремонта');
+      return;
+    }
 
-    if (error) {
-      toast.error('Ошибка при изменении статуса', { description: error.message });
-    } else {
+    try {
+      const { error } = await supabase.from('equipment_repairs').insert({
+        company_id: companyId,
+        category_id: inventory.category_id,
+        inventory_id: inventory.id,
+        item_id: repairItem.id,
+        equipment_name: inventory.name || 'Оборудование',
+        quantity: 1,
+        reason: repairReason.trim(),
+        notes: repairNotes.trim() || undefined,
+        status: 'in_repair',
+        sent_date: new Date().toISOString().split('T')[0],
+      });
+
+      if (error) throw error;
+
+      // Обновляем статус экземпляра
+      await supabase
+        .from('inventory_items')
+        .update({ status: 'repair' })
+        .eq('id', repairItem.id)
+        .eq('company_id', companyId);
+
       setItems(prev => prev.map(item => 
-        item.id === itemId ? { ...item, status: newStatus } : item
+        item.id === repairItem.id ? { ...item, status: 'repair' } : item
       ));
-      toast.success('Статус обновлён');
+
+      toast.success('Экземпляр отправлен в ремонт');
+      setRepairItem(null);
+      setRepairReason('');
+      setRepairNotes('');
       onRefresh?.();
+    } catch (err: any) {
+      toast.error('Ошибка при отправке в ремонт', { description: err.message });
+    }
+  };
+
+  // Возврат из ремонта
+  const handleReturnFromRepair = async (item: InventoryItem) => {
+    try {
+      // Находим активную запись о ремонте
+      const { data: repairs } = await supabase
+        .from('equipment_repairs')
+        .select('*')
+        .eq('item_id', item.id)
+        .eq('status', 'in_repair')
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (repairs && repairs.length > 0) {
+        await supabase.from('equipment_repairs').update({
+          status: 'returned',
+          returned_date: new Date().toISOString().split('T')[0],
+        }).eq('id', repairs[0].id);
+      }
+
+      await supabase
+        .from('inventory_items')
+        .update({ status: 'available' })
+        .eq('id', item.id)
+        .eq('company_id', companyId);
+
+      setItems(prev => prev.map(i => 
+        i.id === item.id ? { ...i, status: 'available' } : i
+      ));
+
+      toast.success('Экземпляр возвращён на склад');
+      onRefresh?.();
+    } catch (err: any) {
+      toast.error('Ошибка при возврате', { description: err.message });
     }
   };
 
@@ -259,123 +324,116 @@ export default function InventoryItemsManager({ inventory, companyId, onRefresh 
   };
 
   return (
-    <div className="space-y-4">
-      {/* Статистика */}
-      <div className="grid grid-cols-5 gap-2">
-        <Card className="p-2">
-          <div className="text-xs text-muted-foreground">Всего</div>
-          <div className="text-lg font-bold">{stats.total}</div>
-        </Card>
-        <Card className="p-2 border-green-200">
-          <div className="text-xs text-green-600">На складе</div>
-          <div className="text-lg font-bold text-green-700">{stats.available}</div>
-        </Card>
-        <Card className="p-2 border-blue-200">
-          <div className="text-xs text-blue-600">Выдано</div>
-          <div className="text-lg font-bold text-blue-700">{stats.issued}</div>
-        </Card>
-        <Card className="p-2 border-red-200">
-          <div className="text-xs text-red-600">В ремонте</div>
-          <div className="text-lg font-bold text-red-700">{stats.repair}</div>
-        </Card>
-        <Card className="p-2 border-gray-200">
-          <div className="text-xs text-gray-600">Списано</div>
-          <div className="text-lg font-bold text-gray-700">{stats.writtenOff}</div>
-        </Card>
+    <div className="space-y-3">
+      {/* Компактная статистика */}
+      <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+        <span>Всего: <strong className="text-foreground">{stats.total}</strong></span>
+        <span className="text-green-600">На складе: <strong>{stats.available}</strong></span>
+        <span className="text-blue-600">Выдано: <strong>{stats.issued}</strong></span>
+        <span className="text-red-600">В ремонте: <strong>{stats.repair}</strong></span>
+        {stats.writtenOff > 0 && <span className="text-gray-600">Списано: <strong>{stats.writtenOff}</strong></span>}
       </div>
 
       {/* Панель управления */}
       <div className="flex gap-2 flex-wrap">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+        <div className="relative flex-1 min-w-[150px]">
+          <Search className="absolute left-2 top-2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
-            placeholder="Поиск по QR, серийному номеру..."
+            placeholder="Поиск по QR, S/N..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-8"
+            className="pl-7 h-8 text-sm"
           />
         </div>
-        <Button onClick={() => setIsAddDialogOpen(true)} size="sm">
-          <Plus className="h-4 w-4 mr-1" />
-          Добавить экземпляры
+        <Button onClick={() => setIsAddDialogOpen(true)} size="sm" className="h-8 text-xs">
+          <Plus className="h-3.5 w-3.5 mr-1" />
+          Добавить
         </Button>
         {selectedItems.length > 0 && (
-          <Button variant="outline" size="sm" onClick={() => setIsQRPrintOpen(true)}>
-            <Printer className="h-4 w-4 mr-1" />
-            Печать QR ({selectedItems.length})
+          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setIsQRPrintOpen(true)}>
+            <Printer className="h-3.5 w-3.5 mr-1" />
+            Печать ({selectedItems.length})
           </Button>
         )}
       </div>
 
-      {/* Список экземпляров */}
+      {/* Список экземпляров — компактный */}
       {loading ? (
-        <div className="text-center py-8 text-muted-foreground">Загрузка...</div>
+        <div className="text-center py-4 text-sm text-muted-foreground">Загрузка...</div>
       ) : filteredItems.length === 0 ? (
-        <div className="text-center py-8 text-muted-foreground">
-          {searchQuery ? 'Ничего не найдено' : 'Нет экземпляров. Нажмите "Добавить экземпляры"'}
+        <div className="text-center py-4 text-sm text-muted-foreground">
+          {searchQuery ? 'Ничего не найдено' : 'Нет экземпляров'}
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-1">
           {filteredItems.map(item => (
-            <Card key={item.id} className="p-3 hover:shadow-md transition-shadow">
-              <div className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  checked={selectedItems.includes(item.id)}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setSelectedItems(prev => [...prev, item.id]);
-                    } else {
-                      setSelectedItems(prev => prev.filter(id => id !== item.id));
-                    }
-                  }}
-                  className="h-4 w-4"
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Badge variant="outline" className="font-mono text-xs">
-                      <QrCode className="h-3 w-3 mr-1" />
-                      {item.qr_code}
-                    </Badge>
-                    <Badge className={getItemStatusColor(item.status)}>
-                      {getItemStatusLabel(item.status)}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">
-                      {getItemConditionLabel(item.condition)}
-                    </span>
-                  </div>
-                  {item.serial_number && (
-                    <div className="text-sm mt-1">
-                      <span className="text-muted-foreground">S/N:</span> {item.serial_number}
-                    </div>
-                  )}
-                  {item.notes && (
-                    <div className="text-sm text-muted-foreground mt-1 truncate">{item.notes}</div>
-                  )}
-                </div>
-                <div className="flex gap-1">
-                  <Button variant="ghost" size="sm" onClick={() => openView(item)}>
-                    <Package className="h-4 w-4" />
+            <div 
+              key={item.id} 
+              className="flex items-center gap-2 p-2 rounded-md bg-muted/30 hover:bg-muted/60 transition-colors"
+            >
+              <input
+                type="checkbox"
+                checked={selectedItems.includes(item.id)}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    setSelectedItems(prev => [...prev, item.id]);
+                  } else {
+                    setSelectedItems(prev => prev.filter(id => id !== item.id));
+                  }
+                }}
+                className="h-3.5 w-3.5 shrink-0"
+              />
+              <Badge variant="outline" className="font-mono text-[10px] h-5 px-1.5 shrink-0">
+                {item.qr_code}
+              </Badge>
+              <Badge className={`text-[10px] h-5 px-1.5 ${getItemStatusColor(item.status)}`}>
+                {getItemStatusLabel(item.status)}
+              </Badge>
+              <span className="text-xs text-muted-foreground shrink-0 hidden sm:inline">
+                {getItemConditionLabel(item.condition)}
+              </span>
+              {item.serial_number && (
+                <span className="text-xs truncate hidden md:inline">
+                  <span className="text-muted-foreground">S/N:</span> {item.serial_number}
+                </span>
+              )}
+              {item.notes && (
+                <span className="text-xs text-muted-foreground truncate flex-1 hidden lg:inline">{item.notes}</span>
+              )}
+              <div className="flex gap-0.5 ml-auto shrink-0">
+                <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openView(item)} title="Просмотр">
+                  <Package className="h-3.5 w-3.5" />
+                </Button>
+                <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openEdit(item)} title="Редактировать">
+                  <Edit2 className="h-3.5 w-3.5" />
+                </Button>
+                {item.status === 'available' && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-7 w-7 p-0" 
+                    onClick={() => setRepairItem(item)}
+                    title="В ремонт"
+                  >
+                    <Wrench className="h-3.5 w-3.5 text-red-500" />
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => openEdit(item)}>
-                    <Edit2 className="h-4 w-4" />
+                )}
+                {item.status === 'repair' && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-7 w-7 p-0" 
+                    onClick={() => handleReturnFromRepair(item)}
+                    title="Вернуть на склад"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5 text-green-500" />
                   </Button>
-                  {item.status === 'available' && (
-                    <Button variant="ghost" size="sm" onClick={() => handleStatusChange(item.id, 'repair')}>
-                      <Wrench className="h-4 w-4 text-red-500" />
-                    </Button>
-                  )}
-                  {item.status === 'repair' && (
-                    <Button variant="ghost" size="sm" onClick={() => handleStatusChange(item.id, 'available')}>
-                      <RotateCcw className="h-4 w-4 text-green-500" />
-                    </Button>
-                  )}
-                  <Button variant="ghost" size="sm" onClick={() => handleDeleteItem(item.id)}>
-                    <Trash2 className="h-4 w-4 text-red-500" />
-                  </Button>
-                </div>
+                )}
+                <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => handleDeleteItem(item.id)} title="Удалить">
+                  <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                </Button>
               </div>
-            </Card>
+            </div>
           ))}
         </div>
       )}
@@ -387,13 +445,11 @@ export default function InventoryItemsManager({ inventory, companyId, onRefresh 
             <DialogTitle>Добавить экземпляры</DialogTitle>
             <DialogDescription>
               Группа: {inventory.name || 'Без названия'}
-              <br />
-              QR группы: {inventory.qr_code || '—'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <label className="text-sm font-medium">Количество экземпляров</label>
+              <label className="text-sm font-medium">Количество</label>
               <Input
                 type="number"
                 min={1}
@@ -402,7 +458,7 @@ export default function InventoryItemsManager({ inventory, companyId, onRefresh 
                 onChange={(e) => setAddCount(parseInt(e.target.value) || 1)}
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Будут созданы QR-коды: {inventory.qr_code || `EQ-${inventory.id.slice(0, 6).toUpperCase()}`}-01 ... 
+                QR: {inventory.qr_code || `EQ-${inventory.id.slice(0, 6).toUpperCase()}`}-01 ... 
                 {inventory.qr_code || `EQ-${inventory.id.slice(0, 6).toUpperCase()}`}-{String(addCount).padStart(2, '0')}
               </p>
             </div>
@@ -458,6 +514,44 @@ export default function InventoryItemsManager({ inventory, companyId, onRefresh 
         </DialogContent>
       </Dialog>
 
+      {/* Диалог ремонта */}
+      <Dialog open={!!repairItem} onOpenChange={() => { setRepairItem(null); setRepairReason(''); setRepairNotes(''); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Отправить в ремонт</DialogTitle>
+            <DialogDescription>
+              {inventory.name} — {repairItem?.qr_code}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">Причина поломки *</label>
+              <Input
+                value={repairReason}
+                onChange={(e) => setRepairReason(e.target.value)}
+                placeholder="Что сломалось?"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Комментарий к ремонту</label>
+              <Input
+                value={repairNotes}
+                onChange={(e) => setRepairNotes(e.target.value)}
+                placeholder="Дополнительная информация"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={handleSendToRepair} disabled={!repairReason.trim()}>
+                <Wrench className="h-4 w-4 mr-1" /> В ремонт
+              </Button>
+              <Button variant="outline" onClick={() => { setRepairItem(null); setRepairReason(''); setRepairNotes(''); }}>
+                Отмена
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Диалог просмотра экземпляра */}
       <Dialog open={!!viewingItem} onOpenChange={() => setViewingItem(null)}>
         <DialogContent className="max-w-lg">
@@ -485,7 +579,7 @@ export default function InventoryItemsManager({ inventory, companyId, onRefresh 
               
               {/* QR код */}
               <div className="flex justify-center py-2">
-                <QRCodeDisplay value={viewingItem.qr_code} size={150} />
+                <QRCodeDisplay value={viewingItem.qr_code} size={120} />
               </div>
 
               {/* Комментарии */}
@@ -497,8 +591,9 @@ export default function InventoryItemsManager({ inventory, companyId, onRefresh 
                     onChange={(e) => setNewComment(e.target.value)}
                     placeholder="Добавить комментарий..."
                     onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
+                    className="h-8 text-sm"
                   />
-                  <Button size="sm" onClick={handleAddComment}>Добавить</Button>
+                  <Button size="sm" className="h-8" onClick={handleAddComment}>Добавить</Button>
                 </div>
                 <div className="space-y-2 max-h-48 overflow-y-auto">
                   {comments.length === 0 ? (

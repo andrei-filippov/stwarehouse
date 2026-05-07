@@ -2894,7 +2894,7 @@ function CategoryItem({
                     </div>
                     {/* Управление экземплярами */}
                     {item.track_items && expandedInventory === item.id && companyId && (
-                      <div className="mt-2 pl-6 border-l-2 border-primary/20">
+                      <div className="mt-2 pt-2 border-t border-dashed border-border/50">
                         <InventoryItemsManager
                           inventory={item}
                           companyId={companyId}
