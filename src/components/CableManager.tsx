@@ -2755,146 +2755,150 @@ function CategoryItem({
                 const repairQty = getRepairQtyForItem(category.id, item.length || 0, item.name);
                 const actualQty = item.quantity - issuedQty - repairQty;
                 const isLow = minQty > 0 && actualQty < minQty;
+                const isItemsExpanded = item.track_items && expandedInventory === item.id;
                 
                 return (
-                  <div 
-                    key={item.id}
-                    className={`flex flex-col sm:flex-row sm:items-center justify-between p-2 rounded gap-2 ${
-                      isSelected ? 'bg-primary/10 border border-primary/30' : 
-                      selectionMode && selectedInventoryIds?.has(item.id) ? 'bg-green-500/10 border border-green-500/30' :
-                      isLow ? 'bg-orange-500/10' : 'bg-muted/50'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
-                      {selectionMode ? (
-                        <input
-                          type="checkbox"
-                          checked={selectedInventoryIds?.has(item.id) || false}
-                          onChange={(e) => onSelectInventory?.(item.id, e.target.checked)}
-                          className="w-4 h-4 rounded border-border shrink-0"
-                        />
-                      ) : (
-                        <Checkbox
-                          checked={isSelected}
-                          onCheckedChange={() => actualQty > 0 && onToggleItem(item)}
-                          disabled={actualQty <= 0}
-                          className="shrink-0"
-                        />
-                      )}
-                      {item.name ? (
-                        <span className="font-medium truncate text-sm sm:text-base" title={item.name}>{item.name}</span>
-                      ) : (
-                        <span className="font-medium w-14 sm:w-16 text-sm sm:text-base">{item.length} м</span>
-                      )}
-                      <div className="flex items-center gap-1 shrink-0">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                          onClick={() => onUpdateInventoryQty(item.id!, item.quantity - 1, item.length || 0)}
-                          disabled={item.quantity <= 0}
-                        >
-                          -
-                        </Button>
-                        <span className={`text-sm w-8 sm:w-10 text-center ${isLow ? 'text-orange-600 font-medium' : 'text-muted-foreground'}`}>
-                          {actualQty}
-                        </span>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                          onClick={() => onUpdateInventoryQty(item.id!, item.quantity + 1, item.length || 0)}
-                        >
-                          +
-                        </Button>
+                  <div key={item.id}>
+                    {/* Строка группы */}
+                    <div 
+                      className={`flex flex-col sm:flex-row sm:items-center justify-between p-2 rounded gap-2 ${
+                        isSelected ? 'bg-primary/10 border border-primary/30' : 
+                        selectionMode && selectedInventoryIds?.has(item.id) ? 'bg-green-500/10 border border-green-500/30' :
+                        isLow ? 'bg-orange-500/10' : 'bg-muted/50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                        {selectionMode ? (
+                          <input
+                            type="checkbox"
+                            checked={selectedInventoryIds?.has(item.id) || false}
+                            onChange={(e) => onSelectInventory?.(item.id, e.target.checked)}
+                            className="w-4 h-4 rounded border-border shrink-0"
+                          />
+                        ) : (
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={() => actualQty > 0 && onToggleItem(item)}
+                            disabled={actualQty <= 0}
+                            className="shrink-0"
+                          />
+                        )}
+                        {item.name ? (
+                          <span className="font-medium truncate text-sm sm:text-base" title={item.name}>{item.name}</span>
+                        ) : (
+                          <span className="font-medium w-14 sm:w-16 text-sm sm:text-base">{item.length} м</span>
+                        )}
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => onUpdateInventoryQty(item.id!, item.quantity - 1, item.length || 0)}
+                            disabled={item.quantity <= 0}
+                          >
+                            -
+                          </Button>
+                          <span className={`text-sm w-8 sm:w-10 text-center ${isLow ? 'text-orange-600 font-medium' : 'text-muted-foreground'}`}>
+                            {actualQty}
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => onUpdateInventoryQty(item.id!, item.quantity + 1, item.length || 0)}
+                          >
+                            +
+                          </Button>
+                        </div>
+                        {issuedQty > 0 && (
+                          <span className="text-xs text-orange-500 shrink-0 hidden sm:inline">({item.quantity} всего)</span>
+                        )}
+                        {repairQty > 0 && (
+                          <span className="text-xs text-yellow-600 shrink-0" title="В ремонте">
+                            🔧 {repairQty}
+                          </span>
+                        )}
+                        {item.watts && item.watts > 0 && (
+                          <span className="text-xs text-blue-600 shrink-0" title={`Мощность: ${item.watts} Вт`}>
+                            ⚡ {item.watts}Вт
+                          </span>
+                        )}
+                        {isLow && (
+                          <AlertCircle className="w-4 h-4 text-orange-500 shrink-0 hidden sm:block" />
+                        )}
+                        {item.notes && (
+                          <span className="hidden sm:inline text-xs text-muted-foreground truncate max-w-[200px]" title={item.notes}>
+                            {item.notes}
+                          </span>
+                        )}
                       </div>
-                      {issuedQty > 0 && (
-                        <span className="text-xs text-orange-500 shrink-0 hidden sm:inline">({item.quantity} всего)</span>
-                      )}
-                      {repairQty > 0 && (
-                        <span className="text-xs text-yellow-600 shrink-0" title="В ремонте">
-                          🔧 {repairQty}
-                        </span>
-                      )}
-                      {item.watts && item.watts > 0 && (
-                        <span className="text-xs text-blue-600 shrink-0" title={`Мощность: ${item.watts} Вт`}>
-                          ⚡ {item.watts}Вт
-                        </span>
-                      )}
-                      {isLow && (
-                        <AlertCircle className="w-4 h-4 text-orange-500 shrink-0 hidden sm:block" />
-                      )}
-                      {item.notes && (
-                        <span className="hidden sm:inline text-xs text-muted-foreground truncate max-w-[200px]" title={item.notes}>
-                          {item.notes}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center justify-between sm:justify-end gap-1 pl-6 sm:pl-0">
-                      {item.notes && (
-                        <span className="text-xs text-muted-foreground truncate flex-1 sm:hidden" title={item.notes}>
-                          {item.notes}
-                        </span>
-                      )}
-                      <div className="flex items-center gap-1 shrink-0">
-                        {item.qr_code && onShowQRCode && (
+                      <div className="flex items-center justify-between sm:justify-end gap-1 pl-6 sm:pl-0">
+                        {item.notes && (
+                          <span className="text-xs text-muted-foreground truncate flex-1 sm:hidden" title={item.notes}>
+                            {item.notes}
+                          </span>
+                        )}
+                        <div className="flex items-center gap-1 shrink-0">
+                          {item.qr_code && onShowQRCode && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => onShowQRCode(item)}
+                              title="Показать QR-код"
+                              className="h-7 w-7 sm:h-8 sm:w-auto sm:px-2 p-0"
+                            >
+                              <span className="hidden sm:inline">📱</span>
+                              <span className="sm:hidden text-xs">📱</span>
+                            </Button>
+                          )}
+                          {item.track_items && onToggleInventoryItems && (
+                            <Button
+                              size="sm"
+                              variant={isItemsExpanded ? 'default' : 'outline'}
+                              onClick={() => onToggleInventoryItems(item.id)}
+                              title="Управление экземплярами"
+                              className="h-7 w-7 sm:h-8 sm:w-auto sm:px-2 p-0"
+                            >
+                              <span className="hidden sm:inline text-xs">📦 Экз.</span>
+                              <span className="sm:hidden text-xs">📦</span>
+                            </Button>
+                          )}
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => onShowQRCode(item)}
-                            title="Показать QR-код"
+                            onClick={() => onSendToRepair?.(category.id, item, category.name)}
+                            disabled={actualQty <= 0}
+                            title="Отправить в ремонт"
                             className="h-7 w-7 sm:h-8 sm:w-auto sm:px-2 p-0"
                           >
-                            <span className="hidden sm:inline">📱</span>
-                            <span className="sm:hidden text-xs">📱</span>
+                            <span className="hidden sm:inline">🔧</span>
+                            <span className="sm:hidden text-xs">🔧</span>
                           </Button>
-                        )}
-                        {item.track_items && onToggleInventoryItems && (
                           <Button
                             size="sm"
-                            variant="outline"
-                            onClick={() => onToggleInventoryItems(item.id)}
-                            title="Управление экземплярами"
-                            className="h-7 w-7 sm:h-8 sm:w-auto sm:px-2 p-0"
+                            variant="ghost"
+                            onClick={() => onEditInventory(item, category.name)}
+                            title="Редактировать"
+                            className="h-7 w-7 sm:h-8 p-0"
                           >
-                            <span className="hidden sm:inline text-xs">📦 Экз.</span>
-                            <span className="sm:hidden text-xs">📦</span>
+                            <Pencil className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-500" />
                           </Button>
-                        )}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => onSendToRepair?.(category.id, item, category.name)}
-                          disabled={actualQty <= 0}
-                          title="Отправить в ремонт"
-                          className="h-7 w-7 sm:h-8 sm:w-auto sm:px-2 p-0"
-                        >
-                          <span className="hidden sm:inline">🔧</span>
-                          <span className="sm:hidden text-xs">🔧</span>
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => onEditInventory(item, category.name)}
-                          title="Редактировать"
-                          className="h-7 w-7 sm:h-8 p-0"
-                        >
-                          <Pencil className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-500" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => onDeleteInventory(item.id!)}
-                          title="Удалить"
-                          className="h-7 w-7 sm:h-8 p-0"
-                        >
-                          <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-500" />
-                        </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => onDeleteInventory(item.id!)}
+                            title="Удалить"
+                            className="h-7 w-7 sm:h-8 p-0"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-500" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                    {/* Управление экземплярами */}
-                    {item.track_items && expandedInventory === item.id && companyId && (
-                      <div className="mt-2 pt-2 border-t border-dashed border-border/50">
+                    
+                    {/* Экземпляры — на всю ширину, за пределами строки группы */}
+                    {isItemsExpanded && companyId && (
+                      <div className="mt-1 pt-2 pb-2 px-2 bg-background border border-border/50 rounded-b-lg -mt-1">
                         <InventoryItemsManager
                           inventory={item}
                           companyId={companyId}
@@ -2904,7 +2908,7 @@ function CategoryItem({
                     )}
                   </div>
                 );
-              })}
+              })
             </div>
           )}
         </CardContent>
