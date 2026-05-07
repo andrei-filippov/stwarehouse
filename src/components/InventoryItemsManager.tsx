@@ -465,7 +465,7 @@ export default function InventoryItemsManager({ inventory, companyId, onRefresh 
 
       {/* Диалог добавления */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Добавить экземпляры</DialogTitle>
             <DialogDescription>
@@ -497,7 +497,7 @@ export default function InventoryItemsManager({ inventory, companyId, onRefresh 
 
       {/* Диалог редактирования */}
       <Dialog open={!!editingItem} onOpenChange={() => setEditingItem(null)}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Редактировать экземпляр</DialogTitle>
             <DialogDescription>QR: {editingItem?.qr_code}</DialogDescription>
@@ -541,7 +541,7 @@ export default function InventoryItemsManager({ inventory, companyId, onRefresh 
 
       {/* Диалог ремонта */}
       <Dialog open={!!repairItem} onOpenChange={() => { setRepairItem(null); setRepairReason(''); setRepairNotes(''); }}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Отправить в ремонт</DialogTitle>
             <DialogDescription>
