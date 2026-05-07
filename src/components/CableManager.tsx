@@ -4,6 +4,16 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from './ui/alert-dialog';
 import { Badge } from './ui/badge';
 import { Checkbox } from './ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
@@ -251,6 +261,9 @@ export const CableManager = memo(function CableManager({
   // Form states
   const [categoryForm, setCategoryForm] = useState({ name: '', description: '', color: '#3b82f6', parent_id: '' as string | undefined, type: 'other' as 'sound' | 'light' | 'other' });
   const [inventoryForm, setInventoryForm] = useState({ category_id: '', name: '', length: '', quantity: '', min_quantity: '0', watts: '', notes: '', track_items: false });
+  
+  // Состояние для подтверждения удаления
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; item: CableInventory | null }>({ open: false, item: null });
   const [expandedInventory, setExpandedInventory] = useState<string | null>(null); // Раскрытая группа для управления экземплярами
   
   // Repair dialog states
@@ -2414,6 +2427,38 @@ export const CableManager = memo(function CableManager({
   );
 });
 
+
+      {/* Диалог подтверждения удаления */}
+      <AlertDialog open={deleteConfirm.open} onOpenChange={(open) => setDeleteConfirm({ open, item: open ? deleteConfirm.item : null })}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Удалить оборудование?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteConfirm.item?.name || 'Это оборудование'} будет удалено безвозвратно.
+              {deleteConfirm.item?.track_items && ' Все экземпляры этой группы также будут удалены.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeleteConfirm({ open: false, item: null })}>
+              Отмена
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (deleteConfirm.item) {
+                  const result = await onDeleteInventory(deleteConfirm.item.id!);
+                  if (!result.error) {
+                    toast.success('Оборудование удалено');
+                  }
+                  setDeleteConfirm({ open: false, item: null });
+                }
+              }}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Удалить
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 // Компонент для сортируемой категории (drag-and-drop)
 interface SortableCategoryItemProps {
   category: CableCategory & { children?: CableCategory[] };
@@ -2915,7 +2960,7 @@ function CategoryItem({
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() => onDeleteInventory(item.id!)}
+                          onClick={() => setDeleteConfirm({ open: true, item })}
                           title="Удалить"
                           className="h-7 w-7 sm:h-8 p-0"
                         >
