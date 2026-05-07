@@ -619,28 +619,47 @@ export function useCableInventory(companyId: string | undefined) {
       // Считаем инвентарь для всех категорий
       inventory.forEach(item => {
         if (allIds.includes(item.category_id)) {
-          result[cat.id].totalLength += (item.length || 0) * item.quantity;
-          result[cat.id].totalQty += item.quantity;
+          if (item.track_items && inventoryItems.length > 0) {
+            // При track_items считаем из inventory_items
+            const itemInstances = inventoryItems.filter(ii => ii.inventory_id === item.id);
+            const availableCount = itemInstances.filter(ii => ii.status === 'available').length;
+            const issuedCount = itemInstances.filter(ii => ii.status === 'issued').length;
+            const repairCount = itemInstances.filter(ii => ii.status === 'repair').length;
+            
+            result[cat.id].totalLength += (item.length || 0) * itemInstances.length;
+            result[cat.id].totalQty += itemInstances.length;
+            result[cat.id].issuedQty += issuedCount;
+            result[cat.id].repairQty += repairCount;
+          } else {
+            // Обычный режим — считаем из cable_inventory
+            result[cat.id].totalLength += (item.length || 0) * item.quantity;
+            result[cat.id].totalQty += item.quantity;
+          }
         }
       });
       
-      // Считаем выданное для всех категорий
-      movements
-        .filter(m => m.is_returned !== true && allIds.includes(m.category_id))
-        .forEach(m => {
-          result[cat.id].issuedQty += m.quantity;
-        });
-      
-      // Считаем в ремонте для всех категорий
-      repairs
-        .filter(r => r.status === 'in_repair' && allIds.includes(r.category_id))
-        .forEach(r => {
-          result[cat.id].repairQty += r.quantity;
+      // Для не-track_items считаем выданное/ремонт из movements/repairs
+      inventory
+        .filter(item => allIds.includes(item.category_id) && !item.track_items)
+        .forEach(item => {
+          movements
+            .filter(m => m.is_returned !== true && m.category_id === item.category_id)
+            .filter(m => item.name ? m.equipment_name === item.name : m.length === item.length)
+            .forEach(m => {
+              result[cat.id].issuedQty += m.quantity;
+            });
+          
+          repairs
+            .filter(r => r.status === 'in_repair' && r.category_id === item.category_id)
+            .filter(r => item.name ? r.equipment_name === item.name : r.length === item.length)
+            .forEach(r => {
+              result[cat.id].repairQty += r.quantity;
+            });
         });
     });
     
     return result;
-  }, [inventory, movements, repairs, categories, getAllCategoryIds]);
+  }, [inventory, inventoryItems, movements, repairs, categories, getAllCategoryIds]);
 
   return {
     categories,

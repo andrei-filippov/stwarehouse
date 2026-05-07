@@ -31,6 +31,7 @@ import {
   ArrowRightLeft
 } from 'lucide-react';
 import type { CableCategory, CableInventory, CableMovement, EquipmentRepair } from '../types';
+import type { InventoryItem } from '../types/inventoryItem';
 import type { EquipmentKit } from '../types/checklist';
 import { REPAIR_STATUSES, getRepairStatusLabel, getRepairStatusColor } from '../types';
 import { CABLE_COLORS } from '../types/cable';
@@ -77,6 +78,7 @@ interface CableManagerProps {
   inventory: CableInventory[];
   movements: CableMovement[];
   repairs: EquipmentRepair[];
+  inventoryItems?: InventoryItem[];
   stats: Record<string, { totalLength: number; totalQty: number; issuedQty: number; repairQty: number }>;
   loading?: boolean;
   onAddCategory: (data: Omit<CableCategory, 'id' | 'created_at' | 'updated_at' | 'user_id'>) => Promise<{ error: any }>;
@@ -123,6 +125,7 @@ export const CableManager = memo(function CableManager({
   categories,
   inventory,
   movements,
+  inventoryItems: propInventoryItems = [],
   repairs,
   stats,
   loading,
@@ -1289,6 +1292,7 @@ export const CableManager = memo(function CableManager({
               onToggleInventoryItems={(id) => setExpandedInventory(prev => prev === id ? null : id)}
               companyId={companyId}
               onRefresh={onRefresh}
+              inventoryItems={propInventoryItems}
             />
           )}
           
@@ -2442,6 +2446,8 @@ interface SortableCategoryItemProps {
   onToggleInventoryItems?: (id: string) => void;
   companyId?: string;
   onRefresh?: () => void;
+  // Для подсчета из inventory_items
+  inventoryItems?: InventoryItem[];
 }
 
 function SortableCategoryItem({
@@ -2473,6 +2479,7 @@ function SortableCategoryItem({
   onToggleInventoryItems,
   companyId,
   onRefresh,
+  inventoryItems = [],
 }: SortableCategoryItemProps) {
   const {
     attributes,
@@ -2521,6 +2528,7 @@ function SortableCategoryItem({
         onToggleInventoryItems={onToggleInventoryItems}
         companyId={companyId}
         onRefresh={onRefresh}
+        inventoryItems={inventoryItems}
       />
     </div>
   );
@@ -2558,6 +2566,8 @@ interface CategoryItemProps {
   onToggleInventoryItems?: (id: string) => void;
   companyId?: string;
   onRefresh?: () => void;
+  // Для подсчета из inventory_items
+  inventoryItems?: InventoryItem[];
 }
 
 function CategoryItem({
@@ -2589,6 +2599,7 @@ function CategoryItem({
   onToggleInventoryItems,
   companyId,
   onRefresh,
+  inventoryItems = [],
 }: CategoryItemProps) {
   const catInventory = inventory.filter(i => i.category_id === category.id).sort((a, b) => (a.length || 0) - (b.length || 0));
   const catStats = stats[category.id] || { totalLength: 0, totalQty: 0, issuedQty: 0, repairQty: 0 };
@@ -2751,9 +2762,23 @@ function CategoryItem({
               {catInventory.map(item => {
                 const isSelected = selectedItems.some(i => i.inventory_id === item.id);
                 const minQty = item.min_quantity ?? 0;
-                const issuedQty = getIssuedQtyForItem(category.id, item.length || 0, item.name);
-                const repairQty = getRepairQtyForItem(category.id, item.length || 0, item.name);
-                const actualQty = item.quantity - issuedQty - repairQty;
+                
+                // При track_items считаем из inventory_items, иначе из movements/repairs
+                let issuedQty = 0;
+                let repairQty = 0;
+                let actualQty = 0;
+                
+                if (item.track_items && inventoryItems.length > 0) {
+                  const itemInstances = inventoryItems.filter(ii => ii.inventory_id === item.id);
+                  issuedQty = itemInstances.filter(ii => ii.status === 'issued').length;
+                  repairQty = itemInstances.filter(ii => ii.status === 'repair').length;
+                  actualQty = itemInstances.filter(ii => ii.status === 'available').length;
+                } else {
+                  issuedQty = getIssuedQtyForItem(category.id, item.length || 0, item.name);
+                  repairQty = getRepairQtyForItem(category.id, item.length || 0, item.name);
+                  actualQty = item.quantity - issuedQty - repairQty;
+                }
+                
                 const isLow = minQty > 0 && actualQty < minQty;
                 
                 return (
@@ -2786,28 +2811,34 @@ function CategoryItem({
                       ) : (
                         <span className="font-medium w-14 sm:w-16 text-sm sm:text-base">{item.length} м</span>
                       )}
-                      <div className="flex items-center gap-1 shrink-0">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                          onClick={() => onUpdateInventoryQty(item.id!, item.quantity - 1, item.length || 0)}
-                          disabled={item.quantity <= 0}
-                        >
-                          -
-                        </Button>
-                        <span className={`text-sm w-8 sm:w-10 text-center ${isLow ? 'text-orange-600 font-medium' : 'text-muted-foreground'}`}>
+                      {item.track_items ? (
+                        <span className={`text-sm w-8 sm:w-10 text-center font-medium ${isLow ? 'text-orange-600' : 'text-muted-foreground'}`}>
                           {actualQty}
                         </span>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                          onClick={() => onUpdateInventoryQty(item.id!, item.quantity + 1, item.length || 0)}
-                        >
-                          +
-                        </Button>
-                      </div>
+                      ) : (
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => onUpdateInventoryQty(item.id!, item.quantity - 1, item.length || 0)}
+                            disabled={item.quantity <= 0}
+                          >
+                            -
+                          </Button>
+                          <span className={`text-sm w-8 sm:w-10 text-center ${isLow ? 'text-orange-600 font-medium' : 'text-muted-foreground'}`}>
+                            {actualQty}
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => onUpdateInventoryQty(item.id!, item.quantity + 1, item.length || 0)}
+                          >
+                            +
+                          </Button>
+                        </div>
+                      )}
                       {issuedQty > 0 && (
                         <span className="text-xs text-orange-500 shrink-0 hidden sm:inline">({item.quantity} всего)</span>
                       )}
@@ -2975,6 +3006,8 @@ interface CategoryListProps {
   selectedInventoryIds?: Set<string>;
   onSelectInventory?: (id: string, selected: boolean) => void;
   onSelectAllInCategory?: (categoryId: string, selected: boolean) => void;
+  // Для подсчета из inventory_items
+  inventoryItems?: InventoryItem[];
 }
 
 function CategoryList({
@@ -3006,6 +3039,7 @@ function CategoryList({
   onToggleInventoryItems,
   companyId,
   onRefresh,
+  inventoryItems = [],
 }: CategoryListProps) {
   // Для корневого уровня используем DndContext если есть onReorderCategories
   const isRootLevel = level === 0;
@@ -3069,6 +3103,7 @@ function CategoryList({
           onToggleInventoryItems={onToggleInventoryItems}
           companyId={companyId}
           onRefresh={onRefresh}
+          inventoryItems={inventoryItems}
         />
       );
     }
@@ -3103,6 +3138,7 @@ function CategoryList({
         onToggleInventoryItems={onToggleInventoryItems}
         companyId={companyId}
         onRefresh={onRefresh}
+        inventoryItems={inventoryItems}
       />
     );
   };

@@ -402,7 +402,7 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
   const { staff, loading: staffLoading, addStaff, updateStaff, deleteStaff } = useStaff(companyId);
   const { tasks, loading: goalsLoading, addTask, updateTask, deleteTask } = useGoals(companyId);
   const { customers, loading: customersLoading, error: customersError, addCustomer, updateCustomer, deleteCustomer } = useCustomers(companyId);
-  const { categories: cableCategories, inventory: cableInventory, movements: cableMovements, repairs: cableRepairs, stats: cableStats, loading: cableLoading, addCategory: addCableCategory, updateCategory: updateCableCategory, deleteCategory: deleteCableCategory, reorderCategories: reorderCableCategories,
+  const { categories: cableCategories, inventory: cableInventory, movements: cableMovements, repairs: cableRepairs, inventoryItems: cableInventoryItems, stats: cableStats, loading: cableLoading, addCategory: addCableCategory, updateCategory: updateCableCategory, deleteCategory: deleteCableCategory, reorderCategories: reorderCableCategories,
 importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInventory, updateInventoryQty: updateCableInventoryQty, deleteInventory: deleteCableInventory, issueCable, returnCable, sendToRepair, updateRepairStatus, deleteRepair, refresh: refreshCableInventory } = useCableInventory(companyId);
   const { expenses, loading: expensesLoading, addExpense, updateExpense, deleteExpense } = useExpenses(companyId);
   const { records: salaryRecords, loading: salaryLoading, addOrUpdateRecord: addOrUpdateSalary, deleteRecord: deleteSalary } = useSalary(companyId);
@@ -727,6 +727,7 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
                 inventory={cableInventory}
                 movements={cableMovements}
                 repairs={cableRepairs}
+                inventoryItems={cableInventoryItems}
                 stats={cableStats}
                 loading={cableLoading}
                 onAddCategory={addCableCategory}
