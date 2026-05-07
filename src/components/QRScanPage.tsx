@@ -22,12 +22,16 @@ import {
   Keyboard,
   Camera,
   Monitor,
-  Smartphone
+  Smartphone,
+  RotateCcw,
+  AlertTriangle
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
 import type { CableInventory, EquipmentKit, CableCategory } from '../types';
 import type { ChecklistV2 } from '../types/checklist';
+import type { InventoryItem, ItemComment, ItemHistory } from '../types/inventoryItem';
+import { getItemStatusLabel, getItemStatusColor, getItemConditionLabel } from '../types/inventoryItem';
 import { useUrlScanCode, clearUrlScanCode } from '../hooks/useUrlScanCode';
 import { logger } from '../lib/logger';
 
@@ -42,6 +46,7 @@ interface QRScanPageProps {
 
 type ScanResult = 
   | { type: 'inventory'; data: CableInventory; category?: CableCategory; stats?: { inStock: number; issued: number; reserved: number; inRepair: number } }
+  | { type: 'inventory_item'; data: InventoryItem; inventory?: CableInventory; category?: CableCategory; history?: ItemHistory[]; comments?: ItemComment[] }
   | { type: 'kit'; data: EquipmentKit }
   | { type: 'not_found'; qrCode: string }
   | null;
@@ -60,8 +65,12 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
   const [isScanning, setIsScanning] = useState(!effectiveInitialCode); // Если есть initialCode - не сканируем
   const [scanResult, setScanResult] = useState<ScanResult>(null);
   const [inventory, setInventory] = useState<CableInventory[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [kits, setKits] = useState<EquipmentKit[]>([]);
   const [loading, setLoading] = useState(true);
+  const [itemComments, setItemComments] = useState<Record<string, ItemComment[]>>({});
+  const [itemHistory, setItemHistory] = useState<Record<string, ItemHistory[]>>({});
+  const [newComment, setNewComment] = useState('');
   
   // Диалоги быстрых действий
   const [activeAction, setActiveAction] = useState<QuickAction>(null);
@@ -90,6 +99,23 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
         .eq('company_id', companyId);
       
       if (invData) setInventory(invData);
+      
+      // Загружаем экземпляры
+      const { data: itemsData } = await supabase
+        .from('inventory_items')
+        .select(`
+          *,
+          cable_inventory!inner(name, category_id)
+        `)
+        .eq('company_id', companyId);
+      
+      if (itemsData) {
+        setInventoryItems(itemsData.map((item: any) => ({
+          ...item,
+          inventory_name: item.cable_inventory?.name,
+          inventory_category_id: item.cable_inventory?.category_id,
+        })));
+      }
       
       // Загружаем комплекты с items и названиями оборудования
       const { data: kitsData } = await supabase
@@ -229,6 +255,38 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
     return input.toUpperCase();
   };
 
+  const fetchItemDetails = async (item: InventoryItem) => {
+    // Загружаем историю
+    const [movementsRes, repairsRes, commentsRes] = await Promise.all([
+      supabase.from('cable_movements').select('*').eq('item_id', item.id).order('created_at', { ascending: false }),
+      supabase.from('equipment_repairs').select('*').eq('item_id', item.id).order('created_at', { ascending: false }),
+      supabase.from('item_comments').select('*, profiles:author_id(name)').eq('item_id', item.id).order('created_at', { ascending: false }),
+    ]);
+
+    const history: ItemHistory[] = [];
+    (movementsRes.data || []).forEach((m: any) => {
+      history.push({
+        type: m.type === 'issue' ? 'issue' : 'return',
+        date: m.created_at,
+        description: m.type === 'issue' ? `Выдано — ${m.issued_to}` : 'Возврат',
+        author: m.issued_by_name,
+        details: m.notes,
+      });
+    });
+    (repairsRes.data || []).forEach((r: any) => {
+      history.push({
+        type: 'repair',
+        date: r.created_at,
+        description: `Ремонт: ${r.reason}`,
+        details: r.status === 'returned' ? 'Возвращено после ремонта' : r.status === 'written_off' ? 'Списано' : 'В ремонте',
+      });
+    });
+
+    const comments = (commentsRes.data || []).map((c: any) => ({ ...c, author_name: c.profiles?.name }));
+
+    return { history: history.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()), comments };
+  };
+
   const handleScan = async (qrCode: string) => {
     logger.debug('[QRScan] handleScan STARTED, input:', qrCode, 'current scanResult:', scanResult?.type);
     
@@ -236,7 +294,30 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
     const cleanCode = extractQRCode(qrCode);
     logger.debug('[QRScan] Clean code:', cleanCode);
     
-    // Ищем комплект (case-insensitive)
+    // 1. Ищем экземпляр (case-insensitive) — ПРИОРИТЕТ
+    const invItem = inventoryItems.find(i => i.qr_code?.toUpperCase() === cleanCode);
+    if (invItem) {
+      logger.debug('[QRScan] Found inventory item:', invItem.qr_code);
+      const inventoryGroup = inventory.find(i => i.id === invItem.inventory_id);
+      const category = categories.find(c => c.id === inventoryGroup?.category_id);
+      
+      const { history, comments } = await fetchItemDetails(invItem);
+      setItemComments(prev => ({ ...prev, [invItem.id]: comments }));
+      setItemHistory(prev => ({ ...prev, [invItem.id]: history }));
+      
+      setScanResult({ 
+        type: 'inventory_item', 
+        data: invItem, 
+        inventory: inventoryGroup,
+        category,
+        history,
+        comments,
+      });
+      setIsScanning(false);
+      return;
+    }
+    
+    // 2. Ищем комплект (case-insensitive)
     const kit = kits.find(k => k.qr_code?.toUpperCase() === cleanCode);
     if (kit) {
       logger.debug('[QRScan] Found kit:', kit.name);
@@ -245,7 +326,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
       return;
     }
     
-    // Ищем оборудование (case-insensitive)
+    // 3. Ищем оборудование/группу (case-insensitive)
     const item = inventory.find(i => i.qr_code?.toUpperCase() === cleanCode);
     logger.debug('[QRScan] Inventory search:', { found: !!item, totalItems: inventory.length, itemId: item?.id });
     if (item) {
@@ -270,7 +351,6 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
             .eq('inventory_id', item.id)
             .not('status', 'eq', 'returned'),
           // Запрос резервов из смет - активные (не закончившиеся) мероприятия
-          // Прямой запрос по equipment_id без join (связь не настроена в схеме)
           supabase
             .from('estimate_items')
             .select('quantity, estimates!inner(event_date, event_end_date, company_id)')
@@ -927,6 +1007,398 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
                   <ArrowUpRight className="w-4 h-4 mr-2" />
                 )}
                 Выдать комплект
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+    );
+  }
+
+  // Результат сканирования - конкретный экземпляр
+  if (scanResult?.type === 'inventory_item') {
+    const item = scanResult.data;
+    const inventory = scanResult.inventory;
+    const category = scanResult.category;
+    const history = scanResult.history || [];
+    const comments = scanResult.comments || [];
+    
+    const handleIssueItem = async () => {
+      if (!issueForm.issued_to.trim()) {
+        toast.error('Укажите, кому выдаётся оборудование');
+        return;
+      }
+      setSubmitting(true);
+      try {
+        const { getCurrentUserDisplayName } = await import('../lib/utils');
+        const issuerName = await getCurrentUserDisplayName();
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        const { error } = await supabase.from('cable_movements').insert({
+          company_id: companyId,
+          category_id: inventory?.category_id || '',
+          inventory_id: item.inventory_id,
+          item_id: item.id,
+          equipment_name: inventory?.name || 'Оборудование',
+          quantity: 1,
+          issued_to: issueForm.issued_to,
+          contact: issueForm.contact || undefined,
+          issued_by: user?.id,
+          issued_by_name: issuerName,
+          type: 'issue'
+        });
+        
+        if (error) throw error;
+        
+        // Обновляем статус экземпляра
+        await supabase.from('inventory_items').update({ status: 'issued' }).eq('id', item.id);
+        
+        toast.success('Экземпляр выдан');
+        setActiveAction(null);
+        setIssueForm({ issued_to: '', contact: '', quantity: 1 });
+        handleScanAgain();
+      } catch (err: any) {
+        toast.error('Ошибка при выдаче', { description: err.message });
+      }
+      setSubmitting(false);
+    };
+    
+    const handleRepairItem = async () => {
+      if (!repairForm.reason.trim()) {
+        toast.error('Укажите причину ремонта');
+        return;
+      }
+      setSubmitting(true);
+      try {
+        const { error } = await supabase.from('equipment_repairs').insert({
+          company_id: companyId,
+          category_id: inventory?.category_id || '',
+          inventory_id: item.inventory_id,
+          item_id: item.id,
+          equipment_name: inventory?.name || 'Оборудование',
+          quantity: 1,
+          reason: repairForm.reason,
+          notes: repairForm.notes || undefined,
+          status: 'in_repair',
+          sent_date: new Date().toISOString().split('T')[0],
+        });
+        
+        if (error) throw error;
+        
+        await supabase.from('inventory_items').update({ status: 'repair' }).eq('id', item.id);
+        
+        toast.success('Экземпляр отправлен в ремонт');
+        setActiveAction(null);
+        setRepairForm({ reason: '', quantity: 1, notes: '' });
+        handleScanAgain();
+      } catch (err: any) {
+        toast.error('Ошибка при отправке в ремонт', { description: err.message });
+      }
+      setSubmitting(false);
+    };
+    
+    const handleReturnItem = async () => {
+      setSubmitting(true);
+      try {
+        // Находим активное движение
+        const { data: movements } = await supabase
+          .from('cable_movements')
+          .select('*')
+          .eq('item_id', item.id)
+          .eq('type', 'issue')
+          .eq('is_returned', false)
+          .order('created_at', { ascending: false })
+          .limit(1);
+        
+        if (movements && movements.length > 0) {
+          await supabase.from('cable_movements').update({
+            is_returned: true,
+            returned_quantity: 1,
+            returned_at: new Date().toISOString(),
+          }).eq('id', movements[0].id);
+        }
+        
+        await supabase.from('inventory_items').update({ status: 'available' }).eq('id', item.id);
+        
+        toast.success('Экземпляр возвращён на склад');
+        handleScanAgain();
+      } catch (err: any) {
+        toast.error('Ошибка при возврате', { description: err.message });
+      }
+      setSubmitting(false);
+    };
+    
+    const handleAddComment = async () => {
+      if (!newComment.trim()) return;
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        const { data, error } = await supabase.from('item_comments').insert({
+          item_id: item.id,
+          author_id: user?.id,
+          text: newComment.trim(),
+        }).select().single();
+        
+        if (error) throw error;
+        setItemComments(prev => ({ ...prev, [item.id]: [data, ...(prev[item.id] || [])] }));
+        setNewComment('');
+        toast.success('Комментарий добавлен');
+      } catch (err: any) {
+        toast.error('Ошибка', { description: err.message });
+      }
+    };
+    
+    return (
+      <div className="space-y-4 max-w-6xl mx-auto">
+        {/* Шапка */}
+        <div className="flex items-center justify-between">
+          <Button variant="ghost" onClick={handleScanAgain}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Новое сканирование
+          </Button>
+          <Badge variant="outline">
+            <Package className="w-3 h-3 mr-1" />
+            {inventory?.name || 'Оборудование'}
+          </Badge>
+        </div>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Левая колонка */}
+          <div className="lg:col-span-2 space-y-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-xl">
+                  <Package className="w-6 h-6 text-primary" />
+                  Экземпляр {item.qr_code}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex gap-2 flex-wrap">
+                  <Badge className={getItemStatusColor(item.status)}>
+                    {getItemStatusLabel(item.status)}
+                  </Badge>
+                  <Badge variant="outline">{getItemConditionLabel(item.condition)}</Badge>
+                </div>
+                
+                {item.serial_number && (
+                  <div className="p-3 bg-muted rounded-lg">
+                    <span className="text-sm text-muted-foreground">Серийный номер:</span>
+                    <span className="font-medium ml-2">{item.serial_number}</span>
+                  </div>
+                )}
+                
+                {item.notes && (
+                  <div className="p-3 bg-muted rounded-lg">
+                    <span className="text-sm text-muted-foreground">Комментарий:</span>
+                    <p className="font-medium">{item.notes}</p>
+                  </div>
+                )}
+                
+                {/* История */}
+                <div className="border-t pt-4">
+                  <h4 className="font-medium mb-3">История</h4>
+                  {history.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-4 bg-muted rounded-lg">Нет записей</p>
+                  ) : (
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                      {history.map((h, idx) => (
+                        <div key={idx} className={`p-3 rounded-lg ${
+                          h.type === 'issue' ? 'bg-blue-50' : 
+                          h.type === 'return' ? 'bg-green-50' : 
+                          h.type === 'repair' ? 'bg-red-50' : 'bg-gray-50'
+                        }`}>
+                          <div className="flex justify-between">
+                            <span className="font-medium text-sm">{h.description}</span>
+                            <span className="text-xs text-muted-foreground">{new Date(h.date).toLocaleDateString('ru-RU')}</span>
+                          </div>
+                          {h.author && <p className="text-xs text-muted-foreground">{h.author}</p>}
+                          {h.details && <p className="text-xs text-muted-foreground">{h.details}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                
+                {/* Комментарии */}
+                <div className="border-t pt-4">
+                  <h4 className="font-medium mb-3">Комментарии</h4>
+                  <div className="flex gap-2 mb-3">
+                    <Input
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      placeholder="Добавить комментарий..."
+                      onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
+                    />
+                    <Button size="sm" onClick={handleAddComment}>Добавить</Button>
+                  </div>
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {(itemComments[item.id] || comments).length === 0 ? (
+                      <p className="text-sm text-muted-foreground">Нет комментариев</p>
+                    ) : (
+                      (itemComments[item.id] || comments).map((c: any) => (
+                        <div key={c.id} className="text-sm bg-muted p-2 rounded">
+                          <div className="flex justify-between text-xs text-muted-foreground">
+                            <span>{c.author_name || 'Аноним'}</span>
+                            <span>{new Date(c.created_at).toLocaleDateString('ru-RU')}</span>
+                          </div>
+                          <div>{c.text}</div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          
+          {/* Правая колонка: быстрые действия */}
+          <div className="space-y-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Быстрые действия</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {item.status === 'available' && (
+                  <>
+                    <Button 
+                      variant="default" 
+                      className="w-full justify-start h-auto py-3 px-4"
+                      onClick={() => setActiveAction('issue')}
+                    >
+                      <div className="w-10 h-10 bg-primary/20 rounded-lg flex items-center justify-center mr-3">
+                        <ArrowUpRight className="w-5 h-5 text-primary" />
+                      </div>
+                      <div className="text-left">
+                        <p className="font-medium">Выдать</p>
+                        <p className="text-xs text-muted-foreground">Выдать этот экземпляр</p>
+                      </div>
+                    </Button>
+                    
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-start h-auto py-3 px-4 border-yellow-500/30"
+                      onClick={() => setActiveAction('repair')}
+                    >
+                      <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center mr-3">
+                        <Wrench className="w-5 h-5 text-yellow-600" />
+                      </div>
+                      <div className="text-left">
+                        <p className="font-medium">В ремонт</p>
+                        <p className="text-xs text-muted-foreground">Отправить на ремонт</p>
+                      </div>
+                    </Button>
+                  </>
+                )}
+                
+                {item.status === 'issued' && (
+                  <Button 
+                    variant="default" 
+                    className="w-full justify-start h-auto py-3 px-4"
+                    onClick={handleReturnItem}
+                    disabled={submitting}
+                  >
+                    <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mr-3">
+                      <CheckCircle2 className="w-5 h-5 text-green-600" />
+                    </div>
+                    <div className="text-left">
+                      <p className="font-medium">Вернуть на склад</p>
+                      <p className="text-xs text-muted-foreground">Отметить возврат</p>
+                    </div>
+                  </Button>
+                )}
+                
+                {item.status === 'repair' && (
+                  <Button 
+                    variant="default" 
+                    className="w-full justify-start h-auto py-3 px-4"
+                    onClick={handleReturnItem}
+                    disabled={submitting}
+                  >
+                    <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mr-3">
+                      <RotateCcw className="w-5 h-5 text-green-600" />
+                    </div>
+                    <div className="text-left">
+                      <p className="font-medium">Вернуть из ремонта</p>
+                      <p className="text-xs text-muted-foreground">На склад</p>
+                    </div>
+                  </Button>
+                )}
+                
+                {item.status === 'written_off' && (
+                  <div className="p-4 bg-gray-100 rounded-lg text-center">
+                    <AlertTriangle className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                    <p className="text-sm text-gray-500">Экземпляр списан</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+        
+        {/* Диалог выдачи экземпляра */}
+        <Dialog open={activeAction === 'issue'} onOpenChange={() => setActiveAction(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Выдача экземпляра</DialogTitle>
+              <DialogDescription>{item.qr_code}</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label>Кому выдаётся *</Label>
+                <Input
+                  placeholder="ФИО или организация"
+                  value={issueForm.issued_to}
+                  onChange={(e) => setIssueForm({ ...issueForm, issued_to: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Контакт</Label>
+                <Input
+                  placeholder="Телефон или email"
+                  value={issueForm.contact}
+                  onChange={(e) => setIssueForm({ ...issueForm, contact: e.target.value })}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setActiveAction(null)}>Отмена</Button>
+              <Button onClick={handleIssueItem} disabled={submitting || !issueForm.issued_to.trim()}>
+                {submitting ? <div className="animate-spin h-4 w-4 border-2 border-white rounded-full mr-2" /> : <ArrowUpRight className="w-4 h-4 mr-2" />}
+                Выдать
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        
+        {/* Диалог ремонта экземпляра */}
+        <Dialog open={activeAction === 'repair'} onOpenChange={() => setActiveAction(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Ремонт экземпляра</DialogTitle>
+              <DialogDescription>{item.qr_code}</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label>Причина *</Label>
+                <Input
+                  placeholder="Что сломалось?"
+                  value={repairForm.reason}
+                  onChange={(e) => setRepairForm({ ...repairForm, reason: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Примечания</Label>
+                <Input
+                  placeholder="Дополнительная информация"
+                  value={repairForm.notes || ''}
+                  onChange={(e) => setRepairForm({ ...repairForm, notes: e.target.value })}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setActiveAction(null)}>Отмена</Button>
+              <Button onClick={handleRepairItem} disabled={submitting || !repairForm.reason.trim()}>
+                {submitting ? <div className="animate-spin h-4 w-4 border-2 border-white rounded-full mr-2" /> : <Wrench className="w-4 h-4 mr-2" />}
+                В ремонт
               </Button>
             </DialogFooter>
           </DialogContent>

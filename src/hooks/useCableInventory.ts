@@ -3,12 +3,14 @@ import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
 import { getCurrentUserDisplayName } from '../lib/utils';
 import type { CableCategory, CableInventory, CableMovement, EquipmentRepair } from '../types';
+import type { InventoryItem } from '../types/inventoryItem';
 
 export function useCableInventory(companyId: string | undefined) {
   const [categories, setCategories] = useState<CableCategory[]>([]);
   const [inventory, setInventory] = useState<CableInventory[]>([]);
   const [movements, setMovements] = useState<CableMovement[]>([]);
   const [repairs, setRepairs] = useState<EquipmentRepair[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(false);
 
   const fetchCategories = useCallback(async () => {
@@ -39,6 +41,29 @@ export function useCableInventory(companyId: string | undefined) {
       toast.error('Ошибка при загрузке инвентаря', { description: error.message });
     } else {
       setInventory(data || []);
+    }
+  }, [companyId]);
+
+  const fetchInventoryItems = useCallback(async () => {
+    if (!companyId) return;
+    
+    const { data, error } = await supabase
+      .from('inventory_items')
+      .select(`
+        *,
+        cable_inventory!inner(name, category_id)
+      `)
+      .eq('company_id', companyId);
+    
+    if (error) {
+      console.error('Error fetching inventory items:', error);
+    } else {
+      const mapped = (data || []).map((item: any) => ({
+        ...item,
+        inventory_name: item.cable_inventory?.name,
+        inventory_category_id: item.cable_inventory?.category_id,
+      }));
+      setInventoryItems(mapped);
     }
   }, [companyId]);
 
@@ -220,6 +245,7 @@ export function useCableInventory(companyId: string | undefined) {
     try {
       const displayName = await getCurrentUserDisplayName();
       const { data: { user } } = await supabase.auth.getUser();
+      
       const { error } = await supabase
         .from('cable_movements')
         .insert({ 
@@ -232,29 +258,40 @@ export function useCableInventory(companyId: string | undefined) {
 
       if (error) throw error;
 
+      // Если поштучная выдача — обновляем статус экземпляра
+      if (movement.item_id) {
+        await supabase
+          .from('inventory_items')
+          .update({ status: 'issued', updated_at: new Date().toISOString() })
+          .eq('id', movement.item_id)
+          .eq('company_id', companyId);
+      }
+
       await fetchMovements();
       await fetchInventory();
+      await fetchInventoryItems();
       toast.success('Выдано');
       return { error: null };
     } catch (err: any) {
       toast.error('Ошибка при выдаче', { description: err.message });
       return { error: err };
     }
-  }, [companyId, fetchMovements, fetchInventory]);
+  }, [companyId, fetchMovements, fetchInventory, fetchInventoryItems]);
 
   const returnCable = useCallback(async (movementId: string, returnedQty?: number) => {
     if (!companyId) return { error: new Error('No company selected') };
     
     try {
-      // Если количество не указано - получаем полное количество из движения
+      // Получаем информацию о движении (включая item_id)
+      const { data: movement } = await supabase
+        .from('cable_movements')
+        .select('quantity, item_id')
+        .eq('id', movementId)
+        .eq('company_id', companyId)
+        .single();
+      
       let qty = returnedQty;
       if (qty === undefined) {
-        const { data: movement } = await supabase
-          .from('cable_movements')
-          .select('quantity')
-          .eq('id', movementId)
-          .eq('company_id', companyId)
-          .single();
         qty = movement?.quantity || 0;
       }
       
@@ -270,15 +307,25 @@ export function useCableInventory(companyId: string | undefined) {
 
       if (error) throw error;
 
+      // Если поштучный возврат — обновляем статус экземпляра
+      if (movement?.item_id) {
+        await supabase
+          .from('inventory_items')
+          .update({ status: 'available', updated_at: new Date().toISOString() })
+          .eq('id', movement.item_id)
+          .eq('company_id', companyId);
+      }
+
       await fetchMovements();
       await fetchInventory();
+      await fetchInventoryItems();
       toast.success('Возвращено');
       return { error: null };
     } catch (err: any) {
       toast.error('Ошибка при возврате', { description: err.message });
       return { error: err };
     }
-  }, [companyId, fetchMovements, fetchInventory]);
+  }, [companyId, fetchMovements, fetchInventory, fetchInventoryItems]);
 
   // ===== Функции для работы с ремонтом =====
   const fetchRepairs = useCallback(async () => {
@@ -307,20 +354,38 @@ export function useCableInventory(companyId: string | undefined) {
 
       if (error) throw error;
 
+      // Если поштучный ремонт — обновляем статус экземпляра
+      if (repair.item_id) {
+        await supabase
+          .from('inventory_items')
+          .update({ status: 'repair', updated_at: new Date().toISOString() })
+          .eq('id', repair.item_id)
+          .eq('company_id', companyId);
+      }
+
       await fetchRepairs();
       await fetchInventory();
+      await fetchInventoryItems();
       toast.success('Оборудование отправлено в ремонт');
       return { error: null };
     } catch (err: any) {
       toast.error('Ошибка при отправке в ремонт', { description: err.message });
       return { error: err };
     }
-  }, [companyId, fetchRepairs, fetchInventory]);
+  }, [companyId, fetchRepairs, fetchInventory, fetchInventoryItems]);
 
   const updateRepairStatus = useCallback(async (repairId: string, status: EquipmentRepair['status'], returnedDate?: string) => {
     if (!companyId) return { error: new Error('No company selected') };
     
     try {
+      // Получаем item_id для обновления статуса экземпляра
+      const { data: repair } = await supabase
+        .from('equipment_repairs')
+        .select('item_id')
+        .eq('id', repairId)
+        .eq('company_id', companyId)
+        .single();
+
       const updates: any = { status };
       if (returnedDate) updates.returned_date = returnedDate;
       
@@ -332,14 +397,26 @@ export function useCableInventory(companyId: string | undefined) {
 
       if (error) throw error;
 
+      // Обновляем статус экземпляра если ремонт завершён
+      if (repair?.item_id) {
+        const itemStatus = status === 'returned' ? 'available' : 
+                          status === 'written_off' ? 'written_off' : 'repair';
+        await supabase
+          .from('inventory_items')
+          .update({ status: itemStatus, updated_at: new Date().toISOString() })
+          .eq('id', repair.item_id)
+          .eq('company_id', companyId);
+      }
+
       await fetchRepairs();
+      await fetchInventoryItems();
       toast.success('Статус ремонта обновлён');
       return { error: null };
     } catch (err: any) {
       toast.error('Ошибка при обновлении', { description: err.message });
       return { error: err };
     }
-  }, [companyId, fetchRepairs]);
+  }, [companyId, fetchRepairs, fetchInventoryItems]);
 
   const deleteRepair = useCallback(async (repairId: string) => {
     if (!companyId) return { error: new Error('No company selected') };
@@ -403,9 +480,10 @@ export function useCableInventory(companyId: string | undefined) {
   useEffect(() => {
     fetchCategories();
     fetchInventory();
+    fetchInventoryItems();
     fetchMovements();
     fetchRepairs();
-  }, [fetchCategories, fetchInventory, fetchMovements, fetchRepairs]);
+  }, [fetchCategories, fetchInventory, fetchInventoryItems, fetchMovements, fetchRepairs]);
 
   // Realtime подписки для обновления у всех пользователей
   useEffect(() => {
@@ -460,6 +538,25 @@ export function useCableInventory(companyId: string | undefined) {
         () => {
           fetchRepairs();
           fetchInventory();
+          fetchInventoryItems();
+        }
+      )
+      .subscribe();
+
+    // Подписка на изменения в inventory_items
+    const itemsChannel = supabase
+      .channel('inventory_items_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'inventory_items',
+          filter: `company_id=eq.${companyId}`,
+        },
+        () => {
+          fetchInventoryItems();
+          fetchInventory();
         }
       )
       .subscribe();
@@ -486,6 +583,7 @@ export function useCableInventory(companyId: string | undefined) {
       movementsChannel.unsubscribe();
       repairsChannel.unsubscribe();
       categoriesChannel.unsubscribe();
+      itemsChannel.unsubscribe();
     };
   }, [companyId, fetchCategories, fetchInventory, fetchMovements, fetchRepairs]);
 
@@ -543,6 +641,7 @@ export function useCableInventory(companyId: string | undefined) {
     inventory,
     movements,
     repairs,
+    inventoryItems,
     stats,
     loading,
     addCategory,
@@ -558,9 +657,11 @@ export function useCableInventory(companyId: string | undefined) {
     updateRepairStatus,
     deleteRepair,
     importFromEquipment,
+    fetchInventoryItems,
     refresh: () => {
       fetchCategories();
       fetchInventory();
+      fetchInventoryItems();
       fetchMovements();
       fetchRepairs();
     }

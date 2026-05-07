@@ -5,6 +5,7 @@ export type EquipmentRepair = {
   company_id?: string;
   category_id: string;
   inventory_id?: string;
+  item_id?: string; // Ссылка на конкретный экземпляр (для поштучного учёта)
   equipment_name: string; // Название оборудования для быстрого поиска
   length?: number; // Для кабелей
   quantity: number;

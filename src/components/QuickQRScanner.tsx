@@ -26,6 +26,8 @@ import { QRScanner } from './QRScanner';
 import { QRCodeDialog } from './QRCodeDisplay';
 import type { ChecklistV2, ChecklistItemV2, EquipmentKit } from '../types/checklist';
 import type { CableInventory, CableCategory } from '../types';
+import type { InventoryItem } from '../types/inventoryItem';
+import { getItemStatusLabel, getItemStatusColor } from '../types/inventoryItem';
 import { supabase } from '../lib/supabase';
 import { useUrlScanCode, clearUrlScanCode } from '../hooks/useUrlScanCode';
 import { logger } from '../lib/logger';
@@ -71,8 +73,10 @@ export function QuickQRScanner({
   const [scannerSubtitle, setScannerSubtitle] = useState<string>();
   
   // Состояние для режима информации
-  const [scannedItem, setScannedItem] = useState<CableInventory | EquipmentKit | null>(null);
+  const [scannedItem, setScannedItem] = useState<CableInventory | EquipmentKit | InventoryItem | null>(null);
+  const [scannedItemInventory, setScannedItemInventory] = useState<CableInventory | null>(null);
   const [isInfoDialogOpen, setIsInfoDialogOpen] = useState(false);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   
   // Состояние для режима выдачи
   const [issueItems, setIssueItems] = useState<IssueItem[]>([]);
@@ -203,18 +207,30 @@ export function QuickQRScanner({
 
   // Обработка сканирования в режиме информации
   const handleInfoScan = useCallback((qrCode: string) => {
-    // Ищем комплект
-    const kit = allKits.find(k => k.qr_code === qrCode);
-    if (kit) {
-      setScannedItem(kit);
+    // Ищем экземпляр (приоритет)
+    const invItem = inventoryItems.find(i => i.qr_code === qrCode);
+    if (invItem) {
+      const group = allInventory.find(i => i.id === invItem.inventory_id);
+      setScannedItem(invItem);
+      setScannedItemInventory(group || null);
       setIsInfoDialogOpen(true);
       return;
     }
     
-    // Ищем оборудование
+    // Ищем комплект
+    const kit = allKits.find(k => k.qr_code === qrCode);
+    if (kit) {
+      setScannedItem(kit);
+      setScannedItemInventory(null);
+      setIsInfoDialogOpen(true);
+      return;
+    }
+    
+    // Ищем оборудование/группу
     const item = allInventory.find(i => i.qr_code === qrCode);
     if (item) {
       setScannedItem(item);
+      setScannedItemInventory(null);
       setIsInfoDialogOpen(true);
       return;
     }
@@ -222,11 +238,44 @@ export function QuickQRScanner({
     toast.error('QR-код не найден', { 
       description: `${qrCode} не найден в базе` 
     });
-  }, [allInventory, allKits]);
+  }, [allInventory, allKits, inventoryItems]);
 
   // Обработка сканирования в режиме выдачи
   const handleIssueScan = useCallback((qrCode: string) => {
-    // Ищем оборудование
+    // Ищем экземпляр (приоритет)
+    const invItem = inventoryItems.find(i => i.qr_code === qrCode);
+    if (invItem) {
+      if (invItem.status !== 'available') {
+        toast.error('Экземпляр недоступен', { 
+          description: `Статус: ${getItemStatusLabel(invItem.status)}` 
+        });
+        return;
+      }
+      const group = allInventory.find(i => i.id === invItem.inventory_id);
+      const category = categories.find(c => c.id === group?.category_id);
+      
+      const alreadyAdded = issueItems.find(i => i.id === invItem.id);
+      if (alreadyAdded) {
+        toast.info('Уже в списке');
+        return;
+      }
+      
+      setIssueItems(prev => [...prev, {
+        id: invItem.id,
+        inventory_id: invItem.inventory_id,
+        name: `${group?.name || 'Оборудование'} (${invItem.qr_code})`,
+        category_id: group?.category_id || '',
+        category_name: category?.name || '',
+        quantity: 1,
+        max_quantity: 1,
+        qr_code: invItem.qr_code,
+      }]);
+      
+      toast.success('Экземпляр добавлен', { description: invItem.qr_code });
+      return;
+    }
+    
+    // Ищем оборудование/группу
     const item = allInventory.find(i => i.qr_code === qrCode);
     if (!item) {
       toast.error('Оборудование не найдено', { 
@@ -513,12 +562,16 @@ export function QuickQRScanner({
     let hasError = false;
 
     for (const item of issueItems) {
+      // Определяем, это экземпляр или группа
+      const isItemInstance = inventoryItems.some(ii => ii.id === item.id);
+      
       const { error } = await supabase
         .from('cable_movements')
         .insert({
           company_id: companyId,
           category_id: item.category_id,
           inventory_id: item.inventory_id,
+          item_id: isItemInstance ? item.id : undefined,
           equipment_name: item.name,
           length: item.length || 0,
           quantity: item.quantity,
@@ -532,6 +585,9 @@ export function QuickQRScanner({
       if (error) {
         hasError = true;
         toast.error(`Ошибка при выдаче ${item.name}`, { description: error.message });
+      } else if (isItemInstance) {
+        // Обновляем статус экземпляра
+        await supabase.from('inventory_items').update({ status: 'issued' }).eq('id', item.id);
       }
     }
 
@@ -860,7 +916,8 @@ export function QuickQRScanner({
         <DialogContent className="max-w-sm w-[95%] rounded-xl p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle>
-              {'items' in (scannedItem || {}) ? 'Комплект' : 'Оборудование'}
+              {'items' in (scannedItem || {}) ? 'Комплект' : 
+               'status' in (scannedItem || {}) ? 'Экземпляр' : 'Оборудование'}
             </DialogTitle>
           </DialogHeader>
           
@@ -885,8 +942,31 @@ export function QuickQRScanner({
                     ))}
                   </div>
                 </>
+              ) : 'status' in scannedItem ? (
+                // Экземпляр
+                <>
+                  <div className="text-center">
+                    <p className="font-bold text-lg">{scannedItemInventory?.name || 'Оборудование'}</p>
+                    <p className="text-xs font-mono text-muted-foreground">{scannedItem.qr_code}</p>
+                    <div className="flex justify-center gap-2 mt-2">
+                      <Badge className={getItemStatusColor((scannedItem as InventoryItem).status)}>
+                        {getItemStatusLabel((scannedItem as InventoryItem).status)}
+                      </Badge>
+                    </div>
+                  </div>
+                  {(scannedItem as InventoryItem).serial_number && (
+                    <div className="p-2 bg-muted rounded text-center text-sm">
+                      <span className="text-muted-foreground">S/N:</span> {(scannedItem as InventoryItem).serial_number}
+                    </div>
+                  )}
+                  {(scannedItem as InventoryItem).notes && (
+                    <div className="p-2 bg-muted rounded text-sm">
+                      {(scannedItem as InventoryItem).notes}
+                    </div>
+                  )}
+                </>
               ) : (
-                // Оборудование
+                // Оборудование/группа
                 <>
                   <div className="text-center">
                     <p className="font-bold text-lg">{scannedItem.name || 'Оборудование'}</p>

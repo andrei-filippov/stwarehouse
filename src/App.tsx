@@ -748,6 +748,7 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
                 targetEquipmentCategories={categories}
                 existingEquipment={equipment}
                 kits={kits}
+                companyId={companyId}
               />
             </LazyComponent>
           )}

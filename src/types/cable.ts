@@ -25,7 +25,8 @@ export type CableInventory = {
   price?: number; // Цена аренды (для оборудования)
   unit?: string; // Единица измерения (шт, комплект, услуга)
   watts?: number; // Мощность в ваттах (для расчёта нагрузки)
-  qr_code?: string; // Уникальный QR-код
+  qr_code?: string; // Уникальный QR-код группы
+  track_items?: boolean; // Поштучный учёт экземпляров
   notes?: string;
   created_at?: string;
   updated_at?: string;
@@ -36,6 +37,7 @@ export type CableMovement = {
   company_id?: string;
   category_id: string;
   inventory_id?: string;
+  item_id?: string; // Ссылка на конкретный экземпляр (для поштучного учёта)
   type: 'issue' | 'return' | 'write_off';
   length?: number;
   equipment_name?: string;

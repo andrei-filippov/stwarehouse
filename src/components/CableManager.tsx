@@ -38,6 +38,7 @@ import { Spinner } from './ui/spinner';
 import { TransferToInventoryDialog } from './TransferToInventoryDialog';
 import { QRCodeDialog, QRCodeBatchPrint, QRCodeDisplay } from './QRCodeDisplay';
 import { QRScanner } from './QRScanner';
+import InventoryItemsManager from './InventoryItemsManager';
 import { supabase } from '../lib/supabase';
 import { useUrlScanCode, clearUrlScanCode } from '../hooks/useUrlScanCode';
 import { format } from 'date-fns';
@@ -114,6 +115,8 @@ interface CableManagerProps {
   existingEquipment?: { name: string; category: string }[];
   // Комплекты для QR-сканирования
   kits?: EquipmentKit[];
+  // Company ID для управления экземплярами
+  companyId?: string;
 }
 
 export const CableManager = memo(function CableManager({
@@ -142,6 +145,7 @@ export const CableManager = memo(function CableManager({
   targetEquipmentCategories,
   existingEquipment,
   kits = [],
+  companyId,
 }: CableManagerProps) {
   const [activeTab, setActiveTab] = useState('warehouse');
   
@@ -243,7 +247,8 @@ export const CableManager = memo(function CableManager({
 
   // Form states
   const [categoryForm, setCategoryForm] = useState({ name: '', description: '', color: '#3b82f6', parent_id: '' as string | undefined, type: 'other' as 'sound' | 'light' | 'other' });
-  const [inventoryForm, setInventoryForm] = useState({ category_id: '', name: '', length: '', quantity: '', min_quantity: '0', watts: '', notes: '' });
+  const [inventoryForm, setInventoryForm] = useState({ category_id: '', name: '', length: '', quantity: '', min_quantity: '0', watts: '', notes: '', track_items: false });
+  const [expandedInventory, setExpandedInventory] = useState<string | null>(null); // Раскрытая группа для управления экземплярами
   
   // Repair dialog states
   const [isRepairDialogOpen, setIsRepairDialogOpen] = useState(false);
@@ -410,10 +415,11 @@ export const CableManager = memo(function CableManager({
       watts: inventoryForm.watts ? (isNaN(watts) ? undefined : watts) : undefined,
       notes: inventoryForm.notes || undefined,
       qr_code: generateQRCode(),
+      track_items: inventoryForm.track_items,
     });
     if (!error) {
       setIsInventoryDialogOpen(false);
-      setInventoryForm({ category_id: '', name: '', length: '', quantity: '', min_quantity: '0', watts: '', notes: '' });
+      setInventoryForm({ category_id: '', name: '', length: '', quantity: '', min_quantity: '0', watts: '', notes: '', track_items: false });
     }
   };
 
@@ -429,6 +435,7 @@ export const CableManager = memo(function CableManager({
       min_quantity: item.min_quantity?.toString() || '0',
       watts: item.watts?.toString() || '',
       notes: item.notes || '',
+      track_items: item.track_items || false,
     });
     setIsInventoryDialogOpen(true);
   };
@@ -451,7 +458,7 @@ export const CableManager = memo(function CableManager({
     if (!error) {
       setIsInventoryDialogOpen(false);
       setEditingInventory(null);
-      setInventoryForm({ category_id: '', name: '', length: '', quantity: '', min_quantity: '0', watts: '', notes: '' });
+      setInventoryForm({ category_id: '', name: '', length: '', quantity: '', min_quantity: '0', watts: '', notes: '', track_items: false });
     }
   };
 
@@ -2091,6 +2098,23 @@ export const CableManager = memo(function CableManager({
                 placeholder="Например: в коробке по 10 шт, IP65"
               />
             </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="track_items"
+                checked={inventoryForm.track_items}
+                onChange={(e) => setInventoryForm({ ...inventoryForm, track_items: e.target.checked })}
+                className="h-4 w-4"
+              />
+              <label htmlFor="track_items" className="text-sm font-medium cursor-pointer">
+                Поштучный учёт (QR-код на каждый экземпляр)
+              </label>
+            </div>
+            {inventoryForm.track_items && !editingInventory && (
+              <div className="text-xs text-muted-foreground bg-muted p-2 rounded">
+                При создании будет сгенерирован QR-код группы. Экземпляры с индивидуальными QR-кодами можно добавить позже.
+              </div>
+            )}
             <div className="flex justify-end gap-2 pt-4">
               <Button variant="outline" onClick={() => setIsInventoryDialogOpen(false)}>
                 Отмена
@@ -2799,6 +2823,18 @@ function CategoryItem({
                             <span className="sm:hidden text-xs">📱</span>
                           </Button>
                         )}
+                        {item.track_items && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setExpandedInventory(expandedInventory === item.id ? null : item.id)}
+                            title="Управление экземплярами"
+                            className="h-7 w-7 sm:h-8 sm:w-auto sm:px-2 p-0"
+                          >
+                            <span className="hidden sm:inline text-xs">📦 Экз.</span>
+                            <span className="sm:hidden text-xs">📦</span>
+                          </Button>
+                        )}
                         <Button
                           size="sm"
                           variant="outline"
@@ -2830,6 +2866,16 @@ function CategoryItem({
                         </Button>
                       </div>
                     </div>
+                    {/* Управление экземплярами */}
+                    {item.track_items && expandedInventory === item.id && companyId && (
+                      <div className="mt-2 pl-6 border-l-2 border-primary/20">
+                        <InventoryItemsManager
+                          inventory={item}
+                          companyId={companyId}
+                          onRefresh={onRefresh}
+                        />
+                      </div>
+                    )}
                   </div>
                 );
               })}
