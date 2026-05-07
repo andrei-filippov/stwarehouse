@@ -73,6 +73,13 @@ export default function InventoryItemsManager({ inventory, companyId, onRefresh 
 
   useEffect(() => {
     fetchItems();
+
+    // Polling каждые 15 секунд (realtime не работает через Yandex Cloud прокси)
+    const interval = setInterval(() => {
+      fetchItems();
+    }, 15000);
+
+    return () => clearInterval(interval);
   }, [inventory.id, companyId]);
 
   const handleCreateItems = async () => {

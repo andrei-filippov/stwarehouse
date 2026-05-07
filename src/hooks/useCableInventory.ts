@@ -485,107 +485,28 @@ export function useCableInventory(companyId: string | undefined) {
     fetchRepairs();
   }, [fetchCategories, fetchInventory, fetchInventoryItems, fetchMovements, fetchRepairs]);
 
-  // Realtime подписки для обновления у всех пользователей
+  // Polling fallback (realtime не работает через Yandex Cloud прокси)
   useEffect(() => {
     if (!companyId) return;
 
-    // Подписка на изменения в cable_inventory (количество, QR-коды)
-    const inventoryChannel = supabase
-      .channel('cable_inventory_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'cable_inventory',
-          filter: `company_id=eq.${companyId}`,
-        },
-        () => {
-          fetchInventory();
-        }
-      )
-      .subscribe();
+    // Начальная загрузка
+    fetchCategories();
+    fetchInventory();
+    fetchInventoryItems();
+    fetchMovements();
+    fetchRepairs();
 
-    // Подписка на изменения в cable_movements (выдача/возврат)
-    const movementsChannel = supabase
-      .channel('cable_movements_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'cable_movements',
-          filter: `company_id=eq.${companyId}`,
-        },
-        () => {
-          fetchMovements();
-          fetchInventory(); // Обновляем остатки
-        }
-      )
-      .subscribe();
+    // Пolling каждые 30 секунд
+    const interval = setInterval(() => {
+      fetchCategories();
+      fetchInventory();
+      fetchInventoryItems();
+      fetchMovements();
+      fetchRepairs();
+    }, 30000);
 
-    // Подписка на изменения в equipment_repairs
-    const repairsChannel = supabase
-      .channel('equipment_repairs_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'equipment_repairs',
-          filter: `company_id=eq.${companyId}`,
-        },
-        () => {
-          fetchRepairs();
-          fetchInventory();
-          fetchInventoryItems();
-        }
-      )
-      .subscribe();
-
-    // Подписка на изменения в inventory_items
-    const itemsChannel = supabase
-      .channel('inventory_items_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'inventory_items',
-          filter: `company_id=eq.${companyId}`,
-        },
-        () => {
-          fetchInventoryItems();
-          fetchInventory();
-        }
-      )
-      .subscribe();
-
-    // Подписка на изменения в cable_categories
-    const categoriesChannel = supabase
-      .channel('cable_categories_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'cable_categories',
-          filter: `company_id=eq.${companyId}`,
-        },
-        () => {
-          fetchCategories();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      inventoryChannel.unsubscribe();
-      movementsChannel.unsubscribe();
-      repairsChannel.unsubscribe();
-      categoriesChannel.unsubscribe();
-      itemsChannel.unsubscribe();
-    };
-  }, [companyId, fetchCategories, fetchInventory, fetchMovements, fetchRepairs]);
+    return () => clearInterval(interval);
+  }, [companyId, fetchCategories, fetchInventory, fetchInventoryItems, fetchMovements, fetchRepairs]);
 
   // Рекурсивно получаем все ID категорий включая дочерние
   const getAllCategoryIds = useCallback((catId: string, cats: CableCategory[]): string[] => {
