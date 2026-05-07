@@ -1285,6 +1285,10 @@ export const CableManager = memo(function CableManager({
               selectedInventoryIds={selectedInventoryIds}
               onSelectInventory={selectInventory}
               onSelectAllInCategory={selectAllInCategory}
+              expandedInventory={expandedInventory}
+              onToggleInventoryItems={(id) => setExpandedInventory(prev => prev === id ? null : id)}
+              companyId={companyId}
+              onRefresh={onRefresh}
             />
           )}
           
@@ -2433,6 +2437,11 @@ interface SortableCategoryItemProps {
   selectedInventoryIds?: Set<string>;
   onSelectInventory?: (id: string, selected: boolean) => void;
   onSelectAllInCategory?: (categoryId: string, selected: boolean) => void;
+  // Для управления экземплярами
+  expandedInventory?: string | null;
+  onToggleInventoryItems?: (id: string) => void;
+  companyId?: string;
+  onRefresh?: () => void;
 }
 
 function SortableCategoryItem({
@@ -2460,6 +2469,10 @@ function SortableCategoryItem({
   selectedInventoryIds,
   onSelectInventory,
   onSelectAllInCategory,
+  expandedInventory,
+  onToggleInventoryItems,
+  companyId,
+  onRefresh,
 }: SortableCategoryItemProps) {
   const {
     attributes,
@@ -2504,6 +2517,10 @@ function SortableCategoryItem({
         selectedInventoryIds={selectedInventoryIds}
         onSelectInventory={onSelectInventory}
         onSelectAllInCategory={onSelectAllInCategory}
+        expandedInventory={expandedInventory}
+        onToggleInventoryItems={onToggleInventoryItems}
+        companyId={companyId}
+        onRefresh={onRefresh}
       />
     </div>
   );
@@ -2536,6 +2553,11 @@ interface CategoryItemProps {
   selectedInventoryIds?: Set<string>;
   onSelectInventory?: (id: string, selected: boolean) => void;
   onSelectAllInCategory?: (categoryId: string, selected: boolean) => void;
+  // Для управления экземплярами
+  expandedInventory?: string | null;
+  onToggleInventoryItems?: (id: string) => void;
+  companyId?: string;
+  onRefresh?: () => void;
 }
 
 function CategoryItem({
@@ -2563,6 +2585,10 @@ function CategoryItem({
   selectedInventoryIds,
   onSelectInventory,
   onSelectAllInCategory,
+  expandedInventory,
+  onToggleInventoryItems,
+  companyId,
+  onRefresh,
 }: CategoryItemProps) {
   const catInventory = inventory.filter(i => i.category_id === category.id).sort((a, b) => (a.length || 0) - (b.length || 0));
   const catStats = stats[category.id] || { totalLength: 0, totalQty: 0, issuedQty: 0, repairQty: 0 };
@@ -2823,11 +2849,11 @@ function CategoryItem({
                             <span className="sm:hidden text-xs">📱</span>
                           </Button>
                         )}
-                        {item.track_items && (
+                        {item.track_items && onToggleInventoryItems && (
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => setExpandedInventory(expandedInventory === item.id ? null : item.id)}
+                            onClick={() => onToggleInventoryItems(item.id)}
                             title="Управление экземплярами"
                             className="h-7 w-7 sm:h-8 sm:w-auto sm:px-2 p-0"
                           >
@@ -2975,6 +3001,10 @@ function CategoryList({
   selectedInventoryIds,
   onSelectInventory,
   onSelectAllInCategory,
+  expandedInventory,
+  onToggleInventoryItems,
+  companyId,
+  onRefresh,
 }: CategoryListProps) {
   // Для корневого уровня используем DndContext если есть onReorderCategories
   const isRootLevel = level === 0;
@@ -3034,6 +3064,10 @@ function CategoryList({
           selectedInventoryIds={selectedInventoryIds}
           onSelectInventory={onSelectInventory}
           onSelectAllInCategory={onSelectAllInCategory}
+          expandedInventory={expandedInventory}
+          onToggleInventoryItems={onToggleInventoryItems}
+          companyId={companyId}
+          onRefresh={onRefresh}
         />
       );
     }
@@ -3064,6 +3098,10 @@ function CategoryList({
         selectedInventoryIds={selectedInventoryIds}
         onSelectInventory={onSelectInventory}
         onSelectAllInCategory={onSelectAllInCategory}
+        expandedInventory={expandedInventory}
+        onToggleInventoryItems={onToggleInventoryItems}
+        companyId={companyId}
+        onRefresh={onRefresh}
       />
     );
   };
