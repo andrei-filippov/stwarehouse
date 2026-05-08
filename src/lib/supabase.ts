@@ -101,13 +101,36 @@ if (isProxyMode()) {
   };
 }
 
+// Уникальный storageKey для каждого домена (Vercel vs Yandex)
+const getStorageKey = () => {
+  if (typeof window === 'undefined') return 'sb-auth-token';
+  const hostname = window.location.hostname;
+  if (hostname.includes('yandexcloud.net')) {
+    return 'sb-yandex-auth-token';
+  }
+  if (hostname.includes('vercel.app')) {
+    return 'sb-vercel-auth-token';
+  }
+  return 'sb-local-auth-token';
+};
+
+// Очистка старого общего токена (миграция)
+if (typeof window !== 'undefined') {
+  const oldKey = 'sb-trivdyjfiyxsmrkihqet-auth-token';
+  const newKey = getStorageKey();
+  if (oldKey !== newKey) {
+    // Удаляем старый токен чтобы избежать конфликтов между доменами
+    localStorage.removeItem(oldKey);
+  }
+}
+
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
     storage: localStorage,
-    storageKey: 'sb-trivdyjfiyxsmrkihqet-auth-token',
+    storageKey: getStorageKey(),
   },
   global: {
     fetch: customFetch,
