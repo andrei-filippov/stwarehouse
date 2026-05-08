@@ -2423,12 +2423,8 @@ export const CableManager = memo(function CableManager({
           </div>
         </DialogContent>
       </Dialog>
-    </div>
-  );
-});
 
-
-      {/* Диалог подтверждения удаления */}
+{/* Диалог подтверждения удаления */}
       <AlertDialog open={deleteConfirm.open} onOpenChange={(open) => setDeleteConfirm({ open, item: open ? deleteConfirm.item : null })}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -2459,6 +2455,12 @@ export const CableManager = memo(function CableManager({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </div>
+  );
+});
+
+
+      
 // Компонент для сортируемой категории (drag-and-drop)
 interface SortableCategoryItemProps {
   category: CableCategory & { children?: CableCategory[] };
