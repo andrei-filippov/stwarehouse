@@ -1289,7 +1289,10 @@ export const CableManager = memo(function CableManager({
               onToggleCategory={toggleCategory}
               onToggleItem={toggleItemSelection}
               onUpdateInventoryQty={handleUpdateInventoryQty}
-              onDeleteInventory={onDeleteInventory}
+              onDeleteInventory={(id) => {
+                const item = inventory.find(i => i.id === id);
+                if (item) setDeleteConfirm({ open: true, item });
+              }}
               onAddInventory={openInventoryAdd}
               onEditInventory={openInventoryEdit}
               onEditCategory={openCategoryEdit}
@@ -2962,7 +2965,7 @@ function CategoryItem({
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() => setDeleteConfirm({ open: true, item })}
+                          onClick={() => onDeleteInventory(item.id!)}
                           title="Удалить"
                           className="h-7 w-7 sm:h-8 p-0"
                         >
