@@ -25,7 +25,7 @@ export function useAuth() {
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (error) {
         logger.error('Auth session error:', error);
-        if (error.message?.includes('refresh_token') || error.message?.includes('Refresh Token')) {
+        if (error.message?.includes('refresh_token') || error.message?.includes('Refresh Token') || error.message?.includes('session_not_found')) {
           supabase.auth.signOut();
         }
       }

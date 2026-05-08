@@ -75,7 +75,16 @@ export function useCompany(options?: { skipAutoLoad?: boolean }) {
       }
 
       // Получаем текущего пользователя
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) {
+        logger.error('Auth error:', userError);
+        if (userError.message?.includes('session_not_found')) {
+          await supabase.auth.signOut();
+        }
+        setLoading(false);
+        isLoadingRef.current = false;
+        return;
+      }
       if (!user) {
         logger.debug('No user found');
         setLoading(false);
