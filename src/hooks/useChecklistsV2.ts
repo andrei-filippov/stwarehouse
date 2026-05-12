@@ -268,12 +268,12 @@ export function useChecklistsV2(companyId: string | undefined, activeTab?: strin
 
     const channels = [
       safeChannel('checklists_v2_changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'checklists' }, fetchChecklists)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'checklist_items' }, fetchChecklists)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'checklists' }, () => { if (document.hidden) return; fetchChecklists(); })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'checklist_items' }, () => { if (document.hidden) return; fetchChecklists(); })
         .subscribe(),
       safeChannel('equipment_kits_changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'equipment_kits' }, fetchKits)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'kit_items' }, fetchKits)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'equipment_kits' }, () => { if (document.hidden) return; fetchKits(); })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'kit_items' }, () => { if (document.hidden) return; fetchKits(); })
         .subscribe()
     ];
 

@@ -91,7 +91,7 @@ export function useIncomes(companyId: string | undefined) {
       .channel('income-changes')
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'income', filter: `company_id=eq.${companyId}` },
-        () => fetchIncomes()
+        () => { if (document.hidden) return; fetchIncomes(); }
       )
       .subscribe();
 

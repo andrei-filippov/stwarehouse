@@ -108,7 +108,7 @@ export function useStaff(companyId: string | undefined) {
       .channel('staff-changes')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'staff', filter: `company_id=eq.${companyId}` },
-        () => fetchStaff()
+        () => { if (document.hidden) return; fetchStaff(); }
       )
       .subscribe();
 

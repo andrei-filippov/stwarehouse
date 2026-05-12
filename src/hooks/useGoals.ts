@@ -104,7 +104,7 @@ export function useGoals(companyId: string | undefined) {
       .channel('goals-changes')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'goals', filter: `company_id=eq.${companyId}` },
-        () => fetchTasks()
+        () => { if (document.hidden) return; fetchTasks(); }
       )
       .subscribe();
 

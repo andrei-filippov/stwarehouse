@@ -103,7 +103,7 @@ export function useCompanyBankAccounts(companyId: string | undefined) {
       .channel('bank-accounts-changes')
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'company_bank_accounts', filter: `company_id=eq.${companyId}` },
-        () => fetchAccounts()
+        () => { if (document.hidden) return; fetchAccounts(); }
       )
       .subscribe();
 

@@ -154,7 +154,7 @@ export function useTemplates(companyId: string | undefined) {
       .channel('templates-changes')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'templates', filter: `company_id=eq.${companyId}` },
-        () => fetchTemplates()
+        () => { if (document.hidden) return; fetchTemplates(); }
       )
       .subscribe();
 

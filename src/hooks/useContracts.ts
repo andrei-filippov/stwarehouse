@@ -200,7 +200,7 @@ export function useContracts(companyId: string | undefined) {
       .channel('contracts-changes')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'contracts', filter: `company_id=eq.${companyId}` },
-        () => fetchContracts()
+        () => { if (document.hidden) return; fetchContracts(); }
       )
       .subscribe();
 

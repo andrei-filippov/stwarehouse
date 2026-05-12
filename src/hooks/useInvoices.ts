@@ -142,7 +142,7 @@ export function useInvoices(contractId?: string, companyId?: string) {
       .channel('invoices-changes')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'invoices', filter: `company_id=eq.${companyId}` },
-        () => fetchInvoices()
+        () => { if (document.hidden) return; fetchInvoices(); }
       )
       .subscribe();
 

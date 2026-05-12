@@ -512,7 +512,7 @@ export function useCompany(options?: { skipAutoLoad?: boolean }) {
       .channel('company-changes')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'company_members', filter: `company_id=eq.${company.id}` },
-        () => loadMembers(company.id)
+        () => { if (document.hidden) return; loadMembers(company.id); }
       )
       .subscribe();
 

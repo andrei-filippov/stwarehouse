@@ -140,6 +140,7 @@ export function useAuditLogs(filters?: AuditLogFilters, limit: number = 100) {
     const subscription = supabase
       .channel('audit_logs_changes')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'audit_logs' }, (payload) => {
+        if (document.hidden) return;
         const newLog = payload.new as AuditLog;
         
         // Проверяем, соответствует ли новый лог текущим фильтрам

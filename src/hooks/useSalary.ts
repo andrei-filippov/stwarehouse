@@ -289,6 +289,7 @@ export function useSalary(companyId: string | undefined) {
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'salary_records', filter: `company_id=eq.${companyId}` },
         (payload) => {
+          if (document.hidden) return;
           const changedId = payload.new?.id || payload.old?.id;
           // Если это наше собственное изменение — игнорируем
           if (changedId && recentlyUpdatedIds.current.has(changedId)) {

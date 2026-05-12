@@ -760,6 +760,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
           filter: `company_id=eq.${companyId}`
         },
         (payload) => {
+          if (document.hidden) return;
           logger.info('[Realtime] Checklist changed:', payload.eventType, payload.new?.id || payload.old?.id);
           fetchChecklists();
         }
@@ -777,6 +778,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
           table: 'checklist_items'
         },
         (payload) => {
+          if (document.hidden) return;
           const now = Date.now();
           // Показываем уведомление не чаще раз в 3 секунды
           if (now - lastUpdate > 3000) {
@@ -806,6 +808,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
           filter: `company_id=eq.${companyId}`
         },
         () => {
+          if (document.hidden) return;
           logger.info('[Realtime] Rules changed, refreshing...');
           fetchRules();
         }
@@ -822,6 +825,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
           table: 'checklist_rule_items'
         },
         (payload) => {
+          if (document.hidden) return;
           logger.info('[Realtime] Rule item changed:', payload.eventType);
           // При изменении items правил перезагружаем правила
           fetchRules();

@@ -116,7 +116,7 @@ export function useExpenses(companyId: string | undefined) {
       .channel('expenses-changes')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'expenses', filter: `company_id=eq.${companyId}` },
-        () => fetchExpenses()
+        () => { if (document.hidden) return; fetchExpenses(); }
       )
       .subscribe();
 

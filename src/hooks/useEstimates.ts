@@ -820,6 +820,7 @@ export function useEstimates(companyId: string | undefined, activeTab?: string) 
           filter: `company_id=eq.${companyId}`
         },
         (payload) => {
+          if (document.hidden) return;
           if (payload.eventType === 'INSERT') {
             const newEstimate = payload.new as Estimate;
             if (newEstimate.creator_name) {
@@ -838,7 +839,7 @@ export function useEstimates(companyId: string | undefined, activeTab?: string) 
           table: 'estimate_items',
           filter: `company_id=eq.${companyId}`
         },
-        () => debouncedFetchEstimates()
+        () => { if (document.hidden) return; debouncedFetchEstimates(); }
       )
       .subscribe();
 

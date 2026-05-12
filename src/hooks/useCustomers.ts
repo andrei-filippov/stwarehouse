@@ -207,7 +207,7 @@ export function useCustomers(companyId: string | undefined) {
       .channel('customers-changes')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'customers', filter: `company_id=eq.${companyId}` },
-        () => fetchCustomers()
+        () => { if (document.hidden) return; fetchCustomers(); }
       )
       .subscribe();
 

@@ -192,11 +192,11 @@ export function useActs(contractId?: string, companyId?: string) {
       .channel('acts-changes')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'acts', filter: `company_id=eq.${companyId}` },
-        () => fetchActs()
+        () => { if (document.hidden) return; fetchActs(); }
       )
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'act_items', filter: `company_id=eq.${companyId}` },
-        () => fetchActs()
+        () => { if (document.hidden) return; fetchActs(); }
       )
       .subscribe();
 
