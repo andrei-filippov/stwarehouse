@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 
 interface PollingOptions {
-  /** Polling interval in ms (default: 10000) */
+  /** Polling interval in ms (default: 60000) */
   intervalMs?: number;
   /** Whether polling is enabled */
   enabled?: boolean;
@@ -32,7 +32,7 @@ export function usePolling(
   options: PollingOptions = {}
 ) {
   const {
-    intervalMs = 10000,
+    intervalMs = 60000,
     enabled = true,
     pauseWhenHidden = true,
     immediate = true,

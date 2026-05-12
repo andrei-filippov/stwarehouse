@@ -49,11 +49,13 @@ export function useOfflineSync(companyId: string | undefined) {
     // Первоначальная проверка сервера
     updateServerStatus().then(setServerAvailable);
     
-    // Периодическая проверка статуса сервера (каждые 30 сек)
+    // Периодическая проверка статуса сервера (каждые 2 мин)
+    // Skip check if tab is hidden to save egress
     const statusInterval = setInterval(async () => {
+      if (document.hidden) return;
       const available = await checkServerStatus();
       setServerAvailable(available);
-    }, 30000);
+    }, 120000);
     
     const cleanup = setupNetworkListeners(
       () => {

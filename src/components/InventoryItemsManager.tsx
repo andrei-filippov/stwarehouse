@@ -61,7 +61,8 @@ export default function InventoryItemsManager({ inventory, companyId, onRefresh 
       .select('*')
       .eq('inventory_id', inventory.id)
       .eq('company_id', companyId)
-      .order('qr_code');
+      .order('qr_code')
+      .limit(1000);
     
     if (error) {
       toast.error('Ошибка загрузки экземпляров', { description: error.message });
@@ -90,9 +91,11 @@ export default function InventoryItemsManager({ inventory, companyId, onRefresh 
       .subscribe();
 
     // Polling fallback (на случай если realtime не работает)
+    // Only poll when tab is visible to save egress
     const interval = setInterval(() => {
+      if (document.hidden) return;
       fetchItems();
-    }, 15000);
+    }, 60000);
 
     return () => {
       channel.unsubscribe();

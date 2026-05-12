@@ -35,7 +35,8 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
     const { data, error } = await supabase
       .from('cable_inventory')
       .select('*')
-      .eq('company_id', companyId);
+      .eq('company_id', companyId)
+      .limit(1000);
     
     if (error) {
       toast.error('Ошибка при загрузке инвентаря', { description: error.message });
@@ -53,7 +54,8 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
         *,
         cable_inventory!inner(name, category_id)
       `)
-      .eq('company_id', companyId);
+      .eq('company_id', companyId)
+      .limit(1000);
     
     if (error) {
       console.error('Error fetching inventory items:', error);
@@ -74,7 +76,8 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
       .from('cable_movements')
       .select('*')
       .eq('company_id', companyId)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(500);
     
     if (error) {
       toast.error('Ошибка при загрузке движений', { description: error.message });
@@ -335,7 +338,8 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
       .from('equipment_repairs')
       .select('*')
       .eq('company_id', companyId)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(500);
     
     if (error) {
       toast.error('Ошибка при загрузке ремонтов', { description: error.message });
@@ -575,7 +579,7 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
       .subscribe();
 
     // Polling fallback (на случай если realtime не работает, например через Yandex прокси)
-    // Only poll when on relevant tabs to save egress
+    // Only poll when on relevant tabs and tab is visible to save egress
     const isRelevantTab = !activeTab || ['equipment', 'cables', 'dashboard'].includes(activeTab);
     let interval: ReturnType<typeof setInterval> | null = null;
     
@@ -588,7 +592,7 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
         fetchInventoryItems();
         fetchMovements();
         fetchRepairs();
-      }, 120000); // 2 minutes
+      }, 300000); // 5 minutes - reduced to save egress
     }
 
     return () => {

@@ -68,16 +68,18 @@ export function Sidebar(props: SidebarProps) {
     };
   }, []);
 
-  // Обновление счётчика очереди каждые 5 секунд
+  // Обновление счётчика очереди каждые 30 секунд (редуцировано для экономии egress)
+  // Skip if tab is hidden
   useEffect(() => {
     const interval = setInterval(async () => {
+      if (document.hidden) return;
       if (ctx.company?.id) {
         const { getSyncQueue } = await import('../lib/offlineDB');
         const queue = await getSyncQueue();
         // Не обновляем состояние напрямую, т.к. pendingChanges из useOfflineSync
         // обновится при следующем вызове syncData
       }
-    }, 5000);
+    }, 30000);
     return () => clearInterval(interval);
   }, [ctx.company?.id]);
 

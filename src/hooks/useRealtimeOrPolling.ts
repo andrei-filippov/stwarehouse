@@ -29,7 +29,7 @@ interface RealtimeConfig {
 export function useRealtimeOrPolling(
   config: RealtimeConfig,
   deps: React.DependencyList = [],
-  pollingIntervalMs: number = 15000
+  pollingIntervalMs: number = 60000
 ) {
   const channelRef = useRef<RealtimeChannel | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -50,7 +50,9 @@ export function useRealtimeOrPolling(
 
     if (isProxyMode()) {
       // Polling mode: trigger all onChange handlers periodically
+      // Only poll when tab is visible to save egress
       intervalRef.current = setInterval(() => {
+        if (document.hidden) return;
         config.tables.forEach(t => {
           t.onChange({ eventType: '*', new: {}, old: {} } as any);
         });
