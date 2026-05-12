@@ -490,9 +490,10 @@ export function AnalyticsTab({ estimates, salaryRecords = [], staff = [], expens
     });
   }, [estimates]);
 
-  // ─── Top estimates ───
+  // ─── Top estimates (exclude draft and cancelled) ───
   const topEstimates = useMemo(() => {
     return [...filteredEstimates]
+      .filter(e => e.status !== 'draft' && e.status !== 'cancelled')
       .sort((a, b) => (b.total || 0) - (a.total || 0))
       .slice(0, 10);
   }, [filteredEstimates]);
@@ -565,12 +566,13 @@ export function AnalyticsTab({ estimates, salaryRecords = [], staff = [], expens
     return Object.entries(data).sort(([a], [b]) => a.localeCompare(b)).slice(-12).map(([, v]) => v);
   }, [salaryRecords]);
 
-  // ─── Funnel data ───
+  // ─── Funnel data (based on filtered estimates, cumulative flow) ───
   const funnelData = useMemo(() => {
-    const all = estimates;
+    // Funnel shows cumulative counts: each stage includes those that reached at least this stage
+    const all = filteredEstimates;
     const draft = all.filter(e => e.status === 'draft' || !e.status).length;
-    const pending = all.filter(e => e.status === 'pending').length;
-    const approved = all.filter(e => e.status === 'approved').length;
+    const pending = all.filter(e => e.status === 'pending' || e.status === 'approved' || e.status === 'completed').length;
+    const approved = all.filter(e => e.status === 'approved' || e.status === 'completed').length;
     const completed = all.filter(e => e.status === 'completed').length;
 
     return [
@@ -579,7 +581,7 @@ export function AnalyticsTab({ estimates, salaryRecords = [], staff = [], expens
       { name: 'Согласовано', value: approved, color: STATUS_COLORS.approved },
       { name: 'Выполнено', value: completed, color: STATUS_COLORS.completed },
     ];
-  }, [estimates]);
+  }, [filteredEstimates]);
 
   // ─── Status distribution (for pie) ───
   const statusData = useMemo(() => {
@@ -695,7 +697,8 @@ export function AnalyticsTab({ estimates, salaryRecords = [], staff = [], expens
                     <Tooltip
                       formatter={(value: number, name: string) => {
                         const labels: Record<string, string> = { income: 'Доход', expenses: 'Расходы', salary: 'Зарплаты', profit: 'Прибыль', margin: 'Маржа %' };
-                        return [name === 'margin' ? `${value.toFixed(1)}%` : formatCurrencyFull(value), labels[name] || name];
+                        if (name === 'margin') return [`${value.toFixed(1)}%`, labels[name] || name];
+                        return [formatCurrencyFull(value), labels[name] || name];
                       }}
                       labelStyle={tooltipLabelStyle}
                       contentStyle={tooltipStyle}
