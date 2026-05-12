@@ -22,7 +22,7 @@ import { usePolling, isProxyMode } from './usePolling';
 // Генерируем уникальный ID сессии для этой вкладки
 const SESSION_ID = Math.random().toString(36).substring(2, 15);
 
-export function useEstimates(companyId: string | undefined) {
+export function useEstimates(companyId: string | undefined, activeTab?: string) {
   const [estimates, setEstimates] = useState<Estimate[]>([]);
   const [loading, setLoading] = useState(false);
   const [isOffline, setIsOffline] = useState(!isOnline());
@@ -798,9 +798,11 @@ export function useEstimates(companyId: string | undefined) {
       fetchEstimates();
     },
     {
-      intervalMs: 30000, // 30 seconds for estimates (not critical)
+      intervalMs: 120000, // 2 minutes for estimates (not critical)
       enabled: !!companyId && isOnline() && isProxyMode(),
       pauseWhenHidden: true,
+      activeTabs: ['estimates', 'dashboard', 'calendar', 'finance'],
+      currentTab: activeTab,
     }
   );
 

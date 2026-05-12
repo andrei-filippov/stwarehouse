@@ -6,7 +6,7 @@ import type { Estimate } from '../types';
 import { logger } from '../lib/logger';
 import { usePolling } from './usePolling';
 
-export function useChecklistsV2(companyId: string | undefined) {
+export function useChecklistsV2(companyId: string | undefined, activeTab?: string) {
   const [checklists, setChecklists] = useState<ChecklistV2[]>([]);
   const [kits, setKits] = useState<EquipmentKit[]>([]);
   const [loading, setLoading] = useState(false);
@@ -257,6 +257,8 @@ export function useChecklistsV2(companyId: string | undefined) {
       intervalMs: 5000,
       enabled: !!companyId && isProxyMode(),
       pauseWhenHidden: true,
+      activeTabs: ['checklists', 'dashboard'],
+      currentTab: activeTab,
     }
   );
 

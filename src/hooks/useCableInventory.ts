@@ -5,7 +5,7 @@ import { getCurrentUserDisplayName } from '../lib/utils';
 import type { CableCategory, CableInventory, CableMovement, EquipmentRepair } from '../types';
 import type { InventoryItem } from '../types/inventoryItem';
 
-export function useCableInventory(companyId: string | undefined) {
+export function useCableInventory(companyId: string | undefined, activeTab?: string) {
   const [categories, setCategories] = useState<CableCategory[]>([]);
   const [inventory, setInventory] = useState<CableInventory[]>([]);
   const [movements, setMovements] = useState<CableMovement[]>([]);
@@ -575,13 +575,21 @@ export function useCableInventory(companyId: string | undefined) {
       .subscribe();
 
     // Polling fallback (на случай если realtime не работает, например через Yandex прокси)
-    const interval = setInterval(() => {
-      fetchCategories();
-      fetchInventory();
-      fetchInventoryItems();
-      fetchMovements();
-      fetchRepairs();
-    }, 30000);
+    // Only poll when on relevant tabs to save egress
+    const isRelevantTab = !activeTab || ['equipment', 'cables', 'dashboard'].includes(activeTab);
+    let interval: ReturnType<typeof setInterval> | null = null;
+    
+    if (isRelevantTab) {
+      interval = setInterval(() => {
+        // Skip if tab is hidden
+        if (document.hidden) return;
+        fetchCategories();
+        fetchInventory();
+        fetchInventoryItems();
+        fetchMovements();
+        fetchRepairs();
+      }, 120000); // 2 minutes
+    }
 
     return () => {
       inventoryChannel.unsubscribe();
@@ -589,7 +597,7 @@ export function useCableInventory(companyId: string | undefined) {
       repairsChannel.unsubscribe();
       categoriesChannel.unsubscribe();
       itemsChannel.unsubscribe();
-      clearInterval(interval);
+      if (interval) clearInterval(interval);
     };
   }, [companyId, fetchCategories, fetchInventory, fetchInventoryItems, fetchMovements, fetchRepairs]);
 

@@ -9,6 +9,12 @@ interface PollingOptions {
   pauseWhenHidden?: boolean;
   /** Run immediately on start (default: true) */
   immediate?: boolean;
+  /** Only poll when user is on specific tabs (array of tab IDs) */
+  activeTabs?: string[];
+  /** Current active tab ID (to check against activeTabs) */
+  currentTab?: string;
+  /** Minimum time between successful polls in ms (cache window) */
+  minPollIntervalMs?: number;
 }
 
 /**
@@ -16,6 +22,7 @@ interface PollingOptions {
  * 
  * Features:
  * - Pausable when tab is hidden (visibility API)
+ * - Only polls when user is on relevant pages
  * - Configurable interval
  * - Immediate first run
  * - Clean start/stop controls
@@ -29,34 +36,52 @@ export function usePolling(
     enabled = true,
     pauseWhenHidden = true,
     immediate = true,
+    activeTabs,
+    currentTab,
+    minPollIntervalMs = 5000,
   } = options;
 
   const savedCallback = useRef(callback);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isRunningRef = useRef(false);
+  const lastPollTimeRef = useRef<number>(0);
 
   // Remember the latest callback
   useEffect(() => {
     savedCallback.current = callback;
   }, [callback]);
 
+  const shouldPoll = useCallback(() => {
+    // Don't poll if tab is hidden
+    if (pauseWhenHidden && document.hidden) return false;
+    // Don't poll if not on active tab
+    if (activeTabs && currentTab && !activeTabs.includes(currentTab)) return false;
+    return true;
+  }, [pauseWhenHidden, activeTabs, currentTab]);
+
   const tick = useCallback(async () => {
-    if (pauseWhenHidden && document.hidden) return;
+    if (!shouldPoll()) return;
+    // Skip if polled recently (cache)
+    const now = Date.now();
+    if (now - lastPollTimeRef.current < minPollIntervalMs) return;
+    lastPollTimeRef.current = now;
     await savedCallback.current();
-  }, [pauseWhenHidden]);
+  }, [shouldPoll, minPollIntervalMs]);
 
   const startPolling = useCallback(() => {
     if (intervalRef.current || !enabled) return;
     
     isRunningRef.current = true;
     
-    // Immediate first tick
-    tick();
+    // Immediate first tick (only if should poll)
+    if (shouldPoll()) {
+      tick();
+    }
     
     intervalRef.current = setInterval(() => {
       tick();
     }, intervalMs);
-  }, [enabled, intervalMs, tick]);
+  }, [enabled, intervalMs, tick, shouldPoll]);
 
   const stopPolling = useCallback(() => {
     isRunningRef.current = false;
@@ -102,6 +127,13 @@ export function usePolling(
     }
     return () => stopPolling();
   }, [enabled, immediate, startPolling, stopPolling]);
+
+  // Restart polling when tab changes
+  useEffect(() => {
+    if (!enabled) return;
+    stopPolling();
+    startPolling();
+  }, [currentTab, enabled, startPolling, stopPolling]);
 
   return { startPolling, stopPolling, isRunning: () => isRunningRef.current };
 }

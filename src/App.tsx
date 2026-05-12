@@ -377,10 +377,10 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
 
   // Хуки с companyId
   const { equipment, categories, loading: equipmentLoading, addEquipment, updateEquipment, deleteEquipment, bulkInsert, addCategory, deleteCategory, refresh: refreshEquipment } = useEquipment(companyId);
-  const { estimates, loading: estimatesLoading, createEstimate, updateEstimate, deleteEstimate, updateEstimateStatus, startEditing, stopEditing, refresh: refreshEstimates, fetchEstimateItems } = useEstimates(companyId);
+  const { estimates, loading: estimatesLoading, createEstimate, updateEstimate, deleteEstimate, updateEstimateStatus, startEditing, stopEditing, refresh: refreshEstimates, fetchEstimateItems } = useEstimates(companyId, activeTab);
   const { templates, loading: templatesLoading, createTemplate, updateTemplate, deleteTemplate } = useTemplates(companyId);
   const { checklists, rules, loading: checklistsLoading, createRule, deleteRule, createChecklist, updateChecklistItem, deleteChecklist, refresh: refreshChecklists } = useChecklists(companyId, estimates);
-  const { checklists: checklistsV2, kits, fetchChecklists, createChecklistFromEstimate, createKit, updateKit, deleteKit } = useChecklistsV2(companyId);
+  const { checklists: checklistsV2, kits, fetchChecklists, createChecklistFromEstimate, createKit, updateKit, deleteKit } = useChecklistsV2(companyId, activeTab);
   
   // Offline sync - автоматическая синхронизация при возврате онлайн
   const { syncing: isSyncing, syncData: syncNow } = useOfflineSync(companyId);
@@ -404,7 +404,7 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
   const { tasks, loading: goalsLoading, addTask, updateTask, deleteTask } = useGoals(companyId);
   const { customers, loading: customersLoading, error: customersError, addCustomer, updateCustomer, deleteCustomer } = useCustomers(companyId);
   const { categories: cableCategories, inventory: cableInventory, movements: cableMovements, repairs: cableRepairs, inventoryItems: cableInventoryItems, stats: cableStats, loading: cableLoading, addCategory: addCableCategory, updateCategory: updateCableCategory, deleteCategory: deleteCableCategory, reorderCategories: reorderCableCategories,
-importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInventory, updateInventoryQty: updateCableInventoryQty, deleteInventory: deleteCableInventory, issueCable, returnCable, sendToRepair, updateRepairStatus, deleteRepair, refresh: refreshCableInventory } = useCableInventory(companyId);
+importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInventory, updateInventoryQty: updateCableInventoryQty, deleteInventory: deleteCableInventory, issueCable, returnCable, sendToRepair, updateRepairStatus, deleteRepair, refresh: refreshCableInventory } = useCableInventory(companyId, activeTab);
   const { expenses, loading: expensesLoading, addExpense, updateExpense, deleteExpense } = useExpenses(companyId);
   const { records: salaryRecords, loading: salaryLoading, addOrUpdateRecord: addOrUpdateSalary, deleteRecord: deleteSalary } = useSalary(companyId);
   const { incomes, addIncome, deleteIncome } = useIncomes(companyId);
