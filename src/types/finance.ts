@@ -58,3 +58,13 @@ export interface FinancialReport {
   salary_paid: number;
   profit: number;
 }
+
+// Типы для фильтрации периода в аналитике
+export type PeriodFilter =
+  | { type: 'month'; value: string }      // "2026-05"
+  | { type: 'quarter'; value: string }    // "2026-Q2"
+  | { type: 'year'; value: number }       // 2026
+  | { type: 'all' }
+  | { type: 'range'; from: string; to: string };
+
+export type AnalyticsSubTab = 'overview' | 'estimates' | 'equipment' | 'expenses' | 'staff';

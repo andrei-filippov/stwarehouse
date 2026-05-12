@@ -425,7 +425,7 @@ export function FinanceManager({
         </TabsContent>
 
         <TabsContent value="analytics" className="space-y-4">
-          <AnalyticsTab estimates={estimates} salaryRecords={salaryRecords} staff={staff} />
+          <AnalyticsTab estimates={estimates} salaryRecords={salaryRecords} staff={staff} expenses={expenses} incomes={incomes} />
         </TabsContent>
       </Tabs>
     </div>

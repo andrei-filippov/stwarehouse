@@ -1,671 +1,1240 @@
 import { useMemo, useState } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, Line, ComposedChart, Legend
+} from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { TrendingUp, Calendar, Package, DollarSign, BarChart3, ChevronDown, ChevronUp, Users } from 'lucide-react';
+import {
+  TrendingUp, TrendingDown, Calendar, Package, DollarSign, BarChart3,
+  Users, LayoutDashboard, FileText, Settings2, Receipt,
+  ArrowUpRight, ArrowDownRight, Minus, Filter, Wallet
+} from 'lucide-react';
 import { Badge } from '../ui/badge';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import type { Estimate, EstimateItem } from '../../types';
 import type { SalaryRecord } from '../../hooks/useSalary';
+import type { Income, Expense, PeriodFilter, AnalyticsSubTab } from '../../types/finance';
+import { getExpenseCategoryLabel } from '../../types/expenses';
 
 interface AnalyticsTabProps {
   estimates: Estimate[];
   salaryRecords?: SalaryRecord[];
   staff?: { id: string; full_name: string; position: string }[];
+  expenses?: Expense[];
+  incomes?: Income[];
 }
 
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
 const STATUS_COLORS: Record<string, string> = {
   draft: '#9ca3af',
-  pending: '#f59e0b', 
+  pending: '#f59e0b',
   approved: '#3b82f6',
   completed: '#10b981',
   cancelled: '#ef4444'
 };
+const STATUS_LABELS: Record<string, string> = {
+  draft: 'Черновик',
+  pending: 'В работе',
+  approved: 'Согласовано',
+  completed: 'Выполнено',
+  cancelled: 'Отменено'
+};
 
-export function AnalyticsTab({ estimates, salaryRecords = [], staff = [] }: AnalyticsTabProps) {
-  const [showEquipmentStats, setShowEquipmentStats] = useState(true);
+const FINANCE_COLORS = {
+  income: '#10b981',
+  expenses: '#ef4444',
+  salary: '#3b82f6',
+  profit: '#8b5cf6',
+  margin: '#f59e0b',
+};
 
-  // Статистика по месяцам (доходы)
-  const monthlyData = useMemo(() => {
-    const data: Record<string, { month: string; income: number; count: number }> = {};
-    
-    estimates.forEach(estimate => {
-      if ((estimate.status === 'completed' || estimate.status === 'approved') && estimate.event_date) {
-        const date = new Date(estimate.event_date);
-        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        const monthLabel = date.toLocaleDateString('ru-RU', { month: 'short', year: '2-digit' });
-        
-        if (!data[monthKey]) {
-          data[monthKey] = { month: monthLabel, income: 0, count: 0 };
-        }
-        data[monthKey].income += estimate.total || 0;
-        data[monthKey].count += 1;
-      }
-    });
-    
-    return Object.values(data).slice(-12); // Последние 12 месяцев
-  }, [estimates]);
+// ─── Helpers ───
 
-  // Статистика зарплат по месяцам
-  const salaryMonthlyData = useMemo(() => {
-    const data: Record<string, { month: string; paid: number; calculated: number; count: number }> = {};
-    
-    salaryRecords.forEach(record => {
-      const monthKey = record.month;
-      const date = new Date(monthKey + '-01');
-      const monthLabel = date.toLocaleDateString('ru-RU', { month: 'short', year: '2-digit' });
-      
-      if (!data[monthKey]) {
-        data[monthKey] = { month: monthLabel, paid: 0, calculated: 0, count: 0 };
-      }
-      data[monthKey].paid += record.paid || 0;
-      data[monthKey].calculated += record.total_calculated || 0;
-      data[monthKey].count += 1;
-    });
-    
-    return Object.values(data)
-      .sort((a, b) => {
-        const keyA = Object.keys(data).find(k => data[k] === a) || '';
-        const keyB = Object.keys(data).find(k => data[k] === b) || '';
-        return keyA.localeCompare(keyB);
-      })
-      .slice(-12);
-  }, [salaryRecords]);
+function getMonthOptions() {
+  const options: { value: string; label: string }[] = [];
+  const now = new Date();
+  for (let i = 0; i < 24; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const label = d.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
+    options.push({ value, label });
+  }
+  return options;
+}
 
-  // Топ сотрудников по зарплате
-  const topStaffBySalary = useMemo(() => {
-    const map = new Map<string, { staffId: string; paid: number; calculated: number; projects: number }>();
-    
-    salaryRecords.forEach(record => {
-      const existing = map.get(record.staff_id);
-      if (existing) {
-        existing.paid += record.paid || 0;
-        existing.calculated += record.total_calculated || 0;
-        existing.projects += record.projects.length;
-      } else {
-        map.set(record.staff_id, {
-          staffId: record.staff_id,
-          paid: record.paid || 0,
-          calculated: record.total_calculated || 0,
-          projects: record.projects.length,
-        });
-      }
-    });
-    
-    return Array.from(map.values())
-      .map(item => {
-        const member = staff.find(s => s.id === item.staffId);
-        return {
-          ...item,
-          name: member?.full_name || 'Неизвестный',
-          position: member?.position || '',
-        };
-      })
-      .sort((a, b) => b.paid - a.paid)
-      .slice(0, 10);
-  }, [salaryRecords, staff]);
+function getQuarterOptions() {
+  const options: { value: string; label: string }[] = [];
+  const now = new Date();
+  for (let i = 0; i < 8; i++) {
+    const year = now.getFullYear() - Math.floor(i / 4);
+    const quarter = 4 - (i % 4);
+    const value = `${year}-Q${quarter}`;
+    const label = `${quarter} квартал ${year}`;
+    options.push({ value, label });
+  }
+  return options;
+}
 
-  // Статистика по статусам
-  const statusData = useMemo(() => {
-    const counts: Record<string, { name: string; value: number; color: string }> = {
-      draft: { name: 'Черновик', value: 0, color: STATUS_COLORS.draft },
-      pending: { name: 'В работе', value: 0, color: STATUS_COLORS.pending },
-      approved: { name: 'Согласовано', value: 0, color: STATUS_COLORS.approved },
-      completed: { name: 'Выполнено', value: 0, color: STATUS_COLORS.completed },
-      cancelled: { name: 'Отменено', value: 0, color: STATUS_COLORS.cancelled }
-    };
-    
-    estimates.forEach(e => {
-      const status = e.status || 'draft';
-      if (counts[status]) counts[status].value++;
-    });
-    
-    return Object.values(counts).filter(d => d.value > 0);
-  }, [estimates]);
+function getYearOptions() {
+  const now = new Date();
+  const options: { value: string; label: string }[] = [];
+  for (let i = 0; i < 5; i++) {
+    const year = now.getFullYear() - i;
+    options.push({ value: String(year), label: String(year) });
+  }
+  return options;
+}
 
-  // Аналитика по оборудованию
-  const equipmentStats = useMemo(() => {
-    const equipmentMap: Record<string, {
-      name: string;
-      category: string;
-      totalQuantity: number;
-      totalRevenue: number;
-      usageCount: number;
-    }> = {};
+function isDateInPeriod(dateStr: string | undefined, period: PeriodFilter): boolean {
+  if (!dateStr) return false;
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return false;
 
-    estimates.forEach(estimate => {
-      const items = estimate.items || [];
-      const uniqueEquipmentInEstimate = new Set<string>();
-
-      items.forEach((item: EstimateItem) => {
-        const key = item.name?.trim() || item.description?.trim() || 'Неизвестное оборудование';
-        
-        if (!equipmentMap[key]) {
-          equipmentMap[key] = {
-            name: key,
-            category: item.category || 'Без категории',
-            totalQuantity: 0,
-            totalRevenue: 0,
-            usageCount: 0
-          };
-        }
-
-        equipmentMap[key].totalQuantity += item.quantity || 0;
-        equipmentMap[key].totalRevenue += (item.price || 0) * (item.quantity || 0);
-        uniqueEquipmentInEstimate.add(key);
-      });
-
-      uniqueEquipmentInEstimate.forEach(key => {
-        if (equipmentMap[key]) {
-          equipmentMap[key].usageCount += 1;
-        }
-      });
-    });
-
-    const equipmentList = Object.values(equipmentMap);
-
-    const topByUsage = [...equipmentList]
-      .sort((a, b) => b.usageCount - a.usageCount)
-      .slice(0, 10);
-
-    const topByRevenue = [...equipmentList]
-      .sort((a, b) => b.totalRevenue - a.totalRevenue)
-      .slice(0, 10);
-
-    const topByQuantity = [...equipmentList]
-      .sort((a, b) => b.totalQuantity - a.totalQuantity)
-      .slice(0, 10);
-
-    return { topByUsage, topByRevenue, topByQuantity, totalUniqueEquipment: equipmentList.length };
-  }, [estimates]);
-
-  // Общая статистика
-  const stats = useMemo(() => {
-    const completed = estimates.filter(e => e.status === 'completed');
-    const approved = estimates.filter(e => e.status === 'approved');
-    const pending = estimates.filter(e => e.status === 'pending');
-    const draft = estimates.filter(e => e.status === 'draft' || !e.status);
-    
-    const totalIncome = completed.reduce((sum, e) => sum + (e.total || 0), 0);
-    const approvedIncome = approved.reduce((sum, e) => sum + (e.total || 0), 0);
-    const pendingIncome = pending.reduce((sum, e) => sum + (e.total || 0), 0);
-    
-    const avgEstimateValue = completed.length > 0 
-      ? totalIncome / completed.length 
-      : 0;
-
-    const totalSalaryPaid = salaryRecords.reduce((sum, r) => sum + (r.paid || 0), 0);
-    const totalSalaryCalculated = salaryRecords.reduce((sum, r) => sum + (r.total_calculated || 0), 0);
-
-    return {
-      totalEstimates: estimates.length,
-      completed: completed.length,
-      approved: approved.length,
-      pending: pending.length,
-      draft: draft.length,
-      totalIncome,
-      approvedIncome,
-      pendingIncome,
-      avgEstimateValue,
-      totalSalaryPaid,
-      totalSalaryCalculated,
-    };
-  }, [estimates, salaryRecords]);
-
-  // Данные для графика оборудования по категориям
-  const equipmentByCategory = useMemo(() => {
-    const categoryMap: Record<string, { name: string; value: number; revenue: number }> = {};
-    
-    estimates.forEach(estimate => {
-      const items = estimate.items || [];
-      items.forEach((item: EstimateItem) => {
-        const category = item.category || 'Без категории';
-        if (!categoryMap[category]) {
-          categoryMap[category] = { name: category, value: 0, revenue: 0 };
-        }
-        categoryMap[category].value += item.quantity || 0;
-        categoryMap[category].revenue += (item.price || 0) * (item.quantity || 0);
-      });
-    });
-    
-    return Object.values(categoryMap)
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 8);
-  }, [estimates]);
-
-  const formatCurrency = (value: number) => {
-    if (value >= 1000000) {
-      return `${(value / 1000000).toFixed(1)}M ₽`;
+  switch (period.type) {
+    case 'month': {
+      const d = new Date(period.value + '-01');
+      return date.getFullYear() === d.getFullYear() && date.getMonth() === d.getMonth();
     }
-    if (value >= 1000) {
-      return `${(value / 1000).toFixed(0)}K ₽`;
+    case 'quarter': {
+      const [year, q] = period.value.split('-Q');
+      const y = parseInt(year);
+      const quarter = parseInt(q);
+      const startMonth = (quarter - 1) * 3;
+      return date.getFullYear() === y && date.getMonth() >= startMonth && date.getMonth() < startMonth + 3;
     }
-    return `${value} ₽`;
+    case 'year':
+      return date.getFullYear() === period.value;
+    case 'range':
+      return dateStr >= period.from && dateStr <= period.to;
+    case 'all':
+    default:
+      return true;
+  }
+}
+
+function isMonthInPeriod(monthKey: string, period: PeriodFilter): boolean {
+  switch (period.type) {
+    case 'month':
+      return monthKey === period.value;
+    case 'quarter': {
+      const [year, q] = period.value.split('-Q');
+      const y = parseInt(year);
+      const quarter = parseInt(q);
+      const [mYear, mMonth] = monthKey.split('-').map(Number);
+      const startMonth = (quarter - 1) * 3;
+      return mYear === y && mMonth >= startMonth + 1 && mMonth <= startMonth + 3;
+    }
+    case 'year': {
+      const [mYear] = monthKey.split('-').map(Number);
+      return mYear === period.value;
+    }
+    case 'range': {
+      const firstDay = monthKey + '-01';
+      return firstDay >= period.from && firstDay <= period.to;
+    }
+    case 'all':
+    default:
+      return true;
+  }
+}
+
+function formatCurrency(value: number) {
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M ₽`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(0)}K ₽`;
+  return `${value.toLocaleString('ru-RU')} ₽`;
+}
+
+function formatCurrencyFull(value: number) {
+  return `${value.toLocaleString('ru-RU')} ₽`;
+}
+
+// ─── KPICard ───
+interface KPICardProps {
+  title: string;
+  value: string;
+  subtitle?: string;
+  icon: React.ElementType;
+  color: 'green' | 'red' | 'blue' | 'purple' | 'amber' | 'gray';
+  trend?: number;
+}
+
+function KPICard({ title, value, subtitle, icon: Icon, color, trend }: KPICardProps) {
+  const colorMap = {
+    green: 'from-green-500/10 to-green-600/5 border-green-200 dark:from-green-500/20 dark:to-green-600/10 dark:border-green-900 text-green-700 dark:text-green-300',
+    red: 'from-red-500/10 to-red-600/5 border-red-200 dark:from-red-500/20 dark:to-red-600/10 dark:border-red-900 text-red-700 dark:text-red-300',
+    blue: 'from-blue-500/10 to-blue-600/5 border-blue-200 dark:from-blue-500/20 dark:to-blue-600/10 dark:border-blue-900 text-blue-700 dark:text-blue-300',
+    purple: 'from-purple-500/10 to-purple-600/5 border-purple-200 dark:from-purple-500/20 dark:to-purple-600/10 dark:border-purple-900 text-purple-700 dark:text-purple-300',
+    amber: 'from-amber-500/10 to-amber-600/5 border-amber-200 dark:from-amber-500/20 dark:to-amber-600/10 dark:border-amber-900 text-amber-700 dark:text-amber-300',
+    gray: 'from-gray-500/10 to-gray-600/5 border-gray-200 dark:from-gray-500/20 dark:to-gray-600/10 dark:border-gray-900 text-gray-700 dark:text-gray-300',
   };
 
   return (
-    <div className="space-y-6">
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Всего смет</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-foreground">{stats.totalEstimates}</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              {stats.completed} выполнено • {stats.pending} в работе
-            </p>
-          </CardContent>
-        </Card>
+    <Card className={`bg-gradient-to-br ${colorMap[color]}`}>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium flex items-center gap-2 opacity-90">
+          <Icon className="w-4 h-4" />
+          {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold">{value}</div>
+        {trend !== undefined && (
+          <div className={`text-xs mt-1 flex items-center gap-1 ${trend >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            {trend > 0 ? <ArrowUpRight className="w-3 h-3" /> : trend < 0 ? <ArrowDownRight className="w-3 h-3" /> : <Minus className="w-3 h-3" />}
+            {trend >= 0 ? '+' : ''}{trend.toFixed(1)}%
+          </div>
+        )}
+        {subtitle && trend === undefined && (
+          <p className="text-xs mt-1 opacity-70">{subtitle}</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
-        <Card className="bg-green-50/50 dark:bg-green-950/20 border-green-200 dark:border-green-900">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-green-700 dark:text-green-400 flex items-center gap-2">
-              <TrendingUp className="w-4 h-4" />
-              Выполнено
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-green-900 dark:text-green-300">{stats.completed}</p>
-            <p className="text-xs text-green-700 dark:text-green-400 mt-1">
-              {((stats.completed / Math.max(stats.totalEstimates, 1)) * 100).toFixed(0)}% от общего числа
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-blue-700 dark:text-blue-400 flex items-center gap-2">
-              <Calendar className="w-4 h-4" />
-              Средний чек
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-blue-900 dark:text-blue-300">
-              {formatCurrency(stats.avgEstimateValue)}
-            </p>
-            <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">
-              на выполненную смету
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-emerald-700 dark:text-emerald-400 flex items-center gap-2">
-              <DollarSign className="w-4 h-4" />
-              Доход
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-emerald-900 dark:text-emerald-300">
-              {formatCurrency(stats.totalIncome)}
-            </p>
-            <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-1">
-              + {formatCurrency(stats.approvedIncome)} согласовано
-            </p>
-          </CardContent>
-        </Card>
+// ─── PeriodSelector ───
+function PeriodSelector({
+  periodType, setPeriodType, periodValue, setPeriodValue,
+  periodYear, setPeriodYear, rangeFrom, setRangeFrom, rangeTo, setRangeTo
+}: {
+  periodType: PeriodFilter['type'];
+  setPeriodType: (t: PeriodFilter['type']) => void;
+  periodValue: string;
+  setPeriodValue: (v: string) => void;
+  periodYear: string;
+  setPeriodYear: (v: string) => void;
+  rangeFrom: string;
+  setRangeFrom: (v: string) => void;
+  rangeTo: string;
+  setRangeTo: (v: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+        <Filter className="w-4 h-4" />
+        <span>Период:</span>
       </div>
+      <Select value={periodType} onValueChange={(v) => setPeriodType(v as PeriodFilter['type'])}>
+        <SelectTrigger className="w-[140px] h-8 text-xs">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="month">Месяц</SelectItem>
+          <SelectItem value="quarter">Квартал</SelectItem>
+          <SelectItem value="year">Год</SelectItem>
+          <SelectItem value="range">Диапазон</SelectItem>
+          <SelectItem value="all">Всё время</SelectItem>
+        </SelectContent>
+      </Select>
 
-      {/* Salary Summary Cards */}
-      {salaryRecords.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="bg-blue-500/10 border-blue-500/20 dark:bg-blue-500/10 dark:border-blue-500/30">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-blue-700 dark:text-blue-300 flex items-center gap-2">
-                <Users className="w-4 h-4" />
-                Всего начислено
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">
-                {stats.totalSalaryCalculated.toLocaleString('ru-RU')} ₽
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-green-500/10 border-green-500/20 dark:bg-green-500/10 dark:border-green-500/30">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-green-700 dark:text-green-300 flex items-center gap-2">
-                <DollarSign className="w-4 h-4" />
-                Всего выдано
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-green-700 dark:text-green-300">
-                {stats.totalSalaryPaid.toLocaleString('ru-RU')} ₽
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className={`border ${stats.totalSalaryCalculated - stats.totalSalaryPaid >= 0 ? 'bg-amber-500/10 border-amber-500/20 dark:bg-amber-500/10 dark:border-amber-500/30' : 'bg-red-500/10 border-red-500/20 dark:bg-red-500/10 dark:border-red-500/30'}`}>
-            <CardHeader className="pb-2">
-              <CardTitle className={`text-sm ${stats.totalSalaryCalculated - stats.totalSalaryPaid >= 0 ? 'text-amber-700 dark:text-amber-300' : 'text-red-700 dark:text-red-300'}`}>
-                Остаток к выдаче
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className={`text-2xl font-bold ${stats.totalSalaryCalculated - stats.totalSalaryPaid >= 0 ? 'text-amber-700 dark:text-amber-300' : 'text-red-700 dark:text-red-300'}`}>
-                {(stats.totalSalaryCalculated - stats.totalSalaryPaid).toLocaleString('ru-RU')} ₽
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+      {periodType === 'month' && (
+        <Select value={periodValue} onValueChange={setPeriodValue}>
+          <SelectTrigger className="w-[180px] h-8 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {getMonthOptions().map(o => (
+              <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       )}
 
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Monthly Income Chart */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Доходы по месяцам</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {monthlyData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={monthlyData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(217 19% 22%)" />
-                  <XAxis 
-                    dataKey="month" 
-                    tick={{ fill: 'hsl(215 20% 65%)', fontSize: 12 }}
-                    axisLine={{ stroke: 'hsl(217 19% 22%)' }}
-                  />
-                  <YAxis 
-                    tick={{ fill: 'hsl(215 20% 65%)', fontSize: 12 }}
-                    axisLine={{ stroke: 'hsl(217 19% 22%)' }}
-                    tickFormatter={(value) => formatCurrency(value)}
-                  />
-                  <Tooltip 
-                    formatter={(value: number) => [`${value.toLocaleString('ru-RU')} ₽`, 'Доход']}
-                    labelStyle={{ color: 'hsl(210 40% 98%)' }}
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(215 28% 10%)', 
-                      border: '1px solid hsl(217 19% 22%)',
-                      borderRadius: '8px'
-                    }}
-                  />
-                  <Bar dataKey="income" fill="#10b981" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-[250px] flex items-center justify-center text-muted-foreground">
-                Нет данных о доходах
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      {periodType === 'quarter' && (
+        <Select value={periodValue} onValueChange={setPeriodValue}>
+          <SelectTrigger className="w-[180px] h-8 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {getQuarterOptions().map(o => (
+              <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
 
-        {/* Status Distribution */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Распределение по статусам</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {statusData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={250}>
-                <PieChart>
-                  <Pie
-                    data={statusData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={3}
-                    dataKey="value"
-                    label={({ name, value }) => `${name}: ${value}`}
-                    labelStyle={{ fill: 'hsl(210 40% 98%)', fontSize: 12 }}
-                  >
-                    {statusData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(215 28% 10%)', 
-                      border: '1px solid hsl(217 19% 22%)',
-                      borderRadius: '8px'
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-[250px] flex items-center justify-center text-muted-foreground">
-                Нет данных
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      {periodType === 'year' && (
+        <Select value={periodYear} onValueChange={setPeriodYear}>
+          <SelectTrigger className="w-[100px] h-8 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {getYearOptions().map(o => (
+              <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+
+      {periodType === 'range' && (
+        <div className="flex items-center gap-2">
+          <input
+            type="date"
+            value={rangeFrom}
+            onChange={(e) => setRangeFrom(e.target.value)}
+            className="h-8 px-2 text-xs rounded-md border border-input bg-background"
+          />
+          <span className="text-xs text-muted-foreground">—</span>
+          <input
+            type="date"
+            value={rangeTo}
+            onChange={(e) => setRangeTo(e.target.value)}
+            className="h-8 px-2 text-xs rounded-md border border-input bg-background"
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Tooltip styles ───
+const tooltipStyle = {
+  backgroundColor: 'hsl(215 28% 10%)',
+  border: '1px solid hsl(217 19% 22%)',
+  borderRadius: '8px',
+};
+
+const tooltipLabelStyle = { color: 'hsl(210 40% 98%)' };
+
+// ─── Main Component ───
+export function AnalyticsTab({ estimates, salaryRecords = [], staff = [], expenses = [], incomes = [] }: AnalyticsTabProps) {
+  const [activeSubTab, setActiveSubTab] = useState<AnalyticsSubTab>('overview');
+  const [periodType, setPeriodType] = useState<PeriodFilter['type']>('month');
+  const [periodValue, setPeriodValue] = useState<string>(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [periodYear, setPeriodYear] = useState<string>(String(new Date().getFullYear()));
+  const [rangeFrom, setRangeFrom] = useState<string>('');
+  const [rangeTo, setRangeTo] = useState<string>('');
+
+  const period: PeriodFilter = useMemo(() => {
+    switch (periodType) {
+      case 'month': return { type: 'month', value: periodValue };
+      case 'quarter': return { type: 'quarter', value: periodValue };
+      case 'year': return { type: 'year', value: parseInt(periodYear) };
+      case 'range': return { type: 'range', from: rangeFrom, to: rangeTo };
+      default: return { type: 'all' };
+    }
+  }, [periodType, periodValue, periodYear, rangeFrom, rangeTo]);
+
+  // ─── Filtered data ───
+  const filteredEstimates = useMemo(() => {
+    return estimates.filter(e => isDateInPeriod(e.event_date || e.created_at, period));
+  }, [estimates, period]);
+
+  const filteredExpenses = useMemo(() => {
+    return expenses.filter(e => isDateInPeriod(e.date, period));
+  }, [expenses, period]);
+
+  const filteredIncomes = useMemo(() => {
+    return incomes.filter(i => isDateInPeriod(i.date, period));
+  }, [incomes, period]);
+
+  const filteredSalaryRecords = useMemo(() => {
+    if (period.type === 'all') return salaryRecords;
+    return salaryRecords.filter(r => {
+      if (r.payment_date) return isDateInPeriod(r.payment_date, period);
+      return isMonthInPeriod(r.month, period);
+    });
+  }, [salaryRecords, period]);
+
+  // ─── Overview metrics ───
+  const overviewMetrics = useMemo(() => {
+    const completedEstimates = filteredEstimates.filter(e => e.status === 'completed');
+    const estimateIncome = completedEstimates.reduce((s, e) => s + (e.total || 0), 0);
+    const manualIncome = filteredIncomes.filter(i => i.type === 'manual').reduce((s, i) => s + (i.amount || 0), 0);
+    const totalIncome = estimateIncome + manualIncome;
+
+    const totalExpenses = filteredExpenses.reduce((s, e) => s + (e.amount || 0), 0);
+    const totalSalary = filteredSalaryRecords.reduce((s, r) => s + (r.paid || 0), 0);
+    const totalSalaryCalc = filteredSalaryRecords.reduce((s, r) => s + (r.total_calculated || 0), 0);
+    const profit = totalIncome - totalExpenses - totalSalary;
+    const margin = totalIncome > 0 ? (profit / totalIncome) * 100 : 0;
+
+    return { totalIncome, totalExpenses, totalSalary, totalSalaryCalc, profit, margin, estimateIncome, manualIncome };
+  }, [filteredEstimates, filteredExpenses, filteredIncomes, filteredSalaryRecords]);
+
+  // ─── Monthly P&L data (for charts) ───
+  const monthlyPL = useMemo(() => {
+    const data: Record<string, { month: string; income: number; expenses: number; salary: number; profit: number; margin: number }> = {};
+
+    // Income from estimates
+    estimates.filter(e => e.status === 'completed' && e.event_date).forEach(e => {
+      const d = new Date(e.event_date!);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const label = d.toLocaleDateString('ru-RU', { month: 'short', year: '2-digit' });
+      if (!data[key]) data[key] = { month: label, income: 0, expenses: 0, salary: 0, profit: 0, margin: 0 };
+      data[key].income += e.total || 0;
+    });
+
+    // Manual incomes
+    incomes.filter(i => i.type === 'manual' && i.date).forEach(i => {
+      const d = new Date(i.date);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const label = d.toLocaleDateString('ru-RU', { month: 'short', year: '2-digit' });
+      if (!data[key]) data[key] = { month: label, income: 0, expenses: 0, salary: 0, profit: 0, margin: 0 };
+      data[key].income += i.amount || 0;
+    });
+
+    // Expenses
+    expenses.filter(e => e.date).forEach(e => {
+      const d = new Date(e.date);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const label = d.toLocaleDateString('ru-RU', { month: 'short', year: '2-digit' });
+      if (!data[key]) data[key] = { month: label, income: 0, expenses: 0, salary: 0, profit: 0, margin: 0 };
+      data[key].expenses += e.amount || 0;
+    });
+
+    // Salaries
+    salaryRecords.forEach(r => {
+      const key = r.month;
+      const d = new Date(key + '-01');
+      const label = d.toLocaleDateString('ru-RU', { month: 'short', year: '2-digit' });
+      if (!data[key]) data[key] = { month: label, income: 0, expenses: 0, salary: 0, profit: 0, margin: 0 };
+      data[key].salary += r.paid || 0;
+    });
+
+    // Calculate profit & margin
+    Object.values(data).forEach(item => {
+      item.profit = item.income - item.expenses - item.salary;
+      item.margin = item.income > 0 ? (item.profit / item.income) * 100 : 0;
+    });
+
+    return Object.entries(data)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(-12)
+      .map(([, v]) => v);
+  }, [estimates, incomes, expenses, salaryRecords]);
+
+  // ─── Expenses by category ───
+  const expensesByCategory = useMemo(() => {
+    const map: Record<string, { name: string; value: number; color: string }> = {};
+    filteredExpenses.forEach(e => {
+      const cat = getExpenseCategoryLabel(e.category);
+      if (!map[cat]) map[cat] = { name: cat, value: 0, color: COLORS[Object.keys(map).length % COLORS.length] };
+      map[cat].value += e.amount || 0;
+    });
+    return Object.values(map).sort((a, b) => b.value - a.value);
+  }, [filteredExpenses]);
+
+  // ─── Monthly expenses by category (for stacked bar) ───
+  const monthlyExpensesByCategory = useMemo(() => {
+    const data: Record<string, Record<string, number>> = {};
+    const allCats = new Set<string>();
+
+    expenses.filter(e => e.date).forEach(e => {
+      const d = new Date(e.date);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const cat = getExpenseCategoryLabel(e.category);
+      allCats.add(cat);
+      if (!data[key]) data[key] = {};
+      data[key][cat] = (data[key][cat] || 0) + (e.amount || 0);
+    });
+
+    const sortedKeys = Object.keys(data).sort().slice(-12);
+    return sortedKeys.map(k => {
+      const d = new Date(k + '-01');
+      const month = d.toLocaleDateString('ru-RU', { month: 'short', year: '2-digit' });
+      const entry: Record<string, number | string> = { month, key: k };
+      allCats.forEach(cat => { entry[cat] = data[k]?.[cat] || 0; });
+      return entry;
+    });
+  }, [expenses]);
+
+  const expenseCategoryNames = useMemo(() => {
+    const cats = new Set<string>();
+    expenses.forEach(e => cats.add(getExpenseCategoryLabel(e.category)));
+    return Array.from(cats);
+  }, [expenses]);
+
+  // ─── Estimate stats ───
+  const estimateStats = useMemo(() => {
+    const total = filteredEstimates.length;
+    const completed = filteredEstimates.filter(e => e.status === 'completed').length;
+    const approved = filteredEstimates.filter(e => e.status === 'approved').length;
+    const pending = filteredEstimates.filter(e => e.status === 'pending').length;
+    const draft = filteredEstimates.filter(e => e.status === 'draft' || !e.status).length;
+    const cancelled = filteredEstimates.filter(e => e.status === 'cancelled').length;
+
+    const completedTotal = filteredEstimates.filter(e => e.status === 'completed').reduce((s, e) => s + (e.total || 0), 0);
+    const avgCheck = completed > 0 ? completedTotal / completed : 0;
+
+    // Conversion: from approved to completed
+    const conversion = (approved + completed) > 0 ? (completed / (approved + completed)) * 100 : 0;
+
+    return { total, completed, approved, pending, draft, cancelled, avgCheck, conversion, completedTotal };
+  }, [filteredEstimates]);
+
+  // ─── Monthly estimate status data ───
+  const monthlyEstimatesByStatus = useMemo(() => {
+    const data: Record<string, Record<string, number>> = {};
+    const statuses = ['draft', 'pending', 'approved', 'completed', 'cancelled'];
+
+    estimates.filter(e => e.event_date).forEach(e => {
+      const d = new Date(e.event_date!);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      if (!data[key]) data[key] = {};
+      const status = e.status || 'draft';
+      data[key][status] = (data[key][status] || 0) + 1;
+    });
+
+    const sortedKeys = Object.keys(data).sort().slice(-12);
+    return sortedKeys.map(k => {
+      const d = new Date(k + '-01');
+      const month = d.toLocaleDateString('ru-RU', { month: 'short', year: '2-digit' });
+      const entry: Record<string, number | string> = { month };
+      statuses.forEach(s => { entry[s] = data[k]?.[s] || 0; });
+      return entry;
+    });
+  }, [estimates]);
+
+  // ─── Top estimates ───
+  const topEstimates = useMemo(() => {
+    return [...filteredEstimates]
+      .sort((a, b) => (b.total || 0) - (a.total || 0))
+      .slice(0, 10);
+  }, [filteredEstimates]);
+
+  // ─── Equipment stats ───
+  const equipmentStats = useMemo(() => {
+    const map: Record<string, { name: string; category: string; quantity: number; revenue: number; usage: number }> = {};
+
+    filteredEstimates.forEach(est => {
+      const unique = new Set<string>();
+      (est.items || []).forEach((item: EstimateItem) => {
+        const key = item.name?.trim() || item.description?.trim() || 'Неизвестное';
+        if (!map[key]) map[key] = { name: key, category: item.category || 'Без категории', quantity: 0, revenue: 0, usage: 0 };
+        map[key].quantity += item.quantity || 0;
+        map[key].revenue += (item.price || 0) * (item.quantity || 0);
+        unique.add(key);
+      });
+      unique.forEach(key => { if (map[key]) map[key].usage += 1; });
+    });
+
+    const list = Object.values(map);
+    return {
+      total: list.length,
+      topByRevenue: [...list].sort((a, b) => b.revenue - a.revenue).slice(0, 15),
+      topByUsage: [...list].sort((a, b) => b.usage - a.usage).slice(0, 15),
+      byCategory: Object.values(
+        list.reduce((acc, item) => {
+          if (!acc[item.category]) acc[item.category] = { name: item.category, revenue: 0, quantity: 0 };
+          acc[item.category].revenue += item.revenue;
+          acc[item.category].quantity += item.quantity;
+          return acc;
+        }, {} as Record<string, { name: string; revenue: number; quantity: number }>)
+      ).sort((a, b) => b.revenue - a.revenue),
+    };
+  }, [filteredEstimates]);
+
+  // ─── Staff stats ───
+  const staffStats = useMemo(() => {
+    const map = new Map<string, { staffId: string; paid: number; calculated: number; projects: number }>();
+    filteredSalaryRecords.forEach(r => {
+      const ex = map.get(r.staff_id);
+      if (ex) {
+        ex.paid += r.paid || 0;
+        ex.calculated += r.total_calculated || 0;
+        ex.projects += r.projects?.length || 0;
+      } else {
+        map.set(r.staff_id, { staffId: r.staff_id, paid: r.paid || 0, calculated: r.total_calculated || 0, projects: r.projects?.length || 0 });
+      }
+    });
+
+    return Array.from(map.values())
+      .map(item => {
+        const member = staff.find(s => s.id === item.staffId);
+        return { ...item, name: member?.full_name || 'Неизвестный', position: member?.position || '' };
+      })
+      .sort((a, b) => b.paid - a.paid);
+  }, [filteredSalaryRecords, staff]);
+
+  // ─── Monthly salary data ───
+  const monthlySalary = useMemo(() => {
+    const data: Record<string, { month: string; paid: number; calculated: number }> = {};
+    salaryRecords.forEach(r => {
+      const key = r.month;
+      const d = new Date(key + '-01');
+      const label = d.toLocaleDateString('ru-RU', { month: 'short', year: '2-digit' });
+      if (!data[key]) data[key] = { month: label, paid: 0, calculated: 0 };
+      data[key].paid += r.paid || 0;
+      data[key].calculated += r.total_calculated || 0;
+    });
+    return Object.entries(data).sort(([a], [b]) => a.localeCompare(b)).slice(-12).map(([, v]) => v);
+  }, [salaryRecords]);
+
+  // ─── Funnel data ───
+  const funnelData = useMemo(() => {
+    const all = estimates;
+    const draft = all.filter(e => e.status === 'draft' || !e.status).length;
+    const pending = all.filter(e => e.status === 'pending').length;
+    const approved = all.filter(e => e.status === 'approved').length;
+    const completed = all.filter(e => e.status === 'completed').length;
+
+    return [
+      { name: 'Черновик', value: draft, color: STATUS_COLORS.draft },
+      { name: 'В работе', value: pending, color: STATUS_COLORS.pending },
+      { name: 'Согласовано', value: approved, color: STATUS_COLORS.approved },
+      { name: 'Выполнено', value: completed, color: STATUS_COLORS.completed },
+    ];
+  }, [estimates]);
+
+  // ─── Status distribution (for pie) ───
+  const statusData = useMemo(() => {
+    const counts: Record<string, number> = { draft: 0, pending: 0, approved: 0, completed: 0, cancelled: 0 };
+    filteredEstimates.forEach(e => { counts[e.status || 'draft']++; });
+    return Object.entries(counts)
+      .filter(([, v]) => v > 0)
+      .map(([k, v]) => ({ name: STATUS_LABELS[k] || k, value: v, color: STATUS_COLORS[k] || '#9ca3af' }));
+  }, [filteredEstimates]);
+
+  const hasData = estimates.length > 0 || expenses.length > 0 || salaryRecords.length > 0;
+
+  if (!hasData) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+        <BarChart3 className="w-12 h-12 mb-4 opacity-50" />
+        <p className="text-lg font-medium">Нет данных для аналитики</p>
+        <p className="text-sm">Добавьте сметы, расходы и зарплаты, чтобы увидеть аналитику</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header with Period Selector */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <PeriodSelector
+          periodType={periodType} setPeriodType={setPeriodType}
+          periodValue={periodValue} setPeriodValue={setPeriodValue}
+          periodYear={periodYear} setPeriodYear={setPeriodYear}
+          rangeFrom={rangeFrom} setRangeFrom={setRangeFrom}
+          rangeTo={rangeTo} setRangeTo={setRangeTo}
+        />
       </div>
 
-      {/* Salary Analytics */}
-      {salaryRecords.length > 0 && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Monthly Salary Chart */}
+      {/* Sub-tabs */}
+      <Tabs value={activeSubTab} onValueChange={(v) => setActiveSubTab(v as AnalyticsSubTab)}>
+        <TabsList className="grid w-full grid-cols-5 lg:w-[600px]">
+          <TabsTrigger value="overview" className="gap-1.5 text-xs">
+            <LayoutDashboard className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Обзор</span>
+          </TabsTrigger>
+          <TabsTrigger value="estimates" className="gap-1.5 text-xs">
+            <FileText className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Сметы</span>
+          </TabsTrigger>
+          <TabsTrigger value="equipment" className="gap-1.5 text-xs">
+            <Settings2 className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Оборуд.</span>
+          </TabsTrigger>
+          <TabsTrigger value="expenses" className="gap-1.5 text-xs">
+            <Receipt className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Расходы</span>
+          </TabsTrigger>
+          <TabsTrigger value="staff" className="gap-1.5 text-xs">
+            <Users className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Персонал</span>
+          </TabsTrigger>
+        </TabsList>
+
+        {/* ========== OVERVIEW TAB ========== */}
+        <TabsContent value="overview" className="space-y-6 mt-6">
+          {/* KPI Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <KPICard
+              title="Доходы"
+              value={formatCurrencyFull(overviewMetrics.totalIncome)}
+              icon={TrendingUp}
+              color="green"
+            />
+            <KPICard
+              title="Расходы"
+              value={formatCurrencyFull(overviewMetrics.totalExpenses)}
+              icon={TrendingDown}
+              color="red"
+            />
+            <KPICard
+              title="Зарплаты"
+              value={formatCurrencyFull(overviewMetrics.totalSalary)}
+              icon={Users}
+              color="blue"
+            />
+            <KPICard
+              title="Прибыль"
+              value={formatCurrencyFull(overviewMetrics.profit)}
+              icon={DollarSign}
+              color="purple"
+            />
+            <KPICard
+              title="Маржа"
+              value={`${overviewMetrics.margin.toFixed(1)}%`}
+              icon={BarChart3}
+              color="amber"
+            />
+          </div>
+
+          {/* P&L Chart */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
-                <Users className="w-4 h-4" />
-                Зарплаты по месяцам
+                <Wallet className="w-4 h-4" />
+                P&L по месяцам
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {salaryMonthlyData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={250}>
-                  <BarChart data={salaryMonthlyData}>
+              {monthlyPL.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <ComposedChart data={monthlyPL}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(217 19% 22%)" />
-                    <XAxis 
-                      dataKey="month" 
-                      tick={{ fill: 'hsl(215 20% 65%)', fontSize: 12 }}
-                      axisLine={{ stroke: 'hsl(217 19% 22%)' }}
-                    />
-                    <YAxis 
-                      tick={{ fill: 'hsl(215 20% 65%)', fontSize: 12 }}
-                      axisLine={{ stroke: 'hsl(217 19% 22%)' }}
-                      tickFormatter={(value) => formatCurrency(value)}
-                    />
-                    <Tooltip 
+                    <XAxis dataKey="month" tick={{ fill: 'hsl(215 20% 65%)', fontSize: 12 }} axisLine={{ stroke: 'hsl(217 19% 22%)' }} />
+                    <YAxis yAxisId="left" tick={{ fill: 'hsl(215 20% 65%)', fontSize: 12 }} axisLine={{ stroke: 'hsl(217 19% 22%)' }} tickFormatter={v => formatCurrency(v as number)} />
+                    <YAxis yAxisId="right" orientation="right" tick={{ fill: 'hsl(215 20% 65%)', fontSize: 12 }} axisLine={{ stroke: 'hsl(217 19% 22%)' }} tickFormatter={v => `${v}%`} />
+                    <Tooltip
                       formatter={(value: number, name: string) => {
-                        const label = name === 'paid' ? 'Выдано' : 'Начислено';
-                        return [`${value.toLocaleString('ru-RU')} ₽`, label];
+                        const labels: Record<string, string> = { income: 'Доход', expenses: 'Расходы', salary: 'Зарплаты', profit: 'Прибыль', margin: 'Маржа %' };
+                        return [name === 'margin' ? `${value.toFixed(1)}%` : formatCurrencyFull(value), labels[name] || name];
                       }}
-                      labelStyle={{ color: 'hsl(210 40% 98%)' }}
-                      contentStyle={{ 
-                        backgroundColor: 'hsl(215 28% 10%)', 
-                        border: '1px solid hsl(217 19% 22%)',
-                        borderRadius: '8px'
-                      }}
+                      labelStyle={tooltipLabelStyle}
+                      contentStyle={tooltipStyle}
                     />
-                    <Bar dataKey="calculated" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="paid" fill="#10b981" radius={[4, 4, 0, 0]} />
-                  </BarChart>
+                    <Legend />
+                    <Bar yAxisId="left" dataKey="income" name="Доход" fill={FINANCE_COLORS.income} radius={[4, 4, 0, 0]} />
+                    <Bar yAxisId="left" dataKey="expenses" name="Расходы" fill={FINANCE_COLORS.expenses} radius={[4, 4, 0, 0]} />
+                    <Bar yAxisId="left" dataKey="salary" name="Зарплаты" fill={FINANCE_COLORS.salary} radius={[4, 4, 0, 0]} />
+                    <Line yAxisId="right" type="monotone" dataKey="margin" name="Маржа %" stroke={FINANCE_COLORS.margin} strokeWidth={2} dot={{ r: 4 }} />
+                  </ComposedChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="h-[250px] flex items-center justify-center text-muted-foreground">
-                  Нет данных о зарплатах
-                </div>
+                <div className="h-[300px] flex items-center justify-center text-muted-foreground">Нет данных</div>
               )}
             </CardContent>
           </Card>
 
-          {/* Top Staff by Salary */}
+          {/* Expense structure + P&L table */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Структура расходов</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {expensesByCategory.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={250}>
+                    <PieChart>
+                      <Pie
+                        data={expensesByCategory}
+                        cx="50%" cy="50%"
+                        innerRadius={60} outerRadius={90}
+                        paddingAngle={3}
+                        dataKey="value"
+                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                        labelStyle={{ fill: 'hsl(210 40% 98%)', fontSize: 11 }}
+                      >
+                        {expensesByCategory.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        formatter={(value: number) => [formatCurrencyFull(value), 'Сумма']}
+                        contentStyle={tooltipStyle}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-[250px] flex items-center justify-center text-muted-foreground">Нет данных о расходах</div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">P&L сводка</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center py-2 border-b border-border/50">
+                    <span className="text-sm text-muted-foreground">Доходы от смет</span>
+                    <span className="text-sm font-medium text-green-600">{formatCurrencyFull(overviewMetrics.estimateIncome)}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-border/50">
+                    <span className="text-sm text-muted-foreground">Прочие доходы</span>
+                    <span className="text-sm font-medium text-green-600">{formatCurrencyFull(overviewMetrics.manualIncome)}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-border/50">
+                    <span className="text-sm font-medium">Всего доходов</span>
+                    <span className="text-sm font-bold text-green-600">{formatCurrencyFull(overviewMetrics.totalIncome)}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-border/50">
+                    <span className="text-sm text-muted-foreground">Расходы</span>
+                    <span className="text-sm font-medium text-red-500">− {formatCurrencyFull(overviewMetrics.totalExpenses)}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-border/50">
+                    <span className="text-sm text-muted-foreground">Зарплаты</span>
+                    <span className="text-sm font-medium text-red-500">− {formatCurrencyFull(overviewMetrics.totalSalary)}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-3 bg-muted/50 rounded-lg px-3">
+                    <span className="text-sm font-bold">Прибыль</span>
+                    <span className={`text-sm font-bold ${overviewMetrics.profit >= 0 ? 'text-purple-600' : 'text-red-600'}`}>
+                      {formatCurrencyFull(overviewMetrics.profit)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center py-1">
+                    <span className="text-sm text-muted-foreground">Маржинальность</span>
+                    <span className="text-sm font-medium">{overviewMetrics.margin.toFixed(1)}%</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* ========== ESTIMATES TAB ========== */}
+        <TabsContent value="estimates" className="space-y-6 mt-6">
+          {/* KPI Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <KPICard title="Всего смет" value={String(estimateStats.total)} icon={FileText} color="gray" />
+            <KPICard title="Выполнено" value={String(estimateStats.completed)} icon={TrendingUp} color="green" />
+            <KPICard title="Согласовано" value={String(estimateStats.approved)} icon={Calendar} color="blue" />
+            <KPICard title="Средний чек" value={formatCurrency(estimateStats.avgCheck)} icon={DollarSign} color="purple" />
+            <KPICard title="Конверсия" value={`${estimateStats.conversion.toFixed(0)}%`} icon={BarChart3} color="amber" />
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Status distribution */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Распределение по статусам</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {statusData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={250}>
+                    <PieChart>
+                      <Pie
+                        data={statusData}
+                        cx="50%" cy="50%"
+                        innerRadius={60} outerRadius={90}
+                        paddingAngle={3}
+                        dataKey="value"
+                        label={({ name, value }) => `${name}: ${value}`}
+                        labelStyle={{ fill: 'hsl(210 40% 98%)', fontSize: 12 }}
+                      >
+                        {statusData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip contentStyle={tooltipStyle} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-[250px] flex items-center justify-center text-muted-foreground">Нет данных</div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Monthly status dynamics */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Динамика по статусам</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {monthlyEstimatesByStatus.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={250}>
+                    <BarChart data={monthlyEstimatesByStatus}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(217 19% 22%)" />
+                      <XAxis dataKey="month" tick={{ fill: 'hsl(215 20% 65%)', fontSize: 12 }} axisLine={{ stroke: 'hsl(217 19% 22%)' }} />
+                      <YAxis tick={{ fill: 'hsl(215 20% 65%)', fontSize: 12 }} axisLine={{ stroke: 'hsl(217 19% 22%)' }} />
+                      <Tooltip contentStyle={tooltipStyle} labelStyle={tooltipLabelStyle} />
+                      <Legend />
+                      <Bar dataKey="draft" name="Черновик" stackId="a" fill={STATUS_COLORS.draft} />
+                      <Bar dataKey="pending" name="В работе" stackId="a" fill={STATUS_COLORS.pending} />
+                      <Bar dataKey="approved" name="Согласовано" stackId="a" fill={STATUS_COLORS.approved} />
+                      <Bar dataKey="completed" name="Выполнено" stackId="a" fill={STATUS_COLORS.completed} />
+                      <Bar dataKey="cancelled" name="Отменено" stackId="a" fill={STATUS_COLORS.cancelled} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-[250px] flex items-center justify-center text-muted-foreground">Нет данных</div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Funnel */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <BarChart3 className="w-4 h-4" />
-                Топ сотрудников по выплатам
-              </CardTitle>
+              <CardTitle className="text-base">Воронка смет</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2 max-h-[250px] overflow-y-auto scrollbar-dark">
-                {topStaffBySalary.map((item, index) => (
-                  <div 
-                    key={item.staffId}
-                    className="flex items-center justify-between p-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
-                  >
+              <div className="flex flex-col sm:flex-row items-stretch gap-2">
+                {funnelData.map((item, idx) => {
+                  const prev = idx > 0 ? funnelData[idx - 1].value : item.value;
+                  const conv = prev > 0 ? ((item.value / prev) * 100).toFixed(0) : '100';
+                  return (
+                    <div key={item.name} className="flex-1 flex flex-col items-center">
+                      <div
+                        className="w-full rounded-lg p-4 text-center text-white font-medium text-sm"
+                        style={{ backgroundColor: item.color, opacity: 0.9 }}
+                      >
+                        <div className="text-lg font-bold">{item.value}</div>
+                        <div className="text-xs opacity-90">{item.name}</div>
+                      </div>
+                      {idx < funnelData.length - 1 && (
+                        <div className="hidden sm:flex items-center justify-center py-1">
+                          <Badge variant="secondary" className="text-xs">{conv}%</Badge>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Top estimates table */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Топ-10 смет по выручке</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2 max-h-[350px] overflow-y-auto scrollbar-dark">
+                {topEstimates.map((est, idx) => (
+                  <div key={est.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
                     <div className="flex items-center gap-3 min-w-0">
-                      <span className="text-sm font-medium text-muted-foreground w-5">{index + 1}</span>
+                      <span className="text-sm font-medium text-muted-foreground w-5">{idx + 1}</span>
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate" title={item.name}>
-                          {item.name}
+                        <p className="text-sm font-medium text-foreground truncate" title={est.event_name}>{est.event_name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {est.event_date ? new Date(est.event_date).toLocaleDateString('ru-RU') : '—'}
+                          {' · '}
+                          <span style={{ color: STATUS_COLORS[est.status || 'draft'] }}>{STATUS_LABELS[est.status || 'draft']}</span>
                         </p>
-                        <p className="text-xs text-muted-foreground">{item.position}</p>
                       </div>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-                        {item.paid.toLocaleString('ru-RU')} ₽
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {item.projects} проектов
-                      </p>
+                      <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">{formatCurrencyFull(est.total || 0)}</p>
                     </div>
                   </div>
                 ))}
-                {topStaffBySalary.length === 0 && (
+                {topEstimates.length === 0 && (
                   <p className="text-sm text-muted-foreground text-center py-4">Нет данных</p>
                 )}
               </div>
             </CardContent>
           </Card>
-        </div>
-      )}
+        </TabsContent>
 
-      {/* Equipment Analytics Section */}
-      <Card className="overflow-hidden">
-        <CardHeader 
-          className="cursor-pointer hover:bg-muted/50 transition-colors"
-          onClick={() => setShowEquipmentStats(!showEquipmentStats)}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center">
-                <BarChart3 className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <CardTitle className="text-base">Аналитика по оборудованию</CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  {equipmentStats.totalUniqueEquipment} позиций • Топ-10 по использованию и выручке
-                </p>
-              </div>
-            </div>
-            <div className="text-muted-foreground">
-              {showEquipmentStats ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-            </div>
+        {/* ========== EQUIPMENT TAB ========== */}
+        <TabsContent value="equipment" className="space-y-6 mt-6">
+          {/* KPI Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <KPICard title="Позиций в сметах" value={String(equipmentStats.total)} icon={Package} color="blue" />
+            <KPICard title="Выручка" value={formatCurrency(equipmentStats.byCategory.reduce((s, c) => s + c.revenue, 0))} icon={DollarSign} color="green" />
+            <KPICard title="Категорий" value={String(equipmentStats.byCategory.length)} icon={Settings2} color="purple" />
+            <KPICard
+              title="Средняя выручка"
+              value={formatCurrency(equipmentStats.total > 0 ? equipmentStats.byCategory.reduce((s, c) => s + c.revenue, 0) / equipmentStats.total : 0)}
+              icon={BarChart3}
+              color="amber"
+            />
           </div>
-        </CardHeader>
-        
-        {showEquipmentStats && (
-          <CardContent className="space-y-6">
-            {/* Equipment by Category Chart */}
-            {equipmentByCategory.length > 0 && (
-              <div className="mb-6">
-                <h4 className="text-sm font-medium text-muted-foreground mb-3">Выручка по категориям оборудования</h4>
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={equipmentByCategory} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(217 19% 22%)" horizontal={false} />
-                    <XAxis 
-                      type="number" 
-                      tick={{ fill: 'hsl(215 20% 65%)', fontSize: 11 }}
-                      axisLine={{ stroke: 'hsl(217 19% 22%)' }}
-                      tickFormatter={(value) => formatCurrency(value)}
-                    />
-                    <YAxis 
-                      type="category" 
-                      dataKey="name" 
-                      tick={{ fill: 'hsl(210 40% 98%)', fontSize: 11 }}
-                      axisLine={{ stroke: 'hsl(217 19% 22%)' }}
-                      width={120}
-                    />
-                    <Tooltip 
-                      formatter={(value: number) => [`${value.toLocaleString('ru-RU')} ₽`, 'Выручка']}
-                      labelStyle={{ color: 'hsl(210 40% 98%)' }}
-                      contentStyle={{ 
-                        backgroundColor: 'hsl(215 28% 10%)', 
-                        border: '1px solid hsl(217 19% 22%)',
-                        borderRadius: '8px'
-                      }}
-                    />
-                    <Bar dataKey="revenue" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Top Equipment by Usage */}
-              <div>
-                <h4 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
-                  <Package className="w-4 h-4" />
-                  Часто используемое оборудование
-                </h4>
-                <div className="space-y-2 max-h-[300px] overflow-y-auto scrollbar-dark">
-                  {equipmentStats.topByUsage.map((item, index) => (
-                    <div 
-                      key={item.name}
-                      className="flex items-center justify-between p-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
-                    >
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Revenue by category */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Выручка по категориям</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {equipmentStats.byCategory.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={250}>
+                    <BarChart data={equipmentStats.byCategory} layout="vertical">
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(217 19% 22%)" horizontal={false} />
+                      <XAxis type="number" tick={{ fill: 'hsl(215 20% 65%)', fontSize: 11 }} axisLine={{ stroke: 'hsl(217 19% 22%)' }} tickFormatter={v => formatCurrency(v as number)} />
+                      <YAxis type="category" dataKey="name" tick={{ fill: 'hsl(210 40% 98%)', fontSize: 11 }} axisLine={{ stroke: 'hsl(217 19% 22%)' }} width={130} />
+                      <Tooltip formatter={(v: number) => [formatCurrencyFull(v), 'Выручка']} contentStyle={tooltipStyle} labelStyle={tooltipLabelStyle} />
+                      <Bar dataKey="revenue" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-[250px] flex items-center justify-center text-muted-foreground">Нет данных</div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Quantity by category */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Количество по категориям</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {equipmentStats.byCategory.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={250}>
+                    <BarChart data={equipmentStats.byCategory} layout="vertical">
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(217 19% 22%)" horizontal={false} />
+                      <XAxis type="number" tick={{ fill: 'hsl(215 20% 65%)', fontSize: 11 }} axisLine={{ stroke: 'hsl(217 19% 22%)' }} />
+                      <YAxis type="category" dataKey="name" tick={{ fill: 'hsl(210 40% 98%)', fontSize: 11 }} axisLine={{ stroke: 'hsl(217 19% 22%)' }} width={130} />
+                      <Tooltip formatter={(v: number) => [`${v} шт.`, 'Количество']} contentStyle={tooltipStyle} labelStyle={tooltipLabelStyle} />
+                      <Bar dataKey="quantity" fill="#3b82f6" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-[250px] flex items-center justify-center text-muted-foreground">Нет данных</div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Top equipment tables */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Топ по выручке</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 max-h-[350px] overflow-y-auto scrollbar-dark">
+                  {equipmentStats.topByRevenue.map((item, idx) => (
+                    <div key={item.name} className="flex items-center justify-between p-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
                       <div className="flex items-center gap-3 min-w-0">
-                        <span className="text-sm font-medium text-muted-foreground w-5">{index + 1}</span>
+                        <span className="text-sm font-medium text-muted-foreground w-5">{idx + 1}</span>
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-foreground truncate" title={item.name}>
-                            {item.name}
-                          </p>
+                          <p className="text-sm font-medium text-foreground truncate" title={item.name}>{item.name}</p>
                           <p className="text-xs text-muted-foreground">{item.category}</p>
                         </div>
                       </div>
                       <div className="text-right shrink-0">
-                        <Badge variant="secondary" className="text-xs">
-                          {item.usageCount} смет
-                        </Badge>
+                        <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">{formatCurrencyFull(item.revenue)}</p>
+                        <p className="text-xs text-muted-foreground">{item.quantity} шт.</p>
                       </div>
                     </div>
                   ))}
-                  {equipmentStats.topByUsage.length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-4">Нет данных</p>
-                  )}
                 </div>
-              </div>
+              </CardContent>
+            </Card>
 
-              {/* Top Equipment by Revenue */}
-              <div>
-                <h4 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
-                  <DollarSign className="w-4 h-4" />
-                  Самое прибыльное оборудование
-                </h4>
-                <div className="space-y-2 max-h-[300px] overflow-y-auto scrollbar-dark">
-                  {equipmentStats.topByRevenue.map((item, index) => (
-                    <div 
-                      key={item.name}
-                      className="flex items-center justify-between p-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
-                    >
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Топ по использованию</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 max-h-[350px] overflow-y-auto scrollbar-dark">
+                  {equipmentStats.topByUsage.map((item, idx) => (
+                    <div key={item.name} className="flex items-center justify-between p-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
                       <div className="flex items-center gap-3 min-w-0">
-                        <span className="text-sm font-medium text-muted-foreground w-5">{index + 1}</span>
+                        <span className="text-sm font-medium text-muted-foreground w-5">{idx + 1}</span>
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-foreground truncate" title={item.name}>
-                            {item.name}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {item.totalQuantity} шт. в {item.usageCount} сметах
-                          </p>
+                          <p className="text-sm font-medium text-foreground truncate" title={item.name}>{item.name}</p>
+                          <p className="text-xs text-muted-foreground">{item.category}</p>
                         </div>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-                          {item.totalRevenue.toLocaleString('ru-RU')} ₽
-                        </p>
+                        <Badge variant="secondary" className="text-xs">{item.usage} смет</Badge>
                       </div>
                     </div>
                   ))}
-                  {equipmentStats.topByRevenue.length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-4">Нет данных</p>
-                  )}
                 </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* ========== EXPENSES TAB ========== */}
+        <TabsContent value="expenses" className="space-y-6 mt-6">
+          {/* KPI Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <KPICard title="Всего расходов" value={formatCurrencyFull(overviewMetrics.totalExpenses)} icon={Receipt} color="red" />
+            <KPICard title="Количество" value={String(filteredExpenses.length)} icon={FileText} color="gray" />
+            <KPICard
+              title="Средний расход"
+              value={formatCurrency(filteredExpenses.length > 0 ? overviewMetrics.totalExpenses / filteredExpenses.length : 0)}
+              icon={BarChart3}
+              color="amber"
+            />
+            <KPICard
+              title="Топ категория"
+              value={expensesByCategory[0]?.name || '—'}
+              subtitle={expensesByCategory[0] ? formatCurrencyFull(expensesByCategory[0].value) : undefined}
+              icon={TrendingDown}
+              color="purple"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Expense structure */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Структура расходов</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {expensesByCategory.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={250}>
+                    <PieChart>
+                      <Pie
+                        data={expensesByCategory}
+                        cx="50%" cy="50%"
+                        innerRadius={60} outerRadius={90}
+                        paddingAngle={3}
+                        dataKey="value"
+                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                        labelStyle={{ fill: 'hsl(210 40% 98%)', fontSize: 11 }}
+                      >
+                        {expensesByCategory.map((_, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(v: number) => [formatCurrencyFull(v), 'Сумма']} contentStyle={tooltipStyle} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-[250px] flex items-center justify-center text-muted-foreground">Нет данных</div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Monthly expenses dynamics */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Динамика расходов по месяцам</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {monthlyExpensesByCategory.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={250}>
+                    <BarChart data={monthlyExpensesByCategory}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(217 19% 22%)" />
+                      <XAxis dataKey="month" tick={{ fill: 'hsl(215 20% 65%)', fontSize: 12 }} axisLine={{ stroke: 'hsl(217 19% 22%)' }} />
+                      <YAxis tick={{ fill: 'hsl(215 20% 65%)', fontSize: 12 }} axisLine={{ stroke: 'hsl(217 19% 22%)' }} tickFormatter={v => formatCurrency(v as number)} />
+                      <Tooltip contentStyle={tooltipStyle} labelStyle={tooltipLabelStyle} formatter={(v: number) => formatCurrencyFull(v)} />
+                      <Legend />
+                      {expenseCategoryNames.map((cat, idx) => (
+                        <Bar key={cat} dataKey={cat} stackId="a" fill={COLORS[idx % COLORS.length]} />
+                      ))}
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-[250px] flex items-center justify-center text-muted-foreground">Нет данных</div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Expenses by category table */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Расходы по категориям</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {expensesByCategory.map((cat, idx) => {
+                  const percent = overviewMetrics.totalExpenses > 0 ? (cat.value / overviewMetrics.totalExpenses) * 100 : 0;
+                  return (
+                    <div key={cat.name} className="flex items-center gap-4 p-2 rounded-lg bg-muted/50">
+                      <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium">{cat.name}</span>
+                          <span className="text-sm font-semibold">{formatCurrencyFull(cat.value)}</span>
+                        </div>
+                        <div className="mt-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div className="h-full rounded-full transition-all" style={{ width: `${percent}%`, backgroundColor: COLORS[idx % COLORS.length] }} />
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-0.5">{percent.toFixed(1)}% от общих расходов</div>
+                      </div>
+                    </div>
+                  );
+                })}
+                {expensesByCategory.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">Нет данных о расходах</p>
+                )}
               </div>
-            </div>
-          </CardContent>
-        )}
-      </Card>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ========== STAFF TAB ========== */}
+        <TabsContent value="staff" className="space-y-6 mt-6">
+          {/* KPI Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <KPICard title="Всего начислено" value={formatCurrencyFull(overviewMetrics.totalSalaryCalc)} icon={TrendingUp} color="blue" />
+            <KPICard title="Всего выдано" value={formatCurrencyFull(overviewMetrics.totalSalary)} icon={DollarSign} color="green" />
+            <KPICard
+              title="Остаток"
+              value={formatCurrencyFull(overviewMetrics.totalSalaryCalc - overviewMetrics.totalSalary)}
+              icon={Wallet}
+              color={overviewMetrics.totalSalaryCalc - overviewMetrics.totalSalary >= 0 ? 'amber' : 'red'}
+            />
+            <KPICard
+              title="Средняя з/п"
+              value={formatCurrency(staffStats.length > 0 ? overviewMetrics.totalSalary / staffStats.length : 0)}
+              icon={Users}
+              color="purple"
+            />
+          </div>
+
+          {/* Salary chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Зарплаты по месяцам</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {monthlySalary.length > 0 ? (
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={monthlySalary}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(217 19% 22%)" />
+                    <XAxis dataKey="month" tick={{ fill: 'hsl(215 20% 65%)', fontSize: 12 }} axisLine={{ stroke: 'hsl(217 19% 22%)' }} />
+                    <YAxis tick={{ fill: 'hsl(215 20% 65%)', fontSize: 12 }} axisLine={{ stroke: 'hsl(217 19% 22%)' }} tickFormatter={v => formatCurrency(v as number)} />
+                    <Tooltip
+                      formatter={(value: number, name: string) => {
+                        const labels: Record<string, string> = { paid: 'Выдано', calculated: 'Начислено' };
+                        return [formatCurrencyFull(value), labels[name] || name];
+                      }}
+                      contentStyle={tooltipStyle}
+                      labelStyle={tooltipLabelStyle}
+                    />
+                    <Legend />
+                    <Bar dataKey="calculated" name="Начислено" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="paid" name="Выдано" fill="#10b981" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-[250px] flex items-center justify-center text-muted-foreground">Нет данных</div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Staff table */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Сотрудники по выплатам</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2 max-h-[400px] overflow-y-auto scrollbar-dark">
+                {staffStats.map((item, idx) => (
+                  <div key={item.staffId} className="flex items-center justify-between p-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="text-sm font-medium text-muted-foreground w-5">{idx + 1}</span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate" title={item.name}>{item.name}</p>
+                        <p className="text-xs text-muted-foreground">{item.position}</p>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0 text-xs space-y-0.5">
+                      <p className="font-semibold text-emerald-600 dark:text-emerald-400">{formatCurrencyFull(item.paid)}</p>
+                      <p className="text-muted-foreground">{item.projects} проектов</p>
+                      {item.calculated > item.paid && (
+                        <p className="text-amber-500">Остаток: {formatCurrencyFull(item.calculated - item.paid)}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {staffStats.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">Нет данных</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
