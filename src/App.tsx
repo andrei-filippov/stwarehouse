@@ -604,6 +604,7 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
                 loading={equipmentLoading}
                 fabAction={fabAction}
                 openEstimate={openEstimate}
+                onCreateChecklist={createChecklist}
               />
             </LazyComponent>
           )}

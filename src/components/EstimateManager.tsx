@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { Input } from './ui/input';
-import { Plus, Edit, Trash2, Layout, Copy, FileSpreadsheet, Users, Loader2, Lock, CheckCircle2, Clock, XCircle, FileText, Search, ChevronDown, ChevronRight, CalendarDays } from 'lucide-react';
+import { Plus, Edit, Trash2, Layout, Copy, FileSpreadsheet, Users, Loader2, Lock, CheckCircle2, Clock, XCircle, FileText, Search, ChevronDown, ChevronRight, CalendarDays, ClipboardCheck } from 'lucide-react';
 import type { Estimate, PDFSettings, Template, EstimateItem, EstimateStatus } from '../types';
 import { EstimateBuilder } from './EstimateBuilder';
 import { EstimateImportDialog } from './EstimateImportDialog';
@@ -34,6 +34,7 @@ interface EstimateManagerProps {
   currentUserId?: string;
   fabAction?: number;
   openEstimate?: Estimate | null;
+  onCreateChecklist?: (estimate: Estimate) => Promise<{ error: any }>;
 }
 
 export const EstimateManager = memo(function EstimateManager({
@@ -57,6 +58,7 @@ export const EstimateManager = memo(function EstimateManager({
   currentUserId,
   fabAction,
   openEstimate,
+  onCreateChecklist,
 }: EstimateManagerProps) {
   // Helper для отображения статуса
   const getStatusBadge = (status?: EstimateStatus) => {
@@ -73,13 +75,6 @@ export const EstimateManager = memo(function EstimateManager({
         return <Badge variant="outline" className="whitespace-nowrap"><FileText className="w-3 h-3 mr-1 shrink-0" /> Черновик</Badge>;
     }
   };
-  // Открываем смету извне (из дашборда или по прямой ссылке)
-  useEffect(() => {
-    if (openEstimate) {
-      handleEdit(openEstimate);
-    }
-  }, [openEstimate?.id]);
-
   // Открываем создание сметы при нажатии FAB (пропускаем первый рендер)
   const isFirstRender = useRef(true);
   useEffect(() => {
@@ -175,6 +170,12 @@ export const EstimateManager = memo(function EstimateManager({
     }
   }, [groupedEstimates]);
 
+  // Открываем смету извне (из дашборда) — отслеживаем через ref чтобы избежать проблем с замыканием
+  const openEstimateRef = useRef(openEstimate);
+  useEffect(() => {
+    openEstimateRef.current = openEstimate;
+  }, [openEstimate]);
+
   const handleEdit = useCallback(async (estimate: Estimate) => {
     console.log('[EstimateManager] handleEdit called:', estimate.id, estimate.event_name, 'items:', estimate.items?.length, 'sections:', estimate.sections?.length);
     
@@ -198,6 +199,17 @@ export const EstimateManager = memo(function EstimateManager({
     setSelectedTemplate(null);
     setIsBuilderOpen(true);
   }, [onStartEditing, fetchEstimateItems]);
+
+  // Открываем смету из дашборда при изменении пропа openEstimate
+  useEffect(() => {
+    if (openEstimate && openEstimate.id) {
+      // Небольшая задержка, чтобы компонент успел полностью смонтироваться
+      const timer = setTimeout(() => {
+        handleEdit(openEstimate);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [openEstimate?.id]);
 
   const handleClose = useCallback(async () => {
     // Снимаем статус редактирования
@@ -504,6 +516,20 @@ export const EstimateManager = memo(function EstimateManager({
                                     <Edit className="w-4 h-4" />
                                   )}
                                 </Button>
+                                {onCreateChecklist && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onCreateChecklist(estimate);
+                                    }}
+                                    title="Создать чек-лист"
+                                  >
+                                    <ClipboardCheck className="w-4 h-4 text-blue-500" />
+                                  </Button>
+                                )}
                                 <Button 
                                   variant="ghost" 
                                   size="sm"
@@ -608,6 +634,20 @@ export const EstimateManager = memo(function EstimateManager({
                                   >
                                     {estimate.is_editing ? <Lock className="w-3.5 h-3.5 text-orange-500" /> : <Edit className="w-3.5 h-3.5" />}
                                   </Button>
+                                  {onCreateChecklist && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 w-7 p-0"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        onCreateChecklist(estimate);
+                                      }}
+                                      title="Создать чек-лист"
+                                    >
+                                      <ClipboardCheck className="w-3.5 h-3.5 text-blue-500" />
+                                    </Button>
+                                  )}
                                   <Button 
                                     variant="ghost" 
                                     size="sm"

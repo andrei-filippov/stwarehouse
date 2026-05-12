@@ -12,7 +12,8 @@ import {
   CheckCircle2,
   ArrowRight,
   Target,
-  Circle
+  Circle,
+  ClipboardCheck
 } from 'lucide-react';
 import type { Equipment, Estimate, Customer, Staff, Goal, CableInventory, CableCategory } from '../types';
 import { TASK_CATEGORIES, TASK_PRIORITIES } from '../types/goals';
@@ -427,6 +428,16 @@ export function Dashboard({
               >
                 <FileText className="w-4 h-4 mr-2" />
                 Новая смета
+              </Button>
+              )}
+              {hasAccess('checklists') && (
+              <Button 
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => onTabChange('checklists')}
+              >
+                <ClipboardCheck className="w-4 h-4 mr-2" />
+                Создать чек-лист
               </Button>
               )}
               {hasAccess('equipment') && (
