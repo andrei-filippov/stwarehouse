@@ -33,6 +33,7 @@ interface EstimateManagerProps {
   fetchEstimateItems?: (estimateId: string) => Promise<{ error: any; items: EstimateItem[] }>;
   currentUserId?: string;
   fabAction?: number;
+  openEstimate?: Estimate | null;
 }
 
 export const EstimateManager = memo(function EstimateManager({
@@ -55,6 +56,7 @@ export const EstimateManager = memo(function EstimateManager({
   fetchEstimateItems,
   currentUserId,
   fabAction,
+  openEstimate,
 }: EstimateManagerProps) {
   // Helper для отображения статуса
   const getStatusBadge = (status?: EstimateStatus) => {
@@ -71,6 +73,13 @@ export const EstimateManager = memo(function EstimateManager({
         return <Badge variant="outline" className="whitespace-nowrap"><FileText className="w-3 h-3 mr-1 shrink-0" /> Черновик</Badge>;
     }
   };
+  // Открываем смету извне (из дашборда или по прямой ссылке)
+  useEffect(() => {
+    if (openEstimate) {
+      handleEdit(openEstimate);
+    }
+  }, [openEstimate?.id]);
+
   // Открываем создание сметы при нажатии FAB (пропускаем первый рендер)
   const isFirstRender = useRef(true);
   useEffect(() => {

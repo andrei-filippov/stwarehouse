@@ -98,10 +98,11 @@ export function Dashboard({
     activeGoals: goals?.filter(g => !g.completed).length || 0,
   }), [equipment, estimates, customers, staff, goals]);
 
-  // Ближайшие мероприятия
+  // Ближайшие мероприятия (исключаем черновики и отмененные)
   const upcomingEvents = useMemo(() => {
     return estimates
       .filter(e => {
+        if (e.status === 'draft' || e.status === 'cancelled') return false;
         const date = safeParseISO(e.event_start_date || e.event_date);
         if (!date) return false;
         return !isPast(date) || isToday(date);

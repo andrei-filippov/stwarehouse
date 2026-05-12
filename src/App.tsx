@@ -335,6 +335,7 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
   const companyId = company?.id;
   const userRole = (myRole || profile?.role || 'manager') as UserRole;
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
+  const [openEstimate, setOpenEstimate] = useState<Estimate | null>(null);
 
   // Отслеживаем изменения activeTab
   useEffect(() => {
@@ -579,6 +580,10 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
               kits={kits}
               companyId={companyId}
               onTabChange={setActiveTab}
+              onOpenEstimate={(estimate) => {
+                setOpenEstimate(estimate);
+                setActiveTab('estimates');
+              }}
               checkAccess={checkAccess}
               refreshCableInventory={refreshCableInventory}
             />
@@ -598,6 +603,7 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
                 onDeleteCategory={deleteCategory}
                 loading={equipmentLoading}
                 fabAction={fabAction}
+                openEstimate={openEstimate}
               />
             </LazyComponent>
           )}
