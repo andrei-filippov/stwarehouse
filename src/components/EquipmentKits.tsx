@@ -273,7 +273,7 @@ export function EquipmentKits({ kits, inventory, categories, onCreateKit, onUpda
       <div className="flex justify-between items-center">
         <div>
           <h3 className="text-lg font-semibold">Комплекты оборудования</h3>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-muted-foreground">
             Создайте кофры для быстрой погрузки. Один QR-код = всё содержимое.
           </p>
         </div>
@@ -352,11 +352,11 @@ export function EquipmentKits({ kits, inventory, categories, onCreateKit, onUpda
             </CardHeader>
             <CardContent>
               {kit.description && (
-                <p className="text-sm text-gray-500 mb-2">{kit.description}</p>
+                <p className="text-sm text-muted-foreground mb-2">{kit.description}</p>
               )}
               {kit.qr_code && (
                 <>
-                  <p className="text-xs font-mono text-gray-400">{kit.qr_code}</p>
+                  <p className="text-xs font-mono text-muted-foreground">{kit.qr_code}</p>
                   {/* Скрытый элемент для получения QR-кода */}
                   <div data-kit-qr={kit.id} className="hidden">
                     <QRCodeDisplay value={kit.qr_code} size={300} />
@@ -366,7 +366,7 @@ export function EquipmentKits({ kits, inventory, categories, onCreateKit, onUpda
               <p className="text-sm text-gray-600 mt-2">
                 {kit.items?.length || 0} наименований
                 {kit.items && kit.items.length > 0 && (
-                  <span className="text-gray-400">
+                  <span className="text-muted-foreground">
                     {' '}({kit.items.reduce((sum, i) => sum + (i.quantity || 1), 0)} единиц)
                   </span>
                 )}
@@ -375,14 +375,14 @@ export function EquipmentKits({ kits, inventory, categories, onCreateKit, onUpda
               {/* Список оборудования в комплекте */}
               {kit.items && kit.items.length > 0 && (
                 <div className="mt-3 space-y-1">
-                  <div className="text-xs text-gray-400 mb-1">Содержимое:</div>
+                  <div className="text-xs text-muted-foreground mb-1">Содержимое:</div>
                   <div className="space-y-1 max-h-32 overflow-y-auto">
                     {kit.items.map((item, idx) => (
                       <div key={idx} className="flex items-center justify-between text-sm py-1 px-2 bg-gray-50 dark:bg-gray-800 rounded">
                         <span className="truncate flex-1" title={item.inventory_name}>
                           {item.inventory_name}
                         </span>
-                        <span className="text-gray-400 ml-2 shrink-0">
+                        <span className="text-muted-foreground ml-2 shrink-0">
                           × {item.quantity || 1}
                         </span>
                       </div>
@@ -429,7 +429,7 @@ export function EquipmentKits({ kits, inventory, categories, onCreateKit, onUpda
               <div className="space-y-3 mt-2 max-h-64 overflow-y-auto border rounded-lg p-2">
                 {Object.entries(groupedInventory).map(([catId, group]) => (
                   <div key={catId}>
-                    <p className="text-xs font-medium text-gray-500 uppercase mb-1">
+                    <p className="text-xs font-medium text-muted-foreground uppercase mb-1">
                       {group.name}
                     </p>
                     <div className="space-y-1">
@@ -438,10 +438,10 @@ export function EquipmentKits({ kits, inventory, categories, onCreateKit, onUpda
                         return (
                           <div 
                             key={item.id} 
-                            className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded"
+                            className="flex items-center gap-2 p-2 hover:bg-muted rounded transition-colors"
                           >
                             <span className="text-sm flex-1">{item.name}</span>
-                            <span className="text-xs text-gray-400">
+                            <span className="text-xs text-muted-foreground">
                               на складе: {item.quantity} шт.
                             </span>
                             <div className="flex items-center gap-1 ml-2">
@@ -507,7 +507,7 @@ export function EquipmentKits({ kits, inventory, categories, onCreateKit, onUpda
                 size={250}
               />
             )}
-            <p className="text-xs font-mono text-gray-500">{showQR?.qr_code}</p>
+            <p className="text-xs font-mono text-muted-foreground">{showQR?.qr_code}</p>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setShowQR(null)}>
                 Закрыть
