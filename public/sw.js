@@ -15,7 +15,7 @@ const PRECACHE_URLS = [
 
 // ===== BACKGROUND SYNC =====
 // Периодическая синхронизация данных с сервером
-const SYNC_INTERVAL_MS = 3 * 60 * 1000; // 3 минуты
+const SYNC_INTERVAL_MS = 10 * 60 * 1000; // 10 минут - reduced to save egress
 const SYNC_TAG = 'stwarehouse-data-sync';
 
 // Хранилище для данных синхронизации (используем IndexedDB через сообщения)
