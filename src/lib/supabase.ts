@@ -53,6 +53,14 @@ export const isProxyMode = (): boolean => {
 // 2. Remove accept-profile and content-profile headers (CORS issues with API Gateway)
 // 3. Force return=minimal for DELETE to avoid 'column created_at does not exist' error
 const customFetch = (url: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+  // Block ALL requests when tab is hidden to prevent background traffic
+  if (typeof document !== 'undefined' && document.hidden) {
+    return Promise.resolve(new Response(JSON.stringify({ error: 'Tab hidden' }), {
+      status: 503,
+      headers: { 'Content-Type': 'application/json' }
+    }));
+  }
+
   const headers = new Headers(init?.headers);
   
   // Fix 1: apikey must be the anon key, not JWT token
