@@ -1,9 +1,25 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
 import { getCurrentUserDisplayName } from '../lib/utils';
 import type { CableCategory, CableInventory, CableMovement, EquipmentRepair } from '../types';
 import type { InventoryItem } from '../types/inventoryItem';
+
+// Global cache to prevent redundant fetches across component re-renders
+const globalCache: Record<string, { data: any; timestamp: number }> = {};
+const CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes
+
+function getCached<T>(key: string): T | null {
+  const cached = globalCache[key];
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    return cached.data;
+  }
+  return null;
+}
+
+function setCached<T>(key: string, data: T) {
+  globalCache[key] = { data, timestamp: Date.now() };
+}
 
 export function useCableInventory(companyId: string | undefined, activeTab?: string) {
   const [categories, setCategories] = useState<CableCategory[]>([]);
@@ -12,10 +28,15 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
   const [repairs, setRepairs] = useState<EquipmentRepair[]>([]);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const lastFetchRef = useRef<number>(0);
 
-  const fetchCategories = useCallback(async () => {
+  const fetchCategories = useCallback(async (force = false) => {
     if (!companyId) return;
-    
+    const cacheKey = `categories_${companyId}`;
+    if (!force) {
+      const cached = getCached<CableCategory[]>(cacheKey);
+      if (cached) { setCategories(cached); return; }
+    }
     const { data, error } = await supabase
       .from('cable_categories')
       .select('*, type')
@@ -26,12 +47,17 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
       toast.error('Ошибка при загрузке категорий', { description: error.message });
     } else {
       setCategories(data || []);
+      setCached(cacheKey, data || []);
     }
   }, [companyId]);
 
-  const fetchInventory = useCallback(async () => {
+  const fetchInventory = useCallback(async (force = false) => {
     if (!companyId) return;
-    
+    const cacheKey = `inventory_${companyId}`;
+    if (!force) {
+      const cached = getCached<CableInventory[]>(cacheKey);
+      if (cached) { setInventory(cached); return; }
+    }
     const { data, error } = await supabase
       .from('cable_inventory')
       .select('*')
@@ -42,12 +68,17 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
       toast.error('Ошибка при загрузке инвентаря', { description: error.message });
     } else {
       setInventory(data || []);
+      setCached(cacheKey, data || []);
     }
   }, [companyId]);
 
-  const fetchInventoryItems = useCallback(async () => {
+  const fetchInventoryItems = useCallback(async (force = false) => {
     if (!companyId) return;
-    
+    const cacheKey = `inventory_items_${companyId}`;
+    if (!force) {
+      const cached = getCached<InventoryItem[]>(cacheKey);
+      if (cached) { setInventoryItems(cached); return; }
+    }
     const { data, error } = await supabase
       .from('inventory_items')
       .select(`
@@ -66,12 +97,17 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
         inventory_category_id: item.cable_inventory?.category_id,
       }));
       setInventoryItems(mapped);
+      setCached(cacheKey, mapped);
     }
   }, [companyId]);
 
-  const fetchMovements = useCallback(async () => {
+  const fetchMovements = useCallback(async (force = false) => {
     if (!companyId) return;
-    
+    const cacheKey = `movements_${companyId}`;
+    if (!force) {
+      const cached = getCached<CableMovement[]>(cacheKey);
+      if (cached) { setMovements(cached); return; }
+    }
     const { data, error } = await supabase
       .from('cable_movements')
       .select('*')
@@ -83,6 +119,7 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
       toast.error('Ошибка при загрузке движений', { description: error.message });
     } else {
       setMovements(data || []);
+      setCached(cacheKey, data || []);
     }
   }, [companyId]);
 
@@ -96,7 +133,7 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
 
       if (error) throw error;
 
-      await fetchCategories();
+      await fetchCategories(true);
       toast.success('Категория добавлена');
       return { error: null };
     } catch (err: any) {
@@ -117,7 +154,7 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
 
       if (error) throw error;
 
-      await fetchCategories();
+      await fetchCategories(true);
       toast.success('Категория обновлена');
       return { error: null };
     } catch (err: any) {
@@ -138,7 +175,7 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
 
       if (error) throw error;
 
-      await fetchCategories();
+      await fetchCategories(true);
       toast.success('Категория удалена');
       return { error: null };
     } catch (err: any) {
@@ -197,7 +234,7 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
 
       if (error) throw error;
 
-      await fetchInventory();
+      await fetchInventory(true);
       return { error: null };
     } catch (err: any) {
       return { error: err };
@@ -216,7 +253,7 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
 
       if (error) throw error;
 
-      await fetchInventory();
+      await fetchInventory(true);
       return { error: null };
     } catch (err: any) {
       return { error: err };
@@ -235,7 +272,7 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
 
       if (error) throw error;
 
-      await fetchInventory();
+      await fetchInventory(true);
       return { error: null };
     } catch (err: any) {
       return { error: err };
@@ -270,9 +307,9 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
           .eq('company_id', companyId);
       }
 
-      await fetchMovements();
-      await fetchInventory();
-      await fetchInventoryItems();
+      await fetchMovements(true);
+      await fetchInventory(true);
+      await fetchInventoryItems(true);
       toast.success('Выдано');
       return { error: null };
     } catch (err: any) {
@@ -319,9 +356,9 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
           .eq('company_id', companyId);
       }
 
-      await fetchMovements();
-      await fetchInventory();
-      await fetchInventoryItems();
+      await fetchMovements(true);
+      await fetchInventory(true);
+      await fetchInventoryItems(true);
       toast.success('Возвращено');
       return { error: null };
     } catch (err: any) {
@@ -331,9 +368,13 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
   }, [companyId, fetchMovements, fetchInventory, fetchInventoryItems]);
 
   // ===== Функции для работы с ремонтом =====
-  const fetchRepairs = useCallback(async () => {
+  const fetchRepairs = useCallback(async (force = false) => {
     if (!companyId) return;
-    
+    const cacheKey = `repairs_${companyId}`;
+    if (!force) {
+      const cached = getCached<EquipmentRepair[]>(cacheKey);
+      if (cached) { setRepairs(cached); return; }
+    }
     const { data, error } = await supabase
       .from('equipment_repairs')
       .select('*')
@@ -345,6 +386,7 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
       toast.error('Ошибка при загрузке ремонтов', { description: error.message });
     } else {
       setRepairs(data || []);
+      setCached(cacheKey, data || []);
     }
   }, [companyId]);
 
@@ -367,9 +409,9 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
           .eq('company_id', companyId);
       }
 
-      await fetchRepairs();
-      await fetchInventory();
-      await fetchInventoryItems();
+      await fetchRepairs(true);
+      await fetchInventory(true);
+      await fetchInventoryItems(true);
       toast.success('Оборудование отправлено в ремонт');
       return { error: null };
     } catch (err: any) {
@@ -412,8 +454,8 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
           .eq('company_id', companyId);
       }
 
-      await fetchRepairs();
-      await fetchInventoryItems();
+      await fetchRepairs(true);
+      await fetchInventoryItems(true);
       toast.success('Статус ремонта обновлён');
       return { error: null };
     } catch (err: any) {
@@ -434,7 +476,7 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
 
       if (error) throw error;
 
-      await fetchRepairs();
+      await fetchRepairs(true);
       toast.success('Запись о ремонте удалена');
       return { error: null };
     } catch (err: any) {
@@ -464,8 +506,8 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
         throw error;
       }
 
-      await fetchCategories();
-      await fetchInventory();
+      await fetchCategories(true);
+      await fetchInventory(true);
       
       const importedCategories = data?.categories || 0;
       const importedItems = data?.items || 0;
@@ -481,7 +523,11 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
     }
   }, [companyId, fetchCategories, fetchInventory]);
 
+  // Initial load - use cache if available
   useEffect(() => {
+    const now = Date.now();
+    if (now - lastFetchRef.current < CACHE_TTL_MS) return;
+    lastFetchRef.current = now;
     fetchCategories();
     fetchInventory();
     fetchInventoryItems();
@@ -504,7 +550,7 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
           table: 'cable_inventory',
           filter: `company_id=eq.${companyId}`,
         },
-        () => fetchInventory()
+        () => fetchInventory(true)
       )
       .subscribe();
 
@@ -520,8 +566,9 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
           filter: `company_id=eq.${companyId}`,
         },
         () => {
-          fetchMovements();
-          fetchInventory();
+          if (document.hidden) return;
+          fetchMovements(true);
+          fetchInventory(true);
         }
       )
       .subscribe();
@@ -538,9 +585,10 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
           filter: `company_id=eq.${companyId}`,
         },
         () => {
-          fetchRepairs();
-          fetchInventory();
-          fetchInventoryItems();
+          if (document.hidden) return;
+          fetchRepairs(true);
+          fetchInventory(true);
+          fetchInventoryItems(true);
         }
       )
       .subscribe();
@@ -557,8 +605,9 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
           filter: `company_id=eq.${companyId}`,
         },
         () => {
-          fetchInventoryItems();
-          fetchInventory();
+          if (document.hidden) return;
+          fetchInventoryItems(true);
+          fetchInventory(true);
         }
       )
       .subscribe();
@@ -574,7 +623,7 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
           table: 'cable_categories',
           filter: `company_id=eq.${companyId}`,
         },
-        () => fetchCategories()
+        () => fetchCategories(true)
       )
       .subscribe();
 
@@ -587,6 +636,7 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
       interval = setInterval(() => {
         // Skip if tab is hidden
         if (document.hidden) return;
+        // Use cache if available - only fetch if stale
         fetchCategories();
         fetchInventory();
         fetchInventoryItems();
