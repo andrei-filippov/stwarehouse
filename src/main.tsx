@@ -16,10 +16,10 @@ if ('serviceWorker' in navigator) {
       .then((registration) => {
         logger.debug('SW registered:', registration);
         
-        // Проверяем обновления каждые 60 минут
+        // Проверяем обновления каждые 5 минут (быстрее для critical fixes)
         setInterval(() => {
           registration.update();
-        }, 60 * 60 * 1000);
+        }, 5 * 60 * 1000);
         
         // Если есть новый SW — предлагаем обновить
         registration.addEventListener('updatefound', () => {
@@ -30,10 +30,9 @@ if ('serviceWorker' in navigator) {
                 // Новый SW установлен, но ждёт активации
                 logger.debug('New version available!');
                 // Можно показать уведомление пользователю
-                if (confirm('Доступна новая версия приложения. Обновить?')) {
-                  newWorker.postMessage('SKIP_WAITING');
-                  window.location.reload();
-                }
+                // Force reload to get latest JS with egress optimizations
+                newWorker.postMessage('SKIP_WAITING');
+                window.location.reload();
               }
             });
           }

@@ -135,7 +135,7 @@ if (typeof window !== 'undefined') {
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
     persistSession: true,
-    autoRefreshToken: true,
+    autoRefreshToken: false, // Disabled: we handle token refresh manually to avoid background requests
     detectSessionInUrl: true,
     storage: localStorage,
     storageKey: getStorageKey(),
