@@ -56,6 +56,9 @@ export function usePolling(
     if (pauseWhenHidden && document.hidden) return false;
     // Don't poll if not on active tab
     if (activeTabs && currentTab && !activeTabs.includes(currentTab)) return false;
+    // Don't poll during night hours (23:00 - 08:00) to save egress
+    const hour = new Date().getHours();
+    if (hour >= 23 || hour < 8) return false;
     return true;
   }, [pauseWhenHidden, activeTabs, currentTab]);
 
