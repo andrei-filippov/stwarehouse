@@ -56,7 +56,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
         const unsyncedLocal = localChecklists.filter(c => !serverIds.has(c.id));
         
         setChecklists([...unsyncedLocal, ...(data || [])]);
-        setCached(cacheKey, [...unsyncedLocal, ...(data || []);
+        setCached(cacheKey, [...unsyncedLocal, ...(data || [])]);
       } catch (err) {
         // Ошибка сети - показываем только локальные
         logger.warn('Network error, showing local data:', err);
