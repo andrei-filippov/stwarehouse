@@ -266,7 +266,7 @@ export function useChecklistsV2(companyId: string | undefined, activeTab?: strin
       fetchKits();
     },
     {
-      intervalMs: 5000,
+      intervalMs: 60000, // 1 minute - was 5 seconds, caused excessive egress
       enabled: !!companyId && isProxyMode(),
       pauseWhenHidden: true,
       activeTabs: ['checklists', 'dashboard'],
