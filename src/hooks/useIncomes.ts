@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
+import { getCached, setCached } from '../lib/queryCache';
 import type { Income } from '../types/finance';
 import { createLogger } from '../lib/logger';
 
@@ -10,8 +11,14 @@ export function useIncomes(companyId: string | undefined) {
   const [incomes, setIncomes] = useState<Income[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchIncomes = useCallback(async () => {
+  const fetchIncomes = useCallback(async (force = false) => {
     if (!companyId) return;
+
+    const cacheKey = `fetchIncomes_${companyId}`;
+    if (!force) {
+      const cached = getCached<any[]>(cacheKey);
+      if (cached) { setIncomes(cached); return; }
+    }
     setLoading(true);
 
     const { data, error } = await supabase
@@ -24,6 +31,7 @@ export function useIncomes(companyId: string | undefined) {
       toast.error('Ошибка при загрузке доходов', { description: error.message });
     } else {
       setIncomes(data || []);
+      setCached(cacheKey, data || []);
     }
     setLoading(false);
   }, [companyId]);

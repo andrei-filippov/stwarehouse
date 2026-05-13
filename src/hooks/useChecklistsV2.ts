@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import { supabase, safeChannel, isProxyMode } from '../lib/supabase';
+import { getCached, setCached } from '../lib/queryCache';
 import type { ChecklistV2, EquipmentKit } from '../types/checklist';
 import type { Estimate } from '../types';
 import { logger } from '../lib/logger';
@@ -12,8 +13,13 @@ export function useChecklistsV2(companyId: string | undefined, activeTab?: strin
   const [loading, setLoading] = useState(false);
 
   // Загрузка чек-листов с новой структурой
-  const fetchChecklists = useCallback(async () => {
+  const fetchChecklists = useCallback(async (force = false) => {
     if (!companyId) return;
+    const cacheKey = `fetchChecklists_${companyId}`;
+    if (!force) {
+      const cached = getCached<ChecklistV2[]>(cacheKey);
+      if (cached) { setChecklists(cached); return; }
+    }
     setLoading(true);
 
     try {
@@ -43,6 +49,7 @@ export function useChecklistsV2(companyId: string | undefined, activeTab?: strin
       }));
 
       setChecklists(transformed);
+      setCached(cacheKey, transformed);
     } catch (err: any) {
       // Пока таблицы не созданы - просто пустой массив
       logger.debug('Checklists v2 not loaded (tables may not exist):', err.message);
@@ -53,8 +60,13 @@ export function useChecklistsV2(companyId: string | undefined, activeTab?: strin
   }, [companyId]);
 
   // Загрузка комплектов
-  const fetchKits = useCallback(async () => {
+  const fetchKits = useCallback(async (force = false) => {
     if (!companyId) return;
+    const cacheKey = `fetchKits_${companyId}`;
+    if (!force) {
+      const cached = getCached<EquipmentKit[]>(cacheKey);
+      if (cached) { setKits(cached); return; }
+    }
 
     try {
       // Сначала загружаем kits

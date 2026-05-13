@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { getCached, setCached } from '../lib/queryCache';
 import type { Invoice, InvoiceStatus } from '../types';
 
 export function useInvoices(contractId?: string, companyId?: string) {
@@ -47,6 +48,7 @@ export function useInvoices(contractId?: string, companyId?: string) {
       if (fetchError) throw fetchError;
       
       setInvoices(data || []);
+      setCached(cacheKey, data || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ошибка загрузки счетов');
     } finally {

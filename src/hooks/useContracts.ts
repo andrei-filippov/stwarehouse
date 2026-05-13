@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
+import { getCached, setCached } from '../lib/queryCache';
 import type { Contract, ContractTemplate, ContractType } from '../types';
 
 export function useContracts(companyId: string | undefined) {
@@ -8,8 +9,14 @@ export function useContracts(companyId: string | undefined) {
   const [templates, setTemplates] = useState<ContractTemplate[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchContracts = useCallback(async () => {
+  const fetchContracts = useCallback(async (force = false) => {
     if (!companyId) return;
+
+    const cacheKey = `fetchContracts_${companyId}`;
+    if (!force) {
+      const cached = getCached<any[]>(cacheKey);
+      if (cached) { setContracts(cached); return; }
+    }
     setLoading(true);
     
     const { data, error } = await supabase
@@ -30,13 +37,19 @@ export function useContracts(companyId: string | undefined) {
       toast.error('Ошибка при загрузке договоров', { description: error.message });
     } else {
       setContracts(data || []);
+      setCached(cacheKey, data || []);
     }
     setLoading(false);
   }, [companyId]);
 
-  const fetchTemplates = useCallback(async () => {
+  const fetchTemplates = useCallback(async (force = false) => {
     if (!companyId) return;
-    
+
+    const cacheKey = `fetchTemplates_${companyId}`;
+    if (!force) {
+      const cached = getCached<any[]>(cacheKey);
+      if (cached) { setTemplates(cached); return; }
+    }
     const { data, error } = await supabase
       .from('contract_templates')
       .select('*')
@@ -47,6 +60,7 @@ export function useContracts(companyId: string | undefined) {
       toast.error('Ошибка при загрузке шаблонов', { description: error.message });
     } else {
       setTemplates(data || []);
+      setCached(cacheKey, data || []);
     }
   }, [companyId]);
 

@@ -2,24 +2,9 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
 import { getCurrentUserDisplayName } from '../lib/utils';
+import { getCached, setCached, DEFAULT_CACHE_TTL_MS } from '../lib/queryCache';
 import type { CableCategory, CableInventory, CableMovement, EquipmentRepair } from '../types';
 import type { InventoryItem } from '../types/inventoryItem';
-
-// Global cache to prevent redundant fetches across component re-renders
-const globalCache: Record<string, { data: any; timestamp: number }> = {};
-const CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes
-
-function getCached<T>(key: string): T | null {
-  const cached = globalCache[key];
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-    return cached.data;
-  }
-  return null;
-}
-
-function setCached<T>(key: string, data: T) {
-  globalCache[key] = { data, timestamp: Date.now() };
-}
 
 export function useCableInventory(companyId: string | undefined, activeTab?: string) {
   const [categories, setCategories] = useState<CableCategory[]>([]);
@@ -526,7 +511,7 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
   // Initial load - use cache if available
   useEffect(() => {
     const now = Date.now();
-    if (now - lastFetchRef.current < CACHE_TTL_MS) return;
+    if (now - lastFetchRef.current < DEFAULT_CACHE_TTL_MS) return;
     lastFetchRef.current = now;
     fetchCategories();
     fetchInventory();

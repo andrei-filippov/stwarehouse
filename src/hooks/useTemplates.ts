@@ -1,14 +1,21 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
+import { getCached, setCached } from '../lib/queryCache';
 import type { Template, TemplateItem } from '../types';
 
 export function useTemplates(companyId: string | undefined) {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchTemplates = useCallback(async () => {
+  const fetchTemplates = useCallback(async (force = false) => {
     if (!companyId) return;
+
+    const cacheKey = `fetchTemplates_${companyId}`;
+    if (!force) {
+      const cached = getCached<any[]>(cacheKey);
+      if (cached) { setTemplates(cached); return; }
+    }
     setLoading(true);
     
     const { data, error } = await supabase
@@ -24,6 +31,7 @@ export function useTemplates(companyId: string | undefined) {
       toast.error('Ошибка при загрузке шаблонов', { description: error.message });
     } else {
       setTemplates(data || []);
+      setCached(cacheKey, data || []);
     }
     setLoading(false);
   }, [companyId]);

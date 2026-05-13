@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
+import { getCached, setCached } from '../lib/queryCache';
 import { debugLog, debugError } from '../lib/utils';
 import { logAction } from './useAuditLogs';
 import type { Estimate, EstimateItem } from '../types';
@@ -31,8 +32,14 @@ export function useEstimates(companyId: string | undefined, activeTab?: string) 
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Загрузка смет - в онлайн с сервера + локальные несинхронизированные, в оффлайн из кэша
-  const fetchEstimates = useCallback(async () => {
+  const fetchEstimates = useCallback(async (force = false) => {
     if (!companyId) return;
+
+    const cacheKey = `fetchEstimates_${companyId}`;
+    if (!force) {
+      const cached = getCached<any[]>(cacheKey);
+      if (cached) { setEstimates(cached); return; }
+    }
     if (fetchInProgressRef.current) {
       debugLog('[fetchEstimates] Already in progress, skipping');
       return;
@@ -240,6 +247,7 @@ export function useEstimates(companyId: string | undefined, activeTab?: string) 
           
           debugLog('[fetchEstimates] Setting estimates:', deduplicated.length, 'estimates with items');
           setEstimates(deduplicated);
+          setCached(cacheKey, deduplicated);
           
           // СОХРАНЯЕМ серверные данные в локальную базу для офлайн-доступа
           // Перезаписываем существующие локальные записи, если серверная версия актуальнее

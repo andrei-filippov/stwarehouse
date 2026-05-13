@@ -1,14 +1,21 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
+import { getCached, setCached } from '../lib/queryCache';
 import type { CompanyBankAccount, Currency } from '../types';
 
 export function useCompanyBankAccounts(companyId: string | undefined) {
   const [accounts, setAccounts] = useState<CompanyBankAccount[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchAccounts = useCallback(async () => {
+  const fetchAccounts = useCallback(async (force = false) => {
     if (!companyId) return;
+
+    const cacheKey = `fetchAccounts_${companyId}`;
+    if (!force) {
+      const cached = getCached<any[]>(cacheKey);
+      if (cached) { setAccounts(cached); return; }
+    }
     setLoading(true);
 
     const { data, error } = await supabase
@@ -23,6 +30,7 @@ export function useCompanyBankAccounts(companyId: string | undefined) {
       toast.error('Ошибка загрузки счетов', { description: error.message });
     } else {
       setAccounts(data || []);
+      setCached(cacheKey, data || []);
     }
     setLoading(false);
   }, [companyId]);

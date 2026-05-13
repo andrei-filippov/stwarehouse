@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
+import { getCached, setCached } from '../lib/queryCache';
 import type { Expense } from '../types';
 import { createLogger } from '../lib/logger';
 
@@ -10,8 +11,14 @@ export function useExpenses(companyId: string | undefined) {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchExpenses = useCallback(async () => {
+  const fetchExpenses = useCallback(async (force = false) => {
     if (!companyId) return;
+
+    const cacheKey = `fetchExpenses_${companyId}`;
+    if (!force) {
+      const cached = getCached<any[]>(cacheKey);
+      if (cached) { setExpenses(cached); return; }
+    }
     setLoading(true);
     
     const { data, error } = await supabase
@@ -24,6 +31,7 @@ export function useExpenses(companyId: string | undefined) {
       toast.error('Ошибка при загрузке расходов', { description: error.message });
     } else {
       setExpenses(data || []);
+      setCached(cacheKey, data || []);
     }
     setLoading(false);
   }, [companyId]);

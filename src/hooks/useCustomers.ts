@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
+import { getCached, setCached } from '../lib/queryCache';
 import type { Customer } from '../types';
 import { isOnline, addToSyncQueue, saveCustomerLocal, getCustomersLocal, deleteCustomerLocal } from '../lib/offlineDB';
 
@@ -9,8 +10,14 @@ export function useCustomers(companyId: string | undefined) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchCustomers = useCallback(async () => {
+  const fetchCustomers = useCallback(async (force = false) => {
     if (!companyId) return;
+
+    const cacheKey = `fetchCustomers_${companyId}`;
+    if (!force) {
+      const cached = getCached<any[]>(cacheKey);
+      if (cached) { setCustomers(cached); return; }
+    }
     setLoading(true);
     setError(null);
     
@@ -66,6 +73,7 @@ export function useCustomers(companyId: string | undefined) {
         });
         
         setCustomers(deduplicated);
+        setCached(cacheKey, deduplicated);
       } catch (err) {
         // Ошибка сети - показываем локальные
         setCustomers(localCustomers);

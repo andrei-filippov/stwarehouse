@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
+import { getCached, setCached } from '../lib/queryCache';
 import type { Checklist, ChecklistRule, Estimate, ChecklistItem } from '../types';
 import {
   isOnline,
@@ -21,8 +22,14 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
   const [loading, setLoading] = useState(false);
   const [isOffline, setIsOffline] = useState(!isOnline());
 
-  const fetchChecklists = useCallback(async () => {
+  const fetchChecklists = useCallback(async (force = false) => {
     if (!companyId) return;
+
+    const cacheKey = `fetchChecklists_${companyId}`;
+    if (!force) {
+      const cached = getCached<any[]>(cacheKey);
+      if (cached) { setChecklists(cached); return; }
+    }
     setLoading(true);
     
     // Всегда загружаем локальные чек-листы
@@ -49,6 +56,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
         const unsyncedLocal = localChecklists.filter(c => !serverIds.has(c.id));
         
         setChecklists([...unsyncedLocal, ...(data || [])]);
+        setCached(cacheKey, [...unsyncedLocal, ...(data || []);
       } catch (err) {
         // Ошибка сети - показываем только локальные
         logger.warn('Network error, showing local data:', err);
@@ -62,9 +70,14 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
     setLoading(false);
   }, [companyId]);
 
-  const fetchRules = useCallback(async () => {
+  const fetchRules = useCallback(async (force = false) => {
     if (!companyId) return;
-    
+
+    const cacheKey = `fetchRules_${companyId}`;
+    if (!force) {
+      const cached = getCached<any[]>(cacheKey);
+      if (cached) { setRules(cached); return; }
+    }
     if (isOnline()) {
       logger.debug('[fetchRules] Fetching rules for companyId:', companyId);
       

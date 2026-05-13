@@ -1,14 +1,21 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
+import { getCached, setCached } from '../lib/queryCache';
 import type { Staff } from '../types';
 
 export function useStaff(companyId: string | undefined) {
   const [staff, setStaff] = useState<Staff[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchStaff = useCallback(async () => {
+  const fetchStaff = useCallback(async (force = false) => {
     if (!companyId) return;
+
+    const cacheKey = `fetchStaff_${companyId}`;
+    if (!force) {
+      const cached = getCached<any[]>(cacheKey);
+      if (cached) { setStaff(cached); return; }
+    }
     setLoading(true);
     
     const { data, error } = await supabase
@@ -23,6 +30,7 @@ export function useStaff(companyId: string | undefined) {
       toast.error('Ошибка при загрузке персонала', { description: error.message });
     } else {
       setStaff(data || []);
+      setCached(cacheKey, data || []);
     }
     setLoading(false);
   }, [companyId]);

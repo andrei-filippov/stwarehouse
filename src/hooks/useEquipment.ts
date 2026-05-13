@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
+import { getCached, setCached } from '../lib/queryCache';
 import { generateSimpleQRCode } from '../lib/qrUtils';
 import type { Equipment, Category } from '../types';
 import { isOnline, addToSyncQueue, saveEquipmentLocal, getEquipmentLocal, deleteEquipmentLocal } from '../lib/offlineDB';
@@ -13,8 +14,14 @@ export function useEquipment(companyId: string | undefined) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchEquipment = useCallback(async () => {
+  const fetchEquipment = useCallback(async (force = false) => {
     if (!companyId) return;
+
+    const cacheKey = `fetchEquipment_${companyId}`;
+    if (!force) {
+      const cached = getCached<any[]>(cacheKey);
+      if (cached) { setEquipment(cached); return; }
+    }
     setLoading(true);
 
     // Всегда загружаем локальное оборудование
@@ -88,6 +95,7 @@ export function useEquipment(companyId: string | undefined) {
         });
         
         setEquipment(deduplicated);
+        setCached(cacheKey, deduplicated);
       } catch (err) {
         // Ошибка сети - показываем только локальные
         logger.warn('Network error, showing local data:', err);
@@ -101,9 +109,14 @@ export function useEquipment(companyId: string | undefined) {
     setLoading(false);
   }, [companyId]);
 
-  const fetchCategories = useCallback(async () => {
+  const fetchCategories = useCallback(async (force = false) => {
     if (!companyId) return;
 
+    const cacheKey = `fetchCategories_${companyId}`;
+    if (!force) {
+      const cached = getCached<any[]>(cacheKey);
+      if (cached) { setCategories(cached); return; }
+    }
     if (isOnline()) {
       try {
         const { data, error } = await supabase
@@ -114,6 +127,7 @@ export function useEquipment(companyId: string | undefined) {
 
         if (error) throw error;
         setCategories(data || []);
+        setCached(`fetchCategories_${companyId}`, data || []);
       } catch (err) {
         // Ошибка сети - игнорируем, показываем что есть
         logger.warn('Network error loading categories:', err);

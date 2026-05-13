@@ -1,14 +1,21 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
+import { getCached, setCached } from '../lib/queryCache';
 import type { Task } from '../types';
 
 export function useGoals(companyId: string | undefined) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchTasks = useCallback(async () => {
+  const fetchTasks = useCallback(async (force = false) => {
     if (!companyId) return;
+
+    const cacheKey = `fetchTasks_${companyId}`;
+    if (!force) {
+      const cached = getCached<any[]>(cacheKey);
+      if (cached) { setTasks(cached); return; }
+    }
     setLoading(true);
     
     const { data, error } = await supabase
@@ -22,6 +29,7 @@ export function useGoals(companyId: string | undefined) {
       toast.error('Ошибка при загрузке задач', { description: error.message });
     } else {
       setTasks(data || []);
+      setCached(cacheKey, data || []);
     }
     setLoading(false);
   }, [companyId]);
