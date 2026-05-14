@@ -45,6 +45,11 @@ self.addEventListener('activate', (event) => {
     }).then(() => {
       return self.clients.claim();
     }).then(() => {
+      // Force reload all clients to get latest JS
+      return self.clients.matchAll({ type: 'window' }).then(clients => {
+        clients.forEach(client => client.postMessage('RELOAD_PAGE'));
+      });
+    }).then(() => {
       // Запускаем периодическую синхронизацию
       startPeriodicSync();
     })
