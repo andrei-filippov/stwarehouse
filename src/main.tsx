@@ -9,6 +9,21 @@ import { SpeedInsightsWrapper } from './components/SpeedInsightsWrapper'
 
 import { logger } from './lib/logger';
 
+// Check for new version every 10 minutes and reload if needed
+const CURRENT_BUILD = '2026-05-14-v2';
+setInterval(() => {
+  fetch('/index.html', { cache: 'no-store' })
+    .then(r => r.text())
+    .then(html => {
+      const match = html.match(/CURRENT_VERSION\s*=\s*['"]([^'"]+)['"]/);
+      if (match && match[1] !== CURRENT_BUILD) {
+        logger.info('[Version] New build detected, reloading...');
+        location.reload();
+      }
+    })
+    .catch(() => {});
+}, 10 * 60 * 1000);
+
 // Регистрация Service Worker для офлайн-режима
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {

@@ -49,5 +49,18 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <!-- Force reload if app version is outdated (prevents stale JS from causing egress) -->
+    <script>
+      (function() {
+        const CURRENT_VERSION = '2026-05-14-v2';
+        const stored = localStorage.getItem('app-version');
+        if (stored && stored !== CURRENT_VERSION) {
+          localStorage.setItem('app-version', CURRENT_VERSION);
+          location.reload();
+        } else {
+          localStorage.setItem('app-version', CURRENT_VERSION);
+        }
+      })();
+    </script>
   </body>
 </html>
