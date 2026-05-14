@@ -24,30 +24,29 @@ export function useChecklistsV2(companyId: string | undefined, activeTab?: strin
     setLoading(true);
 
     try {
-      // Сначала загружаем чек-листы
+      // Single query with embedded relation to avoid N+1
       const { data: checklistsData, error: checklistsError } = await supabase
         .from('checklists')
-        .select('*')
+        .select(`
+          *,
+          checklist_items(*)
+        `)
         .eq('company_id', companyId)
         .order('created_at', { ascending: false });
 
       if (checklistsError) throw checklistsError;
 
-      // Затем загружаем items для каждого чек-листа
-      const transformed: ChecklistV2[] = await Promise.all((checklistsData || []).map(async (c: any) => {
-        const { data: itemsData } = await supabase
-          .from('checklist_items')
-          .select('*')
-          .eq('checklist_id', c.id);
-        
+      // Transform embedded data
+      const transformed: ChecklistV2[] = (checklistsData || []).map((c: any) => {
+        const items = c.checklist_items || [];
         return {
           ...c,
-          items: (itemsData || []),
-          loaded_count: (itemsData || []).filter((i: any) => i.loaded).length,
-          unloaded_count: (itemsData || []).filter((i: any) => i.unloaded).length,
-          total_count: (itemsData || []).length
+          items: items,
+          loaded_count: items.filter((i: any) => i.loaded).length,
+          unloaded_count: items.filter((i: any) => i.unloaded).length,
+          total_count: items.length
         };
-      }));
+      });
 
       setChecklists(transformed);
       setCached(cacheKey, transformed);
@@ -70,35 +69,25 @@ export function useChecklistsV2(companyId: string | undefined, activeTab?: strin
     }
 
     try {
-      // Сначала загружаем kits
+      // Single query with embedded relation to avoid N+1
       const { data: kitsData, error: kitsError } = await supabase
         .from('equipment_kits')
-        .select('*')
+        .select(`
+          *,
+          kit_items(*, cable_inventory:inventory_id(name))
+        `)
         .eq('company_id', companyId)
         .order('created_at', { ascending: false });
 
       if (kitsError) throw kitsError;
 
-      // Затем загружаем items для каждого kit с названиями оборудования
-      const transformed: EquipmentKit[] = await Promise.all((kitsData || []).map(async (k: any) => {
-        const { data: itemsData } = await supabase
-          .from('kit_items')
-          .select(`
-            *,
-            cable_inventory:inventory_id(name)
-          `)
-          .eq('kit_id', k.id);
-        
-        // Добавляем inventory_name из связанной таблицы
-        const itemsWithNames = (itemsData || []).map((item: any) => ({
+      // Transform embedded data
+      const transformed: EquipmentKit[] = (kitsData || []).map((k: any) => ({
+        ...k,
+        items: (k.kit_items || []).map((item: any) => ({
           ...item,
           inventory_name: item.inventory_name || item.cable_inventory?.name || 'Неизвестно'
-        }));
-        
-        return {
-          ...k,
-          items: itemsWithNames
-        };
+        }))
       }));
 
       setKits(transformed);
