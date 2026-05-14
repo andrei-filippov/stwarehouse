@@ -143,8 +143,9 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
   global: {
     fetch: customFetch,
   },
-  // Disable realtime when using proxy (API Gateway doesn't support WebSocket)
-  realtime: isProxyMode() ? false : undefined,
+  // Disable realtime globally to prevent background WebSocket traffic
+  // Polling with caching is used instead for data freshness
+  realtime: false,
 });
 
 // Safe channel wrapper: returns a no-op channel in proxy mode to prevent WebSocket errors

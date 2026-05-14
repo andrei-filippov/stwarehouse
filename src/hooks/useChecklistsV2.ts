@@ -6,6 +6,7 @@ import type { ChecklistV2, EquipmentKit } from '../types/checklist';
 import type { Estimate } from '../types';
 import { logger } from '../lib/logger';
 import { usePolling } from './usePolling';
+import { useVisibilityAwareRealtime } from './useVisibilityAwareRealtime';
 
 export function useChecklistsV2(companyId: string | undefined, activeTab?: string) {
   const [checklists, setChecklists] = useState<ChecklistV2[]>([]);
@@ -274,25 +275,24 @@ export function useChecklistsV2(companyId: string | undefined, activeTab?: strin
     }
   );
 
-  // Normal mode: Supabase Realtime (WebSocket)
-  useEffect(() => {
-    if (!companyId || isProxyMode()) return;
+  // Normal mode: Supabase Realtime (WebSocket) - unsubscribes when tab hidden
+  useVisibilityAwareRealtime(
+    () => supabase
+      .channel('checklists_v2_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'checklists' }, () => fetchChecklists(true))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'checklist_items' }, () => fetchChecklists(true))
+      .subscribe(),
+    [companyId]
+  );
 
-    const channels = [
-      safeChannel('checklists_v2_changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'checklists' }, () => { if (document.hidden) return; fetchChecklists(); })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'checklist_items' }, () => { if (document.hidden) return; fetchChecklists(); })
-        .subscribe(),
-      safeChannel('equipment_kits_changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'equipment_kits' }, () => { if (document.hidden) return; fetchKits(); })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'kit_items' }, () => { if (document.hidden) return; fetchKits(); })
-        .subscribe()
-    ];
-
-    return () => {
-      channels.forEach(c => c.unsubscribe());
-    };
-  }, [companyId, fetchChecklists, fetchKits]);
+  useVisibilityAwareRealtime(
+    () => supabase
+      .channel('equipment_kits_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'equipment_kits' }, () => fetchKits(true))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'kit_items' }, () => fetchKits(true))
+      .subscribe(),
+    [companyId]
+  );
 
   // Первичная загрузка
   useEffect(() => {
