@@ -85,7 +85,7 @@ export function useAuditLogs(filters?: AuditLogFilters, limit: number = 100) {
         query = query.eq('company_id', filters.companyId);
       } else {
         // Если companyId не указан — не показываем ничего (изоляция данных)
-        query = query.eq('company_id', 'no-company');
+        query = query.is('company_id', null);
       }
 
       // Применяем фильтры
