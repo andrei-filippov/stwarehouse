@@ -1,17 +1,21 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
-import { supabase, safeChannel, isProxyMode } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 import { getCached, setCached } from '../lib/queryCache';
+import { useOptimisticMutation } from './useOptimisticMutation';
 import type { ChecklistV2, EquipmentKit } from '../types/checklist';
 import type { Estimate } from '../types';
 import { logger } from '../lib/logger';
-import { usePolling } from './usePolling';
-import { useVisibilityAwareRealtime } from './useVisibilityAwareRealtime';
+import { useRealtimeWithFallback } from './useRealtimeWithFallback';
 
 export function useChecklistsV2(companyId: string | undefined, activeTab?: string) {
   const [checklists, setChecklists] = useState<ChecklistV2[]>([]);
   const [kits, setKits] = useState<EquipmentKit[]>([]);
   const [loading, setLoading] = useState(false);
+  
+  // Optimistic mutations for instant UI updates
+  const optimisticChecklists = useOptimisticMutation(setChecklists);
+  const optimisticKits = useOptimisticMutation(setKits);
 
   // Загрузка чек-листов с новой структурой
   const fetchChecklists = useCallback(async (force = false) => {
@@ -126,6 +130,16 @@ export function useChecklistsV2(companyId: string | undefined, activeTab?: strin
   ) => {
     if (!companyId) return { error: new Error('No company') };
 
+    // Optimistic add
+    const tempId = `temp_${Date.now()}`;
+    optimisticKits.add({
+      ...kit,
+      id: tempId,
+      company_id: companyId,
+      qr_code: `KIT-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+      created_at: new Date().toISOString()
+    } as EquipmentKit);
+
     try {
       // Создаем комплект
       const { data: kitData, error: kitError } = await supabase
@@ -140,6 +154,11 @@ export function useChecklistsV2(companyId: string | undefined, activeTab?: strin
         .single();
 
       if (kitError) throw kitError;
+      
+      // Replace temp with real data
+      if (kitData) {
+        optimisticKits.update(tempId, kitData);
+      }
 
       // Подсчитываем количество каждого inventory_id
       const quantityMap = new Map<string, number>();
@@ -231,6 +250,9 @@ export function useChecklistsV2(companyId: string | undefined, activeTab?: strin
 
   // Удаление комплекта
   const deleteKit = useCallback(async (id: string) => {
+    // Optimistic remove
+    optimisticKits.remove(id);
+    
     try {
       const { error } = await supabase
         .from('equipment_kits')
@@ -240,48 +262,35 @@ export function useChecklistsV2(companyId: string | undefined, activeTab?: strin
       if (error) throw error;
 
       toast.success('Комплект удален');
-      await fetchKits();
       return { error: null };
     } catch (err: any) {
       toast.error('Ошибка удаления', { description: err.message });
+      // Refetch on error to restore state
+      await fetchKits();
       return { error: err };
     }
-  }, [fetchKits]);
+  }, [fetchKits, optimisticKits]);
 
-  // Realtime / Polling подписки
-  // Proxy mode: polling every 5 seconds for checklists (critical for scanning)
-  usePolling(
-    () => {
-      fetchChecklists();
-      fetchKits();
-    },
-    {
-      intervalMs: 60000, // 1 minute - was 5 seconds, caused excessive egress
-      enabled: !!companyId && isProxyMode(),
-      pauseWhenHidden: true,
-      activeTabs: ['checklists', 'dashboard'],
-      currentTab: activeTab,
-    }
-  );
+  // Realtime on Vercel, smart polling on Yandex proxy
+  useRealtimeWithFallback({
+    channelName: 'checklists_v2_changes',
+    companyId,
+    tables: [
+      { table: 'checklists', filter: `company_id=eq.${companyId}`, onChange: () => fetchChecklists(true) },
+      { table: 'checklist_items', onChange: () => fetchChecklists(true) },
+    ],
+    pollingIntervalMs: 30000, // 30 sec for checklists (critical)
+  });
 
-  // Normal mode: Supabase Realtime (WebSocket) - unsubscribes when tab hidden
-  useVisibilityAwareRealtime(
-    () => supabase
-      .channel('checklists_v2_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'checklists' }, () => fetchChecklists(true))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'checklist_items' }, () => fetchChecklists(true))
-      .subscribe(),
-    [companyId]
-  );
-
-  useVisibilityAwareRealtime(
-    () => supabase
-      .channel('equipment_kits_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'equipment_kits' }, () => fetchKits(true))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'kit_items' }, () => fetchKits(true))
-      .subscribe(),
-    [companyId]
-  );
+  useRealtimeWithFallback({
+    channelName: 'equipment_kits_changes',
+    companyId,
+    tables: [
+      { table: 'equipment_kits', filter: `company_id=eq.${companyId}`, onChange: () => fetchKits(true) },
+      { table: 'kit_items', onChange: () => fetchKits(true) },
+    ],
+    pollingIntervalMs: 60000, // 1 min for kits
+  });
 
   // Первичная загрузка
   useEffect(() => {

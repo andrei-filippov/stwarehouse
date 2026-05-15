@@ -143,9 +143,9 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
   global: {
     fetch: customFetch,
   },
-  // Disable realtime only when using proxy (Yandex) - API Gateway doesn't support WebSocket
-  // On Vercel realtime works normally and is more efficient than polling
-  realtime: isProxyMode() ? false : undefined,
+  // Enable realtime everywhere - on Vercel it works natively
+  // On Yandex proxy we use polling fallback in hooks
+  realtime: true,
 });
 
 // Safe channel wrapper: returns a no-op channel in proxy mode to prevent WebSocket errors
