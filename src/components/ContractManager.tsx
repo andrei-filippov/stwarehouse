@@ -85,7 +85,9 @@ export const ContractManager = memo(function ContractManager({
   }, []);
 
   const handleEdit = useCallback((contract: Contract) => {
-    logAction('view', 'contract', contract.id, contract.number || contract.event_name, undefined, undefined, company?.id).catch(() => {});
+    logAction('view', 'contract', contract.id, contract.number || contract.event_name, undefined, undefined, company?.id)
+      .then(r => { if (r.error) console.error('[Audit] Contract view log failed:', r.error); })
+      .catch(e => console.error('[Audit] Contract view log error:', e));
     setEditingContract(contract);
     setIsFormOpen(true);
   }, [company?.id]);

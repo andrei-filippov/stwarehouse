@@ -143,7 +143,9 @@ export function EquipmentManager({
   // Логируем просмотр оборудования при открытии редактирования
   useEffect(() => {
     if (editingItem) {
-      logAction('view', 'equipment', editingItem.id, editingItem.name, undefined, undefined, company?.id).catch(() => {});
+      logAction('view', 'equipment', editingItem.id, editingItem.name, undefined, undefined, company?.id)
+        .then(r => { if (r.error) console.error('[Audit] Equipment view log failed:', r.error); })
+        .catch(e => console.error('[Audit] Equipment view log error:', e));
     }
   }, [editingItem, company?.id]);
 
