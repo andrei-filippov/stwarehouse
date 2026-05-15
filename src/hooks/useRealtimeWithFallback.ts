@@ -38,7 +38,11 @@ export function useRealtimeWithFallback(options: UseRealtimeWithFallbackOptions)
 
   const channelRef = useRef<RealtimeChannel | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const tablesRef = useRef(tables);
   const isProxy = isProxyMode();
+
+  // Keep tables ref up to date without triggering re-subscription
+  tablesRef.current = tables;
 
   // Cleanup function
   const cleanup = useCallback(() => {
@@ -67,12 +71,12 @@ export function useRealtimeWithFallback(options: UseRealtimeWithFallbackOptions)
         const hour = new Date().getHours();
         if (hour >= 23 || hour < 8) return;
         
-        // Trigger all callbacks
-        tables.forEach(t => t.onChange());
+        // Trigger all callbacks (use ref to avoid stale closures)
+        tablesRef.current.forEach(t => t.onChange());
       };
 
-      // Initial tick
-      tick();
+      // Initial tick - but delay slightly to avoid mount storm
+      const initialTimeout = setTimeout(tick, 2000);
 
       intervalRef.current = setInterval(tick, pollingIntervalMs);
 
@@ -83,6 +87,7 @@ export function useRealtimeWithFallback(options: UseRealtimeWithFallbackOptions)
       document.addEventListener('visibilitychange', handleVisibility);
 
       return () => {
+        clearTimeout(initialTimeout);
         cleanup();
         document.removeEventListener('visibilitychange', handleVisibility);
       };
@@ -91,7 +96,7 @@ export function useRealtimeWithFallback(options: UseRealtimeWithFallbackOptions)
     // NORMAL MODE: Supabase Realtime (WebSocket)
     const channel = supabase.channel(channelName);
 
-    tables.forEach(t => {
+    tablesRef.current.forEach(t => {
       channel.on(
         'postgres_changes',
         {
@@ -100,7 +105,11 @@ export function useRealtimeWithFallback(options: UseRealtimeWithFallbackOptions)
           table: t.table,
           filter: t.filter,
         },
-        () => t.onChange()
+        () => {
+          // Skip if tab hidden to save egress
+          if (document.hidden) return;
+          t.onChange();
+        }
       );
     });
 
@@ -113,7 +122,8 @@ export function useRealtimeWithFallback(options: UseRealtimeWithFallbackOptions)
     channelRef.current = channel;
 
     return cleanup;
-  }, [enabled, companyId, channelName, tables, pollingIntervalMs, isProxy, cleanup]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, companyId, channelName, pollingIntervalMs, isProxy]);
 
   return { isProxy };
 }
