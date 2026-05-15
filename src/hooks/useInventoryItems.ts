@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
-import { supabase } from '../lib/supabase';
+import { supabase, safeChannel } from '../lib/supabase';
 import type { InventoryItem, ItemComment, ItemHistory } from '../types/inventoryItem';
 
 export function useInventoryItems(companyId: string | undefined) {
@@ -338,8 +338,7 @@ export function useInventoryItems(companyId: string | undefined) {
   useEffect(() => {
     if (!companyId) return;
     
-    const channel = supabase
-      .channel('inventory_items_changes')
+    const channel = safeChannel('inventory_items_changes')
       .on(
         'postgres_changes',
         {

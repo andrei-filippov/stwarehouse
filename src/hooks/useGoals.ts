@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
-import { supabase } from '../lib/supabase';
+import { supabase, safeChannel } from '../lib/supabase';
 import { getCached, setCached } from '../lib/queryCache';
 import type { Task } from '../types';
 
@@ -108,8 +108,7 @@ export function useGoals(companyId: string | undefined) {
   useEffect(() => {
     if (!companyId) return;
 
-    const channel = supabase
-      .channel('goals-changes')
+    const channel = safeChannel('goals-changes')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'goals', filter: `company_id=eq.${companyId}` },
         () => { if (document.hidden) return; fetchTasks(); }

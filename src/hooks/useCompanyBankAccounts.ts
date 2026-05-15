@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
-import { supabase } from '../lib/supabase';
+import { supabase, safeChannel } from '../lib/supabase';
 import { getCached, setCached } from '../lib/queryCache';
 import type { CompanyBankAccount, Currency } from '../types';
 
@@ -107,8 +107,7 @@ export function useCompanyBankAccounts(companyId: string | undefined) {
   useEffect(() => {
     if (!companyId) return;
 
-    const channel = supabase
-      .channel('bank-accounts-changes')
+    const channel = safeChannel('bank-accounts-changes')
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'company_bank_accounts', filter: `company_id=eq.${companyId}` },
         () => { if (document.hidden) return; fetchAccounts(); }

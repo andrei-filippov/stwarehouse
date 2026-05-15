@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
-import { supabase } from '../lib/supabase';
+import { supabase, safeChannel } from '../lib/supabase';
 
 export type PaymentType = 'regular' | 'advance' | 'bonus';
 
@@ -284,8 +284,7 @@ export function useSalary(companyId: string | undefined) {
   useEffect(() => {
     if (!companyId) return;
 
-    const channel = supabase
-      .channel('salary-changes')
+    const channel = safeChannel('salary-changes')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'salary_records', filter: `company_id=eq.${companyId}` },
         (payload) => {

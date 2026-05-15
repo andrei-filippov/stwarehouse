@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, safeChannel } from '../lib/supabase';
 
 export type AuditAction = 'create' | 'update' | 'delete' | 'view' | 'login' | 'logout';
 export type EntityType = 'estimate' | 'estimate_item' | 'equipment' | 'customer' | 'staff' | 'contract' | 'user' | 'template' | 'checklist' | 'checklist_item' | 'inventory' | 'movement' | 'repair' | 'kit';
@@ -137,8 +137,7 @@ export function useAuditLogs(filters?: AuditLogFilters, limit: number = 100) {
     fetchLogs();
 
     // Подписка на новые логи - только если нет фильтров (чтобы не добавлять логи, не соответствующие фильтру)
-    const subscription = supabase
-      .channel('audit_logs_changes')
+    const subscription = safeChannel('audit_logs_changes')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'audit_logs' }, (payload) => {
         if (document.hidden) return;
         const newLog = payload.new as AuditLog;

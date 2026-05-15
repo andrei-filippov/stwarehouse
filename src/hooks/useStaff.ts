@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
-import { supabase } from '../lib/supabase';
+import { supabase, safeChannel } from '../lib/supabase';
 import { getCached, setCached } from '../lib/queryCache';
 import type { Staff } from '../types';
 
@@ -112,8 +112,7 @@ export function useStaff(companyId: string | undefined) {
   useEffect(() => {
     if (!companyId) return;
 
-    const channel = supabase
-      .channel('staff-changes')
+    const channel = safeChannel('staff-changes')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'staff', filter: `company_id=eq.${companyId}` },
         () => { if (document.hidden) return; fetchStaff(); }

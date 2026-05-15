@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, safeChannel } from '../lib/supabase';
 import type { Act, ActItem, ActStatus } from '../types';
 
 export function useActs(contractId?: string, companyId?: string) {
@@ -188,8 +188,7 @@ export function useActs(contractId?: string, companyId?: string) {
   useEffect(() => {
     if (!companyId) return;
     
-    const channel = supabase
-      .channel('acts-changes')
+    const channel = safeChannel('acts-changes')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'acts', filter: `company_id=eq.${companyId}` },
         () => { if (document.hidden) return; fetchActs(); }

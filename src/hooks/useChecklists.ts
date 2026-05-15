@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
-import { supabase } from '../lib/supabase';
+import { supabase, safeChannel } from '../lib/supabase';
 import { getCached, setCached } from '../lib/queryCache';
 import type { Checklist, ChecklistRule, Estimate, ChecklistItem } from '../types';
 import {
@@ -763,8 +763,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
     if (!companyId) return;
 
     // Подписка на изменения чек-листов
-    const checklistsChannel = supabase
-      .channel('checklists-changes')
+    const checklistsChannel = safeChannel('checklists-changes')
       .on('postgres_changes', 
         { 
           event: '*', 
@@ -782,8 +781,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
 
     // Подписка на изменения items чек-листов (статусы loaded/unloaded/is_checked)
     let lastUpdate = Date.now();
-    const itemsChannel = supabase
-      .channel('checklist-items-changes')
+    const itemsChannel = safeChannel('checklist-items-changes')
       .on('postgres_changes',
         {
           event: 'UPDATE',
@@ -811,8 +809,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
       .subscribe();
 
     // Подписка на изменения правил
-    const rulesChannel = supabase
-      .channel('checklist-rules-changes')
+    const rulesChannel = safeChannel('checklist-rules-changes')
       .on('postgres_changes',
         {
           event: '*',
@@ -829,8 +826,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
       .subscribe();
 
     // Подписка на изменения items правил (когда добавляют/удаляют позиции из правила)
-    const ruleItemsChannel = supabase
-      .channel('checklist-rule-items-changes')
+    const ruleItemsChannel = safeChannel('checklist-rule-items-changes')
       .on('postgres_changes',
         {
           event: '*',

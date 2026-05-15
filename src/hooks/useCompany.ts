@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, safeChannel } from '../lib/supabase';
 import { getSubdomain, generateSlug } from '../lib/subdomain';
 import { getSelectedCompany, saveSelectedCompany } from '../lib/companyUrl';
 import type { Company, CompanyMember, CompanyRole } from '../types/company';
@@ -508,8 +508,7 @@ export function useCompany(options?: { skipAutoLoad?: boolean }) {
   useEffect(() => {
     if (!company) return;
 
-    const channel = supabase
-      .channel('company-changes')
+    const channel = safeChannel('company-changes')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'company_members', filter: `company_id=eq.${company.id}` },
         () => { if (document.hidden) return; loadMembers(company.id); }

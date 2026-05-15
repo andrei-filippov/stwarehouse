@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
-import { supabase } from '../lib/supabase';
+import { supabase, safeChannel } from '../lib/supabase';
 import { getCached, setCached } from '../lib/queryCache';
 import type { Template, TemplateItem } from '../types';
 
@@ -158,8 +158,7 @@ export function useTemplates(companyId: string | undefined) {
   useEffect(() => {
     if (!companyId) return;
 
-    const channel = supabase
-      .channel('templates-changes')
+    const channel = safeChannel('templates-changes')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'templates', filter: `company_id=eq.${companyId}` },
         () => { if (document.hidden) return; fetchTemplates(); }

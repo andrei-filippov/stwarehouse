@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, safeChannel } from '../lib/supabase';
 import { getCached, setCached } from '../lib/queryCache';
 import type { Invoice, InvoiceStatus } from '../types';
 
@@ -140,8 +140,7 @@ export function useInvoices(contractId?: string, companyId?: string) {
   useEffect(() => {
     if (!companyId) return;
     
-    const channel = supabase
-      .channel('invoices-changes')
+    const channel = safeChannel('invoices-changes')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'invoices', filter: `company_id=eq.${companyId}` },
         () => { if (document.hidden) return; fetchInvoices(); }

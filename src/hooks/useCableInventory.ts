@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { toast } from 'sonner';
-import { supabase } from '../lib/supabase';
+import { supabase, safeChannel } from '../lib/supabase';
 import { getCurrentUserDisplayName } from '../lib/utils';
 import { getCached, setCached, DEFAULT_CACHE_TTL_MS } from '../lib/queryCache';
 import { useVisibilityAwareRealtime } from './useVisibilityAwareRealtime';
@@ -523,8 +523,7 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
 
   // Realtime подписки - отключаются при уходе в фон
   useVisibilityAwareRealtime(
-    () => supabase
-      .channel('cable_inventory_changes')
+    () => safeChannel('cable_inventory_changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'cable_inventory', filter: `company_id=eq.${companyId}` },
         () => fetchInventory(true)
       )
@@ -533,8 +532,7 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
   );
 
   useVisibilityAwareRealtime(
-    () => supabase
-      .channel('cable_movements_changes')
+    () => safeChannel('cable_movements_changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'cable_movements', filter: `company_id=eq.${companyId}` },
         () => { fetchMovements(true); fetchInventory(true); }
       )
@@ -543,8 +541,7 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
   );
 
   useVisibilityAwareRealtime(
-    () => supabase
-      .channel('equipment_repairs_changes')
+    () => safeChannel('equipment_repairs_changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'equipment_repairs', filter: `company_id=eq.${companyId}` },
         () => { fetchRepairs(true); fetchInventory(true); fetchInventoryItems(true); }
       )
@@ -553,8 +550,7 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
   );
 
   useVisibilityAwareRealtime(
-    () => supabase
-      .channel('inventory_items_changes')
+    () => safeChannel('inventory_items_changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_items', filter: `company_id=eq.${companyId}` },
         () => { fetchInventoryItems(true); fetchInventory(true); }
       )
@@ -563,8 +559,7 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
   );
 
   useVisibilityAwareRealtime(
-    () => supabase
-      .channel('cable_categories_changes')
+    () => safeChannel('cable_categories_changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'cable_categories', filter: `company_id=eq.${companyId}` },
         () => fetchCategories(true)
       )
