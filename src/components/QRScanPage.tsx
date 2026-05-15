@@ -27,7 +27,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { supabase } from '../lib/supabase';
+import { supabase, safeChannel } from '../lib/supabase';
 import type { CableInventory, EquipmentKit, CableCategory } from '../types';
 import type { ChecklistV2 } from '../types/checklist';
 import type { InventoryItem, ItemComment, ItemHistory } from '../types/inventoryItem';
@@ -161,8 +161,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
   useEffect(() => {
     if (!companyId) return;
     
-    const inventoryChannel = supabase
-      .channel('qr_scan_inventory_changes')
+    const inventoryChannel = safeChannel('qr_scan_inventory_changes')
       .on(
         'postgres_changes',
         {

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { supabase, isProxyMode } from '../lib/supabase';
+import { supabase, isProxyMode, safeChannel } from '../lib/supabase';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface RealtimeTableConfig {
@@ -94,7 +94,7 @@ export function useRealtimeWithFallback(options: UseRealtimeWithFallbackOptions)
     }
 
     // NORMAL MODE: Supabase Realtime (WebSocket)
-    const channel = supabase.channel(channelName);
+    const channel = safeChannel(channelName);
 
     tablesRef.current.forEach(t => {
       channel.on(
