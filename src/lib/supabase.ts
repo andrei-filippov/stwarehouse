@@ -48,10 +48,41 @@ export const isProxyMode = (): boolean => {
   return supabaseUrl.includes('apigw.yandexcloud.net') || window.location.hostname.includes('yandexcloud.net');
 };
 
+// Concurrency limiter for proxy mode to avoid ERR_INSUFFICIENT_RESOURCES
+const MAX_CONCURRENT = 3;
+let activeRequests = 0;
+const requestQueue: Array<() => void> = [];
+
+function enqueueRequest(url: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  return new Promise((resolve, reject) => {
+    const execute = () => {
+      activeRequests++;
+      fetch(url, init).then(
+        (res) => { activeRequests--; drainQueue(); resolve(res); },
+        (err) => { activeRequests--; drainQueue(); reject(err); }
+      );
+    };
+    
+    if (activeRequests < MAX_CONCURRENT) {
+      execute();
+    } else {
+      requestQueue.push(execute);
+    }
+  });
+}
+
+function drainQueue() {
+  if (requestQueue.length > 0 && activeRequests < MAX_CONCURRENT) {
+    const next = requestQueue.shift();
+    next?.();
+  }
+}
+
 // Custom fetch to fix proxy issues:
 // 1. Replace apikey header (JWT) with actual anon key
 // 2. Remove accept-profile and content-profile headers (CORS issues with API Gateway)
 // 3. Force return=minimal for DELETE to avoid 'column created_at does not exist' error
+// 4. Concurrency limiter for proxy mode
 const customFetch = (url: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
   // Block ALL requests when tab is hidden to prevent background traffic
   if (typeof document !== 'undefined' && document.hidden) {
@@ -84,7 +115,7 @@ const customFetch = (url: RequestInfo | URL, init?: RequestInit): Promise<Respon
     headers.set('Prefer', 'return=minimal');
   }
   
-  return fetch(url, {
+  const doFetch = () => fetch(url, {
     ...init,
     headers,
   }).then(response => {
@@ -95,6 +126,13 @@ const customFetch = (url: RequestInfo | URL, init?: RequestInit): Promise<Respon
     }
     return response;
   });
+  
+  // Proxy mode: limit concurrent requests to avoid overwhelming Yandex Cloud Function
+  if (isProxyMode()) {
+    return enqueueRequest(url, { ...init, headers });
+  }
+  
+  return doFetch();
 };
 
 // Suppress WebSocket connection errors in proxy mode
