@@ -18,7 +18,9 @@ import {
   clearDeletedEstimates
 } from '../lib/offlineDB';
 import { logger } from '../lib/logger';
-import { usePolling, isProxyMode } from './usePolling';
+import { isProxyMode } from './usePolling';
+import { useRealtimeWithFallback } from './useRealtimeWithFallback';
+import { useOptimisticMutation } from './useOptimisticMutation';
 
 // Генерируем уникальный ID сессии для этой вкладки
 const SESSION_ID = Math.random().toString(36).substring(2, 15);
@@ -28,6 +30,7 @@ export function useEstimates(companyId: string | undefined, activeTab?: string) 
   const [loading, setLoading] = useState(false);
   const [isOffline, setIsOffline] = useState(!isOnline());
   const currentEditingIdRef = useRef<string | null>(null);
+  const optimistic = useOptimisticMutation(setEstimates);
   const fetchInProgressRef = useRef(false);
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -398,6 +401,9 @@ export function useEstimates(companyId: string | undefined, activeTab?: string) 
         }))
       };
       
+      // Optimistic add to UI
+      optimistic.add(estimateData as Estimate);
+      
       if (isOnline()) {
         try {
           // Пробуем сохранить на сервер
@@ -437,7 +443,8 @@ export function useEstimates(companyId: string | undefined, activeTab?: string) 
             if (itemsError) throw itemsError;
           }
 
-          await fetchEstimates();
+          // Replace temp with real data
+          optimistic.update(localId, newEstimate);
           toast.success('Смета создана');
           return { error: null, data: newEstimate };
         } catch (err: any) {
@@ -642,6 +649,9 @@ export function useEstimates(companyId: string | undefined, activeTab?: string) 
   const deleteEstimate = useCallback(async (id: string) => {
     if (!companyId) return { error: new Error('No company selected') };
     
+    // Optimistic remove
+    optimistic.remove(id);
+    
     try {
       const isLocalId = id.startsWith('local_');
       
@@ -659,8 +669,6 @@ export function useEstimates(companyId: string | undefined, activeTab?: string) 
             throw error;
           }
           
-          // Успешно удалено на сервере
-          setEstimates(prev => prev.filter(e => e.id !== id));
           toast.success('Смета удалена');
           return { error: null };
         } catch (err: any) {
@@ -797,67 +805,30 @@ export function useEstimates(companyId: string | undefined, activeTab?: string) 
     }, 1500);
   }, [fetchEstimates]);
 
-  // Подписка на изменения (только в онлайн режиме)
-  // Proxy mode: polling every 30 seconds
-  // Normal mode: Supabase Realtime (WebSocket)
-  usePolling(
-    () => {
-      if ((window as any).__syncing) return;
-      fetchEstimates();
-    },
-    {
-      intervalMs: 120000, // 2 minutes for estimates (not critical)
-      enabled: !!companyId && isOnline() && isProxyMode(),
-      pauseWhenHidden: true,
-      activeTabs: ['estimates', 'dashboard', 'calendar', 'finance'],
-      currentTab: activeTab,
-    }
-  );
-
-  // Realtime subscription (WebSocket) — only when NOT in proxy mode
-  useEffect(() => {
-    if (!companyId || !isOnline() || isProxyMode()) return;
-
-    const channel = supabase
-      .channel('estimates-changes')
-      .on('postgres_changes', 
-        { 
-          event: '*', 
-          schema: 'public', 
-          table: 'estimates',
-          filter: `company_id=eq.${companyId}`
-        },
-        (payload) => {
-          if (document.hidden) return;
-          if (payload.eventType === 'INSERT') {
-            const newEstimate = payload.new as Estimate;
-            if (newEstimate.creator_name) {
-              toast.info('Новая смета создана', { 
-                description: `${newEstimate.event_name} — ${newEstimate.creator_name}` 
-              });
-            }
-          }
+  // Realtime on Vercel, smart polling on Yandex proxy
+  useRealtimeWithFallback({
+    channelName: 'estimates-changes',
+    companyId,
+    tables: [
+      { 
+        table: 'estimates', 
+        filter: `company_id=eq.${companyId}`,
+        onChange: () => {
+          if ((window as any).__syncing) return;
           debouncedFetchEstimates();
         }
-      )
-      .on('postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'estimate_items',
-          filter: `company_id=eq.${companyId}`
-        },
-        () => { if (document.hidden) return; debouncedFetchEstimates(); }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-      if (debounceTimeoutRef.current) {
-        clearTimeout(debounceTimeoutRef.current);
-      }
-    };
-  }, [debouncedFetchEstimates, companyId, fetchEstimates]);
+      },
+      { 
+        table: 'estimate_items', 
+        filter: `company_id=eq.${companyId}`,
+        onChange: () => {
+          if ((window as any).__syncing) return;
+          debouncedFetchEstimates();
+        }
+      },
+    ],
+    pollingIntervalMs: 60000, // 1 min for estimates
+  });
 
   // Очистка при размонтировании
   useEffect(() => {

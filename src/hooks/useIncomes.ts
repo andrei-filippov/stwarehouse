@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
+import { useRealtimeWithFallback } from './useRealtimeWithFallback';
 import { getCached, setCached } from '../lib/queryCache';
 import type { Income } from '../types/finance';
 import { createLogger } from '../lib/logger';
@@ -47,21 +48,28 @@ export function useIncomes(companyId: string | undefined) {
 
     logger.debug('Adding income:', dataToInsert);
 
+    // Optimistic update
+    const tempId = `temp_${Date.now()}`;
+    const optimisticIncome = { ...dataToInsert, id: tempId, created_at: new Date().toISOString() } as Income;
+    setIncomes(prev => [optimisticIncome, ...prev]);
+    
     try {
       const { error, data } = await supabase
         .from('income')
         .insert(dataToInsert)
-        .select();
+        .select()
+        .single();
 
       if (error) {
         logger.error('Error adding income:', error);
         throw error;
       }
 
-      await fetchIncomes();
+      setIncomes(prev => prev.map(i => i.id === tempId ? data : i));
       toast.success('Поступление добавлено');
       return { error: null, data };
     } catch (err: any) {
+      setIncomes(prev => prev.filter(i => i.id !== tempId));
       toast.error('Ошибка при добавлении поступления', { description: err.message });
       return { error: err };
     }
@@ -70,6 +78,10 @@ export function useIncomes(companyId: string | undefined) {
   const deleteIncome = useCallback(async (id: string) => {
     if (!companyId) return { error: new Error('No company selected') };
 
+    // Optimistic delete
+    const prevIncomes = incomes;
+    setIncomes(prev => prev.filter(i => i.id !== id));
+    
     try {
       const { error } = await supabase
         .from('income')
@@ -79,10 +91,10 @@ export function useIncomes(companyId: string | undefined) {
 
       if (error) throw error;
 
-      await fetchIncomes();
       toast.success('Поступление удалено');
       return { error: null };
     } catch (err: any) {
+      setIncomes(prevIncomes);
       toast.error('Ошибка при удалении поступления', { description: err.message });
       return { error: err };
     }
@@ -92,21 +104,14 @@ export function useIncomes(companyId: string | undefined) {
     fetchIncomes();
   }, [fetchIncomes]);
 
-  useEffect(() => {
-    if (!companyId) return;
-
-    const channel = supabase
-      .channel('income-changes')
-      .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'income', filter: `company_id=eq.${companyId}` },
-        () => { if (document.hidden) return; fetchIncomes(); }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [fetchIncomes, companyId]);
+  useRealtimeWithFallback({
+    channelName: 'income-changes',
+    companyId,
+    tables: [
+      { table: 'income', filter: `company_id=eq.${companyId}`, onChange: () => fetchIncomes() },
+    ],
+    pollingIntervalMs: 60000,
+  });
 
   return {
     incomes,

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
+import { useRealtimeWithFallback } from './useRealtimeWithFallback';
 import { getCached, setCached } from '../lib/queryCache';
 import type { Expense } from '../types';
 import { createLogger } from '../lib/logger';
@@ -49,11 +50,17 @@ export function useExpenses(companyId: string | undefined) {
     
     logger.debug('Adding expense:', dataToInsert);
     
+    // Optimistic update
+    const tempId = `temp_${Date.now()}`;
+    const optimisticExpense = { ...dataToInsert, id: tempId, created_at: new Date().toISOString() } as Expense;
+    setExpenses(prev => [optimisticExpense, ...prev]);
+    
     try {
       const { error, data } = await supabase
         .from('expenses')
         .insert(dataToInsert)
-        .select();
+        .select()
+        .single();
 
       if (error) {
         logger.error('Supabase error:', error);
@@ -61,10 +68,11 @@ export function useExpenses(companyId: string | undefined) {
       }
 
       logger.info('Expense added:', data?.id);
-      await fetchExpenses();
+      setExpenses(prev => prev.map(e => e.id === tempId ? data : e));
       toast.success('Расход добавлен');
       return { error: null, data };
     } catch (err: any) {
+      setExpenses(prev => prev.filter(e => e.id !== tempId));
       logger.error('Add expense error:', err);
       toast.error('Ошибка при добавлении', { description: err.message || err.details || 'Неизвестная ошибка' });
       return { error: err };
@@ -73,6 +81,10 @@ export function useExpenses(companyId: string | undefined) {
 
   const updateExpense = useCallback(async (id: string, updates: Partial<Expense>) => {
     if (!companyId) return { error: new Error('No company selected') };
+    
+    // Optimistic update
+    const prevExpense = expenses.find(e => e.id === id);
+    setExpenses(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e));
     
     try {
       const { error } = await supabase
@@ -83,10 +95,10 @@ export function useExpenses(companyId: string | undefined) {
 
       if (error) throw error;
 
-      await fetchExpenses();
       toast.success('Расход обновлён');
       return { error: null };
     } catch (err: any) {
+      if (prevExpense) setExpenses(prev => prev.map(e => e.id === id ? prevExpense : e));
       toast.error('Ошибка при обновлении', { description: err.message });
       return { error: err };
     }
@@ -94,6 +106,10 @@ export function useExpenses(companyId: string | undefined) {
 
   const deleteExpense = useCallback(async (id: string) => {
     if (!companyId) return { error: new Error('No company selected') };
+    
+    // Optimistic delete
+    const prevExpenses = expenses;
+    setExpenses(prev => prev.filter(e => e.id !== id));
     
     try {
       const { error } = await supabase
@@ -104,10 +120,10 @@ export function useExpenses(companyId: string | undefined) {
 
       if (error) throw error;
 
-      await fetchExpenses();
       toast.success('Расход удалён');
       return { error: null };
     } catch (err: any) {
+      setExpenses(prevExpenses);
       toast.error('Ошибка при удалении', { description: err.message });
       return { error: err };
     }
@@ -117,21 +133,14 @@ export function useExpenses(companyId: string | undefined) {
     fetchExpenses();
   }, [fetchExpenses]);
 
-  useEffect(() => {
-    if (!companyId) return;
-
-    const channel = supabase
-      .channel('expenses-changes')
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'expenses', filter: `company_id=eq.${companyId}` },
-        () => { if (document.hidden) return; fetchExpenses(); }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [fetchExpenses, companyId]);
+  useRealtimeWithFallback({
+    channelName: 'expenses-changes',
+    companyId,
+    tables: [
+      { table: 'expenses', filter: `company_id=eq.${companyId}`, onChange: () => fetchExpenses() },
+    ],
+    pollingIntervalMs: 60000,
+  });
 
   return {
     expenses,

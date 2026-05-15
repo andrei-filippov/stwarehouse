@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
+import { useRealtimeWithFallback } from './useRealtimeWithFallback';
 import { getCached, setCached } from '../lib/queryCache';
 import type { Customer } from '../types';
 import { isOnline, addToSyncQueue, saveCustomerLocal, getCustomersLocal, deleteCustomerLocal } from '../lib/offlineDB';
@@ -114,14 +115,22 @@ export function useCustomers(companyId: string | undefined) {
     
     try {
       if (isOnline()) {
+        // Optimistic update
+        const tempId = `temp_${Date.now()}`;
+        const optimisticCustomer = { ...sanitizedCustomer, id: tempId, company_id: companyId, created_at: new Date().toISOString() } as Customer;
+        setCustomers(prev => [...prev, optimisticCustomer]);
+        
         const { data, error: insertError } = await supabase
           .from('customers')
           .insert({ ...sanitizedCustomer, company_id: companyId })
           .select()
           .single();
 
-        if (insertError) throw insertError;
-        await fetchCustomers();
+        if (insertError) {
+          setCustomers(prev => prev.filter(c => c.id !== tempId));
+          throw insertError;
+        }
+        setCustomers(prev => prev.map(c => c.id === tempId ? data : c));
         toast.success('Клиент добавлен');
         return { data, error: null };
       }
@@ -150,6 +159,10 @@ export function useCustomers(companyId: string | undefined) {
   const updateCustomer = useCallback(async (id: string, updates: Partial<Customer>) => {
     if (!companyId) return { error: new Error('No company selected') };
     
+    // Optimistic update
+    const prevCustomer = customers.find(c => c.id === id);
+    setCustomers(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+    
     try {
       const { error: updateError } = await supabase
         .from('customers')
@@ -157,9 +170,11 @@ export function useCustomers(companyId: string | undefined) {
         .eq('id', id)
         .eq('company_id', companyId);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        if (prevCustomer) setCustomers(prev => prev.map(c => c.id === id ? prevCustomer : c));
+        throw updateError;
+      }
 
-      await fetchCustomers();
       toast.success('Клиент обновлён');
       return { error: null };
     } catch (err: any) {
@@ -175,16 +190,22 @@ export function useCustomers(companyId: string | undefined) {
     
     try {
       if (isOnline() && !isLocalId) {
+        // Optimistic delete
+        const prevCustomers = customers;
+        setCustomers(prev => prev.filter(c => c.id !== id));
+        
         const { error: deleteError } = await supabase
           .from('customers')
           .delete()
           .eq('id', id)
           .eq('company_id', companyId);
 
-        if (deleteError) throw deleteError;
+        if (deleteError) {
+          setCustomers(prevCustomers);
+          throw deleteError;
+        }
         
         await deleteCustomerLocal(id);
-        setCustomers(prev => prev.filter(c => c.id !== id));
         toast.success('Клиент удалён');
         return { error: null };
       }
@@ -208,21 +229,14 @@ export function useCustomers(companyId: string | undefined) {
   }, [fetchCustomers]);
 
   // Real-time подписки
-  useEffect(() => {
-    if (!companyId) return;
-
-    const channel = supabase
-      .channel('customers-changes')
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'customers', filter: `company_id=eq.${companyId}` },
-        () => { if (document.hidden) return; fetchCustomers(); }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [fetchCustomers, companyId]);
+  useRealtimeWithFallback({
+    channelName: 'customers-changes',
+    companyId,
+    tables: [
+      { table: 'customers', filter: `company_id=eq.${companyId}`, onChange: () => fetchCustomers() },
+    ],
+    pollingIntervalMs: 60000,
+  });
 
   return {
     customers,

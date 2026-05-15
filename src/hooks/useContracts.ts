@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
+import { useRealtimeWithFallback } from './useRealtimeWithFallback';
 import { getCached, setCached } from '../lib/queryCache';
 import type { Contract, ContractTemplate, ContractType } from '../types';
 
@@ -71,6 +72,17 @@ export function useContracts(companyId: string | undefined) {
   ) => {
     if (!companyId) return { error: new Error('No company selected'), data: null };
     
+    // Optimistic update
+    const tempId = `temp_${Date.now()}`;
+    const optimisticContract = { 
+      ...contract, 
+      id: tempId, 
+      company_id: companyId,
+      bank_account_id: bankAccountId || null,
+      created_at: new Date().toISOString()
+    } as Contract;
+    setContracts(prev => [optimisticContract, ...prev]);
+    
     try {
       // Создаём договор с company_id и bank_account_id
       const { data: newContract, error: contractError } = await supabase
@@ -83,7 +95,10 @@ export function useContracts(companyId: string | undefined) {
         .select()
         .single();
 
-      if (contractError) throw contractError;
+      if (contractError) {
+        setContracts(prev => prev.filter(c => c.id !== tempId));
+        throw contractError;
+      }
 
       // Связываем сметы
       if (estimateIds.length > 0) {
@@ -98,10 +113,13 @@ export function useContracts(companyId: string | undefined) {
           .from('contract_estimates')
           .insert(links);
 
-        if (linksError) throw linksError;
+        if (linksError) {
+          setContracts(prev => prev.filter(c => c.id !== tempId));
+          throw linksError;
+        }
       }
 
-      await fetchContracts();
+      setContracts(prev => prev.map(c => c.id === tempId ? newContract : c));
       toast.success('Договор создан');
       return { data: newContract, error: null };
     } catch (err: any) {
@@ -118,6 +136,10 @@ export function useContracts(companyId: string | undefined) {
   ) => {
     if (!companyId) return { error: new Error('No company selected') };
     
+    // Optimistic update
+    const prevContract = contracts.find(c => c.id === id);
+    setContracts(prev => prev.map(c => c.id === id ? { ...c, ...updates, bank_account_id: bankAccountId || null } : c));
+    
     try {
       // Обновляем договор с bank_account_id
       const { error: contractError } = await supabase
@@ -129,7 +151,10 @@ export function useContracts(companyId: string | undefined) {
         .eq('id', id)
         .eq('company_id', companyId);
 
-      if (contractError) throw contractError;
+      if (contractError) {
+        if (prevContract) setContracts(prev => prev.map(c => c.id === id ? prevContract : c));
+        throw contractError;
+      }
 
       // Удаляем старые связи
       await supabase
@@ -150,10 +175,12 @@ export function useContracts(companyId: string | undefined) {
           .from('contract_estimates')
           .insert(links);
 
-        if (linksError) throw linksError;
+        if (linksError) {
+          if (prevContract) setContracts(prev => prev.map(c => c.id === id ? prevContract : c));
+          throw linksError;
+        }
       }
 
-      await fetchContracts();
       toast.success('Договор обновлён');
       return { error: null };
     } catch (err: any) {
@@ -165,6 +192,10 @@ export function useContracts(companyId: string | undefined) {
   const deleteContract = useCallback(async (id: string) => {
     if (!companyId) return { error: new Error('No company selected') };
     
+    // Optimistic delete
+    const prevContracts = contracts;
+    setContracts(prev => prev.filter(c => c.id !== id));
+    
     try {
       const { error } = await supabase
         .from('contracts')
@@ -172,9 +203,11 @@ export function useContracts(companyId: string | undefined) {
         .eq('id', id)
         .eq('company_id', companyId);
 
-      if (error) throw error;
+      if (error) {
+        setContracts(prevContracts);
+        throw error;
+      }
 
-      await fetchContracts();
       toast.success('Договор удалён');
       return { error: null };
     } catch (err: any) {
@@ -207,21 +240,14 @@ export function useContracts(companyId: string | undefined) {
   }, [fetchContracts, fetchTemplates]);
 
   // Real-time подписки
-  useEffect(() => {
-    if (!companyId) return;
-
-    const channel = supabase
-      .channel('contracts-changes')
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'contracts', filter: `company_id=eq.${companyId}` },
-        () => { if (document.hidden) return; fetchContracts(); }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [fetchContracts, companyId]);
+  useRealtimeWithFallback({
+    channelName: 'contracts-changes',
+    companyId,
+    tables: [
+      { table: 'contracts', filter: `company_id=eq.${companyId}`, onChange: () => fetchContracts() },
+    ],
+    pollingIntervalMs: 60000,
+  });
 
   return {
     contracts,
