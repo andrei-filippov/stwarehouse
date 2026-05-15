@@ -319,7 +319,7 @@ export function useEstimates(companyId: string | undefined, activeTab?: string) 
       .eq('id', estimateId);
     
     return { error };
-  }, [companyId]);
+  }, [companyId, estimates]);
 
   // Снимаем статус "редактируется" при закрытии сметы
   const stopEditing = useCallback(async (estimateId: string) => {
