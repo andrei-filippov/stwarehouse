@@ -99,46 +99,23 @@ export function useEstimates(companyId: string | undefined, activeTab?: string) 
             estimatesData = fallback.data;
           }
           
-          // Шаг 2: загружаем позиции смет отдельно (батчами по 50 для обхода лимитов Supabase)
-          // Supabase PostgREST имеет дефолтный лимит 1000 строк на запрос
+          // Шаг 2: загружаем позиции смет одним запросом
+          // Yandex Cloud Function не справляется с множественными параллельными запросами
           let itemsData: any[] = [];
           if (estimatesData && estimatesData.length > 0) {
             const estimateIds = estimatesData.map(e => e.id);
-            debugLog('[fetchEstimates] Estimates loaded:', estimatesData.length);
-            const BATCH_SIZE = 50; // Уменьшили с 100 до 50
+            debugLog('[fetchEstimates] Estimates loaded:', estimatesData.length, 'fetching all items...');
             
-            for (let i = 0; i < estimateIds.length; i += BATCH_SIZE) {
-              const batch = estimateIds.slice(i, i + BATCH_SIZE);
-              debugLog('[fetchEstimates] Loading items batch', i, 'of', estimateIds.length, 'ids count:', batch.length);
-              
-              // Загружаем items с пагинацией (по 1000 за раз)
-              let batchItems: any[] = [];
-              let offset = 0;
-              const PAGE_SIZE = 1000;
-              
-              while (true) {
-                const { data: items, error: itemsError } = await supabase
-                  .from('estimate_items')
-                  .select('*')
-                  .in('estimate_id', batch)
-                  .range(offset, offset + PAGE_SIZE - 1);
-                
-                if (itemsError) {
-                  console.error('[fetchEstimates] Error loading items batch:', itemsError.message, itemsError.code, itemsError.details);
-                  break;
-                }
-                
-                if (!items || items.length === 0) break;
-                
-                batchItems.push(...items);
-                debugLog('[fetchEstimates] Loaded items page:', items.length, 'offset:', offset, 'total so far:', batchItems.length);
-                
-                if (items.length < PAGE_SIZE) break; // Последняя страница
-                offset += PAGE_SIZE;
-              }
-              
-              debugLog('[fetchEstimates] Loaded items batch total:', batchItems.length, 'for batch', i);
-              itemsData.push(...batchItems);
+            const { data: items, error: itemsError } = await supabase
+              .from('estimate_items')
+              .select('*')
+              .in('estimate_id', estimateIds);
+            
+            if (itemsError) {
+              console.error('[fetchEstimates] Error loading items:', itemsError);
+            } else {
+              itemsData = items || [];
+              debugLog('[fetchEstimates] Total items loaded:', itemsData.length);
             }
           }
           
