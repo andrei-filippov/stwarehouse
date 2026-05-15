@@ -301,7 +301,11 @@ export function useEstimates(companyId: string | undefined, activeTab?: string) 
     // Логируем просмотр сметы
     const estimate = estimates.find(e => e.id === estimateId);
     if (estimate) {
-      logAction('view', 'estimate', estimateId, estimate.event_name, undefined, undefined, companyId).catch(() => {});
+      logAction('view', 'estimate', estimateId, estimate.event_name, undefined, undefined, companyId)
+        .then(r => { if (r.error) console.error('[Audit] View log failed:', r.error); })
+        .catch(e => console.error('[Audit] View log error:', e));
+    } else {
+      console.warn('[Audit] Cannot log view - estimate not found in state:', estimateId);
     }
 
     const { error } = await supabase
