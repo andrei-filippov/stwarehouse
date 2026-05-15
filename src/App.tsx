@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } fro
 import { Package, User, Cloud } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from './hooks/useAuth';
+import { logAction } from './hooks/useAuditLogs';
 import { CompanyProvider, useCompanyContext } from './contexts/CompanyContext';
 import { getSlugFromPath, saveSelectedCompany, clearSelectedCompany } from './lib/companyUrl';
 import { RegisterCompanyForm } from './components/auth/RegisterCompanyForm';
@@ -149,7 +150,7 @@ function App() {
 }
 
 // Внутренний компонент с доступом к компании
-function AppContent({ user, profile, permissions, signOut }: any) {
+function AppContent({ user, profile, permissions, signOut: originalSignOut }: any) {
   const companyContext = useCompanyContext();
   const company = companyContext.company;
   const myRoleName = companyContext.myMember?.role || '';
@@ -161,6 +162,15 @@ function AppContent({ user, profile, permissions, signOut }: any) {
 
   const [hasCompany, setHasCompany] = useState(false);
   const companyLoadAttempted = useRef(false);
+  const loginLoggedRef = useRef(false);
+  
+  // Wrapped signOut that logs logout with company_id
+  const signOut = useCallback(async () => {
+    if (company?.id && user) {
+      await logAction('logout', 'user', user.id, user.email || user.user_metadata?.name || 'Unknown', undefined, undefined, company.id).catch(() => {});
+    }
+    await originalSignOut();
+  }, [company?.id, user, originalSignOut]);
   
   // Обработка QR-сканирования из URL (?scan=EQ-XXX) - объявляем ДО useEffect
   const [initialScanCode, setInitialScanCode] = useState<string | null>(null);
@@ -237,7 +247,13 @@ function AppContent({ user, profile, permissions, signOut }: any) {
 
   useEffect(() => {
     setHasCompany(!!company);
-  }, [company]);
+    
+    // Log login when company is loaded (user entered the company)
+    if (company && user && !loginLoggedRef.current) {
+      loginLoggedRef.current = true;
+      logAction('login', 'user', user.id, user.email || user.user_metadata?.name || 'Unknown', undefined, undefined, company.id).catch(() => {});
+    }
+  }, [company, user]);
 
   // Перезагружаем компанию один раз когда появляется пользователь
   // ТОЛЬКО если есть сохранённый slug или поддомен

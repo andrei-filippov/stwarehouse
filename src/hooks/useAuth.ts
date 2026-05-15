@@ -5,7 +5,6 @@ import type { Profile } from '../types';
 import type { UserPermission } from '../lib/permissions';
 import { isOnline, getUserLocal, getProfileLocal, saveUserLocal, saveProfileLocal } from '../lib/offlineDB';
 import { createLogger } from '../lib/logger';
-import { logAction } from './useAuditLogs';
 
 const logger = createLogger('auth');
 
@@ -156,8 +155,6 @@ export function useAuth() {
       }
       
       logger.info('Sign in successful:', data.user?.id);
-      // Log login event
-      logAction('login', 'user', data.user?.id, data.user?.email || data.user?.user_metadata?.name || 'Unknown').catch(() => {});
       return { error: null };
     } catch (err) {
       logger.error('Sign in unexpected error:', err);
