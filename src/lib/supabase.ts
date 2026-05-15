@@ -193,6 +193,7 @@ const noopChannel = {
     callback?.('CLOSED');
     return noopChannel;
   },
+  unsubscribe: () => Promise.resolve('ok'),
 } as any;
 
 export const safeChannel = (name: string) => {
