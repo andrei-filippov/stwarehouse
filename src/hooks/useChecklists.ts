@@ -610,6 +610,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
           if (items.length > 0 && checklistData) {
             const itemsWithChecklistId = items.map(item => ({
               checklist_id: checklistData.id,
+              company_id: companyId,
               name: item.name,
               quantity: item.quantity,
               category: item.category,
