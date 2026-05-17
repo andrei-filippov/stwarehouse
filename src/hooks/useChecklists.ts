@@ -642,6 +642,15 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
     
     const isLocalId = checklistId.startsWith('local_');
     
+    // Optimistic update - update UI immediately
+    setChecklists(prev => prev.map(c => {
+      if (c.id !== checklistId) return c;
+      return {
+        ...c,
+        items: c.items.map(item => item.id === itemId ? { ...item, ...updates } : item)
+      };
+    }));
+    
     if (isOnline() && !isLocalId) {
       try {
         const { error } = await supabase
@@ -652,9 +661,12 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
 
         if (error) throw error;
 
-        await fetchChecklists();
+        // Don't await fetchChecklists - let it run in background
+        fetchChecklists(true).catch(() => {});
         return { error: null };
       } catch (err: any) {
+        // Revert optimistic update on error
+        fetchChecklists(true).catch(() => {});
         return { error: err };
       }
     } else {

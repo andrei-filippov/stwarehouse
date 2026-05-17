@@ -100,7 +100,7 @@ export const ContractManager = memo(function ContractManager({
   const handleOpenDetail = useCallback((contract: Contract) => {
     logAction('view', 'contract', contract.id, contract.number || contract.event_name, undefined, undefined, company?.id).catch(() => {});
     setSelectedContract(contract);
-  }, []);
+  }, [company?.id]);
 
   const handleCloseDetail = useCallback(() => {
     setSelectedContract(null);
