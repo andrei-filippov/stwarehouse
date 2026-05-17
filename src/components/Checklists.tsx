@@ -206,7 +206,7 @@ export const ChecklistsManager = memo(function ChecklistsManager({
                           </div>
                           <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
                             <Badge variant="outline" className="text-xs">
-                              {checklist.items?.filter(i => i.is_checked).length || 0}/{checklist.items?.length || 0}
+                              {(checklist.items?.filter(i => i.is_checked).reduce((sum, i) => sum + (i.quantity || 1), 0) || 0)}/{(checklist.items?.reduce((sum, i) => sum + (i.quantity || 1), 0) || 0)}
                             </Badge>
                             <Button 
                               variant="ghost" 
