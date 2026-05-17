@@ -287,9 +287,25 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
         logger.debug('[createChecklist] Rules with items:', rulesToUse.map(r => `${r.name}: ${r.items?.length || 0} items`).join(', '));
       }
       
+      // Если estimate.items не загружены, подгружаем их
+      let estimateItems = estimate.items || [];
+      if (estimateItems.length === 0 && isOnline() && !estimate.id?.startsWith('local_')) {
+        try {
+          const { data: itemsData } = await supabase
+            .from('estimate_items')
+            .select('*')
+            .eq('estimate_id', estimate.id)
+            .eq('company_id', companyId);
+          estimateItems = itemsData || [];
+          logger.info('[createChecklist] Fetched estimate items from server:', estimateItems.length);
+        } catch (e) {
+          logger.warn('[createChecklist] Failed to fetch estimate items:', e);
+        }
+      }
+      
       // Генерируем чек-лист
       const items: any[] = [...customItems];
-      logger.debug('[createChecklist] Estimate items:', estimate.items?.length);
+      logger.debug('[createChecklist] Estimate items:', estimateItems.length);
       logger.info('[createChecklist] Rules to apply:', rulesToUse.length);
       
       // Загружаем QR-коды из cable_inventory для сопоставления
@@ -426,7 +442,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
       };
       
       // Добавляем оборудование из сметы
-      estimate.items?.forEach((item, index) => {
+      estimateItems.forEach((item, index) => {
         const invDataList = findInventoryData(item.name);
         
         // Если в инвентаре есть записи с kit_id - используем их
@@ -537,14 +553,14 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
       logger.info('[createChecklist] Total items generated:', items.length);
       
       // Проверяем применились ли правила
-      const equipmentCount = estimate.items?.length || 0;
+      const equipmentCount = estimateItems.length || 0;
       const totalItemsCount = items.length;
       const rulesItemsCount = totalItemsCount - equipmentCount - customItems.length;
       
       if (rulesToUse.length > 0 && rulesItemsCount === 0) {
         logger.warn('[createChecklist] Rules exist but none matched!');
         logger.debug('[createChecklist] Rules:', rulesToUse.map(r => `${r.condition_type}:${r.condition_value}`).join(', '));
-        logger.debug('[createChecklist] Equipment in estimate:', estimate.items?.map(i => `${i.name}(${i.category})`).join(', '));
+        logger.debug('[createChecklist] Equipment in estimate:', estimateItems.map(i => `${i.name}(${i.category})`).join(', '));
         toast.info('Правила не применились', {
           description: 'Созданы правила для другого оборудования. Проверьте названия в правилах или используйте тип "Категория"'
         });
