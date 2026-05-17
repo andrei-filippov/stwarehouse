@@ -55,8 +55,21 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
         const serverIds = new Set((data || []).map(c => c.id));
         const unsyncedLocal = localChecklists.filter(c => !serverIds.has(c.id));
         
-        setChecklists([...unsyncedLocal, ...(data || [])]);
-        setCached(cacheKey, [...unsyncedLocal, ...(data || [])]);
+        // Preserve optimistic items if server returned empty items (read-after-write lag)
+        const currentChecklistsMap = new Map(checklists.map(c => [c.id, c]));
+        const mergedServer = (data || []).map(serverChecklist => {
+          const local = currentChecklistsMap.get(serverChecklist.id);
+          const serverItems = serverChecklist.items || [];
+          const localItems = local?.items || [];
+          // If server has no items but local has items, use local items
+          if (serverItems.length === 0 && localItems.length > 0) {
+            return { ...serverChecklist, items: localItems };
+          }
+          return serverChecklist;
+        });
+        
+        setChecklists([...unsyncedLocal, ...mergedServer]);
+        setCached(cacheKey, [...unsyncedLocal, ...mergedServer]);
       } catch (err) {
         // Ошибка сети - показываем только локальные
         logger.warn('Network error, showing local data:', err);
@@ -635,8 +648,10 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
           };
           setChecklists(prev => [optimisticChecklist, ...prev]);
           
-          // Refresh in background to get server-generated IDs and timestamps
-          fetchChecklists(true).catch(() => {});
+          // Refresh in background after delay to allow DB replication
+          setTimeout(() => {
+            fetchChecklists(true).catch(() => {});
+          }, 1500);
           toast.success('Чек-лист создан');
           return { error: null, data: checklistData };
         } catch (err) {
