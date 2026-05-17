@@ -612,7 +612,31 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
             }
           }
 
-          await fetchChecklists();
+          // Optimistic update - add to UI immediately with generated items
+          const optimisticChecklist: Checklist = {
+            ...checklistData,
+            items: items.map(item => ({
+              id: item.id || `temp_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
+              checklist_id: checklistData.id,
+              name: item.name,
+              quantity: item.quantity,
+              category: item.category,
+              is_required: item.is_required ?? true,
+              is_checked: item.is_checked ?? false,
+              inventory_id: item.inventory_id || null,
+              qr_code: item.qr_code || null,
+              kit_id: item.kit_id || null,
+              kit_name: item.kit_name || null,
+              watts: item.watts || null,
+              category_type: item.category_type || 'other',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }))
+          };
+          setChecklists(prev => [optimisticChecklist, ...prev]);
+          
+          // Refresh in background to get server-generated IDs and timestamps
+          fetchChecklists(true).catch(() => {});
           toast.success('Чек-лист создан');
           return { error: null, data: checklistData };
         } catch (err) {
