@@ -84,9 +84,46 @@ const channel = supabase.channel('table-changes')
 
 // Логика polling:
 // 1. Проверяем document.hidden (не опрашивать если вкладка неактивна)
-// 2. Пропускаем ночные часы (00:00-06:00) для экономии трафика
-// 3. Интервал: 60 секунд (настраивается)
+// 2. Пропускаем ночные часы (23:00 - 08:00) для экономии трафика
+// 3. Интервал: настраивается (30-60 секунд типично)
 // 4. Ограничение concurrency: максимум 3 параллельных запроса
+// 5. Initial delay: 2 секунды после mount чтобы избежать storm
+```
+
+### Где используется polling
+| Hook | Интервал | Таблицы |
+|------|----------|---------|
+| `useEstimates` | 60s | estimates, estimate_items |
+| `useExpenses` | 60s | expenses |
+| `useIncomes` | 60s | incomes |
+| `useCustomers` | 60s | customers |
+| `useContracts` | 60s | contracts |
+| `useChecklists` | 30s | checklists, checklist_items |
+| `useChecklistsV2` | 30s / 60s | checklists, checklist_items / equipment_kits, kit_items |
+
+### ⚠️ Важно: НЕ использовать ручные safeChannel подписки
+Старый паттерн (НЕ работает на Yandex):
+```typescript
+// ❌ НЕПРАВИЛЬНО - на Yandex safeChannel возвращает noop
+useEffect(() => {
+  const channel = safeChannel('name')
+    .on('postgres_changes', ..., callback)
+    .subscribe();
+  return () => supabase.removeChannel(channel);
+}, []);
+```
+
+Новый паттерн (работает везде):
+```typescript
+// ✅ ПРАВИЛЬНО - polling на Yandex, WebSocket на Vercel
+useRealtimeWithFallback({
+  channelName: 'name',
+  companyId,
+  tables: [
+    { table: 'table_name', filter: '...', onChange: () => fetchData(true) }
+  ],
+  pollingIntervalMs: 30000,
+});
 ```
 
 ### Паттерн safeChannel
