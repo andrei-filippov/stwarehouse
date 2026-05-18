@@ -13,6 +13,7 @@ import {
   getChecklistRulesCache
 } from '../lib/offlineDB';
 import { createLogger } from '../lib/logger';
+import { useRealtimeWithFallback } from './useRealtimeWithFallback';
 
 const logger = createLogger('checklists');
 
@@ -826,97 +827,26 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
     fetchRules();
   }, [fetchChecklists, fetchRules]);
 
-  // Real-time подписки для синхронизации между пользователями
-  useEffect(() => {
-    if (!companyId) return;
+  // Real-time on Vercel, smart polling on Yandex proxy
+  useRealtimeWithFallback({
+    channelName: 'checklists_changes',
+    companyId,
+    tables: [
+      { table: 'checklists', filter: `company_id=eq.${companyId}`, onChange: () => fetchChecklists(true) },
+      { table: 'checklist_items', onChange: () => fetchChecklists(true) },
+    ],
+    pollingIntervalMs: 30000, // 30 sec for checklists
+  });
 
-    // Подписка на изменения чек-листов
-    const checklistsChannel = safeChannel('checklists-changes')
-      .on('postgres_changes', 
-        { 
-          event: '*', 
-          schema: 'public', 
-          table: 'checklists',
-          filter: `company_id=eq.${companyId}`
-        },
-        (payload) => {
-          if (document.hidden) return;
-          logger.info('[Realtime] Checklist changed:', payload.eventType, payload.new?.id || payload.old?.id);
-          fetchChecklists();
-        }
-      )
-      .subscribe();
-
-    // Подписка на изменения items чек-листов (статусы loaded/unloaded/is_checked)
-    let lastUpdate = Date.now();
-    const itemsChannel = safeChannel('checklist-items-changes')
-      .on('postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'checklist_items'
-        },
-        (payload) => {
-          if (document.hidden) return;
-          const now = Date.now();
-          // Показываем уведомление не чаще раз в 3 секунды
-          if (now - lastUpdate > 3000) {
-            lastUpdate = now;
-            const newData = payload.new as any;
-            if (newData?.loaded || newData?.unloaded || newData?.is_checked) {
-              toast.info('Чек-лист обновлён', { 
-                description: 'Другой пользователь отметил оборудование' 
-              });
-            }
-          }
-          logger.info('[Realtime] Checklist item changed:', payload.eventType, payload.new?.id || payload.old?.id);
-          // При изменении item обновляем чек-листы
-          fetchChecklists();
-        }
-      )
-      .subscribe();
-
-    // Подписка на изменения правил
-    const rulesChannel = safeChannel('checklist-rules-changes')
-      .on('postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'checklist_rules',
-          filter: `company_id=eq.${companyId}`
-        },
-        () => {
-          if (document.hidden) return;
-          logger.info('[Realtime] Rules changed, refreshing...');
-          fetchRules();
-        }
-      )
-      .subscribe();
-
-    // Подписка на изменения items правил (когда добавляют/удаляют позиции из правила)
-    const ruleItemsChannel = safeChannel('checklist-rule-items-changes')
-      .on('postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'checklist_rule_items'
-        },
-        (payload) => {
-          if (document.hidden) return;
-          logger.info('[Realtime] Rule item changed:', payload.eventType);
-          // При изменении items правил перезагружаем правила
-          fetchRules();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(checklistsChannel);
-      supabase.removeChannel(itemsChannel);
-      supabase.removeChannel(rulesChannel);
-      supabase.removeChannel(ruleItemsChannel);
-    };
-  }, [companyId, fetchChecklists, fetchRules]);
+  useRealtimeWithFallback({
+    channelName: 'checklist_rules_changes',
+    companyId,
+    tables: [
+      { table: 'checklist_rules', filter: `company_id=eq.${companyId}`, onChange: () => fetchRules(true) },
+      { table: 'checklist_rule_items', onChange: () => fetchRules(true) },
+    ],
+    pollingIntervalMs: 60000, // 1 min for rules
+  });
 
   return {
     checklists,
