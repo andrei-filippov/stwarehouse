@@ -4,6 +4,20 @@ import { supabase } from '../lib/supabase';
 import { getCurrentUserDisplayName } from '../lib/utils';
 import { getCached, setCached, DEFAULT_CACHE_TTL_MS } from '../lib/queryCache';
 import { useRealtimeWithFallback } from './useRealtimeWithFallback';
+import {
+  isOnline,
+  saveCableCategoryLocal,
+  getCableCategoriesLocal,
+  saveCableInventoryLocal,
+  getCableInventoryLocal,
+  saveCableMovementLocal,
+  getCableMovementsLocal,
+  saveEquipmentRepairLocal,
+  getEquipmentRepairsLocal,
+  saveInventoryItemLocal,
+  getInventoryItemsLocal,
+  addToSyncQueue
+} from '../lib/offlineDB';
 import type { CableCategory, CableInventory, CableMovement, EquipmentRepair } from '../types';
 import type { InventoryItem } from '../types/inventoryItem';
 
@@ -23,17 +37,33 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
       const cached = getCached<CableCategory[]>(cacheKey);
       if (cached) { setCategories(cached); return; }
     }
-    const { data, error } = await supabase
-      .from('cable_categories')
-      .select('*, type')
-      .eq('company_id', companyId)
-      .order('sort_order');
-    
-    if (error) {
-      toast.error('Ошибка при загрузке категорий', { description: error.message });
+
+    if (isOnline()) {
+      const { data, error } = await supabase
+        .from('cable_categories')
+        .select('*, type')
+        .eq('company_id', companyId)
+        .order('sort_order');
+
+      if (error) {
+        toast.error('Ошибка при загрузке категорий', { description: error.message });
+        // Fallback to local
+        const local = await getCableCategoriesLocal(companyId);
+        setCategories(local);
+        setCached(cacheKey, local);
+        return;
+      }
+
+      const items = data || [];
+      setCategories(items);
+      setCached(cacheKey, items);
+      for (const item of items) {
+        await saveCableCategoryLocal(item, companyId, true);
+      }
     } else {
-      setCategories(data || []);
-      setCached(cacheKey, data || []);
+      const local = await getCableCategoriesLocal(companyId);
+      setCategories(local);
+      setCached(cacheKey, local);
     }
   }, [companyId]);
 
@@ -44,17 +74,32 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
       const cached = getCached<CableInventory[]>(cacheKey);
       if (cached) { setInventory(cached); return; }
     }
-    const { data, error } = await supabase
-      .from('cable_inventory')
-      .select('*')
-      .eq('company_id', companyId)
-      .limit(1000);
-    
-    if (error) {
-      toast.error('Ошибка при загрузке инвентаря', { description: error.message });
+
+    if (isOnline()) {
+      const { data, error } = await supabase
+        .from('cable_inventory')
+        .select('*')
+        .eq('company_id', companyId)
+        .limit(1000);
+
+      if (error) {
+        toast.error('Ошибка при загрузке инвентаря', { description: error.message });
+        const local = await getCableInventoryLocal(companyId);
+        setInventory(local);
+        setCached(cacheKey, local);
+        return;
+      }
+
+      const items = data || [];
+      setInventory(items);
+      setCached(cacheKey, items);
+      for (const item of items) {
+        await saveCableInventoryLocal(item, companyId, true);
+      }
     } else {
-      setInventory(data || []);
-      setCached(cacheKey, data || []);
+      const local = await getCableInventoryLocal(companyId);
+      setInventory(local);
+      setCached(cacheKey, local);
     }
   }, [companyId]);
 
@@ -65,18 +110,25 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
       const cached = getCached<InventoryItem[]>(cacheKey);
       if (cached) { setInventoryItems(cached); return; }
     }
-    const { data, error } = await supabase
-      .from('inventory_items')
-      .select(`
-        *,
-        cable_inventory!inner(name, category_id)
-      `)
-      .eq('company_id', companyId)
-      .limit(1000);
-    
-    if (error) {
-      console.error('Error fetching inventory items:', error);
-    } else {
+
+    if (isOnline()) {
+      const { data, error } = await supabase
+        .from('inventory_items')
+        .select(`
+          *,
+          cable_inventory!inner(name, category_id)
+        `)
+        .eq('company_id', companyId)
+        .limit(1000);
+
+      if (error) {
+        console.error('Error fetching inventory items:', error);
+        const local = await getInventoryItemsLocal(companyId);
+        setInventoryItems(local);
+        setCached(cacheKey, local);
+        return;
+      }
+
       const mapped = (data || []).map((item: any) => ({
         ...item,
         inventory_name: item.cable_inventory?.name,
@@ -84,6 +136,13 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
       }));
       setInventoryItems(mapped);
       setCached(cacheKey, mapped);
+      for (const item of mapped) {
+        await saveInventoryItemLocal(item, companyId, true);
+      }
+    } else {
+      const local = await getInventoryItemsLocal(companyId);
+      setInventoryItems(local);
+      setCached(cacheKey, local);
     }
   }, [companyId]);
 
@@ -94,262 +153,398 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
       const cached = getCached<CableMovement[]>(cacheKey);
       if (cached) { setMovements(cached); return; }
     }
-    const { data, error } = await supabase
-      .from('cable_movements')
-      .select('*')
-      .eq('company_id', companyId)
-      .order('created_at', { ascending: false })
-      .limit(500);
-    
-    if (error) {
-      toast.error('Ошибка при загрузке движений', { description: error.message });
+
+    if (isOnline()) {
+      const { data, error } = await supabase
+        .from('cable_movements')
+        .select('*')
+        .eq('company_id', companyId)
+        .order('created_at', { ascending: false })
+        .limit(500);
+
+      if (error) {
+        toast.error('Ошибка при загрузке движений', { description: error.message });
+        const local = await getCableMovementsLocal(companyId);
+        setMovements(local);
+        setCached(cacheKey, local);
+        return;
+      }
+
+      const items = data || [];
+      setMovements(items);
+      setCached(cacheKey, items);
+      for (const item of items) {
+        await saveCableMovementLocal(item, companyId, true);
+      }
     } else {
-      setMovements(data || []);
-      setCached(cacheKey, data || []);
+      const local = await getCableMovementsLocal(companyId);
+      setMovements(local);
+      setCached(cacheKey, local);
     }
   }, [companyId]);
 
   const addCategory = useCallback(async (category: Partial<CableCategory>) => {
     if (!companyId) return { error: new Error('No company selected') };
-    
-    try {
-      const { error } = await supabase
-        .from('cable_categories')
-        .insert({ ...category, company_id: companyId });
 
-      if (error) throw error;
+    const tempId = crypto.randomUUID();
+    const newCategory = { ...category, id: tempId, company_id: companyId } as CableCategory;
 
-      await fetchCategories(true);
-      toast.success('Категория добавлена');
+    // Optimistic update
+    setCategories(prev => [...prev, newCategory]);
+    await saveCableCategoryLocal(newCategory, companyId, false);
+
+    if (isOnline()) {
+      try {
+        const { error } = await supabase
+          .from('cable_categories')
+          .insert({ ...category, company_id: companyId });
+
+        if (error) throw error;
+
+        await fetchCategories(true);
+        toast.success('Категория добавлена');
+        return { error: null };
+      } catch (err: any) {
+        toast.error('Ошибка при добавлении', { description: err.message });
+        return { error: err };
+      }
+    } else {
+      await addToSyncQueue('cable_categories', 'create', { ...category, company_id: companyId, id: tempId });
+      toast.success('Категория сохранена локально (офлайн)');
       return { error: null };
-    } catch (err: any) {
-      toast.error('Ошибка при добавлении', { description: err.message });
-      return { error: err };
     }
   }, [companyId, fetchCategories]);
 
   const updateCategory = useCallback(async (id: string, updates: Partial<CableCategory>) => {
     if (!companyId) return { error: new Error('No company selected') };
-    
-    try {
-      const { error } = await supabase
-        .from('cable_categories')
-        .update(updates)
-        .eq('id', id)
-        .eq('company_id', companyId);
 
-      if (error) throw error;
+    // Optimistic update
+    setCategories(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+    const updated = { ...updates, id, company_id: companyId };
+    await saveCableCategoryLocal(updated, companyId, false);
 
-      await fetchCategories(true);
-      toast.success('Категория обновлена');
+    if (isOnline()) {
+      try {
+        const { error } = await supabase
+          .from('cable_categories')
+          .update(updates)
+          .eq('id', id)
+          .eq('company_id', companyId);
+
+        if (error) throw error;
+
+        await fetchCategories(true);
+        toast.success('Категория обновлена');
+        return { error: null };
+      } catch (err: any) {
+        toast.error('Ошибка при обновлении', { description: err.message });
+        return { error: err };
+      }
+    } else {
+      await addToSyncQueue('cable_categories', 'update', { ...updates, id, company_id: companyId });
+      toast.success('Категория обновлена локально (офлайн)');
       return { error: null };
-    } catch (err: any) {
-      toast.error('Ошибка при обновлении', { description: err.message });
-      return { error: err };
     }
   }, [companyId, fetchCategories]);
 
   const deleteCategory = useCallback(async (id: string) => {
     if (!companyId) return { error: new Error('No company selected') };
-    
-    try {
-      const { error } = await supabase
-        .from('cable_categories')
-        .delete()
-        .eq('id', id)
-        .eq('company_id', companyId);
 
-      if (error) throw error;
+    // Optimistic update
+    setCategories(prev => prev.filter(c => c.id !== id));
 
-      await fetchCategories(true);
-      toast.success('Категория удалена');
+    if (isOnline()) {
+      try {
+        const { error } = await supabase
+          .from('cable_categories')
+          .delete()
+          .eq('id', id)
+          .eq('company_id', companyId);
+
+        if (error) throw error;
+
+        await fetchCategories(true);
+        toast.success('Категория удалена');
+        return { error: null };
+      } catch (err: any) {
+        toast.error('Ошибка при удалении', { description: err.message });
+        return { error: err };
+      }
+    } else {
+      await addToSyncQueue('cable_categories', 'delete', { id, company_id: companyId });
+      toast.success('Категория удалена локально (офлайн)');
       return { error: null };
-    } catch (err: any) {
-      toast.error('Ошибка при удалении', { description: err.message });
-      return { error: err };
     }
   }, [companyId, fetchCategories]);
 
   // Функция для изменения порядка категорий
   const reorderCategories = useCallback(async (categoryIds: string[]) => {
     if (!companyId) return { error: new Error('No company selected') };
-    
-    try {
-      // Обновляем sort_order для каждой категории отдельным запросом
-      // (не используем upsert, чтобы не передавать обязательные поля name/color)
-      for (let i = 0; i < categoryIds.length; i++) {
-        const { error } = await supabase
-          .from('cable_categories')
-          .update({ sort_order: i })
-          .eq('id', categoryIds[i])
-          .eq('company_id', companyId);
 
-        if (error) throw error;
-      }
-
-      // Обновляем локальное состояние без перезагрузки с сервера
-      setCategories(prev => {
-        // Обновляем sort_order и сортируем по нему
-        const updatedCategories = prev.map(cat => {
-          const newIndex = categoryIds.indexOf(cat.id);
-          if (newIndex !== -1) {
-            // Это корневая категория - обновляем sort_order
-            return { ...cat, sort_order: newIndex };
-          }
-          // Дочерняя категория - оставляем как есть
-          return cat;
-        });
-        // Сортируем по sort_order для правильного отображения
-        return updatedCategories.sort((a, b) => a.sort_order - b.sort_order);
+    // Optimistic update
+    setCategories(prev => {
+      const updatedCategories = prev.map(cat => {
+        const newIndex = categoryIds.indexOf(cat.id);
+        if (newIndex !== -1) {
+          return { ...cat, sort_order: newIndex };
+        }
+        return cat;
       });
+      return updatedCategories.sort((a, b) => a.sort_order - b.sort_order);
+    });
 
+    if (isOnline()) {
+      try {
+        for (let i = 0; i < categoryIds.length; i++) {
+          const { error } = await supabase
+            .from('cable_categories')
+            .update({ sort_order: i })
+            .eq('id', categoryIds[i])
+            .eq('company_id', companyId);
+
+          if (error) throw error;
+        }
+
+        return { error: null };
+      } catch (err: any) {
+        toast.error('Ошибка при изменении порядка', { description: err.message });
+        return { error: err };
+      }
+    } else {
+      for (let i = 0; i < categoryIds.length; i++) {
+        await addToSyncQueue('cable_categories', 'update', { id: categoryIds[i], sort_order: i, company_id: companyId });
+      }
+      toast.success('Порядок сохранён локально (офлайн)');
       return { error: null };
-    } catch (err: any) {
-      toast.error('Ошибка при изменении порядка', { description: err.message });
-      return { error: err };
     }
   }, [companyId]);
 
   const upsertInventory = useCallback(async (item: Partial<CableInventory>) => {
     if (!companyId) return { error: new Error('No company selected') };
-    
-    try {
-      const { error } = await supabase
-        .from('cable_inventory')
-        .upsert({ ...item, company_id: companyId });
 
-      if (error) throw error;
+    const tempId = item.id || crypto.randomUUID();
+    const newItem = { ...item, id: tempId, company_id: companyId } as CableInventory;
 
-      await fetchInventory(true);
+    // Optimistic update
+    setInventory(prev => {
+      const exists = prev.find(i => i.id === tempId);
+      if (exists) {
+        return prev.map(i => i.id === tempId ? { ...i, ...item } : i);
+      }
+      return [...prev, newItem];
+    });
+    await saveCableInventoryLocal(newItem, companyId, false);
+
+    if (isOnline()) {
+      try {
+        const { error } = await supabase
+          .from('cable_inventory')
+          .upsert({ ...item, company_id: companyId });
+
+        if (error) throw error;
+
+        await fetchInventory(true);
+        return { error: null };
+      } catch (err: any) {
+        return { error: err };
+      }
+    } else {
+      await addToSyncQueue('cable_inventory', item.id ? 'update' : 'create', { ...item, company_id: companyId, id: tempId });
       return { error: null };
-    } catch (err: any) {
-      return { error: err };
     }
   }, [companyId, fetchInventory]);
 
   const updateInventoryQty = useCallback(async (id: string, quantity: number) => {
     if (!companyId) return { error: new Error('No company selected') };
-    
-    try {
-      const { error } = await supabase
-        .from('cable_inventory')
-        .update({ quantity })
-        .eq('id', id)
-        .eq('company_id', companyId);
 
-      if (error) throw error;
+    // Optimistic update
+    setInventory(prev => prev.map(i => i.id === id ? { ...i, quantity } : i));
+    const updated = { id, quantity, company_id: companyId };
+    await saveCableInventoryLocal(updated, companyId, false);
 
-      await fetchInventory(true);
+    if (isOnline()) {
+      try {
+        const { error } = await supabase
+          .from('cable_inventory')
+          .update({ quantity })
+          .eq('id', id)
+          .eq('company_id', companyId);
+
+        if (error) throw error;
+
+        await fetchInventory(true);
+        return { error: null };
+      } catch (err: any) {
+        return { error: err };
+      }
+    } else {
+      await addToSyncQueue('cable_inventory', 'update', { id, quantity, company_id: companyId });
       return { error: null };
-    } catch (err: any) {
-      return { error: err };
     }
   }, [companyId, fetchInventory]);
 
   const deleteInventory = useCallback(async (id: string) => {
     if (!companyId) return { error: new Error('No company selected') };
-    
-    try {
-      const { error } = await supabase
-        .from('cable_inventory')
-        .delete()
-        .eq('id', id)
-        .eq('company_id', companyId);
 
-      if (error) throw error;
+    // Optimistic update
+    setInventory(prev => prev.filter(i => i.id !== id));
 
-      await fetchInventory(true);
+    if (isOnline()) {
+      try {
+        const { error } = await supabase
+          .from('cable_inventory')
+          .delete()
+          .eq('id', id)
+          .eq('company_id', companyId);
+
+        if (error) throw error;
+
+        await fetchInventory(true);
+        return { error: null };
+      } catch (err: any) {
+        return { error: err };
+      }
+    } else {
+      await addToSyncQueue('cable_inventory', 'delete', { id, company_id: companyId });
       return { error: null };
-    } catch (err: any) {
-      return { error: err };
     }
   }, [companyId, fetchInventory]);
 
   const issueCable = useCallback(async (movement: Partial<CableMovement>) => {
     if (!companyId) return { error: new Error('No company selected') };
-    
-    try {
-      const displayName = await getCurrentUserDisplayName();
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      const { error } = await supabase
-        .from('cable_movements')
-        .insert({ 
-          ...movement, 
-          company_id: companyId,
-          type: 'issue',
-          issued_by: user?.id,
-          issued_by_name: displayName
-        });
 
-      if (error) throw error;
+    const tempId = crypto.randomUUID();
+    const displayName = await getCurrentUserDisplayName().catch(() => 'Unknown');
+    const { data: { user } } = await supabase.auth.getUser().catch(() => ({ data: { user: null } }));
 
-      // Если поштучная выдача — обновляем статус экземпляра
-      if (movement.item_id) {
-        await supabase
-          .from('inventory_items')
-          .update({ status: 'issued', updated_at: new Date().toISOString() })
-          .eq('id', movement.item_id)
-          .eq('company_id', companyId);
+    const newMovement = {
+      ...movement,
+      id: tempId,
+      company_id: companyId,
+      type: 'issue',
+      issued_by: user?.id,
+      issued_by_name: displayName,
+    } as CableMovement;
+
+    // Optimistic update
+    setMovements(prev => [newMovement, ...prev]);
+    await saveCableMovementLocal(newMovement, companyId, false);
+
+    if (movement.item_id) {
+      setInventoryItems(prev => prev.map(ii => ii.id === movement.item_id ? { ...ii, status: 'issued' as const, updated_at: new Date().toISOString() } : ii));
+    }
+
+    if (isOnline()) {
+      try {
+        const { error } = await supabase
+          .from('cable_movements')
+          .insert({
+            ...movement,
+            company_id: companyId,
+            type: 'issue',
+            issued_by: user?.id,
+            issued_by_name: displayName
+          });
+
+        if (error) throw error;
+
+        if (movement.item_id) {
+          await supabase
+            .from('inventory_items')
+            .update({ status: 'issued', updated_at: new Date().toISOString() })
+            .eq('id', movement.item_id)
+            .eq('company_id', companyId);
+        }
+
+        await fetchMovements(true);
+        await fetchInventory(true);
+        await fetchInventoryItems(true);
+        toast.success('Выдано');
+        return { error: null };
+      } catch (err: any) {
+        toast.error('Ошибка при выдаче', { description: err.message });
+        return { error: err };
       }
-
-      await fetchMovements(true);
-      await fetchInventory(true);
-      await fetchInventoryItems(true);
-      toast.success('Выдано');
+    } else {
+      await addToSyncQueue('cable_movements', 'create', {
+        ...movement,
+        company_id: companyId,
+        type: 'issue',
+        issued_by: user?.id,
+        issued_by_name: displayName,
+        id: tempId
+      });
+      if (movement.item_id) {
+        await addToSyncQueue('inventory_items', 'update', { id: movement.item_id, status: 'issued', updated_at: new Date().toISOString(), company_id: companyId });
+      }
+      toast.success('Выдача сохранена локально (офлайн)');
       return { error: null };
-    } catch (err: any) {
-      toast.error('Ошибка при выдаче', { description: err.message });
-      return { error: err };
     }
   }, [companyId, fetchMovements, fetchInventory, fetchInventoryItems]);
 
   const returnCable = useCallback(async (movementId: string, returnedQty?: number) => {
     if (!companyId) return { error: new Error('No company selected') };
-    
-    try {
-      // Получаем информацию о движении (включая item_id)
-      const { data: movement } = await supabase
-        .from('cable_movements')
-        .select('quantity, item_id')
-        .eq('id', movementId)
-        .eq('company_id', companyId)
-        .single();
-      
-      let qty = returnedQty;
-      if (qty === undefined) {
-        qty = movement?.quantity || 0;
-      }
-      
-      const { error } = await supabase
-        .from('cable_movements')
-        .update({ 
-          is_returned: true, 
-          returned_quantity: qty,
-          returned_at: new Date().toISOString()
-        })
-        .eq('id', movementId)
-        .eq('company_id', companyId);
 
-      if (error) throw error;
+    // Optimistic update
+    setMovements(prev => prev.map(m => m.id === movementId ? { ...m, is_returned: true, returned_quantity: returnedQty ?? m.quantity, returned_at: new Date().toISOString() } : m));
 
-      // Если поштучный возврат — обновляем статус экземпляра
-      if (movement?.item_id) {
-        await supabase
-          .from('inventory_items')
-          .update({ status: 'available', updated_at: new Date().toISOString() })
-          .eq('id', movement.item_id)
+    let movement: { quantity: number; item_id: string | null } | null = null;
+
+    if (isOnline()) {
+      try {
+        const { data: mov } = await supabase
+          .from('cable_movements')
+          .select('quantity, item_id')
+          .eq('id', movementId)
+          .eq('company_id', companyId)
+          .single();
+
+        movement = mov;
+
+        let qty = returnedQty;
+        if (qty === undefined) {
+          qty = movement?.quantity || 0;
+        }
+
+        const { error } = await supabase
+          .from('cable_movements')
+          .update({
+            is_returned: true,
+            returned_quantity: qty,
+            returned_at: new Date().toISOString()
+          })
+          .eq('id', movementId)
           .eq('company_id', companyId);
-      }
 
-      await fetchMovements(true);
-      await fetchInventory(true);
-      await fetchInventoryItems(true);
-      toast.success('Возвращено');
+        if (error) throw error;
+
+        if (movement?.item_id) {
+          await supabase
+            .from('inventory_items')
+            .update({ status: 'available', updated_at: new Date().toISOString() })
+            .eq('id', movement.item_id)
+            .eq('company_id', companyId);
+        }
+
+        await fetchMovements(true);
+        await fetchInventory(true);
+        await fetchInventoryItems(true);
+        toast.success('Возвращено');
+        return { error: null };
+      } catch (err: any) {
+        toast.error('Ошибка при возврате', { description: err.message });
+        return { error: err };
+      }
+    } else {
+      await addToSyncQueue('cable_movements', 'update', {
+        id: movementId,
+        is_returned: true,
+        returned_quantity: returnedQty,
+        returned_at: new Date().toISOString(),
+        company_id: companyId
+      });
+      toast.success('Возврат сохранён локально (офлайн)');
       return { error: null };
-    } catch (err: any) {
-      toast.error('Ошибка при возврате', { description: err.message });
-      return { error: err };
     }
   }, [companyId, fetchMovements, fetchInventory, fetchInventoryItems]);
 
@@ -361,128 +556,185 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
       const cached = getCached<EquipmentRepair[]>(cacheKey);
       if (cached) { setRepairs(cached); return; }
     }
-    const { data, error } = await supabase
-      .from('equipment_repairs')
-      .select('*')
-      .eq('company_id', companyId)
-      .order('created_at', { ascending: false })
-      .limit(500);
-    
-    if (error) {
-      toast.error('Ошибка при загрузке ремонтов', { description: error.message });
+
+    if (isOnline()) {
+      const { data, error } = await supabase
+        .from('equipment_repairs')
+        .select('*')
+        .eq('company_id', companyId)
+        .order('created_at', { ascending: false })
+        .limit(500);
+
+      if (error) {
+        toast.error('Ошибка при загрузке ремонтов', { description: error.message });
+        const local = await getEquipmentRepairsLocal(companyId);
+        setRepairs(local);
+        setCached(cacheKey, local);
+        return;
+      }
+
+      const items = data || [];
+      setRepairs(items);
+      setCached(cacheKey, items);
+      for (const item of items) {
+        await saveEquipmentRepairLocal(item, companyId, true);
+      }
     } else {
-      setRepairs(data || []);
-      setCached(cacheKey, data || []);
+      const local = await getEquipmentRepairsLocal(companyId);
+      setRepairs(local);
+      setCached(cacheKey, local);
     }
   }, [companyId]);
 
   const sendToRepair = useCallback(async (repair: Partial<EquipmentRepair>) => {
     if (!companyId) return { error: new Error('No company selected') };
-    
-    try {
-      const { error } = await supabase
-        .from('equipment_repairs')
-        .insert({ ...repair, company_id: companyId });
 
-      if (error) throw error;
+    const tempId = crypto.randomUUID();
+    const newRepair = { ...repair, id: tempId, company_id: companyId } as EquipmentRepair;
 
-      // Если поштучный ремонт — обновляем статус экземпляра
-      if (repair.item_id) {
-        await supabase
-          .from('inventory_items')
-          .update({ status: 'repair', updated_at: new Date().toISOString() })
-          .eq('id', repair.item_id)
-          .eq('company_id', companyId);
+    // Optimistic update
+    setRepairs(prev => [newRepair, ...prev]);
+    await saveEquipmentRepairLocal(newRepair, companyId, false);
+
+    if (repair.item_id) {
+      setInventoryItems(prev => prev.map(ii => ii.id === repair.item_id ? { ...ii, status: 'repair' as const, updated_at: new Date().toISOString() } : ii));
+    }
+
+    if (isOnline()) {
+      try {
+        const { error } = await supabase
+          .from('equipment_repairs')
+          .insert({ ...repair, company_id: companyId });
+
+        if (error) throw error;
+
+        if (repair.item_id) {
+          await supabase
+            .from('inventory_items')
+            .update({ status: 'repair', updated_at: new Date().toISOString() })
+            .eq('id', repair.item_id)
+            .eq('company_id', companyId);
+        }
+
+        await fetchRepairs(true);
+        await fetchInventory(true);
+        await fetchInventoryItems(true);
+        toast.success('Оборудование отправлено в ремонт');
+        return { error: null };
+      } catch (err: any) {
+        toast.error('Ошибка при отправке в ремонт', { description: err.message });
+        return { error: err };
       }
-
-      await fetchRepairs(true);
-      await fetchInventory(true);
-      await fetchInventoryItems(true);
-      toast.success('Оборудование отправлено в ремонт');
+    } else {
+      await addToSyncQueue('equipment_repairs', 'create', { ...repair, company_id: companyId, id: tempId });
+      if (repair.item_id) {
+        await addToSyncQueue('inventory_items', 'update', { id: repair.item_id, status: 'repair', updated_at: new Date().toISOString(), company_id: companyId });
+      }
+      toast.success('Ремонт сохранён локально (офлайн)');
       return { error: null };
-    } catch (err: any) {
-      toast.error('Ошибка при отправке в ремонт', { description: err.message });
-      return { error: err };
     }
   }, [companyId, fetchRepairs, fetchInventory, fetchInventoryItems]);
 
   const updateRepairStatus = useCallback(async (repairId: string, status: EquipmentRepair['status'], returnedDate?: string) => {
     if (!companyId) return { error: new Error('No company selected') };
-    
-    try {
-      // Получаем item_id для обновления статуса экземпляра
-      const { data: repair } = await supabase
-        .from('equipment_repairs')
-        .select('item_id')
-        .eq('id', repairId)
-        .eq('company_id', companyId)
-        .single();
 
-      const updates: any = { status };
-      if (returnedDate) updates.returned_date = returnedDate;
-      
-      const { error } = await supabase
-        .from('equipment_repairs')
-        .update(updates)
-        .eq('id', repairId)
-        .eq('company_id', companyId);
+    // Optimistic update
+    setRepairs(prev => prev.map(r => r.id === repairId ? { ...r, status, ...(returnedDate ? { returned_date: returnedDate } : {}) } : r));
 
-      if (error) throw error;
+    let repair: { item_id: string | null } | null = null;
 
-      // Обновляем статус экземпляра если ремонт завершён
-      if (repair?.item_id) {
-        const itemStatus = status === 'returned' ? 'available' : 
-                          status === 'written_off' ? 'written_off' : 'repair';
-        await supabase
-          .from('inventory_items')
-          .update({ status: itemStatus, updated_at: new Date().toISOString() })
-          .eq('id', repair.item_id)
+    if (isOnline()) {
+      try {
+        const { data: r } = await supabase
+          .from('equipment_repairs')
+          .select('item_id')
+          .eq('id', repairId)
+          .eq('company_id', companyId)
+          .single();
+
+        repair = r;
+
+        const updates: any = { status };
+        if (returnedDate) updates.returned_date = returnedDate;
+
+        const { error } = await supabase
+          .from('equipment_repairs')
+          .update(updates)
+          .eq('id', repairId)
           .eq('company_id', companyId);
-      }
 
-      await fetchRepairs(true);
-      await fetchInventoryItems(true);
-      toast.success('Статус ремонта обновлён');
+        if (error) throw error;
+
+        if (repair?.item_id) {
+          const itemStatus = status === 'returned' ? 'available' :
+            status === 'written_off' ? 'written_off' : 'repair';
+          await supabase
+            .from('inventory_items')
+            .update({ status: itemStatus, updated_at: new Date().toISOString() })
+            .eq('id', repair.item_id)
+            .eq('company_id', companyId);
+        }
+
+        await fetchRepairs(true);
+        await fetchInventoryItems(true);
+        toast.success('Статус ремонта обновлён');
+        return { error: null };
+      } catch (err: any) {
+        toast.error('Ошибка при обновлении', { description: err.message });
+        return { error: err };
+      }
+    } else {
+      await addToSyncQueue('equipment_repairs', 'update', { id: repairId, status, ...(returnedDate ? { returned_date: returnedDate } : {}), company_id: companyId });
+      toast.success('Статус ремонта сохранён локально (офлайн)');
       return { error: null };
-    } catch (err: any) {
-      toast.error('Ошибка при обновлении', { description: err.message });
-      return { error: err };
     }
   }, [companyId, fetchRepairs, fetchInventoryItems]);
 
   const deleteRepair = useCallback(async (repairId: string) => {
     if (!companyId) return { error: new Error('No company selected') };
-    
-    try {
-      const { error } = await supabase
-        .from('equipment_repairs')
-        .delete()
-        .eq('id', repairId)
-        .eq('company_id', companyId);
 
-      if (error) throw error;
+    // Optimistic update
+    setRepairs(prev => prev.filter(r => r.id !== repairId));
 
-      await fetchRepairs(true);
-      toast.success('Запись о ремонте удалена');
+    if (isOnline()) {
+      try {
+        const { error } = await supabase
+          .from('equipment_repairs')
+          .delete()
+          .eq('id', repairId)
+          .eq('company_id', companyId);
+
+        if (error) throw error;
+
+        await fetchRepairs(true);
+        toast.success('Запись о ремонте удалена');
+        return { error: null };
+      } catch (err: any) {
+        toast.error('Ошибка при удалении', { description: err.message });
+        return { error: err };
+      }
+    } else {
+      await addToSyncQueue('equipment_repairs', 'delete', { id: repairId, company_id: companyId });
+      toast.success('Запись о ремонте удалена локально (офлайн)');
       return { error: null };
-    } catch (err: any) {
-      toast.error('Ошибка при удалении', { description: err.message });
-      return { error: err };
     }
   }, [companyId, fetchRepairs]);
 
   // Импорт категорий и оборудования из вкладки "Оборудование"
   const importFromEquipment = useCallback(async () => {
     if (!companyId) return { error: new Error('No company selected') };
-    
+
+    if (!isOnline()) {
+      toast.error('Импорт недоступен в офлайн-режиме');
+      return { error: new Error('Offline') };
+    }
+
     try {
-      // Вызываем RPC функцию для импорта (нужно создать в Supabase)
       const { data, error } = await supabase.rpc('import_equipment_to_cable', {
         p_company_id: companyId
       });
 
       if (error) {
-        // Если функции нет, показываем инструкцию
         if (error.message.includes('function') || error.message.includes('rpc')) {
           toast.error('Функция импорта не настроена', {
             description: 'Выполните SQL скрипт supabase_copy_equipment_to_cable.sql в Supabase Dashboard'
@@ -494,14 +746,14 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
 
       await fetchCategories(true);
       await fetchInventory(true);
-      
+
       const importedCategories = data?.categories || 0;
       const importedItems = data?.items || 0;
-      
+
       toast.success('Импорт завершён', {
         description: `Категорий: ${importedCategories}, позиций: ${importedItems}`
       });
-      
+
       return { error: null, data };
     } catch (err: any) {
       toast.error('Ошибка при импорте', { description: err.message });

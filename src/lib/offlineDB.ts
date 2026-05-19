@@ -92,6 +92,17 @@ interface StwarehouseDB extends DBSchema {
     };
     indexes: { 'by-company': string; 'by-synced': number };
   };
+  inventoryItems: {
+    key: string;
+    value: {
+      id: string;
+      data: any;
+      synced: boolean;
+      updatedAt: number;
+      companyId: string;
+    };
+    indexes: { 'by-company': string; 'by-synced': number };
+  };
   syncQueue: {
     key: number;
     value: {
@@ -110,7 +121,7 @@ interface StwarehouseDB extends DBSchema {
 }
 
 const DB_NAME = 'stwarehouse-offline';
-const DB_VERSION = 4; // Увеличиваем версию для добавления кабельного учёта
+const DB_VERSION = 5; // Увеличиваем версию для добавления inventory_items
 
 let db: IDBPDatabase<StwarehouseDB> | null = null;
 
@@ -210,6 +221,13 @@ export async function initOfflineDB(): Promise<IDBPDatabase<StwarehouseDB>> {
           const equipmentRepairsStore = database.createObjectStore('equipmentRepairs', { keyPath: 'id' });
           equipmentRepairsStore.createIndex('by-company', 'companyId');
           equipmentRepairsStore.createIndex('by-synced', 'synced');
+        }
+        
+        // Таблица inventory_items (новая в версии 5)
+        if (!database.objectStoreNames.contains('inventoryItems')) {
+          const inventoryItemsStore = database.createObjectStore('inventoryItems', { keyPath: 'id' });
+          inventoryItemsStore.createIndex('by-company', 'companyId');
+          inventoryItemsStore.createIndex('by-synced', 'synced');
         }
         
         // Очередь синхронизации
@@ -1402,5 +1420,58 @@ export async function clearEquipmentRepairsLocal(companyId: string) {
     }
   } catch (e) {
     debugError('[clearEquipmentRepairsLocal] Error:', e);
+  }
+}
+
+// Inventory Items (для кабельного учёта)
+export async function saveInventoryItemLocal(item: any, companyId: string, isSynced: boolean = false) {
+  if (useLocalStorageFallback) {
+    const items = getFromStorage<Record<string, any>>('inventoryItems', {});
+    items[item.id] = { id: item.id, data: item, synced: isSynced, updatedAt: Date.now(), companyId };
+    setToStorage('inventoryItems', items);
+    return;
+  }
+  try {
+    const database = await initOfflineDB();
+    await database.put('inventoryItems', {
+      id: item.id,
+      data: item,
+      synced: isSynced,
+      updatedAt: Date.now(),
+      companyId
+    });
+  } catch (e) {
+    debugError('[saveInventoryItemLocal] Error:', e);
+  }
+}
+
+export async function getInventoryItemsLocal(companyId: string) {
+  if (useLocalStorageFallback) {
+    const items = getFromStorage<Record<string, any>>('inventoryItems', {});
+    return Object.values(items)
+      .filter((i: any) => i.companyId === companyId)
+      .map((i: any) => i.data);
+  }
+  try {
+    const database = await initOfflineDB();
+    const items = await database.getAllFromIndex('inventoryItems', 'by-company', companyId);
+    return items.map(item => item.data);
+  } catch (e) {
+    return [];
+  }
+}
+
+export async function deleteInventoryItemLocal(id: string) {
+  if (useLocalStorageFallback) {
+    const items = getFromStorage<Record<string, any>>('inventoryItems', {});
+    delete items[id];
+    setToStorage('inventoryItems', items);
+    return;
+  }
+  try {
+    const database = await initOfflineDB();
+    await database.delete('inventoryItems', id);
+  } catch (e) {
+    debugError('[deleteInventoryItemLocal] Error:', e);
   }
 }
