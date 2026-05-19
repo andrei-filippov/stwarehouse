@@ -782,7 +782,7 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
       { table: 'inventory_items', filter: `company_id=eq.${companyId}`, onChange: () => { fetchInventoryItems(true); fetchInventory(true); } },
       { table: 'cable_categories', filter: `company_id=eq.${companyId}`, onChange: () => fetchCategories(true) },
     ],
-    pollingIntervalMs: 60000, // 1 min
+    pollingIntervalMs: 300000, // 5 min
     enabled: !activeTab || ['equipment', 'cables', 'dashboard'].includes(activeTab),
   });
 

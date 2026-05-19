@@ -139,7 +139,7 @@ export function useExpenses(companyId: string | undefined) {
     tables: [
       { table: 'expenses', filter: `company_id=eq.${companyId}`, onChange: () => fetchExpenses() },
     ],
-    pollingIntervalMs: 60000,
+    pollingIntervalMs: 300000, // 5 min
   });
 
   return {

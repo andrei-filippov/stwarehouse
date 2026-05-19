@@ -235,7 +235,7 @@ export function useCustomers(companyId: string | undefined) {
     tables: [
       { table: 'customers', filter: `company_id=eq.${companyId}`, onChange: () => fetchCustomers() },
     ],
-    pollingIntervalMs: 60000,
+    pollingIntervalMs: 300000, // 5 min
   });
 
   return {

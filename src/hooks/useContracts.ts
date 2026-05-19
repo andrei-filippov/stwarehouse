@@ -246,7 +246,7 @@ export function useContracts(companyId: string | undefined) {
     tables: [
       { table: 'contracts', filter: `company_id=eq.${companyId}`, onChange: () => fetchContracts() },
     ],
-    pollingIntervalMs: 60000,
+    pollingIntervalMs: 300000, // 5 min
   });
 
   return {

@@ -279,7 +279,7 @@ export function useChecklistsV2(companyId: string | undefined, activeTab?: strin
       { table: 'checklists', filter: `company_id=eq.${companyId}`, onChange: () => fetchChecklists(true) },
       { table: 'checklist_items', onChange: () => fetchChecklists(true) },
     ],
-    pollingIntervalMs: 30000, // 30 sec for checklists (critical)
+    pollingIntervalMs: 120000, // 2 min for checklists
   });
 
   useRealtimeWithFallback({
@@ -289,7 +289,7 @@ export function useChecklistsV2(companyId: string | undefined, activeTab?: strin
       { table: 'equipment_kits', filter: `company_id=eq.${companyId}`, onChange: () => fetchKits(true) },
       { table: 'kit_items', onChange: () => fetchKits(true) },
     ],
-    pollingIntervalMs: 60000, // 1 min for kits
+    pollingIntervalMs: 300000, // 5 min for kits
   });
 
   // Первичная загрузка

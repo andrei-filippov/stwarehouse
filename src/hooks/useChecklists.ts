@@ -835,7 +835,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
       { table: 'checklists', filter: `company_id=eq.${companyId}`, onChange: () => fetchChecklists(true) },
       { table: 'checklist_items', onChange: () => fetchChecklists(true) },
     ],
-    pollingIntervalMs: 30000, // 30 sec for checklists
+    pollingIntervalMs: 120000, // 2 min for checklists
   });
 
   useRealtimeWithFallback({
@@ -845,7 +845,7 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
       { table: 'checklist_rules', filter: `company_id=eq.${companyId}`, onChange: () => fetchRules(true) },
       { table: 'checklist_rule_items', onChange: () => fetchRules(true) },
     ],
-    pollingIntervalMs: 60000, // 1 min for rules
+    pollingIntervalMs: 300000, // 5 min for rules
   });
 
   return {

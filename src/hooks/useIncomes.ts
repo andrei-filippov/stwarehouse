@@ -110,7 +110,7 @@ export function useIncomes(companyId: string | undefined) {
     tables: [
       { table: 'income', filter: `company_id=eq.${companyId}`, onChange: () => fetchIncomes() },
     ],
-    pollingIntervalMs: 60000,
+    pollingIntervalMs: 300000, // 5 min
   });
 
   return {

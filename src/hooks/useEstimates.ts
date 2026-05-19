@@ -808,7 +808,7 @@ export function useEstimates(companyId: string | undefined, activeTab?: string) 
         }
       },
     ],
-    pollingIntervalMs: 60000, // 1 min for estimates
+    pollingIntervalMs: 120000, // 2 min for estimates
   });
 
   // Очистка при размонтировании
