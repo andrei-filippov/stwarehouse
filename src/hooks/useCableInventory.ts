@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { toast } from 'sonner';
-import { supabase, safeChannel } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 import { getCurrentUserDisplayName } from '../lib/utils';
 import { getCached, setCached, DEFAULT_CACHE_TTL_MS } from '../lib/queryCache';
-import { useVisibilityAwareRealtime } from './useVisibilityAwareRealtime';
+import { useRealtimeWithFallback } from './useRealtimeWithFallback';
 import type { CableCategory, CableInventory, CableMovement, EquipmentRepair } from '../types';
 import type { InventoryItem } from '../types/inventoryItem';
 
@@ -521,70 +521,29 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
     fetchRepairs();
   }, [fetchCategories, fetchInventory, fetchInventoryItems, fetchMovements, fetchRepairs]);
 
-  // Realtime подписки - отключаются при уходе в фон
-  useVisibilityAwareRealtime(
-    () => safeChannel('cable_inventory_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'cable_inventory', filter: `company_id=eq.${companyId}` },
-        () => fetchInventory(true)
-      )
-      .subscribe(),
-    [companyId]
-  );
+  // Realtime on Vercel, smart polling on Yandex proxy
+  useRealtimeWithFallback({
+    channelName: 'cable_inventory_changes',
+    companyId,
+    tables: [
+      { table: 'cable_inventory', filter: `company_id=eq.${companyId}`, onChange: () => fetchInventory(true) },
+      { table: 'inventory_items', filter: `company_id=eq.${companyId}`, onChange: () => { fetchInventoryItems(true); fetchInventory(true); } },
+      { table: 'cable_categories', filter: `company_id=eq.${companyId}`, onChange: () => fetchCategories(true) },
+    ],
+    pollingIntervalMs: 60000, // 1 min
+    enabled: !activeTab || ['equipment', 'cables', 'dashboard'].includes(activeTab),
+  });
 
-  useVisibilityAwareRealtime(
-    () => safeChannel('cable_movements_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'cable_movements', filter: `company_id=eq.${companyId}` },
-        () => { fetchMovements(true); fetchInventory(true); }
-      )
-      .subscribe(),
-    [companyId]
-  );
-
-  useVisibilityAwareRealtime(
-    () => safeChannel('equipment_repairs_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'equipment_repairs', filter: `company_id=eq.${companyId}` },
-        () => { fetchRepairs(true); fetchInventory(true); fetchInventoryItems(true); }
-      )
-      .subscribe(),
-    [companyId]
-  );
-
-  useVisibilityAwareRealtime(
-    () => safeChannel('inventory_items_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_items', filter: `company_id=eq.${companyId}` },
-        () => { fetchInventoryItems(true); fetchInventory(true); }
-      )
-      .subscribe(),
-    [companyId]
-  );
-
-  useVisibilityAwareRealtime(
-    () => safeChannel('cable_categories_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'cable_categories', filter: `company_id=eq.${companyId}` },
-        () => fetchCategories(true)
-      )
-      .subscribe(),
-    [companyId]
-  );
-
-  // Polling fallback (на случай если realtime не работает, например через Yandex прокси)
-  // Only poll when on relevant tabs and tab is visible to save egress
-  useEffect(() => {
-    if (!companyId) return;
-    const isRelevantTab = !activeTab || ['equipment', 'cables', 'dashboard'].includes(activeTab);
-    if (!isRelevantTab) return;
-
-    const interval = setInterval(() => {
-      if (document.hidden) return;
-      fetchCategories();
-      fetchInventory();
-      fetchInventoryItems();
-      fetchMovements();
-      fetchRepairs();
-    }, 300000); // 5 minutes
-
-    return () => clearInterval(interval);
-  }, [companyId, activeTab, fetchCategories, fetchInventory, fetchInventoryItems, fetchMovements, fetchRepairs]);
+  useRealtimeWithFallback({
+    channelName: 'cable_movements_changes',
+    companyId,
+    tables: [
+      { table: 'cable_movements', filter: `company_id=eq.${companyId}`, onChange: () => { fetchMovements(true); fetchInventory(true); } },
+      { table: 'equipment_repairs', filter: `company_id=eq.${companyId}`, onChange: () => { fetchRepairs(true); fetchInventory(true); fetchInventoryItems(true); } },
+    ],
+    pollingIntervalMs: 120000, // 2 min
+    enabled: !activeTab || ['equipment', 'cables', 'dashboard'].includes(activeTab),
+  });
 
   // Рекурсивно получаем все ID категорий включая дочерние
   const getAllCategoryIds = useCallback((catId: string, cats: CableCategory[]): string[] => {
