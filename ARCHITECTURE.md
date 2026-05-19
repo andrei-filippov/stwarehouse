@@ -208,14 +208,78 @@ supabase.from('table').insert(data).then(() => {
 - Ошибка сети при запросе
 - Таймаут запроса
 
-### Что кэшируется
-- Сметы (`saveEstimateLocal`)
-- Чек-листы (`saveChecklistLocal`)
-- Правила чек-листов (`saveChecklistRulesCache`)
+### Что кэшируется (IndexedDB)
+| Сущность | Таблица | Функции |
+|----------|---------|---------|
+| Сметы | `estimates` | `saveEstimateLocal`, `getEstimatesLocal` |
+| Оборудование | `equipment` | `saveEquipmentLocal`, `getEquipmentLocal` |
+| Чек-листы | `checklists` | `saveChecklistLocal`, `getChecklistsLocal` |
+| Заказчики | `customers` | `saveCustomerLocal`, `getCustomersLocal` |
+| Категории кабелей | `cableCategories` | `saveCableCategoryLocal`, `getCableCategoriesLocal` |
+| Инвентарь кабелей | `cableInventory` | `saveCableInventoryLocal`, `getCableInventoryLocal` |
+| Движения кабелей | `cableMovements` | `saveCableMovementLocal`, `getCableMovementsLocal` |
+| Ремонты | `equipmentRepairs` | `saveEquipmentRepairLocal`, `getEquipmentRepairsLocal` |
+| Позиции инвентаря | `inventoryItems` | `saveInventoryItemLocal`, `getInventoryItemsLocal` |
+
+### Паттерн fetch с offline fallback
+```typescript
+const fetchData = async (force = false) => {
+  if (!companyId) return;
+  
+  // 1. Try memory cache first
+  const cacheKey = `data_${companyId}`;
+  if (!force) {
+    const cached = getCached(cacheKey);
+    if (cached) { setData(cached); return; }
+  }
+  
+  // 2. Try server if online
+  if (isOnline()) {
+    try {
+      const { data, error } = await supabase.from('table').select('*');
+      if (!error) {
+        setData(data || []);
+        setCached(cacheKey, data || []);
+        // Save to IndexedDB for offline
+        data?.forEach(item => saveItemLocal(item, companyId, true));
+        return;
+      }
+    } catch (e) {
+      // Network error - fall through to offline
+    }
+  }
+  
+  // 3. Offline fallback - load from IndexedDB
+  const localData = await getItemsLocal(companyId);
+  setData(localData);
+};
+```
+
+### Паттерн mutation с optimistic update
+```typescript
+const addItem = async (item) => {
+  // 1. Optimistic update
+  setData(prev => [item, ...prev]);
+  
+  // 2. Save locally
+  await saveItemLocal(item, companyId, false);
+  
+  if (isOnline()) {
+    // 3a. Online: save to server
+    const { error } = await supabase.from('table').insert(item);
+    if (!error) fetchData(true);
+  } else {
+    // 3b. Offline: add to sync queue
+    await addToSyncQueue('table', 'create', item);
+    toast.info('Сохранено офлайн');
+  }
+};
+```
 
 ### Синхронизация
 - `useOfflineSync.ts` — автоматическая синхронизация при возврате онлайн
 - `addToSyncQueue()` — добавляет операцию в очередь
+- Очередь хранится в IndexedDB (`syncQueue`)
 
 ## Чек-листы: создание из сметы
 
