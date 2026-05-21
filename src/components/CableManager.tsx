@@ -74,6 +74,18 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { logger } from '../lib/logger';
 
+// Безопасное форматирование даты — не падает при invalid date
+function safeFormatDate(date: string | Date | null | undefined, fmt: string, options?: { locale?: Locale }): string {
+  if (!date) return '—';
+  const d = typeof date === 'string' ? new Date(date) : date;
+  if (isNaN(d.getTime())) return '—';
+  try {
+    return format(d, fmt, options);
+  } catch {
+    return '—';
+  }
+}
+
 interface SelectedItem {
   inventory_id: string;
   category_id: string;
@@ -1450,7 +1462,7 @@ export const CableManager = memo(function CableManager({
                               </div>
                             )}
                             <div className="text-xs text-muted-foreground/70">
-                              {format(new Date(movement.created_at || ''), 'dd.MM.yyyy HH:mm', { locale: ru })}
+                              {safeFormatDate(movement.created_at, 'dd.MM.yyyy HH:mm', { locale: ru })}
                               {(movement.issued_by_name || movement.issued_by) && (
                                 <span className="ml-2">Выдал: {formatIssuer(movement.issued_by_name, movement.issued_by)}</span>
                               )}
@@ -1686,10 +1698,10 @@ export const CableManager = memo(function CableManager({
                                   </div>
                                 )}
                                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground/70 mt-1">
-                                  <span>Отправлено: {format(new Date(repair.sent_date), 'dd.MM.yyyy')}</span>
+                                  <span>Отправлено: {safeFormatDate(repair.sent_date, 'dd.MM.yyyy')}</span>
                                   {repair.returned_date && (
                                     <span className={isReturned ? 'text-green-600 font-medium' : ''}>
-                                      {isWrittenOff ? 'Списано' : 'Возвращено'}: {format(new Date(repair.returned_date), 'dd.MM.yyyy')}
+                                      {isWrittenOff ? 'Списано' : 'Возвращено'}: {safeFormatDate(repair.returned_date, 'dd.MM.yyyy')}
                                     </span>
                                   )}
                                 </div>
@@ -1789,10 +1801,10 @@ export const CableManager = memo(function CableManager({
                                   </div>
                                 )}
                                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground/70 mt-1">
-                                  <span>Дата: {format(new Date(movement.created_at!), 'dd.MM.yyyy HH:mm')}</span>
+                                  <span>Дата: {safeFormatDate(movement.created_at, 'dd.MM.yyyy HH:mm')}</span>
                                   {movement.returned_at && (
                                     <span className="text-green-600 font-medium">
-                                      Возвращено: {format(new Date(movement.returned_at), 'dd.MM.yyyy')}
+                                      Возвращено: {safeFormatDate(movement.returned_at, 'dd.MM.yyyy')}
                                     </span>
                                   )}
                                 </div>
@@ -1854,7 +1866,7 @@ export const CableManager = memo(function CableManager({
                             </div>
                           )}
                           <div className="text-xs text-muted-foreground/70 mt-1">
-                            Отправлено: {format(new Date(repair.sent_date), 'dd.MM.yyyy')}
+                            Отправлено: {safeFormatDate(repair.sent_date, 'dd.MM.yyyy')}
                           </div>
                         </div>
                         <div className="flex items-center gap-1 sm:gap-2 shrink-0 pt-1 sm:pt-0">
