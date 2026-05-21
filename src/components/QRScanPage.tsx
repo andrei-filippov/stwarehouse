@@ -39,6 +39,7 @@ interface QRScanPageProps {
   companyId: string;
   categories?: CableCategory[];
   checklists?: ChecklistV2[];
+  inventoryItems?: InventoryItem[];
   onTabChange?: (tab: string) => void;
   onRefreshChecklists?: () => void;
   initialCode?: string | null; // QR-код из URL
@@ -53,7 +54,7 @@ type ScanResult =
 
 type QuickAction = 'info' | 'checklist' | 'issue' | 'repair' | null;
 
-export default function QRScanPage({ companyId, categories = [], checklists = [], onTabChange, onRefreshChecklists, initialCode }: QRScanPageProps) {
+export default function QRScanPage({ companyId, categories = [], checklists = [], inventoryItems: propInventoryItems = [], onTabChange, onRefreshChecklists, initialCode }: QRScanPageProps) {
   // Читаем URL параметр через хук
   const urlScanCode = useUrlScanCode();
   const processedUrlScan = useRef(false);
@@ -480,32 +481,86 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
     const { getCurrentUserDisplayName } = await import('../lib/utils');
     const issuerName = await getCurrentUserDisplayName();
     const { data: { user } } = await supabase.auth.getUser();
-    const { error } = await supabase.from('cable_movements').insert({
-      company_id: companyId,
-      category_id: item.category_id,
-      inventory_id: item.id,
-      equipment_name: item.name || 'Оборудование',
-      length: item.length || 0,
-      quantity: issueForm.quantity,
-      issued_to: issueForm.issued_to,
-      contact: issueForm.contact || undefined,
-      issued_by: user?.id,
-      issued_by_name: issuerName,
-      type: 'issue'
-    });
     
-    if (error) {
-      toast.error('Ошибка при выдаче', { description: error.message });
+    // Проверяем, есть ли поштучный учёт
+    if (item.track_items && propInventoryItems.length > 0) {
+      // Для поштучного учёта: выдаём конкретные свободные экземпляры
+      const availableInstances = propInventoryItems.filter(
+        ii => ii.inventory_id === item.id && ii.status === 'available'
+      );
+      
+      if (availableInstances.length < issueForm.quantity) {
+        toast.error(`Недостаточно свободных экземпляров (доступно: ${availableInstances.length})`);
+        setSubmitting(false);
+        return;
+      }
+      
+      const instancesToIssue = availableInstances.slice(0, issueForm.quantity);
+      let hasError = false;
+      
+      for (const instance of instancesToIssue) {
+        const { error } = await supabase.from('cable_movements').insert({
+          company_id: companyId,
+          category_id: item.category_id,
+          inventory_id: item.id,
+          item_id: instance.id,
+          equipment_name: item.name || 'Оборудование',
+          length: item.length || 0,
+          quantity: 1,
+          issued_to: issueForm.issued_to,
+          contact: issueForm.contact || undefined,
+          issued_by: user?.id,
+          issued_by_name: issuerName,
+          type: 'issue'
+        });
+        
+        if (error) {
+          hasError = true;
+          toast.error('Ошибка при выдаче экземпляра', { description: error.message });
+          break;
+        }
+        
+        // Обновляем статус экземпляра
+        await supabase.from('inventory_items').update({ status: 'issued' }).eq('id', instance.id);
+      }
+      
+      if (!hasError) {
+        toast.success('Оборудование выдано', { 
+          description: `${item.name || 'Оборудование'} — ${issueForm.quantity} шт` 
+        });
+        setActiveAction(null);
+        setIssueForm({ issued_to: '', contact: '', quantity: 1 });
+      }
     } else {
-      toast.success('Оборудование выдано', { 
-        description: `${item.name || 'Оборудование'} — ${issueForm.quantity} шт` 
+      // Обычная выдача по количеству
+      const { error } = await supabase.from('cable_movements').insert({
+        company_id: companyId,
+        category_id: item.category_id,
+        inventory_id: item.id,
+        equipment_name: item.name || 'Оборудование',
+        length: item.length || 0,
+        quantity: issueForm.quantity,
+        issued_to: issueForm.issued_to,
+        contact: issueForm.contact || undefined,
+        issued_by: user?.id,
+        issued_by_name: issuerName,
+        type: 'issue'
       });
-      setActiveAction(null);
-      setIssueForm({ issued_to: '', contact: '', quantity: 1 });
-      // Обновляем данные
-      const { data } = await supabase.from('cable_inventory').select('*').eq('company_id', companyId);
-      if (data) setInventory(data);
+      
+      if (error) {
+        toast.error('Ошибка при выдаче', { description: error.message });
+      } else {
+        toast.success('Оборудование выдано', { 
+          description: `${item.name || 'Оборудование'} — ${issueForm.quantity} шт` 
+        });
+        setActiveAction(null);
+        setIssueForm({ issued_to: '', contact: '', quantity: 1 });
+      }
     }
+    
+    // Обновляем данные
+    const { data } = await supabase.from('cable_inventory').select('*').eq('company_id', companyId);
+    if (data) setInventory(data);
     setSubmitting(false);
   };
   
@@ -595,35 +650,93 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
     }
     
     setSubmitting(true);
-    const { error } = await supabase.from('equipment_repairs').insert({
-      company_id: companyId,
-      category_id: item.category_id,
-      inventory_id: item.id,
-      equipment_name: item.name || 'Оборудование',
-      length: item.length || 0,
-      quantity: repairForm.quantity,
-      reason: repairForm.reason,
-      status: 'in_repair'
-    });
     
-    if (error) {
-      toast.error('Ошибка при отправке в ремонт', { description: error.message });
+    // Проверяем, есть ли поштучный учёт
+    if (item.track_items && propInventoryItems.length > 0) {
+      // Для поштучного учёта: отправляем конкретные свободные экземпляры
+      const availableInstances = propInventoryItems.filter(
+        ii => ii.inventory_id === item.id && ii.status === 'available'
+      );
+      
+      if (availableInstances.length < repairForm.quantity) {
+        toast.error(`Недостаточно свободных экземпляров (доступно: ${availableInstances.length})`);
+        setSubmitting(false);
+        return;
+      }
+      
+      const instancesToRepair = availableInstances.slice(0, repairForm.quantity);
+      let hasError = false;
+      
+      for (const instance of instancesToRepair) {
+        const { error } = await supabase.from('equipment_repairs').insert({
+          company_id: companyId,
+          category_id: item.category_id,
+          inventory_id: item.id,
+          item_id: instance.id,
+          equipment_name: item.name || 'Оборудование',
+          length: item.length || 0,
+          quantity: 1,
+          reason: repairForm.reason,
+          status: 'in_repair'
+        });
+        
+        if (error) {
+          hasError = true;
+          toast.error('Ошибка при отправке в ремонт', { description: error.message });
+          break;
+        }
+        
+        // Обновляем статус экземпляра
+        await supabase.from('inventory_items').update({ status: 'repair' }).eq('id', instance.id);
+      }
+      
+      if (!hasError) {
+        toast.success('Отправлено в ремонт', { 
+          description: `${item.name || 'Оборудование'} — ${repairForm.quantity} шт` 
+        });
+        setActiveAction(null);
+        setRepairForm({ reason: '', quantity: 1 });
+      }
     } else {
-      toast.success('Отправлено в ремонт', { 
-        description: `${item.name || 'Оборудование'} — ${repairForm.quantity} шт` 
+      // Обычная отправка в ремонт по количеству
+      const { error } = await supabase.from('equipment_repairs').insert({
+        company_id: companyId,
+        category_id: item.category_id,
+        inventory_id: item.id,
+        equipment_name: item.name || 'Оборудование',
+        length: item.length || 0,
+        quantity: repairForm.quantity,
+        reason: repairForm.reason,
+        status: 'in_repair'
       });
-      setActiveAction(null);
-      setRepairForm({ reason: '', quantity: 1 });
-      // Обновляем данные
-      const { data } = await supabase.from('cable_inventory').select('*').eq('company_id', companyId);
-      if (data) setInventory(data);
+      
+      if (error) {
+        toast.error('Ошибка при отправке в ремонт', { description: error.message });
+      } else {
+        toast.success('Отправлено в ремонт', { 
+          description: `${item.name || 'Оборудование'} — ${repairForm.quantity} шт` 
+        });
+        setActiveAction(null);
+        setRepairForm({ reason: '', quantity: 1 });
+      }
     }
+    
+    // Обновляем данные
+    const { data } = await supabase.from('cable_inventory').select('*').eq('company_id', companyId);
+    if (data) setInventory(data);
     setSubmitting(false);
   };
 
   // Возврат из ремонта
   const handleReturnFromRepair = async (repairId: string) => {
     setSubmitting(true);
+    
+    // Получаем информацию о ремонте для обновления статуса экземпляра
+    const { data: repairData } = await supabase
+      .from('equipment_repairs')
+      .select('item_id')
+      .eq('id', repairId)
+      .single();
     
     const { error } = await supabase
       .from('equipment_repairs')
@@ -633,6 +746,11 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
     if (error) {
       toast.error('Ошибка при возврате', { description: error.message });
     } else {
+      // Обновляем статус экземпляра если есть item_id
+      if (repairData?.item_id) {
+        await supabase.from('inventory_items').update({ status: 'available' }).eq('id', repairData.item_id);
+      }
+      
       toast.success('Оборудование возвращено', { description: 'Со склада' });
       // Обновляем данные
       const { data } = await supabase.from('cable_inventory').select('*').eq('company_id', companyId);

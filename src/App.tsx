@@ -865,6 +865,7 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
                 companyId={companyId}
                 categories={cableCategories}
                 checklists={checklistsV2}
+                inventoryItems={cableInventoryItems}
                 onTabChange={setActiveTab}
                 onRefreshChecklists={fetchChecklists}
                 initialCode={initialScanCode}

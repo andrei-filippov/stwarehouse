@@ -119,6 +119,7 @@ interface CableManagerProps {
     quantity: number;
     issued_to: string;
     contact?: string;
+    item_id?: string;
   }) => Promise<{ error: any }>;
   onReturnCable: (movementId: string) => Promise<{ error: any }>;
   onSendToRepair?: (repair: Partial<EquipmentRepair>) => Promise<{ error: any }>;
@@ -708,20 +709,60 @@ export const CableManager = memo(function CableManager({
         break;
       }
       
-      const { error } = await onIssueCable({
-        category_id: item.category_id,
-        inventory_id: item.inventory_id,
-        length: item.length,
-        equipment_name: item.name,
-        quantity: item.quantity,
-        issued_to: bulkIssueForm.issued_to,
-        contact: bulkIssueForm.contact || undefined,
-      });
+      // Проверяем, есть ли поштучный учёт для этой позиции
+      const inventoryItem = inventory.find(i => i.id === item.inventory_id);
+      const hasTrackItems = inventoryItem?.track_items;
       
-      if (error) {
-        hasError = true;
-        break;
+      if (hasTrackItems && propInventoryItems.length > 0) {
+        // Для поштучного учёта: выдаём конкретные свободные экземпляры
+        const availableInstances = propInventoryItems.filter(
+          ii => ii.inventory_id === item.inventory_id && ii.status === 'available'
+        );
+        
+        if (availableInstances.length < item.quantity) {
+          toast.error(`Недостаточно свободных экземпляров для "${item.name || 'позиция'}"`);
+          hasError = true;
+          break;
+        }
+        
+        // Выдаём каждый экземпляр отдельно
+        const instancesToIssue = availableInstances.slice(0, item.quantity);
+        for (const instance of instancesToIssue) {
+          const { error } = await onIssueCable({
+            category_id: item.category_id,
+            inventory_id: item.inventory_id,
+            length: item.length,
+            equipment_name: item.name,
+            quantity: 1,
+            issued_to: bulkIssueForm.issued_to,
+            contact: bulkIssueForm.contact || undefined,
+            item_id: instance.id,
+          });
+          
+          if (error) {
+            hasError = true;
+            break;
+          }
+        }
+      } else {
+        // Обычная выдача по количеству
+        const { error } = await onIssueCable({
+          category_id: item.category_id,
+          inventory_id: item.inventory_id,
+          length: item.length,
+          equipment_name: item.name,
+          quantity: item.quantity,
+          issued_to: bulkIssueForm.issued_to,
+          contact: bulkIssueForm.contact || undefined,
+        });
+        
+        if (error) {
+          hasError = true;
+          break;
+        }
       }
+      
+      if (hasError) break;
     }
     
     if (!hasError) {
@@ -770,18 +811,64 @@ export const CableManager = memo(function CableManager({
       return;
     }
 
-    const { error } = await onSendToRepair(repairForm);
-    if (!error) {
-      setIsRepairDialogOpen(false);
-      setRepairForm({
-        category_id: '',
-        inventory_id: '',
-        equipment_name: '',
-        length: 0,
-        quantity: 1,
-        reason: '',
-        notes: '',
-      });
+    // Проверяем, есть ли поштучный учёт для этой позиции
+    const inventoryItem = inventory.find(i => i.id === repairForm.inventory_id);
+    const hasTrackItems = inventoryItem?.track_items;
+    
+    if (hasTrackItems && propInventoryItems.length > 0) {
+      // Для поштучного учёта: отправляем конкретные свободные экземпляры
+      const availableInstances = propInventoryItems.filter(
+        ii => ii.inventory_id === repairForm.inventory_id && ii.status === 'available'
+      );
+      
+      if (availableInstances.length < repairForm.quantity) {
+        toast.error(`Недостаточно свободных экземпляров (доступно: ${availableInstances.length})`);
+        return;
+      }
+      
+      const instancesToRepair = availableInstances.slice(0, repairForm.quantity);
+      let hasError = false;
+      
+      for (const instance of instancesToRepair) {
+        const { error } = await onSendToRepair({
+          ...repairForm,
+          item_id: instance.id,
+          quantity: 1,
+        });
+        
+        if (error) {
+          hasError = true;
+          break;
+        }
+      }
+      
+      if (!hasError) {
+        setIsRepairDialogOpen(false);
+        setRepairForm({
+          category_id: '',
+          inventory_id: '',
+          equipment_name: '',
+          length: 0,
+          quantity: 1,
+          reason: '',
+          notes: '',
+        });
+      }
+    } else {
+      // Обычная отправка в ремонт
+      const { error } = await onSendToRepair(repairForm);
+      if (!error) {
+        setIsRepairDialogOpen(false);
+        setRepairForm({
+          category_id: '',
+          inventory_id: '',
+          equipment_name: '',
+          length: 0,
+          quantity: 1,
+          reason: '',
+          notes: '',
+        });
+      }
     }
   };
 
