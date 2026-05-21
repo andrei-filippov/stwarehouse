@@ -2506,7 +2506,7 @@ interface SortableCategoryItemProps {
   onSelectAllInCategory?: (categoryId: string, selected: boolean) => void;
   // Для управления экземплярами
   expandedInventory?: string | null;
-  onToggleInventoryItems?: (id: string) => void;
+  onToggleInventoryItems: (id: string) => void;
   companyId?: string;
   onRefresh?: () => void;
   // Для подсчета из inventory_items
@@ -2626,7 +2626,7 @@ interface CategoryItemProps {
   onSelectAllInCategory?: (categoryId: string, selected: boolean) => void;
   // Для управления экземплярами
   expandedInventory?: string | null;
-  onToggleInventoryItems?: (id: string) => void;
+  onToggleInventoryItems: (id: string) => void;
   companyId?: string;
   onRefresh?: () => void;
   // Для подсчета из inventory_items
@@ -2946,11 +2946,12 @@ function CategoryItem({
                             <span className="sm:hidden text-xs">📱</span>
                           </Button>
                         )}
-                        {item.track_items && onToggleInventoryItems && (
+                        {item.track_items && (
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => onToggleInventoryItems(item.id)}
+                            onClick={() => onToggleInventoryItems?.(item.id)}
+                            disabled={!onToggleInventoryItems}
                             title="Управление экземплярами"
                             className="h-7 w-7 sm:h-8 sm:w-auto sm:px-2 p-0"
                           >
