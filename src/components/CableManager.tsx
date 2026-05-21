@@ -3037,6 +3037,11 @@ function CategoryItem({
               selectedInventoryIds={selectedInventoryIds}
               onSelectInventory={onSelectInventory}
               onSelectAllInCategory={onSelectAllInCategory}
+              expandedInventory={expandedInventory}
+              onToggleInventoryItems={onToggleInventoryItems}
+              companyId={companyId}
+              onRefresh={onRefresh}
+              inventoryItems={inventoryItems}
             />
           ))}
         </div>

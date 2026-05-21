@@ -194,10 +194,7 @@ export function useInventoryItems(companyId: string | undefined) {
   const fetchComments = useCallback(async (itemId: string) => {
     const { data, error } = await supabase
       .from('item_comments')
-      .select(`
-        *,
-        profiles:author_id(name)
-      `)
+      .select('*')
       .eq('item_id', itemId)
       .order('created_at', { ascending: false });
     
@@ -206,9 +203,20 @@ export function useInventoryItems(companyId: string | undefined) {
       return [];
     }
     
+    // Загружаем профили авторов отдельно (FK на auth.users, не на profiles)
+    const authorIds = [...new Set((data || []).map((c: any) => c.author_id).filter(Boolean))];
+    let profilesMap: Record<string, { name?: string }> = {};
+    if (authorIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, name')
+        .in('id', authorIds);
+      profilesMap = Object.fromEntries((profiles || []).map((p: any) => [p.id, p]));
+    }
+    
     const mapped = (data || []).map((c: any) => ({
       ...c,
-      author_name: c.profiles?.name,
+      author_name: profilesMap[c.author_id]?.name || null,
     }));
     
     setComments(prev => ({ ...prev, [itemId]: mapped }));
@@ -266,13 +274,24 @@ export function useInventoryItems(companyId: string | undefined) {
         .limit(50),
       supabase
         .from('item_comments')
-        .select('*, profiles:author_id(name)')
+        .select('*')
         .eq('item_id', itemId)
         .order('created_at', { ascending: false })
         .limit(50),
     ]);
     
     const history: ItemHistory[] = [];
+    
+    // Загружаем профили авторов комментариев отдельно
+    const commentAuthorIds = [...new Set((commentsRes.data || []).map((c: any) => c.author_id).filter(Boolean))];
+    let profilesMap: Record<string, { name?: string }> = {};
+    if (commentAuthorIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, name')
+        .in('id', commentAuthorIds);
+      profilesMap = Object.fromEntries((profiles || []).map((p: any) => [p.id, p]));
+    }
     
     // Выдачи и возвраты
     (movementsRes.data || []).forEach((m: any) => {
@@ -312,7 +331,7 @@ export function useInventoryItems(companyId: string | undefined) {
         type: 'comment',
         date: c.created_at,
         description: c.text,
-        author: c.profiles?.name,
+        author: profilesMap[c.author_id]?.name || null,
       });
     });
     

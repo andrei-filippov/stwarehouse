@@ -259,7 +259,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
     const [movementsRes, repairsRes, commentsRes] = await Promise.all([
       supabase.from('cable_movements').select('*').eq('item_id', item.id).order('created_at', { ascending: false }),
       supabase.from('equipment_repairs').select('*').eq('item_id', item.id).order('created_at', { ascending: false }),
-      supabase.from('item_comments').select('*, profiles:author_id(name)').eq('item_id', item.id).order('created_at', { ascending: false }),
+      supabase.from('item_comments').select('*').eq('item_id', item.id).order('created_at', { ascending: false }),
     ]);
 
     const history: ItemHistory[] = [];
@@ -281,7 +281,18 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
       });
     });
 
-    const comments = (commentsRes.data || []).map((c: any) => ({ ...c, author_name: c.profiles?.name }));
+    // Загружаем профили авторов комментариев отдельно (FK на auth.users, не на profiles)
+    const commentAuthorIds = [...new Set((commentsRes.data || []).map((c: any) => c.author_id).filter(Boolean))];
+    let profilesMap: Record<string, { name?: string }> = {};
+    if (commentAuthorIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, name')
+        .in('id', commentAuthorIds);
+      profilesMap = Object.fromEntries((profiles || []).map((p: any) => [p.id, p]));
+    }
+
+    const comments = (commentsRes.data || []).map((c: any) => ({ ...c, author_name: profilesMap[c.author_id]?.name || null }));
 
     return { history: history.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()), comments };
   };
