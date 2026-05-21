@@ -18,7 +18,7 @@ import {
   X
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { supabase } from '../lib/supabase';
+import { supabase, safeChannel } from '../lib/supabase';
 import type { CableInventory } from '../types';
 import type { InventoryItem, ItemComment } from '../types/inventoryItem';
 import { 
@@ -76,8 +76,7 @@ export default function InventoryItemsManager({ inventory, companyId, onRefresh 
     fetchItems();
 
     // Realtime подписка на изменения экземпляров
-    const channel = supabase
-      .channel(`inventory_items_${inventory.id}`)
+    const channel = safeChannel(`inventory_items_${inventory.id}`)
       .on(
         'postgres_changes',
         {
