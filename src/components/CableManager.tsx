@@ -482,6 +482,7 @@ export const CableManager = memo(function CableManager({
       min_quantity: isNaN(minQty) ? 0 : minQty,
       watts: inventoryForm.watts ? (isNaN(watts) ? undefined : watts) : undefined,
       notes: inventoryForm.notes || undefined,
+      track_items: inventoryForm.track_items,
     });
     if (!error) {
       setIsInventoryDialogOpen(false);
@@ -2869,7 +2870,10 @@ function CategoryItem({
                         />
                       )}
                       {item.name ? (
-                        <span className="font-medium truncate text-sm sm:text-base" title={item.name}>{item.name}</span>
+                        <span className="font-medium truncate text-sm sm:text-base" title={item.name}>
+                          {item.name}
+                          {item.track_items && <span className="ml-1.5 text-xs" title="Поштучный учёт">📦</span>}
+                        </span>
                       ) : (
                         <span className="font-medium w-14 sm:w-16 text-sm sm:text-base">{item.length} м</span>
                       )}
