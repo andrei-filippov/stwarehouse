@@ -282,6 +282,7 @@ export function useChecklistsV2(companyId: string | undefined, activeTab?: strin
     pollingIntervalMs: 120000, // 2 min for checklists
   });
 
+  // Kits: realtime only (no polling). Kits change rarely and are updated manually on tab open.
   useRealtimeWithFallback({
     channelName: 'equipment_kits_changes',
     companyId,
@@ -289,7 +290,7 @@ export function useChecklistsV2(companyId: string | undefined, activeTab?: strin
       { table: 'equipment_kits', filter: `company_id=eq.${companyId}`, onChange: () => fetchKits(true) },
       { table: 'kit_items', onChange: () => fetchKits(true) },
     ],
-    pollingIntervalMs: 300000, // 5 min for kits
+    pollingIntervalMs: 0, // No polling - kits updated manually or via realtime
   });
 
   // Первичная загрузка

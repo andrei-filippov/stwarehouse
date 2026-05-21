@@ -45,6 +45,19 @@
 - На Yandex: polling вместо WebSocket, ограничение concurrency
 - На Yandex: `realtime: false` в конфиге Supabase
 
+### 6. Поштучный учёт (inventory_items)
+- При `track_items=true` выдача/ремонт **ВСЕГДА** работает с конкретными экземплярами (`item_id`)
+- **НИКОГДА** не выдавать по `inventory_id` + `quantity` для `track_items=true` — это ломает учёт
+- QR-сканер различает группу и экземпляр по формату QR (`EQ-XXXX` vs `EQ-XXXX-NN`)
+- Комментарии к экземплярам (`item_comments`) — FK `author_id` ведёт на `auth.users`, не на `profiles`. Имена авторов подтягивать отдельным запросом
+
+### 7. Polling и realtime
+- **Vercel**: только WebSocket (`safeChannel()`), поллинг отключен
+- **Yandex**: smart polling с интервалами (2–5 мин), ночью отключен
+- Данные которые редко меняются (kits) — **без поллинга**, обновлять при открытии вкладки
+- **ВСЕГДА** проверять `document.hidden` перед поллингом
+- Использовать `useRealtimeWithFallback` — unified hook для всех подписок
+
 ## Чек-лист перед коммитом
 
 - [ ] TypeScript компилируется (`npx tsc --noEmit`)

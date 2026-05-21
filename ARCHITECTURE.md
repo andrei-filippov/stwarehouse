@@ -281,6 +281,75 @@ const addItem = async (item) => {
 - `addToSyncQueue()` — добавляет операцию в очередь
 - Очередь хранится в IndexedDB (`syncQueue`)
 
+## Поштучный учёт экземпляров (inventory_items)
+
+### Архитектура
+```
+[cable_inventory] ──1:N──► [inventory_items]
+     │                            │
+     │                            ├── status: available | issued | repair | written_off
+     │                            ├── qr_code: EQ-{groupQR}-{NN}
+     │                            └── condition: excellent | good | fair | poor
+     │
+     └── track_items: BOOLEAN — включает поштучный учёт
+```
+
+### Потоки данных
+
+**Создание экземпляров:**
+```
+[CableManager] → [create_inventory_items RPC] → [inventory_items INSERT]
+                      ↓
+               Автогенерация QR: EQ-{groupQR}-01, EQ-{groupQR}-02, ...
+```
+
+**Выдача экземпляра:**
+```
+[Чекбокс/QR] → [issueCable] → [cable_movements INSERT + item_id]
+                                    ↓
+                              [inventory_items UPDATE status='issued']
+                                    ↓
+                              [Триггер: пересчёт cable_inventory.quantity]
+```
+
+**Возврат экземпляра:**
+```
+[Возврат] → [cable_movements UPDATE is_returned=true]
+                  ↓
+            [inventory_items UPDATE status='available']
+                  ↓
+            [Триггер: пересчёт cable_inventory.quantity]
+```
+
+### Важные ограничения
+- При `track_items=true` выдача через чекбоксы автоматически выбирает свободные экземпляры
+- QR-сканер различает QR группы и QR экземпляра (по формату `EQ-XXXX-NN`)
+- Комментарии к экземплярам (`item_comments`) загружаются без FK join на `profiles` — имена авторов подтягиваются отдельным запросом (FK ведёт на `auth.users`)
+
+## Realtime и Polling
+
+### Архитектура
+```
+[Vercel] ──► WebSocket (Realtime) ──► мгновенные обновления
+[Yandex] ──► HTTP Polling ──► обновления с интервалом
+```
+
+### Интервалы поллинга (Yandex only)
+| Данные | Интервал | Hook |
+|--------|----------|------|
+| Inventory, categories | 5 мин | `useCableInventory` |
+| Movements, repairs | 2 мин | `useCableInventory` |
+| Checklists | 2 мин | `useChecklistsV2` |
+| Estimates | 2 мин | `useEstimates` |
+| Customers, contracts, expenses, incomes | 5 мин | соответствующие hooks |
+| Equipment kits | — | ❌ Нет поллинга — обновляется при открытии вкладки |
+
+### Защита от лишнего трафика
+- `document.hidden` — пауза когда вкладка неактивна
+- Ночные часы (23:00–08:00) — поллинг отключен
+- `isProxyMode()` — поллинг только на Yandex, на Vercel только WebSocket
+- `useRealtimeWithFallback` — unified hook: WebSocket на Vercel, smart polling на Yandex
+
 ## Чек-листы: создание из сметы
 
 ### Поток создания

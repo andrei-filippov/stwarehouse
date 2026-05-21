@@ -61,7 +61,7 @@ export function useRealtimeWithFallback(options: UseRealtimeWithFallbackOptions)
 
     cleanup();
 
-    if (isProxy) {
+    if (isProxy && pollingIntervalMs > 0) {
       // PROXY MODE: Smart polling with visibility check
       const tick = () => {
         // Skip if tab hidden
