@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, memo } from 'react';
+import { useState, useMemo, useCallback, memo, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
@@ -56,6 +56,14 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
   const [view, setView] = useState<CalendarView>('month');
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedEstimate, setSelectedEstimate] = useState<Estimate | null>(null);
+
+  // Debug: log estimates with items
+  useEffect(() => {
+    console.log('[EventCalendar] Estimates count:', estimates.length);
+    estimates.forEach(e => {
+      console.log('[EventCalendar] Estimate:', e.event_name, 'items:', e.items?.length || 0, 'date:', e.event_date);
+    });
+  }, [estimates]);
 
   // Навигация
   const navigatePrev = useCallback(() => {
