@@ -39,18 +39,14 @@ export function useEstimates(companyId: string | undefined, activeTab?: string) 
     if (!companyId) return;
 
     const cacheKey = `fetchEstimates_${companyId}`;
-    console.log('[fetchEstimates] Called, force:', force, 'companyId:', companyId);
     if (!force) {
       const cached = getCached<any[]>(cacheKey);
-      console.log('[fetchEstimates] Cache check:', cached ? `found ${cached.length} estimates` : 'not found');
       if (cached) { 
-        console.log('[fetchEstimates] Using cached estimates, first estimate items:', cached[0]?.items?.length || 0);
         setEstimates(cached); 
         return; 
       }
     }
     if (fetchInProgressRef.current) {
-      console.log('[fetchEstimates] Already in progress, skipping');
       return;
     }
     fetchInProgressRef.current = true;
