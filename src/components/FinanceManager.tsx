@@ -66,15 +66,23 @@ export function FinanceManager({
   const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
   const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
 
-  // Список месяцев для выбора (последние 24 месяца)
+  // Список месяцев для выбора (с февраля 2026)
   const monthOptions = useMemo(() => {
     const options: { value: string; label: string }[] = [];
+    const startYear = 2026;
+    const startMonth = 1; // февраль (0-indexed)
     const today = new Date();
-    for (let i = 0; i < 24; i++) {
-      const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
-      const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      const label = d.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
-      options.push({ value, label });
+    const endYear = today.getFullYear();
+    const endMonth = today.getMonth();
+
+    for (let y = endYear; y >= startYear; y--) {
+      const maxMonth = y === endYear ? endMonth : 11;
+      const minMonth = y === startYear ? startMonth : 0;
+      for (let m = maxMonth; m >= minMonth; m--) {
+        const value = `${y}-${String(m + 1).padStart(2, '0')}`;
+        const label = new Date(y, m, 1).toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
+        options.push({ value, label });
+      }
     }
     return options;
   }, []);
