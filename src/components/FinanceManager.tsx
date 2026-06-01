@@ -110,11 +110,11 @@ export function FinanceManager({
     return estimateIncome + manualIncome;
   }, [estimates, incomes, prevMonth, prevYear]);
 
-  // Расчёт зарплат за месяц (по выплатам из salary_records)
+  // Расчёт зарплат за месяц (по record.month — выплата относится к месяцу начисления)
   const monthlySalary = useMemo(() => {
     return salaryRecords
       .reduce((sum, r) => {
-        const date = r.payment_date ? new Date(r.payment_date) : new Date(r.month + '-01');
+        const date = new Date(r.month + '-01');
         if (date.getMonth() === currentMonth && date.getFullYear() === currentYear) {
           return sum + (r.paid || 0);
         }
@@ -126,7 +126,7 @@ export function FinanceManager({
   const prevMonthSalary = useMemo(() => {
     return salaryRecords
       .reduce((sum, r) => {
-        const date = r.payment_date ? new Date(r.payment_date) : new Date(r.month + '-01');
+        const date = new Date(r.month + '-01');
         if (date.getMonth() === prevMonth && date.getFullYear() === prevYear) {
           return sum + (r.paid || 0);
         }
