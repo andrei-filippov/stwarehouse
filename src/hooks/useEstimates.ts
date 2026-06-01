@@ -74,17 +74,18 @@ export function useEstimates(companyId: string | undefined, activeTab?: string) 
       if (isOnline()) {
         // ОНЛАЙН: загружаем с сервера и мержим с локальными
         try {
-          // Шаг 1: загружаем сметы
+          // Загружаем сметы с items через join (как checklist_items)
           let { data: estimatesData, error: estimatesError } = await supabase
             .from('estimates')
             .select(`
               id, user_id, event_name, venue, event_date, event_start_date, event_end_date,
               total, customer_id, customer_name, created_at, updated_at, status,
-              creator_name, category_order, sections, color, is_editing, editing_by, editing_since, editing_session_id, editor_name
+              creator_name, category_order, sections, color, is_editing, editing_by, editing_since, editing_session_id, editor_name,
+              items:estimate_items(*)
             `)
             .eq('company_id', companyId)
             .order('created_at', { ascending: false })
-            .limit(500); // Защита от перегрузки при большом количестве смет
+            .limit(500);
           
           if (estimatesError) {
             console.error('[fetchEstimates] Error loading estimates:', estimatesError.message, estimatesError.code, estimatesError.details);
@@ -92,7 +93,7 @@ export function useEstimates(companyId: string | undefined, activeTab?: string) 
             debugLog('[fetchEstimates] Trying fallback with minimal columns...');
             const fallback = await supabase
               .from('estimates')
-              .select('id, event_name, venue, event_date, total, status, created_at, updated_at, sections')
+              .select('id, event_name, venue, event_date, total, status, created_at, updated_at, sections, items:estimate_items(*)')
               .eq('company_id', companyId)
               .order('created_at', { ascending: false })
               .limit(500);
@@ -105,48 +106,12 @@ export function useEstimates(companyId: string | undefined, activeTab?: string) 
             estimatesData = fallback.data;
           }
           
-          // Шаг 2: загружаем позиции смет одним запросом
-          // Yandex Cloud Function не справляется с множественными параллельными запросами
-          let itemsData: any[] = [];
-          if (estimatesData && estimatesData.length > 0) {
-            const estimateIds = estimatesData.map(e => e.id);
-            debugLog('[fetchEstimates] Estimates loaded:', estimatesData.length, 'fetching all items...');
-            
-            const { data: items, error: itemsError } = await supabase
-              .from('estimate_items')
-              .select('*')
-              .in('estimate_id', estimateIds)
-              .limit(10000);
-            
-            if (itemsError) {
-              console.error('[fetchEstimates] Error loading items:', itemsError);
-            } else {
-              itemsData = items || [];
-              console.log('[fetchEstimates] Total items loaded:', itemsData.length, 'for', estimateIds.length, 'estimates');
-              if (itemsData.length === 0 && estimateIds.length > 0) {
-                console.log('[fetchEstimates] WARNING: No items found for estimates:', estimateIds);
-              }
-            }
-          }
+          console.log('[fetchEstimates] Loaded estimates with join:', estimatesData?.length, 'first estimate items:', estimatesData?.[0]?.items?.length);
           
-          debugLog('[fetchEstimates] Total items loaded:', itemsData.length);
-          
-          const data = (estimatesData || []).map(estimate => {
-            const estimateIdLower = estimate.id?.toLowerCase?.() || estimate.id;
-            const estimateItems = itemsData.filter((item: any) => {
-              const itemEstimateId = item.estimate_id?.toLowerCase?.() || item.estimate_id;
-              return itemEstimateId === estimateIdLower;
-            });
-            debugLog('[fetchEstimates] Merging estimate:', estimate.id, 'event:', estimate.event_name, 'matched items:', estimateItems.length);
-            // Debug: log estimates with 0 items
-            if (estimateItems.length === 0) {
-              console.log('[fetchEstimates] No items for estimate:', estimate.id, estimate.event_name, 'estimate_id in items:', itemsData.some(i => i.estimate_id === estimate.id));
-            }
-            return {
-              ...estimate,
-              items: estimateItems
-            };
-          });
+          const data = (estimatesData || []).map(estimate => ({
+            ...estimate,
+            items: estimate.items || []
+          }));
           
           // Фильтруем серверные данные - убираем удалённые локально
           const filteredServer = (data || []).filter(e => !isDeleted(e.id));
