@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { Users, Search } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Input } from '../ui/input';
@@ -29,12 +29,6 @@ type SortField = 'name' | 'calculated' | 'paid' | 'balance';
 type SortDir = 'asc' | 'desc';
 
 export function SalaryTab({ staff, companyId, records = [], onAddOrUpdate, onDelete, loading }: SalaryTabProps) {
-  // Логирование для отладки
-  useEffect(() => {
-    console.log('[SalaryTab] records count:', records.length);
-    console.log('[SalaryTab] records:', records.map(r => ({ id: r.id, staff_id: r.staff_id, month: r.month, paid: r.paid, payments: r.payments?.length })));
-  }, [records]);
-
   const [periodMode, setPeriodMode] = useState<PeriodMode>('month');
   const [activeMonth, setActiveMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
@@ -51,10 +45,36 @@ export function SalaryTab({ staff, companyId, records = [], onAddOrUpdate, onDel
   const [recordToDelete, setRecordToDelete] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // ─── Helpers для работы с периодами ───
+
+  // Проверяет, есть ли у записи выплата в указанном месяце
+  const hasPaymentInMonth = (record: SalaryRecord, month: string): boolean => {
+    if (!record.payments || record.payments.length === 0) return false;
+    return record.payments.some(p => p.date.startsWith(month));
+  };
+
+  // Сумма выплат за указанный месяц
+  const getPaidForMonth = (record: SalaryRecord, month: string): number => {
+    if (!record.payments || record.payments.length === 0) return 0;
+    return record.payments
+      .filter(p => p.date.startsWith(month))
+      .reduce((sum, p) => sum + (p.amount || 0), 0);
+  };
+
+  // Сумма проектов за указанный месяц
+  const getCalculatedForMonth = (record: SalaryRecord, month: string): number => {
+    if (!record.projects || record.projects.length === 0) return record.total_calculated || 0;
+    const projectSum = record.projects
+      .filter(p => p.date.startsWith(month))
+      .reduce((sum, p) => sum + (p.amount || 0), 0);
+    return projectSum > 0 ? projectSum : record.total_calculated || 0;
+  };
+
   // Фильтрация записей по периоду
   const filteredRecords = useMemo(() => {
     if (periodMode === 'month') {
-      return records.filter(r => r.month === activeMonth);
+      // Показываем записи где month совпадает ИЛИ есть выплата в этом месяце
+      return records.filter(r => r.month === activeMonth || hasPaymentInMonth(r, activeMonth));
     }
     // Для диапазона фильтруем по payment_date и датам проектов
     const s = new Date(startDate);
@@ -81,8 +101,12 @@ export function SalaryTab({ staff, companyId, records = [], onAddOrUpdate, onDel
   }, [records, periodMode, activeMonth, startDate, endDate]);
 
   // Получаем запись для сотрудника на текущий месяц
+  // Сначала ищем по exact month, если нет — ищем запись с выплатой в этом месяце
   const getRecordForStaff = (staffId: string, month: string): SalaryRecord | undefined => {
-    return records.find(r => r.staff_id === staffId && r.month === month);
+    const exact = records.find(r => r.staff_id === staffId && r.month === month);
+    if (exact) return exact;
+    // Ищем любую запись сотрудника с выплатой в этом месяце
+    return records.find(r => r.staff_id === staffId && hasPaymentInMonth(r, month));
   };
 
   // Добавить проект сотруднику
@@ -221,10 +245,16 @@ export function SalaryTab({ staff, companyId, records = [], onAddOrUpdate, onDel
 
   // Статистика по периоду
   const periodStats = useMemo(() => {
+    if (periodMode === 'month') {
+      const totalCalculated = filteredRecords.reduce((sum, r) => sum + getCalculatedForMonth(r, activeMonth), 0);
+      const totalPaid = filteredRecords.reduce((sum, r) => sum + getPaidForMonth(r, activeMonth), 0);
+      return { totalCalculated, totalPaid, balance: totalCalculated - totalPaid };
+    }
+    // Для диапазона — суммы за весь период записи
     const totalCalculated = filteredRecords.reduce((sum, r) => sum + r.total_calculated, 0);
     const totalPaid = filteredRecords.reduce((sum, r) => sum + r.paid, 0);
     return { totalCalculated, totalPaid, balance: totalCalculated - totalPaid };
-  }, [filteredRecords]);
+  }, [filteredRecords, periodMode, activeMonth]);
 
   // Аналитика по сотрудникам за период
   const staffAnalytics = useMemo(() => {
@@ -240,25 +270,34 @@ export function SalaryTab({ staff, companyId, records = [], onAddOrUpdate, onDel
       const member = staff.find(s => s.id === record.staff_id);
       if (!member) continue;
 
+      const calculated = periodMode === 'month' ? getCalculatedForMonth(record, activeMonth) : record.total_calculated;
+      const paid = periodMode === 'month' ? getPaidForMonth(record, activeMonth) : record.paid;
+      const projCount = periodMode === 'month'
+        ? record.projects.filter(p => p.date.startsWith(activeMonth)).length
+        : record.projects.length;
+      const payCount = periodMode === 'month'
+        ? record.payments.filter(p => p.date.startsWith(activeMonth)).length
+        : record.payments.length;
+
       const existing = map.get(record.staff_id);
       if (existing) {
-        existing.projectsCount += record.projects.length;
-        existing.paymentsCount += record.payments.length;
-        existing.totalCalculated += record.total_calculated;
-        existing.totalPaid += record.paid;
+        existing.projectsCount += projCount;
+        existing.paymentsCount += payCount;
+        existing.totalCalculated += calculated;
+        existing.totalPaid += paid;
       } else {
         map.set(record.staff_id, {
           staff: member,
-          projectsCount: record.projects.length,
-          paymentsCount: record.payments.length,
-          totalCalculated: record.total_calculated,
-          totalPaid: record.paid,
+          projectsCount: projCount,
+          paymentsCount: payCount,
+          totalCalculated: calculated,
+          totalPaid: paid,
         });
       }
     }
 
     return Array.from(map.values()).sort((a, b) => b.totalCalculated - a.totalCalculated);
-  }, [filteredRecords, staff]);
+  }, [filteredRecords, staff, periodMode, activeMonth]);
 
   // Фильтрация и сортировка сотрудников
   // records убран из зависимостей для мягкого обновления — сортировка не сбрасывается при обновлении данных
@@ -278,21 +317,27 @@ export function SalaryTab({ staff, companyId, records = [], onAddOrUpdate, onDel
         case 'name':
           return dir * a.full_name.localeCompare(b.full_name);
         case 'calculated': {
-          const ra = getRecordForStaff(a.id, activeMonth)?.total_calculated || 0;
-          const rb = getRecordForStaff(b.id, activeMonth)?.total_calculated || 0;
-          return dir * (ra - rb);
+          const ra = getRecordForStaff(a.id, activeMonth);
+          const rb = getRecordForStaff(b.id, activeMonth);
+          const ca = ra ? getCalculatedForMonth(ra, activeMonth) : 0;
+          const cb = rb ? getCalculatedForMonth(rb, activeMonth) : 0;
+          return dir * (ca - cb);
         }
         case 'paid': {
-          const ra = getRecordForStaff(a.id, activeMonth)?.paid || 0;
-          const rb = getRecordForStaff(b.id, activeMonth)?.paid || 0;
-          return dir * (ra - rb);
+          const ra = getRecordForStaff(a.id, activeMonth);
+          const rb = getRecordForStaff(b.id, activeMonth);
+          const pa = ra ? getPaidForMonth(ra, activeMonth) : 0;
+          const pb = rb ? getPaidForMonth(rb, activeMonth) : 0;
+          return dir * (pa - pb);
         }
         case 'balance': {
           const ra = getRecordForStaff(a.id, activeMonth);
           const rb = getRecordForStaff(b.id, activeMonth);
-          const ba = (ra?.total_calculated || 0) - (ra?.paid || 0);
-          const bb = (rb?.total_calculated || 0) - (rb?.paid || 0);
-          return dir * (ba - bb);
+          const ca = ra ? getCalculatedForMonth(ra, activeMonth) : 0;
+          const cb = rb ? getCalculatedForMonth(rb, activeMonth) : 0;
+          const pa = ra ? getPaidForMonth(ra, activeMonth) : 0;
+          const pb = rb ? getPaidForMonth(rb, activeMonth) : 0;
+          return dir * ((ca - pa) - (cb - pb));
         }
         default:
           return 0;
@@ -422,11 +467,22 @@ export function SalaryTab({ staff, companyId, records = [], onAddOrUpdate, onDel
         ) : (
           filteredStaff.map((member) => {
             const record = getRecordForStaff(member.id, activeMonth);
+            // Для режима "месяц" создаём адаптированную запись с суммами за выбранный месяц
+            const adaptedRecord = record && periodMode === 'month'
+              ? {
+                  ...record,
+                  total_calculated: getCalculatedForMonth(record, activeMonth),
+                  paid: getPaidForMonth(record, activeMonth),
+                  // Фильтруем проекты и выплаты за выбранный месяц для отображения
+                  projects: record.projects.filter(p => p.date.startsWith(activeMonth)),
+                  payments: record.payments.filter(p => p.date.startsWith(activeMonth)),
+                }
+              : record;
             return (
               <StaffSalaryCard
                 key={member.id}
                 member={member}
-                record={record}
+                record={adaptedRecord}
                 activeMonth={activeMonth}
                 onAddProject={(s) => {
                   setSelectedStaff(s);
