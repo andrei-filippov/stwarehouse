@@ -500,27 +500,47 @@ export function AnalyticsTab({ estimates, salaryRecords = [], staff = [], expens
 
   // ─── Equipment stats ───
   const equipmentStats = useMemo(() => {
-    const map: Record<string, { name: string; category: string; quantity: number; revenue: number; usage: number }> = {};
+    const equipmentMap: Record<string, { name: string; category: string; quantity: number; revenue: number; usage: number }> = {};
+    const servicesMap: Record<string, { name: string; category: string; quantity: number; revenue: number; usage: number }> = {};
 
     filteredEstimates.forEach(est => {
-      const unique = new Set<string>();
+      const uniqueEquipment = new Set<string>();
+      const uniqueServices = new Set<string>();
       (est.items || []).forEach((item: EstimateItem) => {
         const key = item.name?.trim() || item.description?.trim() || 'Неизвестное';
-        if (!map[key]) map[key] = { name: key, category: item.category || 'Без категории', quantity: 0, revenue: 0, usage: 0 };
-        map[key].quantity += item.quantity || 0;
-        map[key].revenue += (item.price || 0) * (item.quantity || 0);
-        unique.add(key);
+        const isService = item.unit === 'услуга' || item.unit === 'человек';
+        const targetMap = isService ? servicesMap : equipmentMap;
+        
+        if (!targetMap[key]) targetMap[key] = { name: key, category: item.category || 'Без категории', quantity: 0, revenue: 0, usage: 0 };
+        targetMap[key].quantity += item.quantity || 0;
+        targetMap[key].revenue += (item.price || 0) * (item.quantity || 0);
+        
+        if (isService) uniqueServices.add(key);
+        else uniqueEquipment.add(key);
       });
-      unique.forEach(key => { if (map[key]) map[key].usage += 1; });
+      uniqueEquipment.forEach(key => { if (equipmentMap[key]) equipmentMap[key].usage += 1; });
+      uniqueServices.forEach(key => { if (servicesMap[key]) servicesMap[key].usage += 1; });
     });
 
-    const list = Object.values(map);
+    const equipmentList = Object.values(equipmentMap);
+    const servicesList = Object.values(servicesMap);
+    
     return {
-      total: list.length,
-      topByRevenue: [...list].sort((a, b) => b.revenue - a.revenue).slice(0, 15),
-      topByUsage: [...list].sort((a, b) => b.usage - a.usage).slice(0, 15),
+      total: equipmentList.length,
+      servicesTotal: servicesList.length,
+      topByRevenue: [...equipmentList].sort((a, b) => b.revenue - a.revenue).slice(0, 15),
+      topByUsage: [...equipmentList].sort((a, b) => b.usage - a.usage).slice(0, 15),
+      topServicesByRevenue: [...servicesList].sort((a, b) => b.revenue - a.revenue).slice(0, 15),
       byCategory: Object.values(
-        list.reduce((acc, item) => {
+        equipmentList.reduce((acc, item) => {
+          if (!acc[item.category]) acc[item.category] = { name: item.category, revenue: 0, quantity: 0 };
+          acc[item.category].revenue += item.revenue;
+          acc[item.category].quantity += item.quantity;
+          return acc;
+        }, {} as Record<string, { name: string; revenue: number; quantity: number }>)
+      ).sort((a, b) => b.revenue - a.revenue),
+      servicesByCategory: Object.values(
+        servicesList.reduce((acc, item) => {
           if (!acc[item.category]) acc[item.category] = { name: item.category, revenue: 0, quantity: 0 };
           acc[item.category].revenue += item.revenue;
           acc[item.category].quantity += item.quantity;
@@ -619,7 +639,7 @@ export function AnalyticsTab({ estimates, salaryRecords = [], staff = [], expens
 
       {/* Sub-tabs */}
       <Tabs value={activeSubTab} onValueChange={(v) => setActiveSubTab(v as AnalyticsSubTab)}>
-        <TabsList className="grid w-full grid-cols-5 lg:w-[600px]">
+        <TabsList className="grid w-full grid-cols-6 lg:w-[720px]">
           <TabsTrigger value="overview" className="gap-1.5 text-xs">
             <LayoutDashboard className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Обзор</span>
@@ -631,6 +651,10 @@ export function AnalyticsTab({ estimates, salaryRecords = [], staff = [], expens
           <TabsTrigger value="equipment" className="gap-1.5 text-xs">
             <Settings2 className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Оборуд.</span>
+          </TabsTrigger>
+          <TabsTrigger value="services" className="gap-1.5 text-xs">
+            <Users className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Услуги</span>
           </TabsTrigger>
           <TabsTrigger value="expenses" className="gap-1.5 text-xs">
             <Receipt className="w-3.5 h-3.5" />
@@ -1032,6 +1056,72 @@ export function AnalyticsTab({ estimates, salaryRecords = [], staff = [], expens
                         </div>
                       </div>
                       <div className="text-right shrink-0">
+                        <Badge variant="secondary" className="text-xs">{item.usage} смет</Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* ========== SERVICES TAB ========== */}
+        <TabsContent value="services" className="space-y-6 mt-6">
+          {/* KPI Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <KPICard title="Позиций услуг" value={String(equipmentStats.servicesTotal)} icon={Users} color="blue" />
+            <KPICard title="Выручка услуг" value={formatCurrency(equipmentStats.servicesByCategory.reduce((s, c) => s + c.revenue, 0))} icon={DollarSign} color="green" />
+            <KPICard title="Категорий услуг" value={String(equipmentStats.servicesByCategory.length)} icon={Settings2} color="purple" />
+            <KPICard
+              title="Средняя выручка"
+              value={formatCurrency(equipmentStats.servicesTotal > 0 ? equipmentStats.servicesByCategory.reduce((s, c) => s + c.revenue, 0) / equipmentStats.servicesTotal : 0)}
+              icon={BarChart3}
+              color="amber"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Revenue by category */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Выручка по категориям услуг</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {equipmentStats.servicesByCategory.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={250}>
+                    <BarChart data={equipmentStats.servicesByCategory} layout="vertical">
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(217 19% 22%)" horizontal={false} />
+                      <XAxis type="number" tick={{ fill: 'hsl(215 20% 65%)', fontSize: 11 }} axisLine={{ stroke: 'hsl(217 19% 22%)' }} tickFormatter={v => formatCurrency(v as number)} />
+                      <YAxis type="category" dataKey="name" tick={{ fill: 'hsl(210 40% 98%)', fontSize: 11 }} axisLine={{ stroke: 'hsl(217 19% 22%)' }} width={130} />
+                      <Tooltip formatter={(v: number) => [formatCurrencyFull(v), 'Выручка']} contentStyle={tooltipStyle} labelStyle={tooltipLabelStyle} />
+                      <Bar dataKey="revenue" fill="#ec4899" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-[250px] flex items-center justify-center text-muted-foreground">Нет данных</div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Top services table */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Топ услуг по выручке</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 max-h-[350px] overflow-y-auto scrollbar-dark">
+                  {equipmentStats.topServicesByRevenue.map((item, idx) => (
+                    <div key={item.name} className="flex items-center justify-between p-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className="text-sm font-medium text-muted-foreground w-5">{idx + 1}</span>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate" title={item.name}>{item.name}</p>
+                          <p className="text-xs text-muted-foreground">{item.category}</p>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-sm font-semibold">{formatCurrency(item.revenue)}</p>
                         <Badge variant="secondary" className="text-xs">{item.usage} смет</Badge>
                       </div>
                     </div>
