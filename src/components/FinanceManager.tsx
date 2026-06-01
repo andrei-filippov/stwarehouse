@@ -1,9 +1,16 @@
 import { useState, useMemo } from 'react';
-import { DollarSign, TrendingUp, TrendingDown, Users, BarChart3, Calendar, Infinity } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, Users, BarChart3, Calendar, Infinity, ChevronDown } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from './ui/select';
 import { IncomeTab } from './finance/IncomeTab';
 import { ExpensesTab } from './finance/ExpensesTab';
 import { SalaryTab } from './finance/SalaryTab';
@@ -46,17 +53,36 @@ export function FinanceManager({
   const [activeTab, setActiveTab] = useState('income');
   const [summaryMode, setSummaryMode] = useState<'month' | 'all'>('month');
 
+  // Выбор месяца для отображения
+  const now = new Date();
+  const [selectedMonth, setSelectedMonth] = useState<string>(
+    `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  );
+
+  // Парсим выбранный месяц
+  const [selectedYear, selectedMonthNum] = selectedMonth.split('-').map(Number);
+  const currentMonth = selectedMonthNum - 1;
+  const currentYear = selectedYear;
+  const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+  const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+
+  // Список месяцев для выбора (последние 24 месяца)
+  const monthOptions = useMemo(() => {
+    const options: { value: string; label: string }[] = [];
+    const today = new Date();
+    for (let i = 0; i < 24; i++) {
+      const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const label = d.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
+      options.push({ value, label });
+    }
+    return options;
+  }, []);
+
   // Фильтруем подтвержденные/завершенные сметы для доходов
   const completedEstimates = estimates.filter(e => 
     e.status === 'completed' || e.status === 'pending' || e.status === 'approved'
   );
-
-  // Получаем текущий месяц и предыдущий
-  const now = new Date();
-  const currentMonth = now.getMonth();
-  const currentYear = now.getFullYear();
-  const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
-  const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
 
   // ========== МЕСЯЧНЫЕ РАСЧЁТЫ ==========
 
@@ -259,30 +285,47 @@ export function FinanceManager({
           <p className="text-muted-foreground mt-1">Управление доходами, расходами и зарплатами</p>
         </div>
 
-        {/* Переключатель Месяц / Всё время */}
-        <div className="flex items-center gap-2 bg-muted rounded-lg p-1">
-          <button
-            onClick={() => setSummaryMode('month')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors ${
-              isMonthMode 
-                ? 'bg-background shadow-sm font-medium text-foreground' 
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Calendar className="w-3.5 h-3.5" />
-            Месяц
-          </button>
-          <button
-            onClick={() => setSummaryMode('all')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors ${
-              !isMonthMode 
-                ? 'bg-background shadow-sm font-medium text-foreground' 
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Infinity className="w-3.5 h-3.5" />
-            Всё время
-          </button>
+        {/* Переключатель Месяц / Всё время + выбор месяца */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 bg-muted rounded-lg p-1">
+            <button
+              onClick={() => setSummaryMode('month')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors ${
+                isMonthMode 
+                  ? 'bg-background shadow-sm font-medium text-foreground' 
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Calendar className="w-3.5 h-3.5" />
+              Месяц
+            </button>
+            <button
+              onClick={() => setSummaryMode('all')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors ${
+                !isMonthMode 
+                  ? 'bg-background shadow-sm font-medium text-foreground' 
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Infinity className="w-3.5 h-3.5" />
+              Всё время
+            </button>
+          </div>
+
+          {isMonthMode && (
+            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+              <SelectTrigger className="w-[180px] h-8 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {monthOptions.map(opt => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
       </div>
 
