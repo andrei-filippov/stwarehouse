@@ -232,7 +232,7 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
     dayEstimates.forEach(estimate => {
       estimate.items?.forEach(item => {
         // Skip services and personnel - they don't occupy physical equipment
-        if (item.equipment_id && item.unit !== 'услуга' && item.unit !== 'человек') {
+        if (item.equipment_id && item.unit !== 'услуга' && item.unit !== 'человек' && item.category !== 'Услуги специалистов/транспорт') {
           const currentQty = occupiedEquipment.get(item.equipment_id) || 0;
           occupiedEquipment.set(item.equipment_id, currentQty + item.quantity);
         }

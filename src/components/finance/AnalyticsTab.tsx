@@ -505,7 +505,9 @@ export function AnalyticsTab({ estimates, salaryRecords = [], staff = [], expens
       const uniqueServices = new Set<string>();
       (est.items || []).forEach((item: EstimateItem) => {
         const key = item.name?.trim() || item.description?.trim() || 'Неизвестное';
-        const isService = item.unit === 'услуга' || item.unit === 'человек';
+        // Услуги: по unit ИЛИ по категории "Услуги специалистов/транспорт"
+        const isService = item.unit === 'услуга' || item.unit === 'человек' || 
+          item.category === 'Услуги специалистов/транспорт';
         const targetMap = isService ? servicesMap : equipmentMap;
         
         if (!targetMap[key]) targetMap[key] = { name: key, category: item.category || 'Без категории', quantity: 0, revenue: 0, usage: 0 };
