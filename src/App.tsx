@@ -674,10 +674,15 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
 
           {activeTab === 'calendar' && (
             <LazyComponent>
-              <EventCalendar
-                estimates={estimates}
-                equipment={equipment}
-              />
+              {(() => {
+                console.log('[App] Passing estimates to EventCalendar:', estimates.length, 'estimates with items:', estimates.filter(e => e.items && e.items.length > 0).length);
+                return (
+                  <EventCalendar
+                    estimates={estimates}
+                    equipment={equipment}
+                  />
+                );
+              })()}
             </LazyComponent>
           )}
 
