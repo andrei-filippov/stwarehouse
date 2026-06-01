@@ -458,8 +458,8 @@ export function AnalyticsTab({ estimates, salaryRecords = [], staff = [], expens
     const completedTotal = filteredEstimates.filter(e => e.status === 'completed').reduce((s, e) => s + (e.total || 0), 0);
     const avgCheck = completed > 0 ? completedTotal / completed : 0;
 
-    // Conversion: from approved to completed
-    const conversion = (approved + completed) > 0 ? (completed / (approved + completed)) * 100 : 0;
+    // Conversion: completed from all estimates
+    const conversion = total > 0 ? (completed / total) * 100 : 0;
 
     return { total, completed, approved, pending, draft, cancelled, avgCheck, conversion, completedTotal };
   }, [filteredEstimates]);
