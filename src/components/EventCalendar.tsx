@@ -227,18 +227,27 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
     const dateStr = format(date, 'yyyy-MM-dd');
     const dayEstimates = estimatesByDate.get(dateStr) || [];
     
+    console.log('[getEquipmentAvailability] Date:', dateStr, 'estimates:', dayEstimates.length);
+    
     const occupiedEquipment = new Map<string, number>();
     
     dayEstimates.forEach(estimate => {
+      console.log('[getEquipmentAvailability] Estimate:', estimate.event_name, 'items:', estimate.items?.length);
       estimate.items?.forEach(item => {
-        const currentQty = occupiedEquipment.get(item.equipment_id) || 0;
-        occupiedEquipment.set(item.equipment_id, currentQty + item.quantity);
+        console.log('[getEquipmentAvailability] Item:', item.name, 'equipment_id:', item.equipment_id, 'qty:', item.quantity);
+        if (item.equipment_id) {
+          const currentQty = occupiedEquipment.get(item.equipment_id) || 0;
+          occupiedEquipment.set(item.equipment_id, currentQty + item.quantity);
+        }
       });
     });
+
+    console.log('[getEquipmentAvailability] Occupied:', Array.from(occupiedEquipment.entries()));
 
     return equipment.map(eq => {
       const occupied = occupiedEquipment.get(eq.id) || 0;
       const available = eq.quantity - occupied;
+      console.log('[getEquipmentAvailability] Equipment:', eq.name, 'total:', eq.quantity, 'occupied:', occupied, 'available:', available);
       return {
         ...eq,
         occupied,
