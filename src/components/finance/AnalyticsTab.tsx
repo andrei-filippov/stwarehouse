@@ -334,10 +334,7 @@ export function AnalyticsTab({ estimates, salaryRecords = [], staff = [], expens
 
   const filteredSalaryRecords = useMemo(() => {
     if (period.type === 'all') return salaryRecords;
-    return salaryRecords.filter(r => {
-      if (r.payment_date) return isDateInPeriod(r.payment_date, period);
-      return isMonthInPeriod(r.month, period);
-    });
+    return salaryRecords.filter(r => isMonthInPeriod(r.month, period));
   }, [salaryRecords, period]);
 
   // ─── Overview metrics ───
