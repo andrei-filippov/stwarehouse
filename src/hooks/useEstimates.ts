@@ -116,6 +116,10 @@ export function useEstimates(companyId: string | undefined, activeTab?: string) 
             } else {
               itemsData = items || [];
               debugLog('[fetchEstimates] Total items loaded:', itemsData.length);
+              // Debug: log first few items to check structure
+              if (itemsData.length > 0) {
+                console.log('[fetchEstimates] Sample item:', itemsData[0]);
+              }
             }
           }
           
@@ -128,6 +132,10 @@ export function useEstimates(companyId: string | undefined, activeTab?: string) 
               return itemEstimateId === estimateIdLower;
             });
             debugLog('[fetchEstimates] Merging estimate:', estimate.id, 'event:', estimate.event_name, 'matched items:', estimateItems.length);
+            // Debug: log estimates with 0 items
+            if (estimateItems.length === 0) {
+              console.log('[fetchEstimates] No items for estimate:', estimate.id, estimate.event_name, 'estimate_id in items:', itemsData.some(i => i.estimate_id === estimate.id));
+            }
             return {
               ...estimate,
               items: estimateItems
