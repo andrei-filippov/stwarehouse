@@ -139,54 +139,6 @@ function isMonthInPeriod(monthKey: string, period: PeriodFilter): boolean {
   }
 }
 
-// ─── Salary helpers ───
-
-// Сумма выплат за период (для month — выплаты в этом месяце, для остальных — все выплаты если запись попадает в период)
-function getSalaryPaidForPeriod(record: SalaryRecord, period: PeriodFilter): number {
-  if (period.type === 'all') return record.paid || 0;
-  if (!record.payments || record.payments.length === 0) return 0;
-
-  if (period.type === 'month') {
-    return record.payments
-      .filter(p => p.date.startsWith(period.value))
-      .reduce((sum, p) => sum + (p.amount || 0), 0);
-  }
-
-  // Для quarter/year/range — фильтруем по дате выплаты
-  return record.payments
-    .filter(p => isDateInPeriod(p.date, period))
-    .reduce((sum, p) => sum + (p.amount || 0), 0);
-}
-
-// Сумма начислений за период (проекты в периоде)
-function getSalaryCalculatedForPeriod(record: SalaryRecord, period: PeriodFilter): number {
-  if (period.type === 'all') return record.total_calculated || 0;
-  if (!record.projects || record.projects.length === 0) return record.total_calculated || 0;
-
-  if (period.type === 'month') {
-    const projSum = record.projects
-      .filter(p => p.date.startsWith(period.value))
-      .reduce((sum, p) => sum + (p.amount || 0), 0);
-    return projSum > 0 ? projSum : record.total_calculated || 0;
-  }
-
-  // Для quarter/year/range
-  const projSum = record.projects
-    .filter(p => isDateInPeriod(p.date, period))
-    .reduce((sum, p) => sum + (p.amount || 0), 0);
-  return projSum > 0 ? projSum : record.total_calculated || 0;
-}
-
-// Проверяет, есть ли у записи выплата в периоде
-function hasSalaryPaymentInPeriod(record: SalaryRecord, period: PeriodFilter): boolean {
-  if (period.type === 'all') return true;
-  if (!record.payments || record.payments.length === 0) return false;
-  if (period.type === 'month') {
-    return record.payments.some(p => p.date.startsWith(period.value));
-  }
-  return record.payments.some(p => isDateInPeriod(p.date, period));
-}
-
 function formatCurrency(value: number) {
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M ₽`;
   if (value >= 1_000) return `${(value / 1_000).toFixed(0)}K ₽`;
@@ -382,12 +334,9 @@ export function AnalyticsTab({ estimates, salaryRecords = [], staff = [], expens
 
   const filteredSalaryRecords = useMemo(() => {
     if (period.type === 'all') return salaryRecords;
-    // Показываем записи где month попадает в период ИЛИ есть выплата в периоде
     return salaryRecords.filter(r => {
-      if (isMonthInPeriod(r.month, period)) return true;
-      if (hasSalaryPaymentInPeriod(r, period)) return true;
-      if (r.payment_date && isDateInPeriod(r.payment_date, period)) return true;
-      return false;
+      if (r.payment_date) return isDateInPeriod(r.payment_date, period);
+      return isMonthInPeriod(r.month, period);
     });
   }, [salaryRecords, period]);
 
@@ -399,14 +348,13 @@ export function AnalyticsTab({ estimates, salaryRecords = [], staff = [], expens
     const totalIncome = estimateIncome + manualIncome;
 
     const totalExpenses = filteredExpenses.reduce((s, e) => s + (e.amount || 0), 0);
-    // Считаем зарплаты ТОЛЬКО за период (по выплатам), а не всю запись
-    const totalSalary = filteredSalaryRecords.reduce((s, r) => s + getSalaryPaidForPeriod(r, period), 0);
-    const totalSalaryCalc = filteredSalaryRecords.reduce((s, r) => s + getSalaryCalculatedForPeriod(r, period), 0);
+    const totalSalary = filteredSalaryRecords.reduce((s, r) => s + (r.paid || 0), 0);
+    const totalSalaryCalc = filteredSalaryRecords.reduce((s, r) => s + (r.total_calculated || 0), 0);
     const profit = totalIncome - totalExpenses - totalSalary;
     const margin = totalIncome > 0 ? (profit / totalIncome) * 100 : 0;
 
     return { totalIncome, totalExpenses, totalSalary, totalSalaryCalc, profit, margin, estimateIncome, manualIncome };
-  }, [filteredEstimates, filteredExpenses, filteredIncomes, filteredSalaryRecords, period]);
+  }, [filteredEstimates, filteredExpenses, filteredIncomes, filteredSalaryRecords]);
 
   // ─── Monthly P&L data (for charts) ───
   const monthlyPL = useMemo(() => {
@@ -606,19 +554,13 @@ export function AnalyticsTab({ estimates, salaryRecords = [], staff = [], expens
   const staffStats = useMemo(() => {
     const map = new Map<string, { staffId: string; paid: number; calculated: number; projects: number }>();
     filteredSalaryRecords.forEach(r => {
-      const paid = getSalaryPaidForPeriod(r, period);
-      const calculated = getSalaryCalculatedForPeriod(r, period);
-      const projCount = period.type === 'month'
-        ? r.projects?.filter(p => p.date.startsWith(period.value)).length || 0
-        : r.projects?.length || 0;
-
       const ex = map.get(r.staff_id);
       if (ex) {
-        ex.paid += paid;
-        ex.calculated += calculated;
-        ex.projects += projCount;
+        ex.paid += r.paid || 0;
+        ex.calculated += r.total_calculated || 0;
+        ex.projects += r.projects?.length || 0;
       } else {
-        map.set(r.staff_id, { staffId: r.staff_id, paid, calculated, projects: projCount });
+        map.set(r.staff_id, { staffId: r.staff_id, paid: r.paid || 0, calculated: r.total_calculated || 0, projects: r.projects?.length || 0 });
       }
     });
 
@@ -628,7 +570,7 @@ export function AnalyticsTab({ estimates, salaryRecords = [], staff = [], expens
         return { ...item, name: member?.full_name || 'Неизвестный', position: member?.position || '' };
       })
       .sort((a, b) => b.paid - a.paid);
-  }, [filteredSalaryRecords, staff, period]);
+  }, [filteredSalaryRecords, staff]);
 
   // ─── Monthly salary data ───
   const monthlySalary = useMemo(() => {
