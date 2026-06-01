@@ -39,12 +39,18 @@ export function useEstimates(companyId: string | undefined, activeTab?: string) 
     if (!companyId) return;
 
     const cacheKey = `fetchEstimates_${companyId}`;
+    console.log('[fetchEstimates] Called, force:', force, 'companyId:', companyId);
     if (!force) {
       const cached = getCached<any[]>(cacheKey);
-      if (cached) { setEstimates(cached); return; }
+      console.log('[fetchEstimates] Cache check:', cached ? `found ${cached.length} estimates` : 'not found');
+      if (cached) { 
+        console.log('[fetchEstimates] Using cached estimates, first estimate items:', cached[0]?.items?.length || 0);
+        setEstimates(cached); 
+        return; 
+      }
     }
     if (fetchInProgressRef.current) {
-      debugLog('[fetchEstimates] Already in progress, skipping');
+      console.log('[fetchEstimates] Already in progress, skipping');
       return;
     }
     fetchInProgressRef.current = true;
@@ -115,10 +121,9 @@ export function useEstimates(companyId: string | undefined, activeTab?: string) 
               console.error('[fetchEstimates] Error loading items:', itemsError);
             } else {
               itemsData = items || [];
-              debugLog('[fetchEstimates] Total items loaded:', itemsData.length);
-              // Debug: log first few items to check structure
-              if (itemsData.length > 0) {
-                console.log('[fetchEstimates] Sample item:', itemsData[0]);
+              console.log('[fetchEstimates] Total items loaded:', itemsData.length, 'for', estimateIds.length, 'estimates');
+              if (itemsData.length === 0 && estimateIds.length > 0) {
+                console.log('[fetchEstimates] WARNING: No items found for estimates:', estimateIds);
               }
             }
           }
