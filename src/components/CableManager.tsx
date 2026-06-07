@@ -52,9 +52,7 @@ import { QRScanner } from './QRScanner';
 import InventoryItemsManager from './InventoryItemsManager';
 import { supabase } from '../lib/supabase';
 import { useUrlScanCode, clearUrlScanCode } from '../hooks/useUrlScanCode';
-import { format } from 'date-fns';
 import * as XLSX from 'xlsx';
-import { ru } from 'date-fns/locale';
 import {
   DndContext,
   closestCenter,
@@ -73,76 +71,9 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { logger } from '../lib/logger';
+import { safeFormatDate, getCategoryStatsWithChildren, getAllCategoryIds } from './cable/CableManager.utils';
+import type { SelectedItem, CableManagerProps } from './cable/CableManager.types';
 
-// Безопасное форматирование даты — не падает при invalid date
-function safeFormatDate(date: string | Date | null | undefined, fmt: string, options?: { locale?: Locale }): string {
-  if (!date) return '—';
-  const d = typeof date === 'string' ? new Date(date) : date;
-  if (isNaN(d.getTime())) return '—';
-  try {
-    return format(d, fmt, options);
-  } catch {
-    return '—';
-  }
-}
-
-interface SelectedItem {
-  inventory_id: string;
-  category_id: string;
-  length: number;
-  name?: string;
-  available: number;
-  quantity: number;
-}
-
-interface CableManagerProps {
-  categories: CableCategory[];
-  inventory: CableInventory[];
-  movements: CableMovement[];
-  repairs: EquipmentRepair[];
-  inventoryItems?: InventoryItem[];
-  stats: Record<string, { totalLength: number; totalQty: number; issuedQty: number; repairQty: number }>;
-  loading?: boolean;
-  onAddCategory: (data: Omit<CableCategory, 'id' | 'created_at' | 'updated_at' | 'user_id'>) => Promise<{ error: any }>;
-  onUpdateCategory: (id: string, updates: Partial<CableCategory>) => Promise<{ error: any }>;
-  onDeleteCategory: (id: string) => Promise<{ error: any }>;
-  onReorderCategories?: (categoryIds: string[]) => Promise<{ error: any }>;
-  onImportFromEquipment?: () => Promise<{ error: any }>;
-  onUpsertInventory: (data: Omit<CableInventory, 'id' | 'created_at' | 'updated_at'>) => Promise<{ error: any }>;
-  onUpdateInventoryQty?: (id: string, quantity: number) => Promise<{ error: any }>;
-  onDeleteInventory: (id: string) => Promise<{ error: any }>;
-  onIssueCable: (data: {
-    category_id: string;
-    inventory_id: string;
-    length?: number;
-    equipment_name?: string;
-    quantity: number;
-    issued_to: string;
-    contact?: string;
-    item_id?: string;
-  }) => Promise<{ error: any }>;
-  onReturnCable: (movementId: string) => Promise<{ error: any }>;
-  onSendToRepair?: (repair: Partial<EquipmentRepair>) => Promise<{ error: any }>;
-  onUpdateRepairStatus?: (repairId: string, status: EquipmentRepair['status'], returnedDate?: string) => Promise<{ error: any }>;
-  onDeleteRepair?: (repairId: string) => Promise<{ error: any }>;
-  onRefresh?: () => void; // Обновление данных после операций
-  fabAction?: number;
-  // Для переноса во вкладку "Оборудование"
-  onTransferToEquipment?: (items: { 
-    name: string; 
-    description: string; 
-    quantity: number; 
-    category: string;
-    price: number;
-    unit: string;
-  }[]) => Promise<{ error: any }>;
-  targetEquipmentCategories?: { id: string; name: string }[];
-  existingEquipment?: { name: string; category: string }[];
-  // Комплекты для QR-сканирования
-  kits?: EquipmentKit[];
-  // Company ID для управления экземплярами
-  companyId?: string;
-}
 
 export const CableManager = memo(function CableManager({
   categories,
@@ -2563,43 +2494,10 @@ export const CableManager = memo(function CableManager({
 });
 
 
-      
-// Компонент для сортируемой категории (drag-and-drop)
-interface SortableCategoryItemProps {
-  category: CableCategory & { children?: CableCategory[] };
-  inventory: CableInventory[];
-  movements: CableMovement[];
-  repairs: EquipmentRepair[];
-  stats: Record<string, { totalLength: number; totalQty: number; issuedQty: number; repairQty: number }>;
-  selectedItems: SelectedItem[];
-  expandedCategories: Set<string>;
-  onToggleCategory: (id: string) => void;
-  onToggleItem: (item: CableInventory) => void;
-  onUpdateInventoryQty: (id: string, newQty: number, length: number) => void;
-  onDeleteInventory: (id: string) => Promise<{ error: any }>;
-  onAddInventory: (categoryId: string) => void;
-  onEditInventory: (item: CableInventory, categoryName: string) => void;
-  onEditCategory: (cat: CableCategory) => void;
-  onDeleteCategory: (id: string) => Promise<{ error: any }>;
-  onSendToRepair?: (categoryId: string, item: CableInventory, categoryName: string) => void;
-  onShowQRCode?: (item: CableInventory) => void;
-  categoryName?: string;
-  level?: number;
-  isSortable?: boolean;
-  // Для выбора оборудования
-  selectionMode?: boolean;
-  selectedInventoryIds?: Set<string>;
-  onSelectInventory?: (id: string, selected: boolean) => void;
-  onSelectAllInCategory?: (categoryId: string, selected: boolean) => void;
-  // Для управления экземплярами
-  expandedInventory?: string | null;
-  onToggleInventoryItems: (id: string) => void;
-  companyId?: string;
-  onRefresh?: () => void;
-  // Для подсчета из inventory_items
-  inventoryItems?: InventoryItem[];
-}
 
+import type { SortableCategoryItemProps, CategoryItemProps, CategoryListProps } from './cable/CableManager.types';
+
+// Компонент для сортируемой категории (drag-and-drop)
 function SortableCategoryItem({
   category,
   inventory,
@@ -2685,41 +2583,6 @@ function SortableCategoryItem({
 }
 
 // Компонент для отображения одной категории (без drag-and-drop логики)
-interface CategoryItemProps {
-  category: CableCategory & { children?: CableCategory[] };
-  inventory: CableInventory[];
-  movements: CableMovement[];
-  repairs: EquipmentRepair[];
-  stats: Record<string, { totalLength: number; totalQty: number; issuedQty: number; repairQty: number }>;
-  selectedItems: SelectedItem[];
-  expandedCategories: Set<string>;
-  onToggleCategory: (id: string) => void;
-  onToggleItem: (item: CableInventory) => void;
-  onUpdateInventoryQty: (id: string, newQty: number, length: number) => void;
-  onDeleteInventory: (id: string) => Promise<{ error: any }>;
-  onAddInventory: (categoryId: string) => void;
-  onEditInventory: (item: CableInventory, categoryName: string) => void;
-  onEditCategory: (cat: CableCategory) => void;
-  onDeleteCategory: (id: string) => Promise<{ error: any }>;
-  onSendToRepair?: (categoryId: string, item: CableInventory, categoryName: string) => void;
-  onShowQRCode?: (item: CableInventory) => void;
-  categoryName?: string;
-  level?: number;
-  dragHandleProps?: any;
-  // Для выбора оборудования
-  selectionMode?: boolean;
-  selectedInventoryIds?: Set<string>;
-  onSelectInventory?: (id: string, selected: boolean) => void;
-  onSelectAllInCategory?: (categoryId: string, selected: boolean) => void;
-  // Для управления экземплярами
-  expandedInventory?: string | null;
-  onToggleInventoryItems: (id: string) => void;
-  companyId?: string;
-  onRefresh?: () => void;
-  // Для подсчета из inventory_items
-  inventoryItems?: InventoryItem[];
-}
-
 function CategoryItem({
   category,
   inventory,
@@ -3139,36 +3002,6 @@ function CategoryItem({
 }
 
 // Компонент для отображения списка категорий с поддержкой drag-and-drop
-interface CategoryListProps {
-  categories: (CableCategory & { children?: CableCategory[]; level?: number })[];
-  inventory: CableInventory[];
-  movements: CableMovement[];
-  repairs: EquipmentRepair[];
-  stats: Record<string, { totalLength: number; totalQty: number; issuedQty: number; repairQty: number }>;
-  selectedItems: SelectedItem[];
-  expandedCategories: Set<string>;
-  onToggleCategory: (id: string) => void;
-  onToggleItem: (item: CableInventory) => void;
-  onUpdateInventoryQty: (id: string, newQty: number, length: number) => void;
-  onDeleteInventory: (id: string) => Promise<{ error: any }>;
-  onAddInventory: (categoryId: string) => void;
-  onEditInventory: (item: CableInventory, categoryName: string) => void;
-  onEditCategory: (cat: CableCategory) => void;
-  onDeleteCategory: (id: string) => Promise<{ error: any }>;
-  onSendToRepair?: (categoryId: string, item: CableInventory, categoryName: string) => void;
-  onShowQRCode?: (item: CableInventory) => void;
-  onReorderCategories?: (categoryIds: string[]) => Promise<{ error: any }>;
-  categoryName?: string;
-  level?: number;
-  // Для выбора оборудования
-  selectionMode?: boolean;
-  selectedInventoryIds?: Set<string>;
-  onSelectInventory?: (id: string, selected: boolean) => void;
-  onSelectAllInCategory?: (categoryId: string, selected: boolean) => void;
-  // Для подсчета из inventory_items
-  inventoryItems?: InventoryItem[];
-}
-
 function CategoryList({
   categories,
   inventory,
@@ -3326,42 +3159,6 @@ function CategoryList({
       {categories.map(renderCategory)}
     </>
   );
-}
-
-// Вспомогательная функция для подсчета статистики категории
-function getCategoryStatsWithChildren(
-  cat: CableCategory & { children?: CableCategory[] },
-  inventory: CableInventory[],
-  movements: CableMovement[],
-  repairs: EquipmentRepair[]
-) {
-  const allIds = getAllCategoryIds(cat);
-  const catInventory = inventory.filter(i => allIds.includes(i.category_id));
-  
-  const totalLength = catInventory.reduce((sum, i) => sum + ((i.length || 0) * i.quantity), 0);
-  const totalQty = catInventory.reduce((sum, i) => sum + i.quantity, 0);
-  const hasCables = catInventory.some(i => i.length && i.length > 0);
-  const hasEquipment = catInventory.some(i => !i.length);
-  
-  const issuedQty = movements
-    .filter(m => !m.is_returned && allIds.includes(m.category_id))
-    .reduce((sum, m) => sum + m.quantity, 0);
-  
-  const repairQty = repairs
-    .filter(r => r.status === 'in_repair' && allIds.includes(r.category_id))
-    .reduce((sum, r) => sum + r.quantity, 0);
-  
-  return { totalLength, totalQty, issuedQty, repairQty, hasCables, hasEquipment };
-}
-
-function getAllCategoryIds(cat: CableCategory & { children?: CableCategory[] }): string[] {
-  const ids = [cat.id];
-  if (cat.children) {
-    cat.children.forEach(child => {
-      ids.push(...getAllCategoryIds(child));
-    });
-  }
-  return ids;
 }
 
 export default CableManager;
