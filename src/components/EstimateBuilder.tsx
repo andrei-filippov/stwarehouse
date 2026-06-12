@@ -1347,7 +1347,7 @@ export function EstimateBuilder({
               {/* Список позиций сметы */}
               <div className="flex-1 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
                 <div className="p-2 space-y-3 pb-32">
-                  {groupedItems.length === 0 ? (
+                  {items.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground/70">
                       <p>Добавьте оборудование</p>
                       <Button 
@@ -1359,187 +1359,416 @@ export function EstimateBuilder({
                       </Button>
                     </div>
                   ) : (
-                    groupedItems.map(([category, categoryItems]) => (
-                      <Card key={category} className={cn(
-                        "overflow-hidden transition-all",
-                        isDragging && draggedCategory === category && "shadow-lg scale-[1.02] ring-2 ring-blue-400 z-10"
-                      )}>
-                        <CardHeader 
-                          className={cn(
-                            "p-2 cursor-move touch-manipulation transition-all",
-                            isDragging && draggedCategory === category ? "bg-primary/20" : "bg-muted",
-                            isDragging && dropTarget === category && "bg-primary/10 ring-2 ring-blue-300"
-                          )}
-                          data-category={category}
-                          draggable
-                          onDragStart={() => handleDragStart(category)}
-                          onDragOver={(e) => handleDragOver(e, category)}
-                          onDrop={(e) => handleDrop(e, category)}
-                          onDragEnd={handleDragEnd}
-                          onTouchStart={(e) => handleTouchStart(e, category)}
-                          onTouchMove={(e) => handleTouchMove(e, category)}
-                          onTouchEnd={handleTouchEnd}
-                        >
-                          <div className="flex items-center justify-between">
-                            <CardTitle className="text-sm flex items-center gap-2">
-                              <GripVertical className="w-4 h-4 text-muted-foreground/70" />
-                              {category}
-                              <Badge variant="secondary" className="text-xs">{categoryItems.length}</Badge>
-                            </CardTitle>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => toggleCategory(category)}
-                              className="h-7 w-7 p-0"
-                            >
-                              {collapsedCategories.has(category) ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
-                            </Button>
-                          </div>
-                        </CardHeader>
+                    <>
+                      {/* Секции */}
+                      {sections.map(section => {
+                        const sectionItems = items.filter(item => item.section_id === section.id);
+                        const sectionGrouped = sectionItems.reduce((acc, item) => {
+                          if (!acc[item.category]) acc[item.category] = [];
+                          acc[item.category].push(item);
+                          return acc;
+                        }, {} as Record<string, EstimateItem[]>);
+                        const orderedCats = categoryOrder.filter(cat => sectionGrouped[cat]);
+                        const remainingCats = Object.keys(sectionGrouped).filter(cat => !categoryOrder.includes(cat));
+                        const sectionCategories = [...orderedCats, ...remainingCats];
                         
-                        {!collapsedCategories.has(category) && (
-                          <CardContent className="p-0">
-                            <div className="divide-y">
-                              {categoryItems.map((item, idx) => {
-                                const itemTotal = item.price * item.quantity * (item.coefficient || 1);
-                                
-                                return (
-                                  <div key={item.id} className="p-3 bg-card">
-                                    <div className="flex items-start gap-2 mb-2">
-                                      <span className="text-xs text-muted-foreground/70 w-5 shrink-0">{idx + 1}</span>
-                                      <div className="flex-1 min-w-0">
-                                        <p className="font-medium text-sm">{item.name}</p>
-                                        {/* Описание позиции */}
-                                        <Input
-                                          placeholder="Описание (необязательно)"
-                                          value={item.description || ''}
-                                          onChange={(e) => handleUpdateItem(item.id, { description: e.target.value })}
-                                          className="h-7 mt-1.5 text-xs bg-muted/50 border-0 focus:bg-muted focus:ring-1 focus:ring-blue-500"
-                                        />
-                                      </div>
-                                      {/* Кнопка удаления позиции */}
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => handleRemoveItem(item.id)}
-                                        className="h-7 w-7 p-0 text-red-500 shrink-0"
-                                      >
-                                        <Trash2 className="w-4 h-4" />
-                                      </Button>
-                                    </div>
-                                    
-                                    <div className="flex items-center gap-2 pl-7">
-                                      {/* Количество с кнопками +/- */}
-                                      <div className="flex items-center bg-muted rounded-lg p-0.5">
-                                        <button
-                                          onClick={() => handleUpdateItem(item.id, { quantity: Math.max(0, item.quantity - 1) })}
-                                          className="w-8 h-8 flex items-center justify-center bg-card rounded-md shadow-sm text-muted-foreground active:bg-muted"
-                                        >
-                                          −
-                                        </button>
-                                        <input
-                                          type="tel"
-                                          value={item.quantity}
-                                          onChange={(e) => {
-                                            const val = e.target.value.replace(/\D/g, '');
-                                            const num = val === '' ? 0 : parseInt(val);
-                                            handleUpdateItem(item.id, { quantity: num });
-                                          }}
-                                          className="w-10 h-8 text-center bg-transparent text-sm font-medium text-foreground outline-none"
-                                        />
-                                        <button
-                                          onClick={() => {
-                                            // Проверяем лимит оборудования
-                                            if (item.equipment_id) {
-                                              const usedQty = getUsedQuantity(item.equipment_id);
-                                              const bookedQty = getBookedQuantity(item.equipment_id);
-                                              const equipmentItem = equipment.find(e => e.id === item.equipment_id);
-                                              const totalAvailable = equipmentItem ? equipmentItem.quantity : Infinity;
-                                              const currentQty = item.quantity;
-                                              
-                                              // Сколько уже занято (включая текущую позицию)
-                                              const otherUsed = usedQty - currentQty;
-                                              const totalBooked = otherUsed + bookedQty;
-                                              const available = totalAvailable - totalBooked;
-                                              
-                                              if (available > 0) {
-                                                handleUpdateItem(item.id, { quantity: currentQty + 1 });
-                                              } else {
-                                                toast.warning(`Достигнут лимит`, {
-                                                  description: `${equipmentItem?.name || 'Оборудование'}: в наличии ${totalAvailable} шт.`
-                                                });
-                                              }
-                                            } else {
-                                              // Для импортированного оборудования без equipment_id - без лимита
-                                              handleUpdateItem(item.id, { quantity: item.quantity + 1 });
-                                            }
-                                          }}
-                                          className="w-8 h-8 flex items-center justify-center bg-card rounded-md shadow-sm text-muted-foreground active:bg-muted"
-                                        >
-                                          +
-                                        </button>
-                                      </div>
-                                      
-                                      <span className="text-xs text-muted-foreground/70">×</span>
-                                      
-                                      {/* Коэффициент с кнопками +/- шаг 0.1 */}
-                                      <div className="flex items-center bg-muted rounded-lg p-0.5">
-                                        <button
-                                          onClick={() => {
-                                            const current = item.coefficient || 1;
-                                            const newVal = Math.max(0, Math.round((current - 0.1) * 10) / 10);
-                                            handleUpdateItem(item.id, { coefficient: newVal });
-                                          }}
-                                          className="w-8 h-8 flex items-center justify-center bg-card rounded-md shadow-sm text-muted-foreground active:bg-muted"
-                                        >
-                                          −
-                                        </button>
-                                        <input
-                                          type="tel"
-                                          value={item.coefficient || 1}
-                                          onChange={(e) => {
-                                            const val = e.target.value.replace(/[^0-9.]/g, '');
-                                            const num = val === '' ? 0 : parseFloat(val);
-                                            if (!isNaN(num) && num >= 0) {
-                                              handleUpdateItem(item.id, { coefficient: num });
-                                            }
-                                          }}
-                                          className="w-12 h-8 text-center bg-transparent text-sm font-medium text-foreground outline-none"
-                                        />
-                                        <button
-                                          onClick={() => {
-                                            const current = item.coefficient || 1;
-                                            const newVal = Math.round((current + 0.1) * 10) / 10;
-                                            handleUpdateItem(item.id, { coefficient: newVal });
-                                          }}
-                                          className="w-8 h-8 flex items-center justify-center bg-card rounded-md shadow-sm text-muted-foreground active:bg-muted"
-                                        >
-                                          +
-                                        </button>
-                                      </div>
-                                      
-                                      <div className="flex-1 text-right flex items-center justify-end gap-1">
-                                        <input
-                                          type="tel"
-                                          value={Math.round(itemTotal)}
-                                          onChange={(e) => {
-                                            const val = e.target.value.replace(/\D/g, '');
-                                            const num = val === '' ? 0 : parseInt(val);
-                                            handleUpdateTotal(item.id, num);
-                                          }}
-                                          className="w-16 h-8 text-right text-sm font-medium bg-muted text-foreground rounded px-2 outline-none focus:ring-1 focus:ring-blue-500"
-                                        />
-                                        <span className="text-xs text-muted-foreground">₽</span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                );
-                              })}
+                        if (sectionCategories.length === 0) return null;
+                        
+                        return (
+                          <div key={section.id} className="space-y-2">
+                            {/* Заголовок секции */}
+                            <div className="flex items-center gap-2 px-1 py-1 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                              <MapPin className="w-4 h-4 text-blue-500" />
+                              <span className="font-medium text-sm text-blue-700 dark:text-blue-300">{section.name}</span>
+                              <Badge variant="secondary" className="text-xs">{sectionItems.length}</Badge>
                             </div>
-                          </CardContent>
-                        )}
-                      </Card>
-                    ))
+                            {/* Позиции секции по категориям */}
+                            {sectionCategories.map(category => (
+                              <Card key={`${section.id}-${category}`} className={cn(
+                                "overflow-hidden transition-all",
+                                isDragging && draggedCategory === category && "shadow-lg scale-[1.02] ring-2 ring-blue-400 z-10"
+                              )}>
+                                <CardHeader 
+                                  className={cn(
+                                    "p-2 cursor-move touch-manipulation transition-all",
+                                    isDragging && draggedCategory === category ? "bg-primary/20" : "bg-muted",
+                                    isDragging && dropTarget === category && "bg-primary/10 ring-2 ring-blue-300"
+                                  )}
+                                  data-category={category}
+                                  draggable
+                                  onDragStart={() => handleDragStart(category)}
+                                  onDragOver={(e) => handleDragOver(e, category)}
+                                  onDrop={(e) => handleDrop(e, category)}
+                                  onDragEnd={handleDragEnd}
+                                  onTouchStart={(e) => handleTouchStart(e, category)}
+                                  onTouchMove={(e) => handleTouchMove(e, category)}
+                                  onTouchEnd={handleTouchEnd}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <CardTitle className="text-sm flex items-center gap-2">
+                                      <GripVertical className="w-4 h-4 text-muted-foreground/70" />
+                                      {category}
+                                      <Badge variant="secondary" className="text-xs">{sectionGrouped[category].length}</Badge>
+                                    </CardTitle>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => toggleCategory(category)}
+                                      className="h-7 w-7 p-0"
+                                    >
+                                      {collapsedCategories.has(category) ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                                    </Button>
+                                  </div>
+                                </CardHeader>
+                                
+                                {!collapsedCategories.has(category) && (
+                                  <CardContent className="p-0">
+                                    <div className="divide-y">
+                                      {sectionGrouped[category].map((item, idx) => {
+                                        const itemTotal = item.price * item.quantity * (item.coefficient || 1);
+                                        
+                                        return (
+                                          <div key={item.id} className="p-3 bg-card">
+                                            <div className="flex items-start gap-2 mb-2">
+                                              <span className="text-xs text-muted-foreground/70 w-5 shrink-0">{idx + 1}</span>
+                                              <div className="flex-1 min-w-0">
+                                                <p className="font-medium text-sm">{item.name}</p>
+                                                {/* Описание позиции */}
+                                                <Input
+                                                  placeholder="Описание (необязательно)"
+                                                  value={item.description || ''}
+                                                  onChange={(e) => handleUpdateItem(item.id, { description: e.target.value })}
+                                                  className="h-7 mt-1.5 text-xs bg-muted/50 border-0 focus:bg-muted focus:ring-1 focus:ring-blue-500"
+                                                />
+                                              </div>
+                                              {/* Кнопка удаления позиции */}
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => handleRemoveItem(item.id)}
+                                                className="h-7 w-7 p-0 text-red-500 shrink-0"
+                                              >
+                                                <Trash2 className="w-4 h-4" />
+                                              </Button>
+                                            </div>
+                                            
+                                            <div className="flex items-center gap-2 pl-7">
+                                              {/* Количество с кнопками +/- */}
+                                              <div className="flex items-center bg-muted rounded-lg p-0.5">
+                                                <button
+                                                  onClick={() => handleUpdateItem(item.id, { quantity: Math.max(0, item.quantity - 1) })}
+                                                  className="w-8 h-8 flex items-center justify-center bg-card rounded-md shadow-sm text-muted-foreground active:bg-muted"
+                                                >
+                                                  −
+                                                </button>
+                                                <input
+                                                  type="tel"
+                                                  value={item.quantity}
+                                                  onChange={(e) => {
+                                                    const val = e.target.value.replace(/\D/g, '');
+                                                    const num = val === '' ? 0 : parseInt(val);
+                                                    handleUpdateItem(item.id, { quantity: num });
+                                                  }}
+                                                  className="w-10 h-8 text-center bg-transparent text-sm font-medium text-foreground outline-none"
+                                                />
+                                                <button
+                                                  onClick={() => {
+                                                    // Проверяем лимит оборудования
+                                                    if (item.equipment_id) {
+                                                      const usedQty = getUsedQuantity(item.equipment_id);
+                                                      const bookedQty = getBookedQuantity(item.equipment_id);
+                                                      const equipmentItem = equipment.find(e => e.id === item.equipment_id);
+                                                      const totalAvailable = equipmentItem ? equipmentItem.quantity : Infinity;
+                                                      const currentQty = item.quantity;
+                                                      
+                                                      // Сколько уже занято (включая текущую позицию)
+                                                      const otherUsed = usedQty - currentQty;
+                                                      const totalBooked = otherUsed + bookedQty;
+                                                      const available = totalAvailable - totalBooked;
+                                                      
+                                                      if (available > 0) {
+                                                        handleUpdateItem(item.id, { quantity: currentQty + 1 });
+                                                      } else {
+                                                        toast.warning(`Достигнут лимит`, {
+                                                          description: `${equipmentItem?.name || 'Оборудование'}: в наличии ${totalAvailable} шт.`
+                                                        });
+                                                      }
+                                                    } else {
+                                                      // Для импортированного оборудования без equipment_id - без лимита
+                                                      handleUpdateItem(item.id, { quantity: item.quantity + 1 });
+                                                    }
+                                                  }}
+                                                  className="w-8 h-8 flex items-center justify-center bg-card rounded-md shadow-sm text-muted-foreground active:bg-muted"
+                                                >
+                                                  +
+                                                </button>
+                                              </div>
+                                              
+                                              <span className="text-xs text-muted-foreground/70">×</span>
+                                              
+                                              {/* Коэффициент с кнопками +/- шаг 0.1 */}
+                                              <div className="flex items-center bg-muted rounded-lg p-0.5">
+                                                <button
+                                                  onClick={() => {
+                                                    const current = item.coefficient || 1;
+                                                    const newVal = Math.max(0, Math.round((current - 0.1) * 10) / 10);
+                                                    handleUpdateItem(item.id, { coefficient: newVal });
+                                                  }}
+                                                  className="w-8 h-8 flex items-center justify-center bg-card rounded-md shadow-sm text-muted-foreground active:bg-muted"
+                                                >
+                                                  −
+                                                </button>
+                                                <input
+                                                  type="tel"
+                                                  value={item.coefficient || 1}
+                                                  onChange={(e) => {
+                                                    const val = e.target.value.replace(/[^0-9.]/g, '');
+                                                    const num = val === '' ? 0 : parseFloat(val);
+                                                    if (!isNaN(num) && num >= 0) {
+                                                      handleUpdateItem(item.id, { coefficient: num });
+                                                    }
+                                                  }}
+                                                  className="w-12 h-8 text-center bg-transparent text-sm font-medium text-foreground outline-none"
+                                                />
+                                                <button
+                                                  onClick={() => {
+                                                    const current = item.coefficient || 1;
+                                                    const newVal = Math.round((current + 0.1) * 10) / 10;
+                                                    handleUpdateItem(item.id, { coefficient: newVal });
+                                                  }}
+                                                  className="w-8 h-8 flex items-center justify-center bg-card rounded-md shadow-sm text-muted-foreground active:bg-muted"
+                                                >
+                                                  +
+                                                </button>
+                                              </div>
+                                              
+                                              <div className="flex-1 text-right flex items-center justify-end gap-1">
+                                                <input
+                                                  type="tel"
+                                                  value={Math.round(itemTotal)}
+                                                  onChange={(e) => {
+                                                    const val = e.target.value.replace(/\D/g, '');
+                                                    const num = val === '' ? 0 : parseInt(val);
+                                                    handleUpdateTotal(item.id, num);
+                                                  }}
+                                                  className="w-16 h-8 text-right text-sm font-medium bg-muted text-foreground rounded px-2 outline-none focus:ring-1 focus:ring-blue-500"
+                                                />
+                                                <span className="text-xs text-muted-foreground">₽</span>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </CardContent>
+                                )}
+                              </Card>
+                            ))}
+                          </div>
+                        );
+                      })}
+                      
+                      {/* Позиции без секции */}
+                      {(() => {
+                        const noSectionItems = items.filter(item => !item.section_id);
+                        const noSectionGrouped = noSectionItems.reduce((acc, item) => {
+                          if (!acc[item.category]) acc[item.category] = [];
+                          acc[item.category].push(item);
+                          return acc;
+                        }, {} as Record<string, EstimateItem[]>);
+                        const orderedCats = categoryOrder.filter(cat => noSectionGrouped[cat]);
+                        const remainingCats = Object.keys(noSectionGrouped).filter(cat => !categoryOrder.includes(cat));
+                        const noSectionCategories = [...orderedCats, ...remainingCats];
+                        
+                        if (noSectionCategories.length === 0) return null;
+                        
+                        return (
+                          <div className="space-y-2">
+                            {noSectionCategories.map(category => (
+                              <Card key={category} className={cn(
+                                "overflow-hidden transition-all",
+                                isDragging && draggedCategory === category && "shadow-lg scale-[1.02] ring-2 ring-blue-400 z-10"
+                              )}>
+                                <CardHeader 
+                                  className={cn(
+                                    "p-2 cursor-move touch-manipulation transition-all",
+                                    isDragging && draggedCategory === category ? "bg-primary/20" : "bg-muted",
+                                    isDragging && dropTarget === category && "bg-primary/10 ring-2 ring-blue-300"
+                                  )}
+                                  data-category={category}
+                                  draggable
+                                  onDragStart={() => handleDragStart(category)}
+                                  onDragOver={(e) => handleDragOver(e, category)}
+                                  onDrop={(e) => handleDrop(e, category)}
+                                  onDragEnd={handleDragEnd}
+                                  onTouchStart={(e) => handleTouchStart(e, category)}
+                                  onTouchMove={(e) => handleTouchMove(e, category)}
+                                  onTouchEnd={handleTouchEnd}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <CardTitle className="text-sm flex items-center gap-2">
+                                      <GripVertical className="w-4 h-4 text-muted-foreground/70" />
+                                      {category}
+                                      <Badge variant="secondary" className="text-xs">{noSectionGrouped[category].length}</Badge>
+                                    </CardTitle>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => toggleCategory(category)}
+                                      className="h-7 w-7 p-0"
+                                    >
+                                      {collapsedCategories.has(category) ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                                    </Button>
+                                  </div>
+                                </CardHeader>
+                                
+                                {!collapsedCategories.has(category) && (
+                                  <CardContent className="p-0">
+                                    <div className="divide-y">
+                                      {noSectionGrouped[category].map((item, idx) => {
+                                        const itemTotal = item.price * item.quantity * (item.coefficient || 1);
+                                        
+                                        return (
+                                          <div key={item.id} className="p-3 bg-card">
+                                            <div className="flex items-start gap-2 mb-2">
+                                              <span className="text-xs text-muted-foreground/70 w-5 shrink-0">{idx + 1}</span>
+                                              <div className="flex-1 min-w-0">
+                                                <p className="font-medium text-sm">{item.name}</p>
+                                                {/* Описание позиции */}
+                                                <Input
+                                                  placeholder="Описание (необязательно)"
+                                                  value={item.description || ''}
+                                                  onChange={(e) => handleUpdateItem(item.id, { description: e.target.value })}
+                                                  className="h-7 mt-1.5 text-xs bg-muted/50 border-0 focus:bg-muted focus:ring-1 focus:ring-blue-500"
+                                                />
+                                              </div>
+                                              {/* Кнопка удаления позиции */}
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => handleRemoveItem(item.id)}
+                                                className="h-7 w-7 p-0 text-red-500 shrink-0"
+                                              >
+                                                <Trash2 className="w-4 h-4" />
+                                              </Button>
+                                            </div>
+                                            
+                                            <div className="flex items-center gap-2 pl-7">
+                                              {/* Количество с кнопками +/- */}
+                                              <div className="flex items-center bg-muted rounded-lg p-0.5">
+                                                <button
+                                                  onClick={() => handleUpdateItem(item.id, { quantity: Math.max(0, item.quantity - 1) })}
+                                                  className="w-8 h-8 flex items-center justify-center bg-card rounded-md shadow-sm text-muted-foreground active:bg-muted"
+                                                >
+                                                  −
+                                                </button>
+                                                <input
+                                                  type="tel"
+                                                  value={item.quantity}
+                                                  onChange={(e) => {
+                                                    const val = e.target.value.replace(/\D/g, '');
+                                                    const num = val === '' ? 0 : parseInt(val);
+                                                    handleUpdateItem(item.id, { quantity: num });
+                                                  }}
+                                                  className="w-10 h-8 text-center bg-transparent text-sm font-medium text-foreground outline-none"
+                                                />
+                                                <button
+                                                  onClick={() => {
+                                                    // Проверяем лимит оборудования
+                                                    if (item.equipment_id) {
+                                                      const usedQty = getUsedQuantity(item.equipment_id);
+                                                      const bookedQty = getBookedQuantity(item.equipment_id);
+                                                      const equipmentItem = equipment.find(e => e.id === item.equipment_id);
+                                                      const totalAvailable = equipmentItem ? equipmentItem.quantity : Infinity;
+                                                      const currentQty = item.quantity;
+                                                      
+                                                      // Сколько уже занято (включая текущую позицию)
+                                                      const otherUsed = usedQty - currentQty;
+                                                      const totalBooked = otherUsed + bookedQty;
+                                                      const available = totalAvailable - totalBooked;
+                                                      
+                                                      if (available > 0) {
+                                                        handleUpdateItem(item.id, { quantity: currentQty + 1 });
+                                                      } else {
+                                                        toast.warning(`Достигнут лимит`, {
+                                                          description: `${equipmentItem?.name || 'Оборудование'}: в наличии ${totalAvailable} шт.`
+                                                        });
+                                                      }
+                                                    } else {
+                                                      // Для импортированного оборудования без equipment_id - без лимита
+                                                      handleUpdateItem(item.id, { quantity: item.quantity + 1 });
+                                                    }
+                                                  }}
+                                                  className="w-8 h-8 flex items-center justify-center bg-card rounded-md shadow-sm text-muted-foreground active:bg-muted"
+                                                >
+                                                  +
+                                                </button>
+                                              </div>
+                                              
+                                              <span className="text-xs text-muted-foreground/70">×</span>
+                                              
+                                              {/* Коэффициент с кнопками +/- шаг 0.1 */}
+                                              <div className="flex items-center bg-muted rounded-lg p-0.5">
+                                                <button
+                                                  onClick={() => {
+                                                    const current = item.coefficient || 1;
+                                                    const newVal = Math.max(0, Math.round((current - 0.1) * 10) / 10);
+                                                    handleUpdateItem(item.id, { coefficient: newVal });
+                                                  }}
+                                                  className="w-8 h-8 flex items-center justify-center bg-card rounded-md shadow-sm text-muted-foreground active:bg-muted"
+                                                >
+                                                  −
+                                                </button>
+                                                <input
+                                                  type="tel"
+                                                  value={item.coefficient || 1}
+                                                  onChange={(e) => {
+                                                    const val = e.target.value.replace(/[^0-9.]/g, '');
+                                                    const num = val === '' ? 0 : parseFloat(val);
+                                                    if (!isNaN(num) && num >= 0) {
+                                                      handleUpdateItem(item.id, { coefficient: num });
+                                                    }
+                                                  }}
+                                                  className="w-12 h-8 text-center bg-transparent text-sm font-medium text-foreground outline-none"
+                                                />
+                                                <button
+                                                  onClick={() => {
+                                                    const current = item.coefficient || 1;
+                                                    const newVal = Math.round((current + 0.1) * 10) / 10;
+                                                    handleUpdateItem(item.id, { coefficient: newVal });
+                                                  }}
+                                                  className="w-8 h-8 flex items-center justify-center bg-card rounded-md shadow-sm text-muted-foreground active:bg-muted"
+                                                >
+                                                  +
+                                                </button>
+                                              </div>
+                                              
+                                              <div className="flex-1 text-right flex items-center justify-end gap-1">
+                                                <input
+                                                  type="tel"
+                                                  value={Math.round(itemTotal)}
+                                                  onChange={(e) => {
+                                                    const val = e.target.value.replace(/\D/g, '');
+                                                    const num = val === '' ? 0 : parseInt(val);
+                                                    handleUpdateTotal(item.id, num);
+                                                  }}
+                                                  className="w-16 h-8 text-right text-sm font-medium bg-muted text-foreground rounded px-2 outline-none focus:ring-1 focus:ring-blue-500"
+                                                />
+                                                <span className="text-xs text-muted-foreground">₽</span>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </CardContent>
+                                )}
+                              </Card>
+                            ))}
+                          </div>
+                        );
+                      })()}
+                    </>
                   )}
                 </div>
               </div>
