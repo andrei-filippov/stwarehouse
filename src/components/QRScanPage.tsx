@@ -1786,22 +1786,7 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
               </CardContent>
             </Card>
             
-            {/* Мобильная история (видна только на мобильных) */}
-            <Card className="lg:hidden">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Информация</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {item.min_quantity > 0 && (
-                  <div className="flex items-center gap-2 p-3 bg-muted rounded-lg mb-4">
-                    <span className="text-sm text-muted-foreground">Минимальный остаток:</span>
-                    <span className="font-medium">{item.min_quantity} шт</span>
-                  </div>
-                )}
-                
-
-              </CardContent>
-            </Card>
+            {/* Мобильная история убрана — информация доступна через кнопку в быстрых действиях */}
           </div>
         </div>
         
