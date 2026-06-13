@@ -419,13 +419,13 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
   }, [isSyncing, companyId, refreshEstimates, refreshChecklists, refreshEquipment]);
   const { staff, loading: staffLoading, addStaff, updateStaff, deleteStaff } = useStaff(companyId);
   const { tasks, loading: goalsLoading, addTask, updateTask, deleteTask, activeCount: taskCount } = useGoals(companyId);
-  const { targets, loading: targetsLoading, addTarget, updateTarget, deleteTarget, contribute: contributeToTarget, activeCount: targetCount, avgMonthlyProfit } = useTargets(companyId, estimates, expenses, incomes, salaryRecords);
   const { customers, loading: customersLoading, error: customersError, addCustomer, updateCustomer, deleteCustomer } = useCustomers(companyId);
   const { categories: cableCategories, inventory: cableInventory, movements: cableMovements, repairs: cableRepairs, inventoryItems: cableInventoryItems, stats: cableStats, loading: cableLoading, addCategory: addCableCategory, updateCategory: updateCableCategory, deleteCategory: deleteCableCategory, reorderCategories: reorderCableCategories,
 importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInventory, updateInventoryQty: updateCableInventoryQty, deleteInventory: deleteCableInventory, issueCable, returnCable, sendToRepair, updateRepairStatus, deleteRepair, refresh: refreshCableInventory } = useCableInventory(companyId, activeTab);
   const { expenses, loading: expensesLoading, addExpense, updateExpense, deleteExpense } = useExpenses(companyId);
   const { records: salaryRecords, loading: salaryLoading, addOrUpdateRecord: addOrUpdateSalary, deleteRecord: deleteSalary } = useSalary(companyId);
   const { incomes, addIncome, deleteIncome } = useIncomes(companyId);
+  const { targets, loading: targetsLoading, addTarget, updateTarget, deleteTarget, contribute: contributeToTarget, activeCount: targetCount, avgMonthlyProfit } = useTargets(companyId, estimates, expenses, incomes, salaryRecords);
   const { contracts, templates: contractTemplates, loading: contractsLoading, createContract, updateContract, deleteContract, getNextContractNumber } = useContracts(companyId);
   const { accounts: bankAccounts } = useCompanyBankAccounts(companyId);
 
