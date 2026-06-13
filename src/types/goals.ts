@@ -8,6 +8,7 @@ export type Task = {
   status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
   due_date: string; // YYYY-MM-DD
   assigned_to?: string; // ID сотрудника
+  is_private?: boolean; // Личная задача (видна только создателю)
   completed_at?: string;
   created_at?: string;
   updated_at?: string;

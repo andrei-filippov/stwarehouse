@@ -16,7 +16,8 @@ import {
   Calendar,
   Target,
   User,
-  X
+  X,
+  Lock
 } from 'lucide-react';
 import type { Task } from '../types/goals';
 import { TASK_CATEGORIES, TASK_PRIORITIES, TASK_STATUSES } from '../types/goals';
@@ -485,6 +486,14 @@ function TaskCard({
                 {getPriorityLabel(task.priority)}
               </Badge>
               
+              {/* Личная задача */}
+              {task.is_private && (
+                <div className="flex items-center gap-1 text-xs text-amber-600">
+                  <Lock className="w-3 h-3" />
+                  <span>Личная</span>
+                </div>
+              )}
+              
               {/* Создатель задачи */}
               {creator && (
                 <div className="flex items-center gap-1 text-xs text-gray-500">
@@ -540,6 +549,7 @@ function TaskForm({ initialData, staff, onSubmit, onCancel }: TaskFormProps) {
     status: initialData?.status || 'pending',
     due_date: initialData?.due_date || format(new Date(), 'yyyy-MM-dd'),
     assigned_to: initialData?.assigned_to || '',
+    is_private: initialData?.is_private || false,
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -642,6 +652,19 @@ function TaskForm({ initialData, staff, onSubmit, onCancel }: TaskFormProps) {
           </select>
         </div>
       )}
+
+      {/* Чекбокс личной задачи */}
+      <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+        <Checkbox
+          id="is_private"
+          checked={formData.is_private}
+          onCheckedChange={(checked) => setFormData({ ...formData, is_private: checked === true })}
+        />
+        <label htmlFor="is_private" className="text-sm font-medium cursor-pointer flex items-center gap-2">
+          <Lock className="w-4 h-4 text-muted-foreground" />
+          Личная задача (видна только мне)
+        </label>
+      </div>
 
       <div className="flex justify-end gap-2 pt-4">
         <Button type="button" variant="outline" onClick={onCancel}>

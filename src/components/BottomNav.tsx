@@ -15,6 +15,7 @@ interface BottomNavProps {
   onFabClick?: () => void;
   companyId?: string;
   onSync?: () => Promise<void>;
+  tabCounts?: Record<string, number>;
 }
 
 export function BottomNav({ 
@@ -24,7 +25,8 @@ export function BottomNav({
   onSignOut, 
   onFabClick,
   companyId,
-  onSync
+  onSync,
+  tabCounts
 }: BottomNavProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isSyncDialogOpen, setIsSyncDialogOpen] = useState(false);
@@ -89,6 +91,7 @@ export function BottomNav({
           {visibleTabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
+            const count = tabCounts?.[tab.id];
             
             return (
               <button
@@ -100,10 +103,15 @@ export function BottomNav({
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                <div className={`p-1.5 rounded-xl mb-0.5 transition-colors ${
+                <div className={`p-1.5 rounded-xl mb-0.5 transition-colors relative ${
                   isActive ? 'bg-blue-50' : ''
                 }`}>
                   <Icon className="w-5 h-5" />
+                  {count !== undefined && count > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+                      {count > 99 ? '99+' : count}
+                    </span>
+                  )}
                 </div>
                 <span className="text-[10px] font-medium">{tab.label}</span>
               </button>

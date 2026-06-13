@@ -47,10 +47,11 @@ interface SidebarProps {
   userRole?: string;
   collapsed: boolean;
   onToggleCollapse: () => void;
+  tabCounts?: Record<string, number>;
 }
 
 export function Sidebar(props: SidebarProps) {
-  const { activeTab, onTabChange, availableTabs, onSignOut, userName, userRole, collapsed, onToggleCollapse } = props;
+  const { activeTab, onTabChange, availableTabs, onSignOut, userName, userRole, collapsed, onToggleCollapse, tabCounts } = props;
   const ctx = useCompanyContext();
   const { syncData, syncing: isSyncing, serverAvailable, pendingChanges } = useOfflineSync(ctx.company?.id);
   const [isSyncDialogOpen, setIsSyncDialogOpen] = useState(false);
@@ -102,6 +103,7 @@ export function Sidebar(props: SidebarProps) {
   const renderNavItem = (tab: { id: TabId; label: string; icon: React.ElementType }) => {
     const Icon = tab.icon;
     const isActive = activeTab === tab.id;
+    const count = tabCounts?.[tab.id];
     
     return (
       <button
@@ -116,7 +118,12 @@ export function Sidebar(props: SidebarProps) {
       >
         <Icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-white' : 'text-muted-foreground'}`} />
         {!collapsed && <span className="text-sm font-medium">{tab.label}</span>}
-        {!collapsed && isActive && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary-foreground" />}
+        {!collapsed && count !== undefined && count > 0 && (
+          <span className="ml-auto min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center">
+            {count > 99 ? '99+' : count}
+          </span>
+        )}
+        {!collapsed && isActive && count === undefined && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary-foreground" />}
       </button>
     );
   };

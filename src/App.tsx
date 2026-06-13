@@ -417,7 +417,7 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
     }
   }, [isSyncing, companyId, refreshEstimates, refreshChecklists, refreshEquipment]);
   const { staff, loading: staffLoading, addStaff, updateStaff, deleteStaff } = useStaff(companyId);
-  const { tasks, loading: goalsLoading, addTask, updateTask, deleteTask } = useGoals(companyId);
+  const { tasks, loading: goalsLoading, addTask, updateTask, deleteTask, activeCount: taskCount } = useGoals(companyId);
   const { customers, loading: customersLoading, error: customersError, addCustomer, updateCustomer, deleteCustomer } = useCustomers(companyId);
   const { categories: cableCategories, inventory: cableInventory, movements: cableMovements, repairs: cableRepairs, inventoryItems: cableInventoryItems, stats: cableStats, loading: cableLoading, addCategory: addCableCategory, updateCategory: updateCableCategory, deleteCategory: deleteCableCategory, reorderCategories: reorderCableCategories,
 importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInventory, updateInventoryQty: updateCableInventoryQty, deleteInventory: deleteCableInventory, issueCable, returnCable, sendToRepair, updateRepairStatus, deleteRepair, refresh: refreshCableInventory } = useCableInventory(companyId, activeTab);
@@ -553,6 +553,7 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
           userRole={getRoleLabel(userRole)}
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+          tabCounts={{ goals: taskCount }}
         />
       </div>
 
@@ -884,6 +885,7 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
         onFabClick={handleFabClick}
         companyId={companyId}
         onSync={syncNow}
+        tabCounts={{ goals: taskCount }}
       />
       </div>
     </div>

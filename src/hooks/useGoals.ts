@@ -1,12 +1,22 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
 import { supabase, safeChannel } from '../lib/supabase';
 import { getCached, setCached } from '../lib/queryCache';
 import type { Task } from '../types';
 
 export function useGoals(companyId: string | undefined) {
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  // Get current user ID
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUserId(user?.id || null);
+    };
+    getUser();
+  }, []);
 
   const fetchTasks = useCallback(async (force = false) => {
     if (!companyId) return;
@@ -14,7 +24,7 @@ export function useGoals(companyId: string | undefined) {
     const cacheKey = `fetchTasks_${companyId}`;
     if (!force) {
       const cached = getCached<any[]>(cacheKey);
-      if (cached) { setTasks(cached); return; }
+      if (cached) { setAllTasks(cached); return; }
     }
     setLoading(true);
     
@@ -28,11 +38,24 @@ export function useGoals(companyId: string | undefined) {
     if (error) {
       toast.error('Ошибка при загрузке задач', { description: error.message });
     } else {
-      setTasks(data || []);
+      setAllTasks(data || []);
       setCached(cacheKey, data || []);
     }
     setLoading(false);
   }, [companyId]);
+
+  // Filter tasks: public OR private owned by current user
+  const tasks = useMemo(() => {
+    if (!currentUserId) return [];
+    return allTasks.filter(task => 
+      !task.is_private || task.user_id === currentUserId
+    );
+  }, [allTasks, currentUserId]);
+
+  // Active count for menu badge (pending + in_progress)
+  const activeCount = useMemo(() => {
+    return tasks.filter(t => t.status === 'pending' || t.status === 'in_progress').length;
+  }, [tasks]);
 
   const addTask = useCallback(async (task: Partial<Task>) => {
     if (!companyId) return { error: new Error('No company selected') };
@@ -123,6 +146,7 @@ export function useGoals(companyId: string | undefined) {
   return {
     tasks,
     loading,
+    activeCount,
     addTask,
     updateTask,
     deleteTask,
