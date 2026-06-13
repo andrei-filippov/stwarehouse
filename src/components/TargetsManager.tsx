@@ -442,12 +442,17 @@ function TargetForm({ initialData, onSubmit, onCancel }: TargetFormProps) {
       toast.error('Укажите сумму цели больше 0');
       return;
     }
-    onSubmit({
+    const submitData: any = {
       ...formData,
       target_amount: amount,
       current_amount: Number(formData.current_amount),
       allocation_percent: Number(formData.allocation_percent),
-    });
+    };
+    // Remove empty date to avoid DB error
+    if (!submitData.target_date) {
+      delete submitData.target_date;
+    }
+    onSubmit(submitData);
   };
 
   const priorityConfig = TARGET_PRIORITIES.find(p => p.value === formData.priority);
