@@ -593,6 +593,7 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
               customers={customers}
               staff={staff}
               goals={tasks}
+              targets={targets}
               checklists={checklistsV2}
               inventory={cableInventory}
               categories={cableCategories}

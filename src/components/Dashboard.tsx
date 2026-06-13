@@ -16,6 +16,7 @@ import {
   ClipboardCheck
 } from 'lucide-react';
 import type { Equipment, Estimate, Customer, Staff, Goal, CableInventory, CableCategory } from '../types';
+import type { Target } from '../types/targets';
 import { TASK_CATEGORIES, TASK_PRIORITIES } from '../types/goals';
 import { QuickQRScanner } from './QuickQRScanner';
 import type { ChecklistV2, EquipmentKit } from '../types/checklist';
@@ -39,6 +40,7 @@ interface DashboardProps {
   customers: Customer[];
   staff?: Staff[];
   goals?: Goal[];
+  targets?: Target[];
   checklists?: ChecklistV2[];
   inventory?: CableInventory[];
   categories?: CableCategory[];
@@ -57,6 +59,7 @@ export function Dashboard({
   customers, 
   staff, 
   goals,
+  targets = [],
   checklists = [],
   inventory = [],
   categories = [],
@@ -162,6 +165,11 @@ export function Dashboard({
     }).slice(0, 5) || [];
   }, [goals, currentDate]);
 
+  // Активные цели (видны всем — только общие)
+  const activeTargets = useMemo(() => {
+    return targets?.filter(t => t.status === 'active' && !t.is_private).slice(0, 5) || [];
+  }, [targets]);
+
   return (
     <div className="space-y-6">
       {/* Приветствие */}
@@ -245,7 +253,7 @@ export function Dashboard({
 
       {/* Основной контент */}
       <div className={`grid gap-6 ${hasAccess('estimates') || hasAccess('goals') ? 'md:grid-cols-3' : 'md:grid-cols-1'}`}>
-        {/* Центральная часть — Текущие задачи */}
+        {/* Центральная часть — Текущие задачи и Цели */}
         {hasAccess('goals') && (
         <Card className="md:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -326,6 +334,52 @@ export function Dashboard({
                     </div>
                   );
                 })}
+              </div>
+            )}
+
+            {/* Цели компании */}
+            {activeTargets.length > 0 && (
+              <div className="mt-6 pt-6 border-t">
+                <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-purple-600" />
+                  Цели компании
+                  <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full text-xs">
+                    {activeTargets.length}
+                  </span>
+                </h4>
+                <div className="space-y-3">
+                  {activeTargets.map((target) => {
+                    const progress = target.target_amount > 0
+                      ? Math.min(100, (target.current_amount / target.target_amount) * 100)
+                      : 0;
+                    return (
+                      <div 
+                        key={target.id}
+                        className="p-3 rounded-lg border bg-muted border-border cursor-pointer hover:shadow-md transition-shadow"
+                        onClick={() => onTabChange('goals')}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="font-medium text-sm">{target.title}</p>
+                          <span className="text-xs font-bold text-purple-600">
+                            {Math.round(progress)}%
+                          </span>
+                        </div>
+                        <div className="h-2 bg-muted-foreground/20 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${
+                              progress >= 100 ? 'bg-green-500' : progress >= 50 ? 'bg-blue-500' : 'bg-orange-500'
+                            }`}
+                            style={{ width: `${progress}%` }}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between mt-1 text-xs text-muted-foreground">
+                          <span>{target.current_amount.toLocaleString('ru-RU')} ₽ из {target.target_amount.toLocaleString('ru-RU')} ₽</span>
+                          <span>{target.priority === 'high' ? '🔴 Высокий' : target.priority === 'medium' ? '🟡 Средний' : '🟢 Низкий'}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </CardContent>
