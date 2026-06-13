@@ -437,9 +437,14 @@ function TargetForm({ initialData, onSubmit, onCancel }: TargetFormProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const amount = Number(formData.target_amount);
+    if (!amount || amount <= 0) {
+      toast.error('Укажите сумму цели больше 0');
+      return;
+    }
     onSubmit({
       ...formData,
-      target_amount: Number(formData.target_amount),
+      target_amount: amount,
       current_amount: Number(formData.current_amount),
       allocation_percent: Number(formData.allocation_percent),
     });
