@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Badge } from './ui/badge';
 import { Checkbox } from './ui/checkbox';
 import { Textarea } from './ui/textarea';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { 
   Plus, 
   Trash2, 
@@ -30,8 +31,9 @@ import type { Profile } from '../types';
 import { format, parseISO, isPast, isToday, isTomorrow, addDays } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { supabase } from '../lib/supabase';
-
 import { Spinner } from './ui/spinner';
+import { TargetsManager } from './TargetsManager';
+import type { Target } from '../types/targets';
 
 interface GoalsManagerProps {
   tasks: Task[];
@@ -41,11 +43,20 @@ interface GoalsManagerProps {
   onDelete: (id: string) => Promise<{ error: any }>;
   loading?: boolean;
   fabAction?: number;
+  // Targets props
+  targets?: Target[];
+  avgMonthlyProfit?: number;
+  onAddTarget?: (target: Omit<Target, 'id' | 'created_at' | 'updated_at'>) => Promise<{ error: any }>;
+  onUpdateTarget?: (id: string, updates: Partial<Target>) => Promise<{ error: any }>;
+  onDeleteTarget?: (id: string) => Promise<{ error: any }>;
+  onContribute?: (id: string, amount: number) => Promise<{ error: any }>;
+  targetsLoading?: boolean;
 }
 
 type FilterType = 'all' | 'today' | 'in_progress' | 'pending' | 'completed' | 'overdue';
 
-export const GoalsManager = memo(function GoalsManager({ tasks, staff, onAdd, onUpdate, onDelete, loading, fabAction }: GoalsManagerProps) {
+export const GoalsManager = memo(function GoalsManager({ tasks, staff, onAdd, onUpdate, onDelete, loading, fabAction, targets, avgMonthlyProfit, onAddTarget, onUpdateTarget, onDeleteTarget, onContribute, targetsLoading }: GoalsManagerProps) {
+  const [activeTab, setActiveTab] = useState('tasks');
   // Открываем добавление задачи при нажатии FAB (пропускаем первый рендер)
   const isFirstRender = useRef(false);
   useEffect(() => {
@@ -277,124 +288,156 @@ export const GoalsManager = memo(function GoalsManager({ tasks, staff, onAdd, on
 
   return (
     <div className="space-y-4">
-      {/* Кликабельная статистика */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        <StatCard 
-          title="Всего" 
-          value={stats.total} 
-          icon={Target} 
-          color="bg-gradient-to-br from-blue-500/10 to-blue-600/5 dark:from-blue-500/20 dark:to-blue-600/10 text-blue-700 dark:text-blue-300" 
-          isActive={activeFilter === 'all'}
-          onClick={() => setActiveFilter('all')}
-        />
-        <StatCard 
-          title="На сегодня" 
-          value={stats.today} 
-          icon={Calendar} 
-          color="bg-gradient-to-br from-green-500/10 to-green-600/5 dark:from-green-500/20 dark:to-green-600/10 text-green-700 dark:text-green-300" 
-          isActive={activeFilter === 'today'}
-          onClick={() => setActiveFilter('today')}
-        />
-        <StatCard 
-          title="В работе" 
-          value={stats.inProgress} 
-          icon={Clock} 
-          color="bg-gradient-to-br from-yellow-500/10 to-yellow-600/5 dark:from-yellow-500/20 dark:to-yellow-600/10 text-yellow-700 dark:text-yellow-300" 
-          isActive={activeFilter === 'in_progress'}
-          onClick={() => setActiveFilter('in_progress')}
-        />
-        <StatCard 
-          title="Ожидают" 
-          value={stats.pending} 
-          icon={Circle} 
-          color="bg-gradient-to-br from-gray-500/10 to-gray-600/5 dark:from-gray-500/20 dark:to-gray-600/10 text-foreground" 
-          isActive={activeFilter === 'pending'}
-          onClick={() => setActiveFilter('pending')}
-        />
-        <StatCard 
-          title="Выполнено" 
-          value={stats.completed} 
-          icon={CheckCircle2} 
-          color="bg-gradient-to-br from-green-500/10 to-green-600/5 dark:from-green-500/20 dark:to-green-600/10 text-green-700 dark:text-green-300" 
-          isActive={activeFilter === 'completed'}
-          onClick={() => setActiveFilter('completed')}
-        />
-        <StatCard 
-          title="Просрочено" 
-          value={stats.overdue} 
-          icon={Clock} 
-          color="bg-gradient-to-br from-red-500/10 to-red-600/5 dark:from-red-500/20 dark:to-red-600/10 text-red-700 dark:text-red-300" 
-          isActive={activeFilter === 'overdue'}
-          onClick={() => setActiveFilter('overdue')}
-        />
-      </div>
+      {/* Tabs: Задачи / Цели */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="tasks" className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4" />
+            Задачи
+            <Badge variant="secondary" className="ml-1">{tasks.filter(t => t.status !== 'completed' && t.status !== 'cancelled').length}</Badge>
+          </TabsTrigger>
+          <TabsTrigger value="targets" className="flex items-center gap-2">
+            <Target className="w-4 h-4" />
+            Цели
+            <Badge variant="secondary" className="ml-1">{targets?.filter(t => t.status === 'active').length || 0}</Badge>
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Активный фильтр и поиск */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row gap-3">
-            {/* Индикатор активного фильтра */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-500">Фильтр:</span>
-              <Badge 
-                variant={activeFilter === 'all' ? 'secondary' : 'default'}
-                className="cursor-pointer"
-                onClick={() => setActiveFilter('all')}
-              >
-                {getFilterLabel(activeFilter)}
-                {activeFilter !== 'all' && (
-                  <X className="w-3 h-3 ml-1" onClick={(e) => { e.stopPropagation(); setActiveFilter('all'); }} />
-                )}
-              </Badge>
-            </div>
-            
-            {/* Поиск */}
-            <div className="flex-1">
-              <Input
-                placeholder="Поиск по задачам..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full"
-              />
-            </div>
-            
-            {/* Кнопка добавления */}
-            <Button onClick={handleOpenNew} className="shrink-0">
-              <Plus className="w-4 h-4 mr-2" />
-              Новая задача
-            </Button>
+        <TabsContent value="tasks" className="space-y-4 mt-4">
+          {/* Кликабельная статистика */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            <StatCard 
+              title="Всего" 
+              value={stats.total} 
+              icon={Target} 
+              color="bg-gradient-to-br from-blue-500/10 to-blue-600/5 dark:from-blue-500/20 dark:to-blue-600/10 text-blue-700 dark:text-blue-300" 
+              isActive={activeFilter === 'all'}
+              onClick={() => setActiveFilter('all')}
+            />
+            <StatCard 
+              title="На сегодня" 
+              value={stats.today} 
+              icon={Calendar} 
+              color="bg-gradient-to-br from-green-500/10 to-green-600/5 dark:from-green-500/20 dark:to-green-600/10 text-green-700 dark:text-green-300" 
+              isActive={activeFilter === 'today'}
+              onClick={() => setActiveFilter('today')}
+            />
+            <StatCard 
+              title="В работе" 
+              value={stats.inProgress} 
+              icon={Clock} 
+              color="bg-gradient-to-br from-yellow-500/10 to-yellow-600/5 dark:from-yellow-500/20 dark:to-yellow-600/10 text-yellow-700 dark:text-yellow-300" 
+              isActive={activeFilter === 'in_progress'}
+              onClick={() => setActiveFilter('in_progress')}
+            />
+            <StatCard 
+              title="Ожидают" 
+              value={stats.pending} 
+              icon={Circle} 
+              color="bg-gradient-to-br from-gray-500/10 to-gray-600/5 dark:from-gray-500/20 dark:to-gray-600/10 text-foreground" 
+              isActive={activeFilter === 'pending'}
+              onClick={() => setActiveFilter('pending')}
+            />
+            <StatCard 
+              title="Выполнено" 
+              value={stats.completed} 
+              icon={CheckCircle2} 
+              color="bg-gradient-to-br from-green-500/10 to-green-600/5 dark:from-green-500/20 dark:to-green-600/10 text-green-700 dark:text-green-300" 
+              isActive={activeFilter === 'completed'}
+              onClick={() => setActiveFilter('completed')}
+            />
+            <StatCard 
+              title="Просрочено" 
+              value={stats.overdue} 
+              icon={Clock} 
+              color="bg-gradient-to-br from-red-500/10 to-red-600/5 dark:from-red-500/20 dark:to-red-600/10 text-red-700 dark:text-red-300" 
+              isActive={activeFilter === 'overdue'}
+              onClick={() => setActiveFilter('overdue')}
+            />
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Список задач */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Target className="w-5 h-5" />
-            {getFilterLabel(activeFilter)}
-            <Badge variant="secondary">{filteredTasks.length}</Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {filteredTasks.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <Target className="w-12 h-12 mx-auto mb-3 opacity-30" />
-              <p>Задачи не найдены</p>
-              <p className="text-sm mt-1">Создайте новую задачу или измените фильтр</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
+          {/* Активный фильтр и поиск */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex flex-col sm:flex-row gap-3">
+                {/* Индикатор активного фильтра */}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-500">Фильтр:</span>
+                  <Badge 
+                    variant={activeFilter === 'all' ? 'secondary' : 'default'}
+                    className="cursor-pointer"
+                    onClick={() => setActiveFilter('all')}
+                  >
+                    {getFilterLabel(activeFilter)}
+                    {activeFilter !== 'all' && (
+                      <X className="w-3 h-3 ml-1" onClick={(e) => { e.stopPropagation(); setActiveFilter('all'); }} />
+                    )}
+                  </Badge>
+                </div>
+                
+                {/* Поиск */}
+                <div className="flex-1">
+                  <Input
+                    placeholder="Поиск по задачам..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+                
+                {/* Кнопка добавления */}
+                <Button onClick={handleOpenNew} className="shrink-0">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Новая задача
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
 
-              {renderTaskGroup('📅 Сегодня', groupedTasks.today, 'text-green-600')}
-              {renderTaskGroup('🔔 Завтра', groupedTasks.tomorrow, 'text-blue-600')}
-              {renderTaskGroup('📆 На этой неделе', groupedTasks.week, 'text-purple-600')}
-              {renderTaskGroup('📌 Позже', groupedTasks.future, 'text-muted-foreground')}
-              {renderTaskGroup('✅ Выполнено / Отменено', groupedTasks.completed, 'text-gray-400')}
-            </div>
+          {/* Список задач */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Target className="w-5 h-5" />
+                {getFilterLabel(activeFilter)}
+                <Badge variant="secondary">{filteredTasks.length}</Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {filteredTasks.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <Target className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                  <p>Задачи не найдены</p>
+                  <p className="text-sm mt-1">Создайте новую задачу или измените фильтр</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+
+                  {renderTaskGroup('📅 Сегодня', groupedTasks.today, 'text-green-600')}
+                  {renderTaskGroup('🔔 Завтра', groupedTasks.tomorrow, 'text-blue-600')}
+                  {renderTaskGroup('📆 На этой неделе', groupedTasks.week, 'text-purple-600')}
+                  {renderTaskGroup('📌 Позже', groupedTasks.future, 'text-muted-foreground')}
+                  {renderTaskGroup('✅ Выполнено / Отменено', groupedTasks.completed, 'text-gray-400')}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="targets" className="mt-4">
+          {targets && onAddTarget && onUpdateTarget && onDeleteTarget && (
+            <TargetsManager
+              targets={targets}
+              avgMonthlyProfit={avgMonthlyProfit || 0}
+              onAdd={onAddTarget}
+              onUpdate={onUpdateTarget}
+              onDelete={onDeleteTarget}
+              onContribute={onContribute || (async () => ({ error: null }))}
+              loading={targetsLoading}
+            />
           )}
-        </CardContent>
-      </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Диалог создания/редактирования */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

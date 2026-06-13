@@ -418,6 +418,7 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
   }, [isSyncing, companyId, refreshEstimates, refreshChecklists, refreshEquipment]);
   const { staff, loading: staffLoading, addStaff, updateStaff, deleteStaff } = useStaff(companyId);
   const { tasks, loading: goalsLoading, addTask, updateTask, deleteTask, activeCount: taskCount } = useGoals(companyId);
+  const { targets, loading: targetsLoading, addTarget, updateTarget, deleteTarget, contribute: contributeToTarget, activeCount: targetCount, avgMonthlyProfit } = useTargets(companyId, estimates, expenses, incomes, salaryRecords);
   const { customers, loading: customersLoading, error: customersError, addCustomer, updateCustomer, deleteCustomer } = useCustomers(companyId);
   const { categories: cableCategories, inventory: cableInventory, movements: cableMovements, repairs: cableRepairs, inventoryItems: cableInventoryItems, stats: cableStats, loading: cableLoading, addCategory: addCableCategory, updateCategory: updateCableCategory, deleteCategory: deleteCableCategory, reorderCategories: reorderCableCategories,
 importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInventory, updateInventoryQty: updateCableInventoryQty, deleteInventory: deleteCableInventory, issueCable, returnCable, sendToRepair, updateRepairStatus, deleteRepair, refresh: refreshCableInventory } = useCableInventory(companyId, activeTab);
@@ -513,7 +514,7 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
     { id: 'checklists' as Tab, label: 'Чек-листы', icon: ClipboardCheck },
     { id: 'kits' as Tab, label: 'Комплекты', icon: Package },
     { id: 'staff' as Tab, label: 'Персонал', icon: Users },
-    { id: 'goals' as Tab, label: 'Задачи', icon: Target },
+    { id: 'goals' as Tab, label: 'Задачи и цели', icon: Target },
     { id: 'cables' as Tab, label: 'Учёт оборудования', icon: Cable },
     { id: 'finance' as Tab, label: 'Финансы', icon: DollarSign },
     { id: 'customers' as Tab, label: 'Заказчики', icon: Building2 },
@@ -553,7 +554,7 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
           userRole={getRoleLabel(userRole)}
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-          tabCounts={{ goals: taskCount }}
+          tabCounts={{ goals: taskCount + targetCount }}
         />
       </div>
 
@@ -740,6 +741,13 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
                 onDelete={deleteTask}
                 loading={goalsLoading}
                 fabAction={fabAction}
+                targets={targets}
+                avgMonthlyProfit={avgMonthlyProfit}
+                onAddTarget={addTarget}
+                onUpdateTarget={updateTarget}
+                onDeleteTarget={deleteTarget}
+                onContribute={contributeToTarget}
+                targetsLoading={targetsLoading}
               />
             </LazyComponent>
           )}
@@ -885,7 +893,7 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
         onFabClick={handleFabClick}
         companyId={companyId}
         onSync={syncNow}
-        tabCounts={{ goals: taskCount }}
+        tabCounts={{ goals: taskCount + targetCount }}
       />
       </div>
     </div>
