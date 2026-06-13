@@ -475,8 +475,9 @@ function TargetForm({ initialData, onSubmit, onCancel }: TargetFormProps) {
           <Input
             type="number"
             min={1}
-            value={formData.target_amount}
-            onChange={(e) => setFormData({ ...formData, target_amount: Number(e.target.value) })}
+            value={formData.target_amount || ''}
+            onChange={(e) => setFormData({ ...formData, target_amount: e.target.value === '' ? 0 : Number(e.target.value) })}
+            onFocus={(e) => e.target.select()}
             required
           />
         </div>
@@ -485,8 +486,9 @@ function TargetForm({ initialData, onSubmit, onCancel }: TargetFormProps) {
           <Input
             type="number"
             min={0}
-            value={formData.current_amount}
-            onChange={(e) => setFormData({ ...formData, current_amount: Number(e.target.value) })}
+            value={formData.current_amount || ''}
+            onChange={(e) => setFormData({ ...formData, current_amount: e.target.value === '' ? 0 : Number(e.target.value) })}
+            onFocus={(e) => e.target.select()}
           />
         </div>
       </div>
