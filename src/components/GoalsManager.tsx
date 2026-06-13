@@ -1,7 +1,4 @@
-  const handleToggleStatus = useCallback(async (task: Task) => {
-    const newStatus = task.status === 'completed' ? 'pending' : 'completed';
-    await onUpdate(task.id, { status: newStatus });
-  }, [onUpdate]);import { useState, useMemo, useEffect, useCallback, memo, useRef } from 'react';
+import { useState, useMemo, useEffect, useCallback, memo, useRef } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
