@@ -1,8 +1,11 @@
-import { useState, useMemo, useEffect, useCallback, memo, useRef } from 'react';
+  const handleToggleStatus = useCallback(async (task: Task) => {
+    const newStatus = task.status === 'completed' ? 'pending' : 'completed';
+    await onUpdate(task.id, { status: newStatus });
+  }, [onUpdate]);import { useState, useMemo, useEffect, useCallback, memo, useRef } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './ui/dialog';
 import { Badge } from './ui/badge';
 import { Checkbox } from './ui/checkbox';
 import { Textarea } from './ui/textarea';
@@ -17,7 +20,8 @@ import {
   Target,
   User,
   X,
-  Lock
+  Lock,
+  AlertTriangle
 } from 'lucide-react';
 import type { Task } from '../types/goals';
 import { TASK_CATEGORIES, TASK_PRIORITIES, TASK_STATUSES } from '../types/goals';
@@ -60,6 +64,7 @@ export const GoalsManager = memo(function GoalsManager({ tasks, staff, onAdd, on
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [userProfiles, setUserProfiles] = useState<Record<string, Profile>>({});
+  const [deleteConfirmTask, setDeleteConfirmTask] = useState<Task | null>(null);
 
   // Загружаем профили пользователей (создателей задач)
   useEffect(() => {
@@ -181,10 +186,19 @@ export const GoalsManager = memo(function GoalsManager({ tasks, staff, onAdd, on
     setEditingTask(null);
   }, [editingTask, onAdd, onUpdate]);
 
-  const handleToggleStatus = useCallback(async (task: Task) => {
-    const newStatus = task.status === 'completed' ? 'pending' : 'completed';
-    await onUpdate(task.id, { status: newStatus });
-  }, [onUpdate]);
+  const handleDelete = useCallback(async (task: Task) => {
+    setDeleteConfirmTask(task);
+  }, []);
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!deleteConfirmTask?.id) return;
+    await onDelete(deleteConfirmTask.id);
+    setDeleteConfirmTask(null);
+  }, [deleteConfirmTask, onDelete]);
+
+  const handleCancelDelete = useCallback(() => {
+    setDeleteConfirmTask(null);
+  }, []);
 
   const getCategoryLabel = useCallback((value: string) => TASK_CATEGORIES.find(c => c.value === value)?.label || value, []);
   const getPriorityLabel = useCallback((value: string) => TASK_PRIORITIES.find(p => p.value === value)?.label || value, []);
@@ -241,7 +255,7 @@ export const GoalsManager = memo(function GoalsManager({ tasks, staff, onAdd, on
               userProfiles={userProfiles}
               onToggle={() => handleToggleStatus(task)}
               onEdit={() => handleOpenEdit(task)}
-              onDelete={() => task.id && onDelete(task.id)}
+              onDelete={() => task.id && handleDelete(task)}
               getCategoryColor={getCategoryColor}
               getPriorityColor={getPriorityColor}
               getCategoryLabel={getCategoryLabel}
@@ -399,6 +413,36 @@ export const GoalsManager = memo(function GoalsManager({ tasks, staff, onAdd, on
             onSubmit={handleSubmit}
             onCancel={() => setIsDialogOpen(false)}
           />
+        </DialogContent>
+      </Dialog>
+
+      {/* Диалог подтверждения удаления */}
+      <Dialog open={!!deleteConfirmTask} onOpenChange={() => setDeleteConfirmTask(null)}>
+        <DialogContent className="max-w-md w-[95%] rounded-xl p-4 sm:p-6">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="w-5 h-5" />
+              Удалить задачу?
+            </DialogTitle>
+            <DialogDescription>
+              {deleteConfirmTask && (
+                <>
+                  Задача <strong>"{deleteConfirmTask.title}"</strong> будет удалена безвозвратно.
+                  <br />
+                  Это действие нельзя отменить.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={handleCancelDelete}>
+              Отмена
+            </Button>
+            <Button variant="destructive" onClick={handleConfirmDelete}>
+              <Trash2 className="w-4 h-4 mr-2" />
+              Удалить
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
