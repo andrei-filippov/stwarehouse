@@ -46,6 +46,7 @@ import { useChecklists } from './hooks/useChecklists';
 import { useChecklistsV2 } from './hooks/useChecklistsV2';
 import { useStaff } from './hooks/useStaff';
 import { useGoals } from './hooks/useGoals';
+import { useTargets } from './hooks/useTargets';
 import { useCustomers } from './hooks/useCustomers';
 import { useCableInventory } from './hooks/useCableInventory';
 import { useExpenses } from './hooks/useExpenses';
