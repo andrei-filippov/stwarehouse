@@ -194,6 +194,11 @@ export const GoalsManager = memo(function GoalsManager({ tasks, staff, onAdd, on
     setEditingTask(null);
   }, [editingTask, onAdd, onUpdate]);
 
+  const handleToggleStatus = useCallback(async (task: Task) => {
+    const newStatus = task.status === 'completed' ? 'pending' : 'completed';
+    await onUpdate(task.id, { status: newStatus });
+  }, [onUpdate]);
+
   const handleDelete = useCallback(async (task: Task) => {
     setDeleteConfirmTask(task);
   }, []);
