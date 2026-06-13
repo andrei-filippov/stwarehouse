@@ -140,6 +140,7 @@ export function BottomNav({
                     {otherTabs.map((tab) => {
                       const Icon = tab.icon;
                       const isActive = activeTab === tab.id;
+                      const count = tabCounts?.[tab.id];
                       
                       return (
                         <button
@@ -148,13 +149,20 @@ export function BottomNav({
                             onTabChange(tab.id);
                             setMenuOpen(false);
                           }}
-                          className={`flex flex-col items-center gap-2 p-4 rounded-xl transition-all ${
+                          className={`flex flex-col items-center gap-2 p-4 rounded-xl transition-all relative ${
                             isActive
                               ? 'bg-blue-50 text-blue-600 ring-2 ring-blue-200'
                               : 'bg-muted text-muted-foreground hover:bg-muted/80'
                           }`}
                         >
-                          <Icon className="w-6 h-6" />
+                          <div className="relative">
+                            <Icon className="w-6 h-6" />
+                            {count !== undefined && count > 0 && (
+                              <span className="absolute -top-2 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+                                {count > 99 ? '99+' : count}
+                              </span>
+                            )}
+                          </div>
                           <span className="text-xs font-medium text-center">{tab.label}</span>
                         </button>
                       );
