@@ -62,30 +62,59 @@ export function useGoals(companyId: string | undefined) {
     
     try {
       const { data: { user } } = await supabase.auth.getUser();
+      const tempId = crypto.randomUUID();
+      const optimisticTask: Task = {
+        id: tempId,
+        title: task.title || '',
+        description: task.description || null,
+        status: (task.status as Task['status']) || 'pending',
+        priority: (task.priority as Task['priority']) || 'medium',
+        due_date: task.due_date || null,
+        company_id: companyId,
+        user_id: user?.id || currentUserId || '',
+        is_private: task.is_private || false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
       
-      const { error } = await supabase
+      setAllTasks(prev => [optimisticTask, ...prev]);
+      
+      const { data, error } = await supabase
         .from('goals')
         .insert({ 
           ...task, 
           company_id: companyId,
           user_id: user?.id
-        });
+        })
+        .select()
+        .single();
 
       if (error) throw error;
 
-      await fetchTasks();
+      // Replace optimistic task with real one
+      if (data) {
+        setAllTasks(prev => prev.map(t => t.id === tempId ? data : t));
+      }
+      
       toast.success('Задача добавлена');
       return { error: null };
     } catch (err: any) {
+      // Rollback on error
+      await fetchTasks(true);
       toast.error('Ошибка при добавлении', { description: err.message });
       return { error: err };
     }
-  }, [companyId, fetchTasks]);
+  }, [companyId, fetchTasks, currentUserId]);
 
   const updateTask = useCallback(async (id: string, updates: Partial<Task>) => {
     if (!companyId) return { error: new Error('No company selected') };
     
+    const previousTask = allTasks.find(t => t.id === id);
+    
     try {
+      // Optimistic update
+      setAllTasks(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
+      
       const { error } = await supabase
         .from('goals')
         .update(updates)
@@ -94,19 +123,27 @@ export function useGoals(companyId: string | undefined) {
 
       if (error) throw error;
 
-      await fetchTasks();
       toast.success('Задача обновлена');
       return { error: null };
     } catch (err: any) {
+      // Rollback on error
+      if (previousTask) {
+        setAllTasks(prev => prev.map(t => t.id === id ? previousTask : t));
+      }
       toast.error('Ошибка при обновлении', { description: err.message });
       return { error: err };
     }
-  }, [companyId, fetchTasks]);
+  }, [companyId, allTasks]);
 
   const deleteTask = useCallback(async (id: string) => {
     if (!companyId) return { error: new Error('No company selected') };
     
+    const previousTasks = [...allTasks];
+    
     try {
+      // Optimistic delete
+      setAllTasks(prev => prev.filter(t => t.id !== id));
+      
       const { error } = await supabase
         .from('goals')
         .delete()
@@ -115,14 +152,15 @@ export function useGoals(companyId: string | undefined) {
 
       if (error) throw error;
 
-      await fetchTasks();
       toast.success('Задача удалена');
       return { error: null };
     } catch (err: any) {
+      // Rollback on error
+      setAllTasks(previousTasks);
       toast.error('Ошибка при удалении', { description: err.message });
       return { error: err };
     }
-  }, [companyId, fetchTasks]);
+  }, [companyId, allTasks]);
 
   useEffect(() => {
     fetchTasks();

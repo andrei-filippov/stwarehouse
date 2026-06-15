@@ -109,30 +109,62 @@ export function useTargets(
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
+      const tempId = crypto.randomUUID();
+      const optimisticTarget: Target = {
+        id: tempId,
+        title: target.title || '',
+        description: target.description || null,
+        target_amount: Number(target.target_amount) || 0,
+        current_amount: Number(target.current_amount) || 0,
+        target_date: target.target_date || null,
+        priority: (target.priority as Target['priority']) || 'medium',
+        allocation_percent: Number(target.allocation_percent) || 10,
+        status: 'active',
+        company_id: companyId,
+        user_id: user?.id || currentUserId || '',
+        is_private: target.is_private || false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      
+      setAllTargets(prev => [optimisticTarget, ...prev]);
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('targets')
         .insert({
           ...target,
           company_id: companyId,
           user_id: user?.id
-        });
+        })
+        .select()
+        .single();
 
       if (error) throw error;
 
-      await fetchTargets();
+      // Replace optimistic target with real one
+      if (data) {
+        setAllTargets(prev => prev.map(t => t.id === tempId ? data : t));
+      }
+
       toast.success('Цель добавлена');
       return { error: null };
     } catch (err: any) {
+      // Rollback on error
+      await fetchTargets(true);
       toast.error('Ошибка при добавлении', { description: err.message });
       return { error: err };
     }
-  }, [companyId, fetchTargets]);
+  }, [companyId, fetchTargets, currentUserId]);
 
   const updateTarget = useCallback(async (id: string, updates: Partial<Target>) => {
     if (!companyId) return { error: new Error('No company selected') };
 
+    const previousTarget = allTargets.find(t => t.id === id);
+
     try {
+      // Optimistic update
+      setAllTargets(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
+
       const { error } = await supabase
         .from('targets')
         .update(updates)
@@ -141,19 +173,27 @@ export function useTargets(
 
       if (error) throw error;
 
-      await fetchTargets();
       toast.success('Цель обновлена');
       return { error: null };
     } catch (err: any) {
+      // Rollback on error
+      if (previousTarget) {
+        setAllTargets(prev => prev.map(t => t.id === id ? previousTarget : t));
+      }
       toast.error('Ошибка при обновлении', { description: err.message });
       return { error: err };
     }
-  }, [companyId, fetchTargets]);
+  }, [companyId, allTargets]);
 
   const deleteTarget = useCallback(async (id: string) => {
     if (!companyId) return { error: new Error('No company selected') };
 
+    const previousTargets = [...allTargets];
+
     try {
+      // Optimistic delete
+      setAllTargets(prev => prev.filter(t => t.id !== id));
+
       const { error } = await supabase
         .from('targets')
         .delete()
@@ -162,25 +202,30 @@ export function useTargets(
 
       if (error) throw error;
 
-      await fetchTargets();
       toast.success('Цель удалена');
       return { error: null };
     } catch (err: any) {
+      // Rollback on error
+      setAllTargets(previousTargets);
       toast.error('Ошибка при удалении', { description: err.message });
       return { error: err };
     }
-  }, [companyId, fetchTargets]);
+  }, [companyId, allTargets]);
 
   // Contribute amount to target
   const contribute = useCallback(async (id: string, amount: number) => {
     if (!companyId) return { error: new Error('No company selected') };
 
-    try {
-      const target = allTargets.find(t => t.id === id);
-      if (!target) throw new Error('Цель не найдена');
+    const target = allTargets.find(t => t.id === id);
+    if (!target) return { error: new Error('Цель не найдена') };
 
-      const newAmount = target.current_amount + amount;
-      const status: Target['status'] = newAmount >= target.target_amount ? 'completed' : 'active';
+    const previousTarget = { ...target };
+    const newAmount = target.current_amount + amount;
+    const status: Target['status'] = newAmount >= target.target_amount ? 'completed' : 'active';
+
+    try {
+      // Optimistic update
+      setAllTargets(prev => prev.map(t => t.id === id ? { ...t, current_amount: newAmount, status } : t));
 
       const { error } = await supabase
         .from('targets')
@@ -190,7 +235,6 @@ export function useTargets(
 
       if (error) throw error;
 
-      await fetchTargets();
       if (status === 'completed') {
         toast.success('🎉 Цель достигнута!', { description: target.title });
       } else {
@@ -198,10 +242,12 @@ export function useTargets(
       }
       return { error: null };
     } catch (err: any) {
+      // Rollback on error
+      setAllTargets(prev => prev.map(t => t.id === id ? previousTarget : t));
       toast.error('Ошибка', { description: err.message });
       return { error: err };
     }
-  }, [companyId, allTargets, fetchTargets]);
+  }, [companyId, allTargets]);
 
   useEffect(() => {
     fetchTargets();
