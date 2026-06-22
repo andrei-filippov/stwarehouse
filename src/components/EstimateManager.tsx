@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { Input } from './ui/input';
-import { Plus, Edit, Trash2, Layout, Copy, FileSpreadsheet, Users, Loader2, Lock, CheckCircle2, Clock, XCircle, FileText, Search, ChevronDown, ChevronRight, CalendarDays, ClipboardCheck } from 'lucide-react';
+import { Plus, Edit, Trash2, Layout, Copy, FileSpreadsheet, Users, Loader2, Lock, CheckCircle2, Clock, XCircle, FileText, Search, ChevronDown, ChevronRight, CalendarDays, ClipboardCheck, Save } from 'lucide-react';
 import type { Estimate, PDFSettings, Template, EstimateItem, EstimateStatus } from '../types';
 import { EstimateBuilder } from './EstimateBuilder';
 import { EstimateImportDialog } from './EstimateImportDialog';
@@ -35,6 +35,7 @@ interface EstimateManagerProps {
   fabAction?: number;
   openEstimate?: Estimate | null;
   onCreateChecklist?: (estimate: Estimate) => Promise<{ error: any }>;
+  onCreateTemplateFromEstimate?: (template: any, items: any[]) => Promise<{ error: any; data?: any }>;
 }
 
 export const EstimateManager = memo(function EstimateManager({
@@ -59,6 +60,7 @@ export const EstimateManager = memo(function EstimateManager({
   fabAction,
   openEstimate,
   onCreateChecklist,
+  onCreateTemplateFromEstimate,
 }: EstimateManagerProps) {
   // Helper для отображения статуса
   const getStatusBadge = (status?: EstimateStatus) => {
@@ -91,6 +93,9 @@ export const EstimateManager = memo(function EstimateManager({
   const [isBuilderOpen, setIsBuilderOpen] = useState(false);
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [isSaveTemplateDialogOpen, setIsSaveTemplateDialogOpen] = useState(false);
+  const [templateToSave, setTemplateToSave] = useState<Estimate | null>(null);
+  const [templateName, setTemplateName] = useState('');
   const [editingEstimate, setEditingEstimate] = useState<Estimate | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
   
@@ -266,6 +271,41 @@ export const EstimateManager = memo(function EstimateManager({
     // Не закрываем конструктор после сохранения
   }, [editingEstimate, onUpdate, onCreate]);
 
+  const handleCreateTemplateFromEstimate = useCallback(async (estimate: Estimate) => {
+    // Загружаем items если они не загружены
+    let estimateWithItems = estimate;
+    if (fetchEstimateItems && estimate.id !== 'new') {
+      const { error, items } = await fetchEstimateItems(estimate.id);
+      if (!error && items.length > 0) {
+        estimateWithItems = { ...estimate, items };
+      }
+    }
+    setTemplateToSave(estimateWithItems);
+    setTemplateName(`Шаблон: ${estimate.event_name}`);
+    setIsSaveTemplateDialogOpen(true);
+  }, [fetchEstimateItems]);
+
+  const handleConfirmSaveTemplate = useCallback(async () => {
+    if (!templateToSave || !templateName.trim() || !onCreateTemplateFromEstimate) return;
+    
+    const templateItems = (templateToSave.items || []).map((item: any) => ({
+      category: item.category || 'Без категории',
+      equipment_name: item.name,
+      description: item.description,
+      default_quantity: item.quantity || 1,
+      equipment_id: item.equipment_id
+    }));
+    
+    await onCreateTemplateFromEstimate(
+      { name: templateName.trim(), description: `Создано из сметы "${templateToSave.event_name}"` },
+      templateItems
+    );
+    
+    setIsSaveTemplateDialogOpen(false);
+    setTemplateToSave(null);
+    setTemplateName('');
+  }, [templateToSave, templateName, onCreateTemplateFromEstimate]);
+
   if (isBuilderOpen) {
     // Защита: не рендерим Builder пока данные не загружены
     if (!equipment || !estimates) {
@@ -295,6 +335,13 @@ export const EstimateManager = memo(function EstimateManager({
         onSave={handleSave}
         onClose={handleClose}
         onCreateEquipment={onCreateEquipment}
+        onSaveAsTemplate={async (name, items) => {
+          if (!onCreateTemplateFromEstimate) return { error: new Error('No handler') };
+          return await onCreateTemplateFromEstimate(
+            { name, description: `Создано из сметы "${editingEstimate?.event_name || 'без названия'}"` },
+            items
+          );
+        }}
       />
     );
   }
@@ -530,6 +577,20 @@ export const EstimateManager = memo(function EstimateManager({
                                     <ClipboardCheck className="w-4 h-4 text-blue-500" />
                                   </Button>
                                 )}
+                                {onCreateTemplateFromEstimate && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleCreateTemplateFromEstimate(estimate);
+                                    }}
+                                    title="Создать шаблон из сметы"
+                                  >
+                                    <Save className="w-4 h-4 text-green-600" />
+                                  </Button>
+                                )}
                                 <Button 
                                   variant="ghost" 
                                   size="sm"
@@ -648,6 +709,20 @@ export const EstimateManager = memo(function EstimateManager({
                                       <ClipboardCheck className="w-3.5 h-3.5 text-blue-500" />
                                     </Button>
                                   )}
+                                  {onCreateTemplateFromEstimate && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 w-7 p-0"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleCreateTemplateFromEstimate(estimate);
+                                      }}
+                                      title="Создать шаблон из сметы"
+                                    >
+                                      <Save className="w-3.5 h-3.5 text-green-600" />
+                                    </Button>
+                                  )}
                                   <Button 
                                     variant="ghost" 
                                     size="sm"
@@ -744,6 +819,49 @@ export const EstimateManager = memo(function EstimateManager({
         onImport={handleImportFromExcel}
       />
 
+      {/* Диалог сохранения сметы как шаблона */}
+      <Dialog open={isSaveTemplateDialogOpen} onOpenChange={setIsSaveTemplateDialogOpen}>
+        <DialogContent className="max-w-lg w-[95%] rounded-xl p-4 sm:p-6" aria-describedby="save-template-dialog-desc">
+          <DialogHeader>
+            <DialogTitle>Сохранить смету как шаблон</DialogTitle>
+            <DialogDescription id="save-template-dialog-desc">
+              Создайте шаблон из позиций сметы «{templateToSave?.event_name}» ({templateToSave?.items?.length || 0} позиций)
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="template-name">Название шаблона *</Label>
+              <Input
+                id="template-name"
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value)}
+                placeholder="Например: Конференция, Концерт"
+                autoFocus
+              />
+            </div>
+            <div className="flex gap-3 pt-2">
+              <Button
+                onClick={handleConfirmSaveTemplate}
+                className="flex-1"
+                disabled={!templateName.trim()}
+              >
+                <Save className="w-4 h-4 mr-2" />
+                Сохранить шаблон
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsSaveTemplateDialogOpen(false);
+                  setTemplateToSave(null);
+                  setTemplateName('');
+                }}
+              >
+                Отмена
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
     </div>
   );

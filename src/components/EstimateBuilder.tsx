@@ -31,7 +31,8 @@ import {
   PackagePlus,
   Settings2,
   LayoutGrid,
-  MapPin
+  MapPin,
+  Bookmark
 } from 'lucide-react';
 import type { Equipment, Estimate, EstimateItem, EstimateSection, Customer, PDFSettings, EquipmentRepair, CableCategory } from '../types';
 import { EstimateSections } from './EstimateSections';
@@ -55,6 +56,7 @@ interface EstimateBuilderProps {
   onSave: (estimate: any, items: any[], categoryOrder?: string[]) => void;
   onClose: () => void;
   onCreateEquipment?: (equipment: any) => Promise<{ error: any; data?: any }>;
+  onSaveAsTemplate?: (name: string, items: any[]) => Promise<{ error: any; data?: any }>;
 }
 
 export function EstimateBuilder({
@@ -72,6 +74,7 @@ export function EstimateBuilder({
   onSave,
   onClose,
   onCreateEquipment,
+  onSaveAsTemplate,
 }: EstimateBuilderProps) {
   // Проверка оборудования в ремонте по названию оборудования
   const checkEquipmentInRepair = (equipmentName: string, equipmentCategory: string): { inRepair: boolean; repairInfo?: string } => {
@@ -141,6 +144,8 @@ export function EstimateBuilder({
   
   // Состояние для создания оборудования
   const [showCreateEquipment, setShowCreateEquipment] = useState(false);
+  const [showSaveTemplateDialog, setShowSaveTemplateDialog] = useState(false);
+  const [templateName, setTemplateName] = useState('');
   const [newEquipment, setNewEquipment] = useState({
     name: '',
     description: '',
@@ -457,6 +462,27 @@ export function EstimateBuilder({
       id: crypto.randomUUID(),
     };
     setItems(prev => [...prev, newItem]);
+  };
+
+  const handleSaveAsTemplate = async () => {
+    if (!templateName.trim() || !onSaveAsTemplate) return;
+    
+    const templateItems = items.map(item => ({
+      category: item.category || 'Без категории',
+      equipment_name: item.name,
+      description: item.description,
+      default_quantity: item.quantity || 1,
+      equipment_id: item.equipment_id
+    }));
+    
+    try {
+      await onSaveAsTemplate(templateName.trim(), templateItems);
+      setShowSaveTemplateDialog(false);
+      setTemplateName('');
+      toast.success('Шаблон сохранён');
+    } catch (e) {
+      toast.error('Ошибка сохранения шаблона');
+    }
   };
 
   const handleSave = async () => {
@@ -1100,6 +1126,12 @@ export function EstimateBuilder({
               <FileText className="w-4 h-4" />
               <span className="hidden md:inline ml-2 whitespace-nowrap">PDF</span>
             </Button>
+            {onSaveAsTemplate && (
+              <Button variant="outline" size="sm" onClick={() => setShowSaveTemplateDialog(true)} className="h-8 w-8 md:w-auto p-0 md:px-2 shrink-0" title="Сохранить как шаблон">
+                <Bookmark className="w-4 h-4" />
+                <span className="hidden md:inline ml-2 whitespace-nowrap">Шаблон</span>
+              </Button>
+            )}
             <Button variant="outline" size="sm" onClick={handlePrint} className="hidden md:flex h-8 px-2 shrink-0">
               <Printer className="w-4 h-4 mr-2 shrink-0" />
               <span className="whitespace-nowrap">Печать</span>
@@ -2302,6 +2334,41 @@ export function EstimateBuilder({
             >
               <Plus className="w-4 h-4 mr-2" />
               {newEquipment.saveTo === 'inventory' ? 'Создать на складе' : 'Создать и добавить'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Диалог сохранения как шаблона */}
+      <Dialog open={showSaveTemplateDialog} onOpenChange={setShowSaveTemplateDialog}>
+        <DialogContent className="max-w-lg w-[95%] rounded-xl p-4 sm:p-6">
+          <DialogHeader>
+            <DialogTitle>Сохранить как шаблон</DialogTitle>
+            <DialogDescription>
+              Создайте шаблон из {items.length} позиций текущей сметы
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Название шаблона *</Label>
+              <Input
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value)}
+                placeholder="Например: Конференция, Концерт"
+                autoFocus
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => { setShowSaveTemplateDialog(false); setTemplateName(''); }}>
+              Отмена
+            </Button>
+            <Button 
+              onClick={handleSaveAsTemplate}
+              disabled={!templateName.trim()}
+            >
+              <Bookmark className="w-4 h-4 mr-2" />
+              Сохранить шаблон
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -655,7 +655,8 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
                 onStopEditing={stopEditing}
                 fetchEstimateItems={fetchEstimateItems}
                 currentUserId={user?.id}
-                fabAction={fabAction}
+                onCreateChecklist={createChecklist}
+                onCreateTemplateFromEstimate={createTemplate}
               />
             </LazyComponent>
           )}
