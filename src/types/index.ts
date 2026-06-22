@@ -74,6 +74,7 @@ export type TemplateItem = {
   equipment_id?: string;
   category: string;
   equipment_name: string;
+  description?: string; // Описание оборудования для отображения
   default_quantity: number;
 };
 

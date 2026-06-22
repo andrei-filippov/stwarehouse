@@ -20,7 +20,7 @@ import { Switch } from './ui/switch';
 interface TemplatesManagerProps {
   templates: Template[];
   categories: { id: string; name: string }[];
-  equipment: { id: string; name: string; category: string }[];
+  equipment: { id: string; name: string; category: string; description?: string }[];
   onCreate: (template: any, items: any[]) => Promise<{ error: any; data?: any }>;
   onUpdate: (id: string, updates: any, items?: any[]) => Promise<{ error: any }>;
   onDelete: (id: string) => Promise<{ error: any }>;
@@ -83,7 +83,7 @@ export const TemplatesManager = memo(function TemplatesManager({
 interface EstimateTemplatesProps {
   templates: Template[];
   categories: { id: string; name: string }[];
-  equipment: { id: string; name: string; category: string }[];
+  equipment: { id: string; name: string; category: string; description?: string }[];
   onCreate: (template: any, items: any[]) => Promise<{ error: any; data?: any }>;
   onUpdate: (id: string, updates: any, items?: any[]) => Promise<{ error: any }>;
   onDelete: (id: string) => Promise<{ error: any }>;
@@ -881,7 +881,7 @@ function ContractTemplateForm({ companyId, editingTemplate, onCancel, onSave, on
 // ============================================
 interface TemplateFormProps {
   categories: { id: string; name: string }[];
-  equipment: { id: string; name: string; category: string }[];
+  equipment: { id: string; name: string; category: string; description?: string }[];
   template: Template | null;
   onSubmit: (data: any, items: any[]) => void;
   onCancel: () => void;
@@ -926,18 +926,20 @@ function TemplateForm({ categories, equipment, template, onSubmit, onCancel }: T
 
   const addItem = useCallback(() => {
     if (!newItem.equipment_name) return;
+    const selectedEq = equipment.find(e => e.id === newItem.equipment_id);
     const itemToAdd: TemplateItem = {
       id: crypto.randomUUID(),
       category: newItem.category,
       equipment_id: newItem.equipment_id || undefined,
       equipment_name: newItem.equipment_name,
+      description: selectedEq?.description || undefined,
       default_quantity: parseInt(quantityInput) || 1
     };
     setItems([...items, itemToAdd]);
     setNewItem({ category: '', equipment_id: '', equipment_name: '', default_quantity: 1 });
     setQuantityInput('1');
     setEquipmentSearch(''); // Сбрасываем поиск
-  }, [newItem, quantityInput, items]);
+  }, [newItem, quantityInput, items, equipment]);
 
   const removeItem = useCallback((index: number) => {
     setItems(items.filter((_, i) => i !== index));
@@ -1000,7 +1002,8 @@ function TemplateForm({ categories, equipment, template, onSubmit, onCancel }: T
         <h4 className="font-medium">Добавить оборудование в шаблон</h4>
         
         <div className="grid grid-cols-12 gap-3">
-          <div className="col-span-5 space-y-2">
+          {/* Левая колонка — выбор оборудования */}
+          <div className="col-span-12 sm:col-span-6 space-y-2">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground/70 w-4 h-4" />
               <Input
@@ -1015,13 +1018,13 @@ function TemplateForm({ categories, equipment, template, onSubmit, onCancel }: T
                 className="w-full border border-border rounded-md px-3 py-2 text-sm bg-card text-foreground overflow-y-auto"
                 value={newItem.equipment_id}
                 onChange={(e) => handleEquipmentSelect(e.target.value)}
-                style={{ maxHeight: '200px', minHeight: '120px' }}
-                size={Math.min(8, filteredEquipment.length + 1) as number}
+                style={{ maxHeight: '280px', minHeight: '160px' }}
+                size={Math.min(10, filteredEquipment.length + 1) as number}
               >
                 <option value="">Выберите оборудование...</option>
                 {filteredEquipment.map(eq => (
                   <option key={eq.id} value={eq.id}>
-                    {eq.name} ({eq.category})
+                    {eq.name} {eq.description ? `— ${eq.description}` : ''} ({eq.category})
                   </option>
                 ))}
               </select>
@@ -1033,48 +1036,56 @@ function TemplateForm({ categories, equipment, template, onSubmit, onCancel }: T
               <p className="text-xs text-muted-foreground">Найдено: {filteredEquipment.length}</p>
             )}
           </div>
-          <div className="col-span-3">
-            <Input
-              placeholder="Или введите название вручную"
-              value={newItem.equipment_id ? '' : newItem.equipment_name}
-              onChange={(e) => setNewItem({ ...newItem, equipment_name: e.target.value, equipment_id: '', category: '' })}
-              onKeyDown={handleKeyDown}
-              disabled={!!newItem.equipment_id}
-              className="h-10"
-            />
-          </div>
-          <div className="col-span-2">
-            <select
-              className="w-full border border-border rounded-md px-3 py-2 text-sm bg-card text-foreground h-10"
-              value={newItem.category}
-              onChange={(e) => setNewItem({ ...newItem, category: e.target.value })}
-              disabled={!!newItem.equipment_id}
-            >
-              <option value="">Категория</option>
-              {categories.map(c => (
-                <option key={c.id} value={c.name}>{c.name}</option>
-              ))}
-            </select>
-          </div>
-          <div className="col-span-1">
-            <Input
-              type="text"
-              min={1}
-              placeholder="Кол-во"
-              value={quantityInput}
-              onChange={(e) => handleQuantityChange(e.target.value)}
-              onKeyDown={handleKeyDown}
-              className="h-10"
-            />
-          </div>
-          <div className="col-span-1 flex items-end">
+
+          {/* Правая колонка — ручной ввод / количество / добавить */}
+          <div className="col-span-12 sm:col-span-6 space-y-3">
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">Или введите название вручную</Label>
+              <Input
+                placeholder="Название оборудования"
+                value={newItem.equipment_id ? '' : newItem.equipment_name}
+                onChange={(e) => setNewItem({ ...newItem, equipment_name: e.target.value, equipment_id: '', category: '' })}
+                onKeyDown={handleKeyDown}
+                disabled={!!newItem.equipment_id}
+                className="h-10"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Категория</Label>
+                <select
+                  className="w-full border border-border rounded-md px-3 py-2 text-sm bg-card text-foreground h-10"
+                  value={newItem.category}
+                  onChange={(e) => setNewItem({ ...newItem, category: e.target.value })}
+                  disabled={!!newItem.equipment_id}
+                >
+                  <option value="">Выберите...</option>
+                  {categories.map(c => (
+                    <option key={c.id} value={c.name}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Количество</Label>
+                <Input
+                  type="text"
+                  min={1}
+                  placeholder="Кол-во"
+                  value={quantityInput}
+                  onChange={(e) => handleQuantityChange(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  className="h-10"
+                />
+              </div>
+            </div>
             <Button 
               onClick={addItem} 
               size="sm" 
               className="w-full h-10"
               disabled={!newItem.equipment_name}
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-4 h-4 mr-2" />
+              Добавить в шаблон
             </Button>
           </div>
         </div>
@@ -1093,19 +1104,22 @@ function TemplateForm({ categories, equipment, template, onSubmit, onCancel }: T
               {items.map((item, idx) => (
                 <div 
                   key={idx} 
-                  className="flex justify-between items-center bg-card p-3 rounded border"
+                  className="flex justify-between items-start bg-card p-3 rounded border"
                 >
-                  <div className="flex-1">
-                    <span className="font-medium text-sm">{item.equipment_name}</span>
-                    <span className="text-gray-500 text-sm ml-2">
-                      ({item.category}) × {item.default_quantity} шт.
-                    </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-sm">{item.equipment_name}</div>
+                    {item.description && (
+                      <div className="text-gray-400 text-xs mt-0.5 truncate">{item.description}</div>
+                    )}
+                    <div className="text-gray-500 text-sm mt-0.5">
+                      {item.category} × {item.default_quantity} шт.
+                    </div>
                   </div>
                   <Button 
                     variant="ghost" 
                     size="sm" 
                     onClick={() => removeItem(idx)}
-                    className="text-red-500 hover:text-red-700"
+                    className="text-red-500 hover:text-red-700 shrink-0 ml-2"
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>

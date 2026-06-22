@@ -209,7 +209,7 @@ export function EstimateBuilder({
         return {
           id: crypto.randomUUID(),
           name: equipmentItem?.name || item.equipment_name,
-          description: equipmentItem?.description || '',
+          description: equipmentItem?.description || item.description || '',
           category: item.category || equipmentItem?.category || 'Без категории',
           quantity: item.default_quantity || 1,
           price: equipmentItem?.price || 0,
