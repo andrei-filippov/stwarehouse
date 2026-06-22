@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { Input } from './ui/input';
+import { Label } from './ui/label';
 import { Plus, Edit, Trash2, Layout, Copy, FileSpreadsheet, Users, Loader2, Lock, CheckCircle2, Clock, XCircle, FileText, Search, ChevronDown, ChevronRight, CalendarDays, ClipboardCheck, Save } from 'lucide-react';
 import type { Estimate, PDFSettings, Template, EstimateItem, EstimateStatus } from '../types';
 import { EstimateBuilder } from './EstimateBuilder';
