@@ -941,7 +941,8 @@ export function EstimateBuilder({
       // Итого по секции (только для именованных секций)
       if (section && categories.length > 0) {
         const secTotalRow = worksheet.getRow(currentRow);
-        secTotalRow.values = ['', '', '', '', '', `Итого ${section.name}:`, sectionTotal];
+        // Текст в B (первая ячейка merge-диапазона), сумма в G
+        secTotalRow.values = ['', `Итого ${section.name}:`, '', '', '', '', sectionTotal];
         secTotalRow.font = { bold: true, size: 11 };
         secTotalRow.fill = {
           type: 'pattern',
