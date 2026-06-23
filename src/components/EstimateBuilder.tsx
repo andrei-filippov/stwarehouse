@@ -948,8 +948,15 @@ export function EstimateBuilder({
           pattern: 'solid',
           fgColor: { argb: 'FFFFF9C4' }
         };
-        secTotalRow.getCell(6).alignment = { horizontal: 'right', vertical: 'center' };
+        // Объединяем B-F для итого по секции, текст справа, сумма в G
+        worksheet.mergeCells(`B${currentRow}:F${currentRow}`);
+        secTotalRow.getCell(2).alignment = { horizontal: 'right', vertical: 'center' };
         secTotalRow.getCell(7).numFmt = '#,##0.00" ₽"';
+        secTotalRow.getCell(7).fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFFFF9C4' }
+        };
         currentRow += 2;
       }
     });
