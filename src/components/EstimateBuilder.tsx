@@ -39,6 +39,8 @@ import { EstimateSections } from './EstimateSections';
 import { cn } from '../lib/utils';
 import { toast } from 'sonner';
 import { logger } from '../lib/logger';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { groupItemsBySections } from '../lib/estimateExport';
 
 interface EstimateBuilderProps {
@@ -714,123 +716,168 @@ export function EstimateBuilder({
     }
   };
 
-  // Экспорт PDF
-  const exportPDF = useCallback(() => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
+  // Экспорт PDF через jsPDF — корректно работает на iOS
+  const exportPDF = useCallback(async () => {
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
+    });
 
-    const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <title>Смета - ${eventName}</title>
-        <style>
-          body { font-family: Arial, sans-serif; margin: 20px; }
-          .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 15px; }
-          .logo-section { width: 45%; }
-          .logo-section img { max-height: 80px; max-width: 100%; }
-          .company-section { width: 50%; text-align: right; font-size: 11px; }
-          .company-section h2 { margin: 0 0 5px 0; font-size: 14px; }
-          .company-section p { margin: 3px 0; }
-          h1 { text-align: center; font-size: 18px; margin: 15px 0; }
-          .info { margin-bottom: 15px; font-size: 12px; }
-          .info p { margin: 5px 0; }
-          table { width: 100%; border-collapse: collapse; font-size: 10px; margin-top: 10px; }
-          th { background: #2980b9; color: white; padding: 6px 4px; text-align: left; }
-          td { padding: 5px 4px; border-bottom: 1px solid #ddd; }
-          tr:nth-child(even) { background: #f5f5f5; }
-          .nowrap { white-space: nowrap; }
-          .total { margin-top: 15px; font-size: 14px; font-weight: bold; text-align: right; }
-          @media print { body { margin: 10px; } }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div class="logo-section">
-            ${pdfSettings.logo ? `<img src="${pdfSettings.logo}" alt="Логотип" />` : '<p>&nbsp;</p>'}
-          </div>
-          <div class="company-section">
-            ${company?.name ? `<h2>${company.name}</h2>` : pdfSettings.companyName ? `<h2>${pdfSettings.companyName}</h2>` : ''}
-            ${company?.inn || company?.kpp || company?.ogrn ? `<p>ИНН: ${company.inn || '-'} / КПП: ${company.kpp || '-'} / ОГРН: ${company.ogrn || '-'}</p>` : ''}
-            ${company?.legal_address ? `<p>${company.legal_address}</p>` : pdfSettings.companyDetails ? pdfSettings.companyDetails.split('\n').map(line => `<p>${line}</p>`).join('') : ''}
-          </div>
-        </div>
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    let y = 10;
 
-        <h1>Коммерческое предложение</h1>
-        
-        <div class="info">
-          <p><strong>Мероприятие:</strong> ${eventName}</p>
-          <p><strong>Площадка:</strong> ${venue || '-'}</p>
-          <p><strong>Дата начала:</strong> ${eventStartDate ? new Date(eventStartDate).toLocaleDateString('ru-RU') : '-'}</p>
-          <p><strong>Дата окончания:</strong> ${eventEndDate ? new Date(eventEndDate).toLocaleDateString('ru-RU') : '-'}</p>
-        </div>
-        
-        ${groupItemsBySections(items, sections, categoryOrder).map(({ section, categories, total: sectionTotal, isNoSection }) => {
-          return `
-          ${section ? `<h2 style="background:#e3f2fd;padding:10px;margin:15px 0 5px 0;font-size:15px;border-radius:4px;">${section.name}</h2>` : ''}
-          ${categories.map(({ category, items: catItems }) => {
-            const catTotal = catItems.reduce((sum, item) => sum + (item.price * item.quantity * (item.coefficient || 1)), 0);
-            return `
-            <table>
-              <thead>
-                <tr style="background:${isNoSection ? '#e3f2fd' : '#f5f5f5'};">
-                  <th colspan="8" style="text-align:left;padding:6px;font-size:12px;">
-                    ${category}
-                  </th>
-                </tr>
-                <tr>
-                  <th style="width:5%">№</th>
-                  <th style="width:25%">Наименование</th>
-                  <th style="width:20%">Описание</th>
-                  <th style="width:8%">Ед.</th>
-                  <th style="width:8%">Кол-во</th>
-                  <th style="width:10%">Цена</th>
-                  <th style="width:8%">Коэф.</th>
-                  <th style="width:10%">Сумма</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${catItems.map((item, idx) => `
-                  <tr>
-                    <td>${idx + 1}</td>
-                    <td>${item.name}</td>
-                    <td>${item.description || '-'}</td>
-                    <td>${item.unit || 'шт'}</td>
-                    <td>${item.quantity}</td>
-                    <td class="nowrap">${item.price.toLocaleString('ru-RU')}₽</td>
-                    <td>${item.coefficient || 1}</td>
-                    <td class="nowrap">${(item.price * item.quantity * (item.coefficient || 1)).toLocaleString('ru-RU')}₽</td>
-                  </tr>
-                `).join('')}
-                <tr style="background:#fafafa;font-weight:bold;">
-                  <td colspan="7" style="text-align:right;padding:6px;">Итого по категории:</td>
-                  <td style="text-align:right;padding:6px;" class="nowrap">${catTotal.toLocaleString('ru-RU')}₽</td>
-                </tr>
-              </tbody>
-            </table>
-            <div style="height:5px;"></div>
-            `;
-          }).join('')}
-          ${section ? `
-          <div style="background:#fff9c4;padding:8px;margin:5px 0 15px 0;border-radius:4px;font-weight:bold;text-align:right;">
-            Итого ${section.name}: ${sectionTotal.toLocaleString('ru-RU')}₽
-          </div>
-          ` : ''}
-          `;
-        }).join('')}
-        
-        <div class="total">
-          ИТОГО: ${total.toLocaleString('ru-RU')}₽
-        </div>
-      </body>
-      </html>
-    `;
+    // === ШАПКА ===
+    if (pdfSettings.logo) {
+      try {
+        const img = new Image();
+        img.src = pdfSettings.logo;
+        await new Promise((resolve) => { img.onload = resolve; img.onerror = resolve; });
+        const imgWidth = 40;
+        const imgHeight = (img.height / img.width) * imgWidth;
+        doc.addImage(pdfSettings.logo, 'JPEG', 10, y, imgWidth, Math.min(imgHeight, 20));
+      } catch { /* логотип не загрузился */ }
+    }
 
-    printWindow.document.write(html);
-    printWindow.document.close();
-    setTimeout(() => printWindow.print(), 500);
-  }, [eventName, venue, eventStartDate, eventEndDate, items, sections, categoryOrder, total, pdfSettings, company]);
+    const companyName = company?.name || pdfSettings.companyName || '';
+    const companyDetails = company?.legal_address || pdfSettings.companyDetails || '';
+    
+    if (companyName) {
+      doc.setFontSize(10);
+      doc.text(companyName, pageWidth - 10, y + 5, { align: 'right' });
+    }
+    if (company?.inn || company?.kpp) {
+      doc.setFontSize(8);
+      doc.text(`ИНН: ${company?.inn || '-'} / КПП: ${company?.kpp || '-'}`, pageWidth - 10, y + 10, { align: 'right' });
+    }
+    if (companyDetails) {
+      doc.setFontSize(8);
+      companyDetails.split('\n').forEach((line, i) => {
+        doc.text(line, pageWidth - 10, y + 14 + (i * 3), { align: 'right' });
+      });
+    }
+    y += 25;
+
+    // === ЗАГОЛОВОК ===
+    doc.setFontSize(16);
+    doc.text('Коммерческое предложение', pageWidth / 2, y, { align: 'center' });
+    y += 10;
+
+    // === ИНФО ===
+    doc.setFontSize(10);
+    const selectedCustomer = customers.find(c => c.id === customerId);
+    const infoLines = [
+      `Мероприятие: ${eventName}`,
+      `Площадка: ${venue || '-'}`,
+      `Дата начала: ${eventStartDate ? new Date(eventStartDate).toLocaleDateString('ru-RU') : '-'}`,
+      `Дата окончания: ${eventEndDate ? new Date(eventEndDate).toLocaleDateString('ru-RU') : '-'}`,
+    ];
+    if (selectedCustomer?.name) infoLines.push(`Заказчик: ${selectedCustomer.name}`);
+    infoLines.forEach((line) => { doc.text(line, 10, y); y += 5; });
+    y += 3;
+
+    // === ТАБЛИЦА ===
+    const grouped = groupItemsBySections(items, sections, categoryOrder);
+    let rowNumber = 1;
+
+    for (const group of grouped) {
+      if (group.section) {
+        if (y > pageHeight - 30) { doc.addPage(); y = 10; }
+        doc.setFontSize(12);
+        doc.setTextColor(41, 128, 185);
+        doc.text(group.section.name, 10, y);
+        y += 6;
+      }
+
+      for (const cat of group.categories) {
+        const catItems = cat.items;
+        const catTotal = catItems.reduce((sum, item) => sum + (item.price * item.quantity * (item.coefficient || 1)), 0);
+
+        if (y > pageHeight - 30) { doc.addPage(); y = 10; }
+
+        const tableBody = catItems.map((item) => [
+          String(rowNumber++), item.name, item.description || '-',
+          item.unit || 'шт', String(item.quantity),
+          `${item.price.toLocaleString('ru-RU')} ₽`,
+          String(item.coefficient || 1),
+          `${(item.price * item.quantity * (item.coefficient || 1)).toLocaleString('ru-RU')} ₽`,
+        ]);
+        tableBody.push(['', '', '', '', '', '', 'Итого:', `${catTotal.toLocaleString('ru-RU')} ₽`]);
+
+        autoTable(doc, {
+          startY: y,
+          head: [
+            [{ content: cat.category, colSpan: 8, styles: { fillColor: group.isNoSection ? [227, 242, 253] : [245, 245, 245], fontSize: 10, fontStyle: 'bold' } }],
+            ['№', 'Наименование', 'Описание', 'Ед.', 'Кол-во', 'Цена', 'Коэф.', 'Сумма']
+          ],
+          body: tableBody,
+          theme: 'grid',
+          headStyles: { fillColor: [41, 128, 185], textColor: 255, fontSize: 8 },
+          bodyStyles: { fontSize: 8 },
+          columnStyles: {
+            0: { cellWidth: 8 }, 1: { cellWidth: 40 }, 2: { cellWidth: 35 },
+            3: { cellWidth: 12 }, 4: { cellWidth: 12 }, 5: { cellWidth: 20 },
+            6: { cellWidth: 10 }, 7: { cellWidth: 20 },
+          },
+          margin: { left: 10, right: 10 },
+          didParseCell: (data) => {
+            if (data.row.index === tableBody.length - 1) {
+              data.cell.styles.fontStyle = 'bold';
+              data.cell.styles.fillColor = [250, 250, 250];
+            }
+          },
+        });
+
+        y = (doc as any).lastAutoTable.finalY + 5;
+
+        if (group.section) {
+          if (y > pageHeight - 20) { doc.addPage(); y = 10; }
+          doc.setFillColor(255, 249, 196);
+          doc.rect(10, y - 4, pageWidth - 20, 6, 'F');
+          doc.setFontSize(10);
+          doc.setTextColor(0, 0, 0);
+          doc.text(`Итого ${group.section.name}: ${group.total.toLocaleString('ru-RU')} ₽`, pageWidth - 15, y, { align: 'right' });
+          y += 8;
+        }
+      }
+    }
+
+    // === ИТОГО ===
+    if (y > pageHeight - 20) { doc.addPage(); y = 10; }
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`ИТОГО: ${total.toLocaleString('ru-RU')} ₽`, pageWidth - 15, y + 10, { align: 'right' });
+
+    // === СОХРАНЕНИЕ ===
+    const fileName = `Смета_${eventName.replace(/[^a-zA-Z0-9а-яА-Я\s]/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`;
+    const pdfBlob = doc.output('blob');
+    const url = URL.createObjectURL(pdfBlob);
+    
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    
+    if (isIOS) {
+      // На iOS создаём временную ссылку с target="_blank" — 
+      // Safari откроет PDF в новой вкладке, откуда можно вернуться через "<"
+      const link = document.createElement('a');
+      link.href = url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      // Очистим URL через небольшую задержку
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+    } else {
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+  }, [eventName, venue, eventStartDate, eventEndDate, items, sections, categoryOrder, total, pdfSettings, company, customerId, customers]);
 
   // Экспорт Excel
   const exportExcel = useCallback(async () => {
@@ -1019,8 +1066,20 @@ export function EstimateBuilder({
           const totalRow = worksheet.getRow(currentRow);
           totalRow.values = ['', '', '', '', '', 'Итого:', { formula: `SUM(G${categoryStartRow}:G${currentRow - 1})` }];
           totalRow.font = { bold: true };
-          totalRow.getCell(6).alignment = { horizontal: 'right' };
+          // Объединяем ячейки A-F для итого по категории
+          worksheet.mergeCells(`A${currentRow}:F${currentRow}`);
+          totalRow.getCell(1).alignment = { horizontal: 'right', vertical: 'center' };
+          totalRow.getCell(1).fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFFAFAFA' }
+          };
           totalRow.getCell(7).numFmt = '#,##0.00" ₽"';
+          totalRow.getCell(7).fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFFAFAFA' }
+          };
           currentRow++;
         }
         
@@ -1030,15 +1089,18 @@ export function EstimateBuilder({
       // Итого по секции (только для именованных секций)
       if (section && categories.length > 0) {
         const secTotalRow = worksheet.getRow(currentRow);
-        secTotalRow.values = ['', '', '', '', '', `Итого ${section.name}:`, sectionTotal];
+        // Значение кладём в A, потом объединим A-G
+        secTotalRow.values = [`Итого ${section.name}: ${sectionTotal.toLocaleString('ru-RU')} ₽`, '', '', '', '', '', ''];
         secTotalRow.font = { bold: true, size: 11 };
         secTotalRow.fill = {
           type: 'pattern',
           pattern: 'solid',
           fgColor: { argb: 'FFFFF9C4' }
         };
-        secTotalRow.getCell(6).alignment = { horizontal: 'right' };
-        secTotalRow.getCell(7).numFmt = '#,##0.00" ₽"';
+        // Объединяем ячейки A-G для итого по секции
+        worksheet.mergeCells(`A${currentRow}:G${currentRow}`);
+        secTotalRow.getCell(1).alignment = { horizontal: 'right', vertical: 'center' };
+        secTotalRow.getCell(1).numFmt = '#,##0.00" ₽"';
         currentRow += 2;
       }
     });
@@ -1052,7 +1114,9 @@ export function EstimateBuilder({
       pattern: 'solid',
       fgColor: { argb: 'FFFFF9C4' }
     };
-    grandTotalRow.getCell(6).alignment = { horizontal: 'right', vertical: 'center' };
+    // Объединяем ячейки A-F для общего итога
+    worksheet.mergeCells(`A${currentRow}:F${currentRow}`);
+    grandTotalRow.getCell(1).alignment = { horizontal: 'right', vertical: 'center' };
     grandTotalRow.getCell(7).numFmt = '#,##0.00" ₽"';
 
     worksheet.columns = [
