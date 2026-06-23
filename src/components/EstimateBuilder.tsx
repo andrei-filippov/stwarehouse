@@ -39,8 +39,6 @@ import { EstimateSections } from './EstimateSections';
 import { cn } from '../lib/utils';
 import { toast } from 'sonner';
 import { logger } from '../lib/logger';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { groupItemsBySections } from '../lib/estimateExport';
 
 interface EstimateBuilderProps {
@@ -716,167 +714,23 @@ export function EstimateBuilder({
     }
   };
 
-  // Экспорт PDF через jsPDF — корректно работает на iOS
+  // Экспорт PDF через html2canvas + jsPDF — корректно работает на iOS и сохраняет шрифты
   const exportPDF = useCallback(async () => {
-    const doc = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a4',
+    const { exportEstimateToPDF } = await import('../lib/estimatePDFExport');
+    await exportEstimateToPDF({
+      eventName,
+      venue,
+      eventStartDate,
+      eventEndDate,
+      items,
+      sections,
+      categoryOrder,
+      total,
+      pdfSettings,
+      company,
+      customerId,
+      customers,
     });
-
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    let y = 10;
-
-    // === ШАПКА ===
-    if (pdfSettings.logo) {
-      try {
-        const img = new Image();
-        img.src = pdfSettings.logo;
-        await new Promise((resolve) => { img.onload = resolve; img.onerror = resolve; });
-        const imgWidth = 40;
-        const imgHeight = (img.height / img.width) * imgWidth;
-        doc.addImage(pdfSettings.logo, 'JPEG', 10, y, imgWidth, Math.min(imgHeight, 20));
-      } catch { /* логотип не загрузился */ }
-    }
-
-    const companyName = company?.name || pdfSettings.companyName || '';
-    const companyDetails = company?.legal_address || pdfSettings.companyDetails || '';
-    
-    if (companyName) {
-      doc.setFontSize(10);
-      doc.text(companyName, pageWidth - 10, y + 5, { align: 'right' });
-    }
-    if (company?.inn || company?.kpp) {
-      doc.setFontSize(8);
-      doc.text(`ИНН: ${company?.inn || '-'} / КПП: ${company?.kpp || '-'}`, pageWidth - 10, y + 10, { align: 'right' });
-    }
-    if (companyDetails) {
-      doc.setFontSize(8);
-      companyDetails.split('\n').forEach((line, i) => {
-        doc.text(line, pageWidth - 10, y + 14 + (i * 3), { align: 'right' });
-      });
-    }
-    y += 25;
-
-    // === ЗАГОЛОВОК ===
-    doc.setFontSize(16);
-    doc.text('Коммерческое предложение', pageWidth / 2, y, { align: 'center' });
-    y += 10;
-
-    // === ИНФО ===
-    doc.setFontSize(10);
-    const selectedCustomer = customers.find(c => c.id === customerId);
-    const infoLines = [
-      `Мероприятие: ${eventName}`,
-      `Площадка: ${venue || '-'}`,
-      `Дата начала: ${eventStartDate ? new Date(eventStartDate).toLocaleDateString('ru-RU') : '-'}`,
-      `Дата окончания: ${eventEndDate ? new Date(eventEndDate).toLocaleDateString('ru-RU') : '-'}`,
-    ];
-    if (selectedCustomer?.name) infoLines.push(`Заказчик: ${selectedCustomer.name}`);
-    infoLines.forEach((line) => { doc.text(line, 10, y); y += 5; });
-    y += 3;
-
-    // === ТАБЛИЦА ===
-    const grouped = groupItemsBySections(items, sections, categoryOrder);
-    let rowNumber = 1;
-
-    for (const group of grouped) {
-      if (group.section) {
-        if (y > pageHeight - 30) { doc.addPage(); y = 10; }
-        doc.setFontSize(12);
-        doc.setTextColor(41, 128, 185);
-        doc.text(group.section.name, 10, y);
-        y += 6;
-      }
-
-      for (const cat of group.categories) {
-        const catItems = cat.items;
-        const catTotal = catItems.reduce((sum, item) => sum + (item.price * item.quantity * (item.coefficient || 1)), 0);
-
-        if (y > pageHeight - 30) { doc.addPage(); y = 10; }
-
-        const tableBody = catItems.map((item) => [
-          String(rowNumber++), item.name, item.description || '-',
-          item.unit || 'шт', String(item.quantity),
-          `${item.price.toLocaleString('ru-RU')} ₽`,
-          String(item.coefficient || 1),
-          `${(item.price * item.quantity * (item.coefficient || 1)).toLocaleString('ru-RU')} ₽`,
-        ]);
-        tableBody.push(['', '', '', '', '', '', 'Итого:', `${catTotal.toLocaleString('ru-RU')} ₽`]);
-
-        autoTable(doc, {
-          startY: y,
-          head: [
-            [{ content: cat.category, colSpan: 8, styles: { fillColor: group.isNoSection ? [227, 242, 253] : [245, 245, 245], fontSize: 10, fontStyle: 'bold' } }],
-            ['№', 'Наименование', 'Описание', 'Ед.', 'Кол-во', 'Цена', 'Коэф.', 'Сумма']
-          ],
-          body: tableBody,
-          theme: 'grid',
-          headStyles: { fillColor: [41, 128, 185], textColor: 255, fontSize: 8 },
-          bodyStyles: { fontSize: 8 },
-          columnStyles: {
-            0: { cellWidth: 8 }, 1: { cellWidth: 40 }, 2: { cellWidth: 35 },
-            3: { cellWidth: 12 }, 4: { cellWidth: 12 }, 5: { cellWidth: 20 },
-            6: { cellWidth: 10 }, 7: { cellWidth: 20 },
-          },
-          margin: { left: 10, right: 10 },
-          didParseCell: (data) => {
-            if (data.row.index === tableBody.length - 1) {
-              data.cell.styles.fontStyle = 'bold';
-              data.cell.styles.fillColor = [250, 250, 250];
-            }
-          },
-        });
-
-        y = (doc as any).lastAutoTable.finalY + 5;
-
-        if (group.section) {
-          if (y > pageHeight - 20) { doc.addPage(); y = 10; }
-          doc.setFillColor(255, 249, 196);
-          doc.rect(10, y - 4, pageWidth - 20, 6, 'F');
-          doc.setFontSize(10);
-          doc.setTextColor(0, 0, 0);
-          doc.text(`Итого ${group.section.name}: ${group.total.toLocaleString('ru-RU')} ₽`, pageWidth - 15, y, { align: 'right' });
-          y += 8;
-        }
-      }
-    }
-
-    // === ИТОГО ===
-    if (y > pageHeight - 20) { doc.addPage(); y = 10; }
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`ИТОГО: ${total.toLocaleString('ru-RU')} ₽`, pageWidth - 15, y + 10, { align: 'right' });
-
-    // === СОХРАНЕНИЕ ===
-    const fileName = `Смета_${eventName.replace(/[^a-zA-Z0-9а-яА-Я\s]/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`;
-    const pdfBlob = doc.output('blob');
-    const url = URL.createObjectURL(pdfBlob);
-    
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    
-    if (isIOS) {
-      // На iOS создаём временную ссылку с target="_blank" — 
-      // Safari откроет PDF в новой вкладке, откуда можно вернуться через "<"
-      const link = document.createElement('a');
-      link.href = url;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      // Очистим URL через небольшую задержку
-      setTimeout(() => URL.revokeObjectURL(url), 30000);
-    } else {
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    }
   }, [eventName, venue, eventStartDate, eventEndDate, items, sections, categoryOrder, total, pdfSettings, company, customerId, customers]);
 
   // Экспорт Excel
@@ -1066,15 +920,13 @@ export function EstimateBuilder({
           const totalRow = worksheet.getRow(currentRow);
           totalRow.values = ['', '', '', '', '', 'Итого:', { formula: `SUM(G${categoryStartRow}:G${currentRow - 1})` }];
           totalRow.font = { bold: true };
-          // Объединяем ячейки A-F для итого по категории
-          worksheet.mergeCells(`A${currentRow}:F${currentRow}`);
-          totalRow.getCell(1).alignment = { horizontal: 'right', vertical: 'center' };
-          totalRow.getCell(1).fill = {
+          totalRow.getCell(6).alignment = { horizontal: 'right', vertical: 'center' };
+          totalRow.getCell(7).numFmt = '#,##0.00" ₽"';
+          totalRow.getCell(6).fill = {
             type: 'pattern',
             pattern: 'solid',
             fgColor: { argb: 'FFFAFAFA' }
           };
-          totalRow.getCell(7).numFmt = '#,##0.00" ₽"';
           totalRow.getCell(7).fill = {
             type: 'pattern',
             pattern: 'solid',
@@ -1089,18 +941,15 @@ export function EstimateBuilder({
       // Итого по секции (только для именованных секций)
       if (section && categories.length > 0) {
         const secTotalRow = worksheet.getRow(currentRow);
-        // Значение кладём в A, потом объединим A-G
-        secTotalRow.values = [`Итого ${section.name}: ${sectionTotal.toLocaleString('ru-RU')} ₽`, '', '', '', '', '', ''];
+        secTotalRow.values = ['', '', '', '', '', `Итого ${section.name}:`, sectionTotal];
         secTotalRow.font = { bold: true, size: 11 };
         secTotalRow.fill = {
           type: 'pattern',
           pattern: 'solid',
           fgColor: { argb: 'FFFFF9C4' }
         };
-        // Объединяем ячейки A-G для итого по секции
-        worksheet.mergeCells(`A${currentRow}:G${currentRow}`);
-        secTotalRow.getCell(1).alignment = { horizontal: 'right', vertical: 'center' };
-        secTotalRow.getCell(1).numFmt = '#,##0.00" ₽"';
+        secTotalRow.getCell(6).alignment = { horizontal: 'right', vertical: 'center' };
+        secTotalRow.getCell(7).numFmt = '#,##0.00" ₽"';
         currentRow += 2;
       }
     });
@@ -1114,9 +963,7 @@ export function EstimateBuilder({
       pattern: 'solid',
       fgColor: { argb: 'FFFFF9C4' }
     };
-    // Объединяем ячейки A-F для общего итога
-    worksheet.mergeCells(`A${currentRow}:F${currentRow}`);
-    grandTotalRow.getCell(1).alignment = { horizontal: 'right', vertical: 'center' };
+    grandTotalRow.getCell(6).alignment = { horizontal: 'right', vertical: 'center' };
     grandTotalRow.getCell(7).numFmt = '#,##0.00" ₽"';
 
     worksheet.columns = [
@@ -1125,8 +972,8 @@ export function EstimateBuilder({
       { width: 10 },  // Ед. изм.
       { width: 9 },   // Кол-во
       { width: 13 },  // Цена
-      { width: 9 },   // Коэфф.
-      { width: 16 },  // Стоимость
+      { width: 18 },  // Коэфф. (увеличено для "Итого:")
+      { width: 18 },  // Стоимость (увеличено для сумм)
     ];
 
     for (let row = dataStartRow - 1; row <= currentRow; row++) {
