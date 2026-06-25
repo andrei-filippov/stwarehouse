@@ -122,10 +122,9 @@ export async function exportEstimateToPDF(data: PDFExportData): Promise<void> {
     const url = URL.createObjectURL(pdfBlob);
 
     if (isIOS) {
-      // На iOS используем window.open — Safari откроет PDF viewer
-      window.open(url, '_blank');
-      // Очистим URL через задержку
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      // На iOS используем location.href — Safari откроет PDF в том же окне
+      // Пользователь увидит PDF и сможет вернуться через кнопку "Назад" браузера
+      window.location.href = url;
     } else {
       const link = document.createElement('a');
       link.href = url;
