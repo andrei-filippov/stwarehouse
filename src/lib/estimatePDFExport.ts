@@ -4,6 +4,7 @@
 import { jsPDF } from 'jspdf';
 import type { EstimateItem, EstimateSection, PDFSettings, Customer } from '../types';
 import { groupItemsBySections } from './estimateExport';
+import { toast } from 'sonner';
 
 interface PDFExportData {
   eventName: string;
@@ -79,6 +80,8 @@ export async function exportEstimateToPDF(data: PDFExportData): Promise<void> {
       )
     );
 
+    toast.info('Создание PDF...');
+    
     const html2canvas = (await import('html2canvas')).default;
     const canvas = await html2canvas(container, {
       scale: 2,
@@ -119,15 +122,10 @@ export async function exportEstimateToPDF(data: PDFExportData): Promise<void> {
     const url = URL.createObjectURL(pdfBlob);
 
     if (isIOS) {
-      // На iOS открываем в новой вкладке — Safari покажет PDF viewer с кнопкой "Готово"
-      const link = document.createElement('a');
-      link.href = url;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      setTimeout(() => URL.revokeObjectURL(url), 30000);
+      // На iOS используем window.open — Safari откроет PDF viewer
+      window.open(url, '_blank');
+      // Очистим URL через задержку
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
     } else {
       const link = document.createElement('a');
       link.href = url;
@@ -137,6 +135,11 @@ export async function exportEstimateToPDF(data: PDFExportData): Promise<void> {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
     }
+    
+    toast.success('PDF создан');
+  } catch (err: any) {
+    console.error('PDF export error:', err);
+    toast.error('Ошибка при создании PDF', { description: err.message || 'Неизвестная ошибка' });
   } finally {
     // Удаляем временный контейнер
     if (container.parentNode) {
