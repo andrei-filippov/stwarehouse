@@ -898,6 +898,7 @@ export function EstimateBuilder({
         const categoryStartRow = currentRow;
         catItems.forEach((item, idx) => {
           const row = worksheet.getRow(currentRow);
+          const itemTotal = item.price * item.quantity * (item.coefficient || 1);
           row.values = [
             idx + 1,
             item.description ? `${item.name} - ${item.description}` : item.name,
@@ -905,7 +906,7 @@ export function EstimateBuilder({
             item.quantity,
             item.price,
             item.coefficient || 1,
-            { formula: `D${currentRow}*E${currentRow}*F${currentRow}` }
+            itemTotal // Вычисленное значение для совместимости с iOS
           ];
           
           row.getCell(2).alignment = { wrapText: true, vertical: 'top' };
@@ -917,8 +918,9 @@ export function EstimateBuilder({
         });
 
         if (catItems.length > 0) {
+          const catTotal = catItems.reduce((sum, item) => sum + (item.price * item.quantity * (item.coefficient || 1)), 0);
           const totalRow = worksheet.getRow(currentRow);
-          totalRow.values = ['', '', '', '', '', 'Итого:', { formula: `SUM(G${categoryStartRow}:G${currentRow - 1})` }];
+          totalRow.values = ['', '', '', '', '', 'Итого:', catTotal]; // Вычисленное значение вместо SUM
           totalRow.font = { bold: true };
           totalRow.getCell(6).alignment = { horizontal: 'right', vertical: 'center' };
           totalRow.getCell(7).numFmt = '#,##0.00" ₽"';
@@ -962,9 +964,10 @@ export function EstimateBuilder({
       }
     });
 
-    // Общий итог - формула SUMIF, суммирует только строки с количеством (позиции)
+    // Общий итог - вычисленное значение для совместимости с iOS
+    const grandTotal = items.reduce((sum, item) => sum + (item.price * item.quantity * (item.coefficient || 1)), 0);
     const grandTotalRow = worksheet.getRow(currentRow);
-    grandTotalRow.values = ['', '', '', '', '', 'ИТОГО:', { formula: `SUMIF(D${dataStartRow}:D${currentRow-1},">0",G${dataStartRow}:G${currentRow-1})` }];
+    grandTotalRow.values = ['', '', '', '', '', 'ИТОГО:', grandTotal];
     grandTotalRow.font = { bold: true, size: 12 };
     grandTotalRow.fill = {
       type: 'pattern',
