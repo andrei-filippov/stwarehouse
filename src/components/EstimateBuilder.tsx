@@ -898,6 +898,7 @@ export function EstimateBuilder({
         const categoryStartRow = currentRow;
         catItems.forEach((item, idx) => {
           const row = worksheet.getRow(currentRow);
+          const itemTotal = item.price * item.quantity * (item.coefficient || 1);
           row.values = [
             idx + 1,
             item.description ? `${item.name} - ${item.description}` : item.name,
@@ -905,13 +906,13 @@ export function EstimateBuilder({
             item.quantity,
             item.price,
             item.coefficient || 1,
-            { formula: `D${currentRow}*E${currentRow}*F${currentRow}` }
+            itemTotal // Вычисленное значение вместо формулы
           ];
           
           row.getCell(2).alignment = { wrapText: true, vertical: 'top' };
           row.getCell(4).numFmt = '#,##0';
-          row.getCell(5).numFmt = '#,##0.00" ₽"';
-          row.getCell(7).numFmt = '#,##0.00" ₽"';
+          row.getCell(5).numFmt = '#,##0.00';
+          row.getCell(7).numFmt = '#,##0.00';
           
           currentRow++;
         });
@@ -921,7 +922,7 @@ export function EstimateBuilder({
           totalRow.values = ['', '', '', '', '', 'Итого:', { formula: `SUM(G${categoryStartRow}:G${currentRow - 1})` }];
           totalRow.font = { bold: true };
           totalRow.getCell(6).alignment = { horizontal: 'right', vertical: 'center' };
-          totalRow.getCell(7).numFmt = '#,##0.00" ₽"';
+          totalRow.getCell(7).numFmt = '#,##0.00';
           totalRow.getCell(6).fill = {
             type: 'pattern',
             pattern: 'solid',
@@ -952,7 +953,7 @@ export function EstimateBuilder({
         // Объединяем B-F для итого по секции, текст справа, сумма в G
         worksheet.mergeCells(`B${currentRow}:F${currentRow}`);
         secTotalRow.getCell(2).alignment = { horizontal: 'right', vertical: 'center' };
-        secTotalRow.getCell(7).numFmt = '#,##0.00" ₽"';
+        secTotalRow.getCell(7).numFmt = '#,##0.00';
         secTotalRow.getCell(7).fill = {
           type: 'pattern',
           pattern: 'solid',
@@ -972,7 +973,7 @@ export function EstimateBuilder({
       fgColor: { argb: 'FFFFF9C4' }
     };
     grandTotalRow.getCell(6).alignment = { horizontal: 'right', vertical: 'center' };
-    grandTotalRow.getCell(7).numFmt = '#,##0.00" ₽"';
+    grandTotalRow.getCell(7).numFmt = '#,##0.00';
 
     worksheet.columns = [
       { width: 5 },   // №
