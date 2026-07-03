@@ -399,9 +399,15 @@ export function useEstimates(companyId: string | undefined, activeTab?: string) 
             if (itemsError) throw itemsError;
           }
 
-          // Replace temp with real data
-          optimistic.update(localId, newEstimate);
+          // Replace temp with real data, preserving items from optimistic estimate
+          // because server response from .select().single() doesn't include joined items
+          optimistic.update(localId, { ...newEstimate, items: estimateData.items });
           toast.success('Смета создана');
+          
+          // Fetch full data in background to get server-side items and ensure consistency
+          // Don't await — let UI update immediately
+          fetchEstimates(true);
+          
           return { error: null, data: newEstimate };
         } catch (err: any) {
           // Если ошибка сети - переключаемся на оффлайн режим
