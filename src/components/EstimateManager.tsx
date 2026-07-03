@@ -451,7 +451,7 @@ export const EstimateManager = memo(function EstimateManager({
               </div>
             ) : (
               groupedEstimates.map(([month, monthEstimates]) => (
-                <div key={month} className="border rounded-lg overflow-hidden">
+                <div key={month} className="border rounded-lg">
                   {/* Заголовок месяца */}
                   <button
                     onClick={() => {
