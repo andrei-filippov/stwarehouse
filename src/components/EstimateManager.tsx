@@ -490,11 +490,11 @@ export const EstimateManager = memo(function EstimateManager({
                       <TableHeader>
                         <TableRow className="bg-muted/50">
                           <TableHead className="w-[30%]">Мероприятие</TableHead>
-                          <TableHead>Заказчик</TableHead>
-                          <TableHead>Площадка</TableHead>
+                          <TableHead className="whitespace-normal">Заказчик</TableHead>
+                          <TableHead className="whitespace-normal">Площадка</TableHead>
                           <TableHead>Период</TableHead>
                           <TableHead className="text-right">Сумма</TableHead>
-                          <TableHead>Статус</TableHead>
+                          <TableHead className="whitespace-normal">Статус</TableHead>
                           <TableHead className="w-[100px]">Действия</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -505,7 +505,7 @@ export const EstimateManager = memo(function EstimateManager({
                             className={`cursor-pointer hover:bg-primary/10 transition-colors ${estimate.is_editing ? 'bg-primary/10' : ''}`}
                             onClick={() => handleEdit(estimate)}
                           >
-                            <TableCell className="font-medium">
+                            <TableCell className="font-medium whitespace-normal">
                               <div className="flex items-center gap-2">
                                 {estimate.event_name}
                                 {estimate.is_editing && (
@@ -516,8 +516,8 @@ export const EstimateManager = memo(function EstimateManager({
                                 )}
                               </div>
                             </TableCell>
-                            <TableCell>{estimate.customer_name || '-'}</TableCell>
-                            <TableCell>{estimate.venue || '-'}</TableCell>
+                            <TableCell className="whitespace-normal max-w-[140px]">{estimate.customer_name || '-'}</TableCell>
+                            <TableCell className="whitespace-normal max-w-[160px]">{estimate.venue || '-'}</TableCell>
                             <TableCell>
                               {new Date(estimate.event_start_date || estimate.event_date).toLocaleDateString('ru-RU')}
                               {(estimate.event_end_date || estimate.event_date) !== (estimate.event_start_date || estimate.event_date) && 
@@ -530,7 +530,7 @@ export const EstimateManager = memo(function EstimateManager({
                                   value={estimate.status || 'draft'} 
                                   onValueChange={(value) => onUpdateStatus(estimate.id, value as EstimateStatus)}
                                 >
-                                  <SelectTrigger className="w-[150px] h-8 shrink-0">
+                                  <SelectTrigger className="w-[130px] h-8 shrink-0">
                                     <SelectValue>{getStatusBadge(estimate.status)}</SelectValue>
                                   </SelectTrigger>
                                   <SelectContent>
