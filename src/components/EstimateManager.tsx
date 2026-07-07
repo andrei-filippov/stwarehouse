@@ -64,18 +64,19 @@ export const EstimateManager = memo(function EstimateManager({
   onCreateTemplateFromEstimate,
 }: EstimateManagerProps) {
   // Helper для отображения статуса
-  const getStatusBadge = (status?: EstimateStatus) => {
+  const getStatusBadge = (status?: EstimateStatus, showIcon = true) => {
+    const iconClass = showIcon ? 'mr-1' : '';
     switch (status) {
       case 'completed':
-        return <Badge className="bg-green-100 text-green-700 hover:bg-green-100 whitespace-nowrap"><CheckCircle2 className="w-3 h-3 mr-1 shrink-0" /> Выполнена</Badge>;
+        return <Badge className="bg-green-100 text-green-700 hover:bg-green-100 whitespace-nowrap">{showIcon && <CheckCircle2 className="w-3 h-3 mr-1 shrink-0" />} Выполнена</Badge>;
       case 'approved':
-        return <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 whitespace-nowrap"><CheckCircle2 className="w-3 h-3 mr-1 shrink-0" /> Согласована</Badge>;
+        return <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 whitespace-nowrap">{showIcon && <CheckCircle2 className="w-3 h-3 mr-1 shrink-0" />} Согласована</Badge>;
       case 'pending':
-        return <Badge className="bg-yellow-100 text-yellow-700 hover:bg-yellow-100 whitespace-nowrap"><Clock className="w-3 h-3 mr-1 shrink-0" /> В работе</Badge>;
+        return <Badge className="bg-yellow-100 text-yellow-700 hover:bg-yellow-100 whitespace-nowrap">{showIcon && <Clock className="w-3 h-3 mr-1 shrink-0" />} В работе</Badge>;
       case 'cancelled':
-        return <Badge className="bg-red-100 text-red-700 hover:bg-red-100 whitespace-nowrap"><XCircle className="w-3 h-3 mr-1 shrink-0" /> Отменена</Badge>;
+        return <Badge className="bg-red-100 text-red-700 hover:bg-red-100 whitespace-nowrap">{showIcon && <XCircle className="w-3 h-3 mr-1 shrink-0" />} Отменена</Badge>;
       default:
-        return <Badge variant="outline" className="whitespace-nowrap"><FileText className="w-3 h-3 mr-1 shrink-0" /> Черновик</Badge>;
+        return <Badge variant="outline" className="whitespace-nowrap">{showIcon && <FileText className="w-3 h-3 mr-1 shrink-0" />} Черновик</Badge>;
     }
   };
   // Открываем создание сметы при нажатии FAB (пропускаем первый рендер)
@@ -531,7 +532,7 @@ export const EstimateManager = memo(function EstimateManager({
                                   onValueChange={(value) => onUpdateStatus(estimate.id, value as EstimateStatus)}
                                 >
                                   <SelectTrigger className="w-[130px] h-8 shrink-0">
-                                    <SelectValue>{getStatusBadge(estimate.status)}</SelectValue>
+                                    <SelectValue>{getStatusBadge(estimate.status, false)}</SelectValue>
                                   </SelectTrigger>
                                   <SelectContent>
                                     <SelectItem value="draft">Черновик</SelectItem>
