@@ -95,7 +95,7 @@ export function useProjects(companyId: string | undefined) {
           venue_details:venue_id (name,city,address,contact_name,contact_phone)
         `)
         .eq('company_id', companyId)
-        .order('created_at', { ascending: false });
+        .order('estimate_id', { ascending: false });
 
       if (projectsError) {
         if (projectsError.code === '42P01') {
