@@ -571,16 +571,19 @@ export function ProjectManager({ companyId, venues = [], staff: companyStaff = [
               </div>
             </div>
 
-            {showAddStaff && (
-              <AddStaffForm
-                companyStaff={companyStaff}
-                onAdd={(staff) => {
-                  addStaff(selectedProject.id, staff);
-                  setShowAddStaff(false);
-                }}
-                onCancel={() => setShowAddStaff(false)}
-              />
-            )}
+          {showAddStaff && (
+            <AddStaffMatrix
+              companyStaff={companyStaff}
+              existingStaff={selectedProject.staff}
+              onAdd={async (assignments) => {
+                for (const a of assignments) {
+                  await addStaff(selectedProject.id, a);
+                }
+                setShowAddStaff(false);
+              }}
+              onCancel={() => setShowAddStaff(false)}
+            />
+          )}
 
             {selectedProject.staff.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
@@ -785,83 +788,219 @@ export function ProjectManager({ companyId, venues = [], staff: companyStaff = [
 
 // ========== ВСПОМОГАТЕЛЬНЫЕ КОМПОНЕНТЫ ==========
 
-function AddStaffForm({ companyStaff, onAdd, onCancel }: {
+function AddStaffMatrix({ companyStaff, existingStaff, onAdd, onCancel }: {
   companyStaff: { id: string; full_name: string; phone?: string; email?: string }[];
-  onAdd: (staff: Omit<ProjectStaff, 'id'>) => void;
+  existingStaff: ProjectStaff[];
+  onAdd: (assignments: Omit<ProjectStaff, 'id'>[]) => void;
   onCancel: () => void;
 }) {
-  const [staffId, setStaffId] = useState('');
-  const [externalName, setExternalName] = useState('');
-  const [role, setRole] = useState('sound_engineer');
-  const [customRole, setCustomRole] = useState('');
+  const [selected, setSelected] = useState<Record<string, string[]>>({}); // staffId -> roles[]
+  const [customRoles, setCustomRoles] = useState<Record<string, Record<string, string>>>({}); // staffId -> { roleKey -> customRole }
   const [shiftStart, setShiftStart] = useState('');
   const [shiftEnd, setShiftEnd] = useState('');
   const [isExternal, setIsExternal] = useState(false);
+  const [externalName, setExternalName] = useState('');
+  const [externalRole, setExternalRole] = useState('sound_engineer');
+  const [externalCustomRole, setExternalCustomRole] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onAdd({
-      staff_id: isExternal ? null : staffId || null,
-      external_name: isExternal ? externalName : null,
-      external_phone: null,
-      role: role as any,
-      custom_role: role === 'other' ? customRole : null,
-      shift_start: shiftStart ? new Date(shiftStart).toISOString() : null,
-      shift_end: shiftEnd ? new Date(shiftEnd).toISOString() : null,
-      confirmed: false,
-      notes: null,
+  const roleEntries = Object.entries(ROLE_LABELS);
+
+  const toggleRole = (staffId: string, role: string) => {
+    setSelected(prev => {
+      const current = prev[staffId] || [];
+      if (current.includes(role)) {
+        // Убираем роль
+        const next = current.filter(r => r !== role);
+        if (next.length === 0) {
+          const updated = { ...prev };
+          delete updated[staffId];
+          return updated;
+        }
+        return { ...prev, [staffId]: next };
+      }
+      // Добавляем роль
+      return { ...prev, [staffId]: [...current, role] };
     });
   };
 
+  const isAssigned = (staffId: string, role: string) => {
+    return (selected[staffId] || []).includes(role);
+  };
+
+  const setCustomRole = (staffId: string, role: string, value: string) => {
+    setCustomRoles(prev => ({
+      ...prev,
+      [staffId]: { ...prev[staffId], [role]: value }
+    }));
+  };
+
+  const getCustomRole = (staffId: string, role: string) => {
+    return customRoles[staffId]?.[role] || '';
+  };
+
+  const handleSubmit = () => {
+    const assignments: Omit<ProjectStaff, 'id'>[] = [];
+
+    // Внутренние сотрудники — каждая роль отдельной записью
+    Object.entries(selected).forEach(([staffId, roles]) => {
+      roles.forEach(role => {
+        assignments.push({
+          staff_id: staffId,
+          external_name: null,
+          external_phone: null,
+          role: role as any,
+          custom_role: role === 'other' ? (getCustomRole(staffId, role) || 'Другое') : null,
+          shift_start: shiftStart ? new Date(shiftStart).toISOString() : null,
+          shift_end: shiftEnd ? new Date(shiftEnd).toISOString() : null,
+          confirmed: false,
+          notes: null,
+        });
+      });
+    });
+
+    // Внешний сотрудник
+    if (isExternal && externalName.trim()) {
+      assignments.push({
+        staff_id: null,
+        external_name: externalName.trim(),
+        external_phone: null,
+        role: externalRole as any,
+        custom_role: externalRole === 'other' ? (externalCustomRole || 'Другое') : null,
+        shift_start: shiftStart ? new Date(shiftStart).toISOString() : null,
+        shift_end: shiftEnd ? new Date(shiftEnd).toISOString() : null,
+        confirmed: false,
+        notes: null,
+      });
+    }
+
+    if (assignments.length === 0) {
+      toast.error('Выберите хотя бы одного сотрудника и роль');
+      return;
+    }
+
+    onAdd(assignments);
+  };
+
+  // Считаем общее количество назначений
+  const totalAssignments = Object.values(selected).reduce((sum, roles) => sum + roles.length, 0) + (isExternal && externalName ? 1 : 0);
+
   return (
     <Card>
-      <CardContent className="py-4">
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="flex gap-2">
-            <Button type="button" size="sm" variant={!isExternal ? 'default' : 'outline'} onClick={() => setIsExternal(false)}>Из компании</Button>
-            <Button type="button" size="sm" variant={isExternal ? 'default' : 'outline'} onClick={() => setIsExternal(true)}>Внешний</Button>
-          </div>
-
-          {!isExternal ? (
-            <select
-              className="w-full px-3 py-2 border rounded-md text-sm bg-card"
-              value={staffId}
-              onChange={(e) => setStaffId(e.target.value)}
-              required
-            >
-              <option value="">Выберите сотрудника</option>
-              {companyStaff.map(s => (
-                <option key={s.id} value={s.id}>{s.full_name}</option>
-              ))}
-            </select>
-          ) : (
-            <Input placeholder="ФИО" value={externalName} onChange={(e) => setExternalName(e.target.value)} required />
-          )}
-
-          <select
-            className="w-full px-3 py-2 border rounded-md text-sm bg-card"
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-          >
-            {Object.entries(ROLE_LABELS).map(([key, label]) => (
-              <option key={key} value={key}>{label}</option>
-            ))}
-          </select>
-
-          {role === 'other' && (
-            <Input placeholder="Укажите роль" value={customRole} onChange={(e) => setCustomRole(e.target.value)} required />
-          )}
-
-          <div className="grid grid-cols-2 gap-2">
+      <CardContent className="py-4 space-y-4">
+        {/* Общие смены */}
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">Начало смены (всех)</label>
             <Input type="datetime-local" value={shiftStart} onChange={(e) => setShiftStart(e.target.value)} />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">Конец смены (всех)</label>
             <Input type="datetime-local" value={shiftEnd} onChange={(e) => setShiftEnd(e.target.value)} />
           </div>
+        </div>
 
-          <div className="flex gap-2">
-            <Button type="submit" size="sm">Добавить</Button>
-            <Button type="button" size="sm" variant="outline" onClick={onCancel}>Отмена</Button>
+        {/* Матрица: сотрудники × роли */}
+        {companyStaff.length > 0 && (
+          <div className="border rounded-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted">
+                  <tr>
+                    <th className="px-3 py-2 text-left font-medium sticky left-0 bg-muted z-10 min-w-[180px]">Сотрудник</th>
+                    {roleEntries.map(([key, label]) => (
+                      <th key={key} className="px-2 py-2 text-center font-medium whitespace-nowrap min-w-[70px]">
+                        {label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {companyStaff.map((s) => (
+                    <tr key={s.id} className="border-t">
+                      <td className="px-3 py-2 sticky left-0 bg-card z-10 font-medium">
+                        {s.full_name}
+                      </td>
+                      {roleEntries.map(([roleKey]) => (
+                        <td key={roleKey} className="px-2 py-2 text-center">
+                          <button
+                            type="button"
+                            onClick={() => toggleRole(s.id, roleKey)}
+                            className={`
+                              w-7 h-7 rounded-md border transition-colors flex items-center justify-center mx-auto
+                              ${isAssigned(s.id, roleKey)
+                                ? 'bg-primary text-primary-foreground border-primary'
+                                : 'bg-background border-border hover:border-primary/50'
+                              }
+                            `}
+                          >
+                            {isAssigned(s.id, roleKey) && <span className="text-xs font-bold">✓</span>}
+                          </button>
+                          {isAssigned(s.id, roleKey) && roleKey === 'other' && (
+                            <Input
+                              size={1}
+                              placeholder="Роль"
+                              value={getCustomRole(s.id, roleKey)}
+                              onChange={(e) => setCustomRole(s.id, roleKey, e.target.value)}
+                              className="mt-1 h-6 text-xs px-1"
+                            />
+                          )}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </form>
+        )}
+
+        {companyStaff.length === 0 && (
+          <div className="text-center py-4 text-muted-foreground text-sm">
+            Нет сотрудников в компании. Добавьте их во вкладке «Персонал».
+          </div>
+        )}
+
+        {/* Внешний сотрудник */}
+        <div className="border rounded-lg p-3 space-y-3">
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="external-toggle"
+              checked={isExternal}
+              onChange={(e) => setIsExternal(e.target.checked)}
+              className="rounded border-gray-300"
+            />
+            <label htmlFor="external-toggle" className="text-sm font-medium cursor-pointer">
+              Добавить внешнего сотрудника
+            </label>
+          </div>
+
+          {isExternal && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <Input placeholder="ФИО" value={externalName} onChange={(e) => setExternalName(e.target.value)} />
+              <select
+                className="px-3 py-2 border rounded-md text-sm bg-card"
+                value={externalRole}
+                onChange={(e) => setExternalRole(e.target.value)}
+              >
+                {roleEntries.map(([key, label]) => (
+                  <option key={key} value={key}>{label}</option>
+                ))}
+              </select>
+              {externalRole === 'other' && (
+                <Input placeholder="Укажите роль" value={externalCustomRole} onChange={(e) => setExternalCustomRole(e.target.value)} />
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Кнопки */}
+        <div className="flex gap-2">
+          <Button size="sm" onClick={handleSubmit}>
+            Добавить ({totalAssignments})
+          </Button>
+          <Button size="sm" variant="outline" onClick={onCancel}>Отмена</Button>
+        </div>
       </CardContent>
     </Card>
   );
