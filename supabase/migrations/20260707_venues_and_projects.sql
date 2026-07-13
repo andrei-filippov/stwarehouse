@@ -112,6 +112,7 @@ CREATE TABLE IF NOT EXISTS projects (
   expected_attendance integer,
   tech_rider text,
   stage_plan_url text,
+  notes text,
   
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()

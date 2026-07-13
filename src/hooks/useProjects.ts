@@ -119,7 +119,7 @@ export function useProjects(companyId: string | undefined) {
       const [staffRes, timelineRes, checklistsRes] = await Promise.all([
         supabase.from('project_staff').select('*').in('project_id', projectIds).eq('company_id', companyId),
         supabase.from('project_timeline').select('*').in('project_id', projectIds).eq('company_id', companyId).order('start_time', { ascending: true }),
-        supabase.from('checklists').select('id,project_id,name,total,completed').in('project_id', projectIds).eq('company_id', companyId),
+        supabase.from('checklists').select('id,estimate_id,project_id,name,total,completed').in('estimate_id', estimateIds).eq('company_id', companyId),
       ]);
 
       const staffByProject: Record<string, ProjectStaff[]> = {};
@@ -155,8 +155,12 @@ export function useProjects(companyId: string | undefined) {
 
       const checklistsByProject: Record<string, ProjectChecklist[]> = {};
       (checklistsRes.data || []).forEach((c: any) => {
-        if (!checklistsByProject[c.project_id]) checklistsByProject[c.project_id] = [];
-        checklistsByProject[c.project_id].push({
+        // Находим project_id по estimate_id
+        const project = (projectsData || []).find((p: any) => p.estimate_id === c.estimate_id);
+        const pid = c.project_id || project?.id;
+        if (!pid) return;
+        if (!checklistsByProject[pid]) checklistsByProject[pid] = [];
+        checklistsByProject[pid].push({
           id: c.id,
           name: c.name,
           total: c.total || 0,
