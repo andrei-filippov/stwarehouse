@@ -29,8 +29,8 @@ const AdminPanel = lazy(() => import('./components/AdminPanel'));
 const EquipmentKits = lazy(() => import('./components/EquipmentKits').then(m => ({ default: m.EquipmentKits })));
 const YandexDiskFileManager = lazy(() => import('./components/YandexDiskFileManager').then(m => ({ default: m.YandexDiskFileManager })));
 const QRScanPage = lazy(() => import('./components/QRScanPage'));
-const VenueManager = lazy(() => import('./components/venues/VenueManager'));
-// const ProjectManager = lazy(() => import('./components/projects/ProjectManager'));
+// const VenueManager = lazy(() => import('./components/venues/VenueManager'));
+import { VenueManager } from './components/venues/VenueManager';
 
 import { AccessDenied } from './components/AccessDenied';
 import { BottomNav } from './components/BottomNav';
