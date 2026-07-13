@@ -32,7 +32,7 @@ export interface ProjectEquipment {
   category: string;
   quantity: number;
   unit: string;
-  comment: string | null;
+  comment: string;
 }
 
 export interface ProjectWithDetails {
@@ -119,7 +119,7 @@ export function useProjects(companyId: string | undefined) {
       const [staffRes, timelineRes, equipmentRes] = await Promise.all([
         supabase.from('project_staff').select('*').in('project_id', projectIds).eq('company_id', companyId),
         supabase.from('project_timeline').select('*').in('project_id', projectIds).eq('company_id', companyId).order('start_time', { ascending: true }),
-        supabase.from('estimate_items').select('id,estimate_id,name,category,quantity,unit,comment').in('estimate_id', estimateIds),
+        supabase.from('estimate_items').select('*').in('estimate_id', estimateIds),
       ]);
 
       const staffByProject: Record<string, ProjectStaff[]> = {};
@@ -164,7 +164,7 @@ export function useProjects(companyId: string | undefined) {
           category: e.category || 'Без категории',
           quantity: e.quantity || 1,
           unit: e.unit || 'шт.',
-          comment: e.comment,
+          comment: e.comment || '',
         });
       });
 

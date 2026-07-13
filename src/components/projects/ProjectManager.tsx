@@ -342,6 +342,7 @@ export function ProjectManager({ companyId, venues = [], staff: companyStaff = [
                       <th className="px-4 py-2 text-left">Категория</th>
                       <th className="px-4 py-2 text-left">Наименование</th>
                       <th className="px-4 py-2 text-center">Кол-во</th>
+                      <th className="px-4 py-2 text-center">Ед.</th>
                       <th className="px-4 py-2 text-left">Примечание</th>
                     </tr>
                   </thead>
@@ -350,7 +351,8 @@ export function ProjectManager({ companyId, venues = [], staff: companyStaff = [
                       <tr key={e.id} className="border-t">
                         <td className="px-4 py-2 text-muted-foreground">{e.category}</td>
                         <td className="px-4 py-2 font-medium">{e.name}</td>
-                        <td className="px-4 py-2 text-center">{e.quantity} {e.unit}</td>
+                        <td className="px-4 py-2 text-center">{e.quantity}</td>
+                        <td className="px-4 py-2 text-center">{e.unit}</td>
                         <td className="px-4 py-2 text-muted-foreground">{e.comment || '—'}</td>
                       </tr>
                     ))}
