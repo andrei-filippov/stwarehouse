@@ -4,18 +4,73 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
-import { Search, FolderKanban, Calendar, MapPin, Users, CheckSquare, ArrowLeft, ChevronDown, ChevronRight } from 'lucide-react';
-import type { ProjectWithDetails } from '../../hooks/useProjects';
+import { Textarea } from '../ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
+import {
+  Search, FolderKanban, Calendar, MapPin, Users, CheckSquare,
+  ArrowLeft, ChevronDown, ChevronRight, Clock, Phone, User,
+  StickyNote, Plus, Trash2, CheckCircle2, Circle, AlertCircle
+} from 'lucide-react';
+import type { ProjectWithDetails, ProjectStaff, ProjectTimeline } from '../../hooks/useProjects';
 
 interface ProjectManagerProps {
   companyId: string | undefined;
+  venues?: { id: string; name: string; city?: string }[];
+  staff?: { id: string; name: string; phone?: string; email?: string }[];
 }
 
-export function ProjectManager({ companyId }: ProjectManagerProps) {
-  const { projects, loading, refresh } = useProjects(companyId);
+const ROLE_LABELS: Record<string, string> = {
+  montage: 'Монтаж',
+  demontage: 'Демонтаж',
+  sound_engineer: 'Звукорежиссёр',
+  monitor_engineer: 'Мониторинг',
+  light_engineer: 'Светорежиссёр',
+  video_engineer: 'Видеоинженер',
+  system_engineer: 'Системный инженер',
+  stage_tech: 'Сценный техник',
+  stage_manager: 'Stage manager',
+  project_manager: 'Продюсер',
+  technical_director: 'Технический директор',
+  backline_tech: 'Backline',
+  rf_tech: 'RF техник',
+  cable_tech: 'Кабельщик',
+  driver: 'Водитель',
+  other: 'Другое',
+};
+
+const PHASE_LABELS: Record<string, string> = {
+  load_in: 'Заезд',
+  setup: 'Установка',
+  soundcheck: 'Саундчек',
+  rehearsal: 'Репетиция',
+  show: 'Шоу',
+  break: 'Перерыв',
+  breakdown: 'Демонтаж',
+  load_out: 'Выезд',
+  custom: 'Другое',
+};
+
+const PHASE_COLORS: Record<string, string> = {
+  load_in: 'bg-blue-500',
+  setup: 'bg-indigo-500',
+  soundcheck: 'bg-purple-500',
+  rehearsal: 'bg-pink-500',
+  show: 'bg-green-500',
+  break: 'bg-yellow-500',
+  breakdown: 'bg-orange-500',
+  load_out: 'bg-red-500',
+  custom: 'bg-gray-500',
+};
+
+export function ProjectManager({ companyId, venues = [], staff: companyStaff = [] }: ProjectManagerProps) {
+  const { projects, loading, refresh, updateProject, addStaff, removeStaff, addTimeline, removeTimeline } = useProjects(companyId);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProject, setSelectedProject] = useState<ProjectWithDetails | null>(null);
   const [collapsedMonths, setCollapsedMonths] = useState<Set<string>>(new Set());
+  const [editingNotes, setEditingNotes] = useState(false);
+  const [notesDraft, setNotesDraft] = useState('');
+  const [showAddStaff, setShowAddStaff] = useState(false);
+  const [showAddTimeline, setShowAddTimeline] = useState(false);
 
   const filteredProjects = projects.filter(p =>
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -23,7 +78,7 @@ export function ProjectManager({ companyId }: ProjectManagerProps) {
     p.venue_name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Группировка по месяцам — сортировка: грядущие месяцы наверху, прошедшие внизу
+  // Группировка по месяцам
   const groupedProjects = filteredProjects.reduce((acc, project) => {
     const date = new Date(project.event_date);
     const yearMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -33,19 +88,18 @@ export function ProjectManager({ companyId }: ProjectManagerProps) {
     return acc;
   }, {} as Record<string, { label: string; projects: ProjectWithDetails[] }>);
 
-  // Сортируем месяцы: грядущие наверху (по возрастанию даты), прошедшие внизу (по убыванию даты)
   const now = new Date();
   const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  
+
   const sortedMonthKeys = Object.keys(groupedProjects).sort((a, b) => {
     const aFuture = a >= currentYearMonth;
     const bFuture = b >= currentYearMonth;
-    if (aFuture && bFuture) return a.localeCompare(b); // оба в будущем — по возрастанию
-    if (!aFuture && !bFuture) return b.localeCompare(a); // оба в прошлом — по убыванию
-    return aFuture ? -1 : 1; // будущее всегда перед прошлым
+    if (aFuture && bFuture) return a.localeCompare(b);
+    if (!aFuture && !bFuture) return b.localeCompare(a);
+    return aFuture ? -1 : 1;
   });
 
-  // По умолчанию сворачиваем все месяцы кроме текущего
+  // По умолчанию сворачиваем все кроме текущего
   useState(() => {
     const defaultCollapsed = new Set(sortedMonthKeys.filter(m => m !== currentYearMonth));
     setCollapsedMonths(defaultCollapsed);
@@ -70,9 +124,11 @@ export function ProjectManager({ companyId }: ProjectManagerProps) {
     }
   };
 
+  // ========== ДЕТАЛЬНЫЙ ВИД ==========
   if (selectedProject) {
     return (
       <div className="space-y-4">
+        {/* Шапка */}
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" onClick={() => setSelectedProject(null)}>
             <ArrowLeft className="w-4 h-4" />
@@ -81,88 +137,274 @@ export function ProjectManager({ companyId }: ProjectManagerProps) {
           {getStatusBadge(selectedProject.status)}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-primary" />
-                Даты
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm">
-              <div>{new Date(selectedProject.event_date).toLocaleDateString('ru-RU')}</div>
-              {selectedProject.event_start_date && selectedProject.event_end_date && (
-                <div className="text-muted-foreground">
-                  {new Date(selectedProject.event_start_date).toLocaleDateString('ru-RU')} — {new Date(selectedProject.event_end_date).toLocaleDateString('ru-RU')}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+        <Tabs defaultValue="overview">
+          <TabsList className="grid grid-cols-4 w-full">
+            <TabsTrigger value="overview">Общее</TabsTrigger>
+            <TabsTrigger value="checklists">Чек-листы</TabsTrigger>
+            <TabsTrigger value="staff">Персонал</TabsTrigger>
+            <TabsTrigger value="timeline">Таймлайн</TabsTrigger>
+          </TabsList>
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-primary" />
-                Площадка
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm">
-              {selectedProject.venue_name ? (
-                <>
-                  <div>{selectedProject.venue_name}</div>
-                  {selectedProject.venue_city && <div className="text-muted-foreground">{selectedProject.venue_city}</div>}
-                </>
-              ) : (
-                <span className="text-muted-foreground">Не указана</span>
-              )}
-            </CardContent>
-          </Card>
+          {/* === ОБЩЕЕ === */}
+          <TabsContent value="overview" className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Даты */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-primary" />
+                    Даты
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="text-sm space-y-1">
+                  <div>{new Date(selectedProject.event_date).toLocaleDateString('ru-RU')}</div>
+                  {selectedProject.event_start_date && selectedProject.event_end_date && (
+                    <div className="text-muted-foreground">
+                      {new Date(selectedProject.event_start_date).toLocaleDateString('ru-RU')} — {new Date(selectedProject.event_end_date).toLocaleDateString('ru-RU')}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Users className="w-4 h-4 text-primary" />
-                Персонал
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm">
-              {selectedProject.staff_count > 0 ? (
-                <div>{selectedProject.staff_count} человек</div>
-              ) : (
-                <span className="text-muted-foreground">Не назначен</span>
-              )}
-            </CardContent>
-          </Card>
+              {/* Площадка */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-primary" />
+                    Площадка
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="text-sm space-y-1">
+                  {selectedProject.venue_name ? (
+                    <>
+                      <div className="font-medium">{selectedProject.venue_name}</div>
+                      {selectedProject.venue_city && <div className="text-muted-foreground">{selectedProject.venue_city}</div>}
+                      {selectedProject.venue_address && <div className="text-muted-foreground text-xs">{selectedProject.venue_address}</div>}
+                      {selectedProject.venue_contact_name && (
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                          <User className="w-3 h-3" />
+                          {selectedProject.venue_contact_name}
+                          {selectedProject.venue_contact_phone && (
+                            <span className="flex items-center gap-1 ml-2">
+                              <Phone className="w-3 h-3" />
+                              {selectedProject.venue_contact_phone}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <span className="text-muted-foreground">Не указана</span>
+                  )}
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center gap-2">
-                <CheckSquare className="w-4 h-4 text-primary" />
-                Чек-листы
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm">
-              {selectedProject.checklist_progress.total > 0 ? (
-                <div>{selectedProject.checklist_progress.completed} / {selectedProject.checklist_progress.total}</div>
-              ) : (
-                <span className="text-muted-foreground">Нет чек-листов</span>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+              {/* Заказчик */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Users className="w-4 h-4 text-primary" />
+                    Заказчик
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="text-sm">
+                  {selectedProject.customer_name || <span className="text-muted-foreground">Не указан</span>}
+                </CardContent>
+              </Card>
+            </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Финансы</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{selectedProject.total.toLocaleString('ru-RU')} ₽</div>
-          </CardContent>
-        </Card>
+            {/* Заметки */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <StickyNote className="w-4 h-4 text-primary" />
+                  Заметки по проекту
+                  {!editingNotes && (
+                    <Button variant="ghost" size="sm" className="ml-auto h-7 text-xs" onClick={() => { setEditingNotes(true); setNotesDraft(selectedProject.notes || ''); }}>
+                      Редактировать
+                    </Button>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {editingNotes ? (
+                  <div className="space-y-2">
+                    <Textarea
+                      value={notesDraft}
+                      onChange={(e) => setNotesDraft(e.target.value)}
+                      placeholder="Заметки, пожелания, особенности проекта..."
+                      rows={4}
+                    />
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={async () => {
+                        await updateProject(selectedProject.id, { notes: notesDraft });
+                        setEditingNotes(false);
+                      }}>Сохранить</Button>
+                      <Button size="sm" variant="outline" onClick={() => setEditingNotes(false)}>Отмена</Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-sm whitespace-pre-wrap">
+                    {selectedProject.notes || <span className="text-muted-foreground">Нет заметок</span>}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* === ЧЕК-ЛИСТЫ === */}
+          <TabsContent value="checklists" className="space-y-4">
+            {selectedProject.checklists.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <CheckSquare className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <p>Нет чек-листов. Создайте чек-лист во вкладке "Чек-листы".</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {selectedProject.checklists.map(cl => (
+                  <Card key={cl.id} className="cursor-pointer hover:bg-muted/50">
+                    <CardContent className="py-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          {cl.completed === cl.total && cl.total > 0 ? (
+                            <CheckCircle2 className="w-5 h-5 text-green-500" />
+                          ) : (
+                            <Circle className="w-5 h-5 text-muted-foreground" />
+                          )}
+                          <div>
+                            <div className="font-medium">{cl.name}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {cl.completed} / {cl.total} выполнено
+                            </div>
+                          </div>
+                        </div>
+                        <Badge variant={cl.completed === cl.total && cl.total > 0 ? 'default' : 'secondary'}>
+                          {cl.total > 0 ? Math.round((cl.completed / cl.total) * 100) : 0}%
+                        </Badge>
+                      </div>
+                      {/* Прогресс бар */}
+                      {cl.total > 0 && (
+                        <div className="mt-3 h-2 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-primary transition-all"
+                            style={{ width: `${(cl.completed / cl.total) * 100}%` }}
+                          />
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* === ПЕРСОНАЛ === */}
+          <TabsContent value="staff" className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-semibold">Задействованный персонал</h3>
+              <Button size="sm" onClick={() => setShowAddStaff(true)}>
+                <Plus className="w-4 h-4 mr-1" />
+                Добавить
+              </Button>
+            </div>
+
+            {showAddStaff && (
+              <AddStaffForm
+                companyStaff={companyStaff}
+                onAdd={(staff) => {
+                  addStaff(selectedProject.id, staff);
+                  setShowAddStaff(false);
+                }}
+                onCancel={() => setShowAddStaff(false)}
+              />
+            )}
+
+            {selectedProject.staff.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <p>Персонал не назначен</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {selectedProject.staff.map(s => (
+                  <Card key={s.id}>
+                    <CardContent className="py-3">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="font-medium">
+                            {s.external_name || companyStaff.find(cs => cs.id === s.staff_id)?.name || 'Неизвестно'}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {ROLE_LABELS[s.role] || s.role}
+                            {s.custom_role && ` — ${s.custom_role}`}
+                          </div>
+                          {s.shift_start && (
+                            <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {new Date(s.shift_start).toLocaleString('ru-RU')}
+                              {s.shift_end && ` — ${new Date(s.shift_end).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {s.confirmed && <Badge className="bg-green-100 text-green-700">Подтв.</Badge>}
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => removeStaff(selectedProject.id, s.id)}>
+                            <Trash2 className="w-4 h-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* === ТАЙМЛАЙН === */}
+          <TabsContent value="timeline" className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-semibold">График работ</h3>
+              <Button size="sm" onClick={() => setShowAddTimeline(true)}>
+                <Plus className="w-4 h-4 mr-1" />
+                Добавить этап
+              </Button>
+            </div>
+
+            {showAddTimeline && (
+              <AddTimelineForm
+                onAdd={(timeline) => {
+                  addTimeline(selectedProject.id, timeline);
+                  setShowAddTimeline(false);
+                }}
+                onCancel={() => setShowAddTimeline(false)}
+              />
+            )}
+
+            {selectedProject.timeline.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Clock className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <p>Таймлайн не заполнен</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {selectedProject.timeline.map((t, i) => (
+                  <TimelineItem
+                    key={t.id}
+                    timeline={t}
+                    isFirst={i === 0}
+                    isLast={i === selectedProject.timeline.length - 1}
+                    onDelete={() => removeTimeline(selectedProject.id, t.id)}
+                  />
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
     );
   }
 
+  // ========== СПИСОК ПРОЕКТОВ ==========
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -243,13 +485,25 @@ export function ProjectManager({ companyId }: ProjectManagerProps) {
                             {project.customer_name}
                           </div>
                         )}
-                        <div className="pt-2 flex items-center justify-between">
-                          <span className="font-medium text-foreground">
-                            {project.total.toLocaleString('ru-RU')} ₽
-                          </span>
-                          <span className="text-xs">
-                            {project.staff_count > 0 && `${project.staff_count} чел.`}
-                          </span>
+                        <div className="pt-2 flex items-center gap-3">
+                          {project.staff_count > 0 && (
+                            <span className="flex items-center gap-1 text-xs">
+                              <Users className="w-3 h-3" />
+                              {project.staff_count}
+                            </span>
+                          )}
+                          {project.checklist_progress.total > 0 && (
+                            <span className="flex items-center gap-1 text-xs">
+                              <CheckSquare className="w-3 h-3" />
+                              {project.checklist_progress.completed}/{project.checklist_progress.total}
+                            </span>
+                          )}
+                          {project.timeline.length > 0 && (
+                            <span className="flex items-center gap-1 text-xs">
+                              <Clock className="w-3 h-3" />
+                              {project.timeline.length} этапов
+                            </span>
+                          )}
                         </div>
                       </div>
                     </CardContent>
@@ -258,10 +512,196 @@ export function ProjectManager({ companyId }: ProjectManagerProps) {
               </div>
               )}
             </div>
-          );
+            );
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+// ========== ВСПОМОГАТЕЛЬНЫЕ КОМПОНЕНТЫ ==========
+
+function AddStaffForm({ companyStaff, onAdd, onCancel }: {
+  companyStaff: { id: string; name: string; phone?: string; email?: string }[];
+  onAdd: (staff: Omit<ProjectStaff, 'id'>) => void;
+  onCancel: () => void;
+}) {
+  const [staffId, setStaffId] = useState('');
+  const [externalName, setExternalName] = useState('');
+  const [role, setRole] = useState('sound_engineer');
+  const [customRole, setCustomRole] = useState('');
+  const [shiftStart, setShiftStart] = useState('');
+  const [shiftEnd, setShiftEnd] = useState('');
+  const [isExternal, setIsExternal] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onAdd({
+      staff_id: isExternal ? null : staffId || null,
+      external_name: isExternal ? externalName : null,
+      external_phone: null,
+      role: role as any,
+      custom_role: role === 'other' ? customRole : null,
+      shift_start: shiftStart ? new Date(shiftStart).toISOString() : null,
+      shift_end: shiftEnd ? new Date(shiftEnd).toISOString() : null,
+      confirmed: false,
+      notes: null,
+    });
+  };
+
+  return (
+    <Card>
+      <CardContent className="py-4">
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div className="flex gap-2">
+            <Button type="button" size="sm" variant={!isExternal ? 'default' : 'outline'} onClick={() => setIsExternal(false)}>Из компании</Button>
+            <Button type="button" size="sm" variant={isExternal ? 'default' : 'outline'} onClick={() => setIsExternal(true)}>Внешний</Button>
+          </div>
+
+          {!isExternal ? (
+            <select
+              className="w-full px-3 py-2 border rounded-md text-sm bg-card"
+              value={staffId}
+              onChange={(e) => setStaffId(e.target.value)}
+              required
+            >
+              <option value="">Выберите сотрудника</option>
+              {companyStaff.map(s => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          ) : (
+            <Input placeholder="ФИО" value={externalName} onChange={(e) => setExternalName(e.target.value)} required />
+          )}
+
+          <select
+            className="w-full px-3 py-2 border rounded-md text-sm bg-card"
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+          >
+            {Object.entries(ROLE_LABELS).map(([key, label]) => (
+              <option key={key} value={key}>{label}</option>
+            ))}
+          </select>
+
+          {role === 'other' && (
+            <Input placeholder="Укажите роль" value={customRole} onChange={(e) => setCustomRole(e.target.value)} required />
+          )}
+
+          <div className="grid grid-cols-2 gap-2">
+            <Input type="datetime-local" value={shiftStart} onChange={(e) => setShiftStart(e.target.value)} />
+            <Input type="datetime-local" value={shiftEnd} onChange={(e) => setShiftEnd(e.target.value)} />
+          </div>
+
+          <div className="flex gap-2">
+            <Button type="submit" size="sm">Добавить</Button>
+            <Button type="button" size="sm" variant="outline" onClick={onCancel}>Отмена</Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
+
+function AddTimelineForm({ onAdd, onCancel }: {
+  onAdd: (timeline: Omit<ProjectTimeline, 'id'>) => void;
+  onCancel: () => void;
+}) {
+  const [phase, setPhase] = useState('setup');
+  const [customName, setCustomName] = useState('');
+  const [startTime, setStartTime] = useState('');
+  const [endTime, setEndTime] = useState('');
+  const [description, setDescription] = useState('');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onAdd({
+      phase: phase as any,
+      custom_phase_name: phase === 'custom' ? customName : null,
+      start_time: new Date(startTime).toISOString(),
+      end_time: endTime ? new Date(endTime).toISOString() : null,
+      description: description || null,
+      color: null,
+    });
+  };
+
+  return (
+    <Card>
+      <CardContent className="py-4">
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <select
+            className="w-full px-3 py-2 border rounded-md text-sm bg-card"
+            value={phase}
+            onChange={(e) => setPhase(e.target.value)}
+          >
+            {Object.entries(PHASE_LABELS).map(([key, label]) => (
+              <option key={key} value={key}>{label}</option>
+            ))}
+          </select>
+
+          {phase === 'custom' && (
+            <Input placeholder="Название этапа" value={customName} onChange={(e) => setCustomName(e.target.value)} required />
+          )}
+
+          <div className="grid grid-cols-2 gap-2">
+            <Input type="datetime-local" value={startTime} onChange={(e) => setStartTime(e.target.value)} required />
+            <Input type="datetime-local" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+          </div>
+
+          <Input placeholder="Описание (опционально)" value={description} onChange={(e) => setDescription(e.target.value)} />
+
+          <div className="flex gap-2">
+            <Button type="submit" size="sm">Добавить</Button>
+            <Button type="button" size="sm" variant="outline" onClick={onCancel}>Отмена</Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
+
+function TimelineItem({ timeline, isFirst, isLast, onDelete }: {
+  timeline: ProjectTimeline;
+  isFirst: boolean;
+  isLast: boolean;
+  onDelete: () => void;
+}) {
+  const colorClass = PHASE_COLORS[timeline.phase] || 'bg-gray-500';
+  const label = timeline.custom_phase_name || PHASE_LABELS[timeline.phase] || timeline.phase;
+
+  return (
+    <div className="flex gap-3">
+      {/* Линия с точкой */}
+      <div className="flex flex-col items-center">
+        <div className={`w-3 h-3 rounded-full ${colorClass} ${isFirst ? '' : 'mt-2'}`} />
+        {!isLast && <div className="w-0.5 flex-1 bg-border mt-1" />}
+      </div>
+
+      {/* Контент */}
+      <Card className="flex-1 mb-2">
+        <CardContent className="py-3">
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="font-medium flex items-center gap-2">
+                <span className={`w-2 h-2 rounded-full ${colorClass}`} />
+                {label}
+              </div>
+              <div className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
+                <Clock className="w-3 h-3" />
+                {new Date(timeline.start_time).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                {timeline.end_time && ` — ${new Date(timeline.end_time).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`}
+              </div>
+              {timeline.description && (
+                <div className="text-sm text-muted-foreground mt-1">{timeline.description}</div>
+              )}
+            </div>
+            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={onDelete}>
+              <Trash2 className="w-4 h-4 text-destructive" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
