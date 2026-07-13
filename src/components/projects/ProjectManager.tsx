@@ -136,6 +136,16 @@ export function ProjectManager({ companyId, venues = [], staff: companyStaff = [
   const [showAddStaff, setShowAddStaff] = useState(false);
   const [showAddTimeline, setShowAddTimeline] = useState(false);
 
+  // Синхронизируем selectedProject с обновлённым projects
+  useEffect(() => {
+    if (selectedProject) {
+      const updated = projects.find(p => p.id === selectedProject.id);
+      if (updated) {
+        setSelectedProject(updated);
+      }
+    }
+  }, [projects, selectedProject?.id]);
+
   const filteredProjects = projects.filter(p =>
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     p.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||

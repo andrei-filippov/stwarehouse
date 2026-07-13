@@ -207,8 +207,18 @@ export function useProjects(companyId: string | undefined) {
         equipment: equipmentByProject[p.id] || [],
       }));
 
-      setProjects(result);
-      setCached(cacheKey, result);
+      // Убираем дубли по estimate_id (оставляем первый)
+      const seenEstimateIds = new Set<string>();
+      const uniqueProjects = result.filter(p => {
+        if (seenEstimateIds.has(p.estimate_id)) return false;
+        seenEstimateIds.add(p.estimate_id);
+        return true;
+      });
+
+      console.log('[useProjects] Total projects:', result.length, 'Unique:', uniqueProjects.length);
+
+      setProjects(uniqueProjects);
+      setCached(cacheKey, uniqueProjects);
     } catch (err: any) {
       console.error('Error fetching projects:', err);
       if (err.code !== '42P01') {
