@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { useAuth } from './hooks/useAuth';
 import { logAction } from './hooks/useAuditLogs';
 import { CompanyProvider, useCompanyContext } from './contexts/CompanyContext';
-import { getSlugFromPath, saveSelectedCompany, clearSelectedCompany } from './lib/companyUrl';
+import { getSlugFromPath, saveSelectedCompany, clearSelectedCompany, getSelectedCompany } from './lib/companyUrl';
 import { RegisterCompanyForm } from './components/auth/RegisterCompanyForm';
 import { CompanySelector } from './components/auth/CompanySelector';
 import { CompanyWelcome } from './components/CompanyWelcome';

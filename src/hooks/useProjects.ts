@@ -80,7 +80,7 @@ export function useProjects(companyId: string | undefined) {
 
     setLoading(true);
     try {
-      // 1. Загружаем проекты + сметы + площадки
+      // Загружаем проекты + сметы + площадки + estimate_items (через estimates JOIN)
       const { data: projectsData, error: projectsError } = await supabase
         .from('projects')
         .select(`
@@ -92,7 +92,16 @@ export function useProjects(companyId: string | undefined) {
           tech_rider,
           stage_plan_url,
           notes,
-          estimates:estimate_id (event_name,event_date,event_start_date,event_end_date,status,total,customer_name),
+          estimates:estimate_id (
+            event_name,
+            event_date,
+            event_start_date,
+            event_end_date,
+            status,
+            total,
+            customer_name,
+            items:estimate_items(*)
+          ),
           venue_details:venue_id (name,city,address,contact_name,contact_phone)
         `)
         .eq('company_id', companyId);
@@ -113,23 +122,12 @@ export function useProjects(companyId: string | undefined) {
       }
 
       const projectIds = projectsData.map((p: any) => p.id);
-      const estimateIds = projectsData.map((p: any) => p.estimate_id).filter(Boolean);
 
-      console.log('[useProjects] Projects loaded:', projectsData?.length, 'Estimate IDs:', estimateIds.length, estimateIds.slice(0, 3));
-
-      // 2. Параллельно загружаем staff, timeline, equipment (estimate_items)
-      const [staffRes, timelineRes, equipmentRes] = await Promise.all([
+      // Параллельно загружаем staff, timeline
+      const [staffRes, timelineRes] = await Promise.all([
         supabase.from('project_staff').select('*').in('project_id', projectIds).eq('company_id', companyId),
         supabase.from('project_timeline').select('*').in('project_id', projectIds).eq('company_id', companyId).order('start_time', { ascending: true }),
-        supabase.from('estimate_items').select('*').in('estimate_id', estimateIds),
       ]);
-
-      console.log('[useProjects] Equipment response:', {
-        status: equipmentRes.status,
-        count: equipmentRes.data?.length || 0,
-        error: equipmentRes.error?.message || null,
-        firstItem: equipmentRes.data?.[0] ? { estimate_id: equipmentRes.data[0].estimate_id, name: equipmentRes.data[0].name } : null,
-      });
 
       const staffByProject: Record<string, ProjectStaff[]> = {};
       (staffRes.data || []).forEach((s: any) => {
@@ -162,50 +160,44 @@ export function useProjects(companyId: string | undefined) {
         });
       });
 
-      const equipmentByProject: Record<string, ProjectEquipment[]> = {};
-      console.log('[useProjects] Mapping equipment, projectsData count:', (projectsData || []).length);
-      (equipmentRes.data || []).forEach((e: any) => {
-        const project = (projectsData || []).find((p: any) => p.estimate_id === e.estimate_id);
-        console.log('[useProjects] Equipment item:', e.name, 'estimate_id:', e.estimate_id, 'matched project:', project?.id || 'NOT FOUND');
-        if (!project) return;
-        if (!equipmentByProject[project.id]) equipmentByProject[project.id] = [];
-        equipmentByProject[project.id].push({
+      const result: ProjectWithDetails[] = (projectsData || []).map((p: any) => {
+        const items = p.estimates?.items || [];
+        const equipment: ProjectEquipment[] = items.map((e: any) => ({
           id: e.id,
           name: e.name,
           category: e.category || 'Без категории',
           quantity: e.quantity || 1,
           unit: e.unit || 'шт.',
           description: e.description || '',
-        });
-      });
-      console.log('[useProjects] Equipment by project:', Object.keys(equipmentByProject).map(k => ({ projectId: k, count: equipmentByProject[k].length })));
+        }));
 
-      const result: ProjectWithDetails[] = (projectsData || []).map((p: any) => ({
-        id: p.id,
-        estimate_id: p.estimate_id,
-        venue_id: p.venue_id,
-        guest_count: p.guest_count,
-        expected_attendance: p.expected_attendance,
-        tech_rider: p.tech_rider,
-        stage_plan_url: p.stage_plan_url,
-        notes: p.notes,
-        name: p.estimates?.event_name || 'Без названия',
-        event_date: p.estimates?.event_date,
-        event_start_date: p.estimates?.event_start_date,
-        event_end_date: p.estimates?.event_end_date,
-        status: p.estimates?.status || 'draft',
-        total: p.estimates?.total || 0,
-        customer_name: p.estimates?.customer_name,
-        venue_name: p.venue_details?.name,
-        venue_city: p.venue_details?.city,
-        venue_address: p.venue_details?.address,
-        venue_contact_name: p.venue_details?.contact_name,
-        venue_contact_phone: p.venue_details?.contact_phone,
-        staff: staffByProject[p.id] || [],
-        staff_count: (staffByProject[p.id] || []).length,
-        timeline: timelineByProject[p.id] || [],
-        equipment: equipmentByProject[p.id] || [],
-      }));
+        return {
+          id: p.id,
+          estimate_id: p.estimate_id,
+          venue_id: p.venue_id,
+          guest_count: p.guest_count,
+          expected_attendance: p.expected_attendance,
+          tech_rider: p.tech_rider,
+          stage_plan_url: p.stage_plan_url,
+          notes: p.notes,
+          name: p.estimates?.event_name || 'Без названия',
+          event_date: p.estimates?.event_date,
+          event_start_date: p.estimates?.event_start_date,
+          event_end_date: p.estimates?.event_end_date,
+          status: p.estimates?.status || 'draft',
+          total: p.estimates?.total || 0,
+          customer_name: p.estimates?.customer_name,
+          venue_name: p.venue_details?.name,
+          venue_city: p.venue_details?.city,
+          venue_address: p.venue_details?.address,
+          venue_contact_name: p.venue_details?.contact_name,
+          venue_contact_phone: p.venue_details?.contact_phone,
+          staff: staffByProject[p.id] || [],
+          staff_count: (staffByProject[p.id] || []).length,
+          timeline: timelineByProject[p.id] || [],
+          equipment,
+        };
+      });
 
       // Убираем дубли по name + event_date (оставляем первый)
       const seenKeys = new Set<string>();
