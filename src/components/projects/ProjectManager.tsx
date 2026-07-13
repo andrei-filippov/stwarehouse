@@ -12,12 +12,12 @@ import {
   StickyNote, Plus, Trash2, Download, Package
 } from 'lucide-react';
 import type { ProjectWithDetails, ProjectStaff, ProjectTimeline } from '../../hooks/useProjects';
-import type { PDFSettings } from '../../types';
+import type { PDFSettings, Staff } from '../../types';
 
 interface ProjectManagerProps {
   companyId: string | undefined;
   venues?: { id: string; name: string; city?: string }[];
-  staff?: { id: string; full_name: string; phone?: string; email?: string }[];
+  staff?: Staff[];
   pdfSettings?: PDFSettings;
   company?: { name?: string; inn?: string; kpp?: string; ogrn?: string; legal_address?: string } | null;
 }
@@ -789,7 +789,7 @@ export function ProjectManager({ companyId, venues = [], staff: companyStaff = [
 // ========== ВСПОМОГАТЕЛЬНЫЕ КОМПОНЕНТЫ ==========
 
 function AddStaffMatrix({ companyStaff, existingStaff, onAdd, onCancel }: {
-  companyStaff: { id: string; full_name: string; phone?: string; email?: string }[];
+  companyStaff: Staff[];
   existingStaff: ProjectStaff[];
   onAdd: (assignments: Omit<ProjectStaff, 'id'>[]) => void;
   onCancel: () => void;
