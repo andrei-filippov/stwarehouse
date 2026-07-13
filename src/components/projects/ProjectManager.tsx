@@ -7,9 +7,9 @@ import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import {
-  Search, FolderKanban, Calendar, MapPin, Users, CheckSquare,
+  Search, FolderKanban, Calendar, MapPin, Users,
   ArrowLeft, ChevronDown, ChevronRight, Clock, Phone, User,
-  StickyNote, Plus, Trash2, CheckCircle2, Circle, AlertCircle
+  StickyNote, Plus, Trash2, Download, Package
 } from 'lucide-react';
 import type { ProjectWithDetails, ProjectStaff, ProjectTimeline } from '../../hooks/useProjects';
 
@@ -61,6 +61,69 @@ const PHASE_COLORS: Record<string, string> = {
   load_out: 'bg-red-500',
   custom: 'bg-gray-500',
 };
+
+// ========== ЭКСПОРТ В EXCEL ==========
+function exportEquipmentToExcel(project: ProjectWithDetails) {
+  const rows = project.equipment.map(e => ({
+    'Категория': e.category,
+    'Наименование': e.name,
+    'Кол-во': e.quantity,
+    'Ед. изм.': e.unit,
+    'Примечание': e.comment || '',
+  }));
+
+  if (rows.length === 0) {
+    toast.error('Нет оборудования для экспорта');
+    return;
+  }
+
+  // CSV экспорт (простой, без зависимостей)
+  const headers = Object.keys(rows[0]);
+  const csv = [
+    headers.join('\t'),
+    ...rows.map(r => headers.map(h => (r as any)[h]).join('\t')),
+  ].join('\n');
+
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `Оборудование_${project.name}_${new Date(project.event_date).toLocaleDateString('ru-RU')}.csv`;
+  link.click();
+  toast.success('Оборудование экспортировано');
+}
+
+function exportStaffToExcel(project: ProjectWithDetails) {
+  const rows = project.staff.map(s => ({
+    'ФИО': s.external_name || '—',
+    'Роль': ROLE_LABELS[s.role] || s.role,
+    'Доп. роль': s.custom_role || '',
+    'Начало смены': s.shift_start ? new Date(s.shift_start).toLocaleString('ru-RU') : '',
+    'Конец смены': s.shift_end ? new Date(s.shift_end).toLocaleString('ru-RU') : '',
+    'Подтверждён': s.confirmed ? 'Да' : 'Нет',
+    'Заметки': s.notes || '',
+  }));
+
+  if (rows.length === 0) {
+    toast.error('Нет персонала для экспорта');
+    return;
+  }
+
+  const headers = Object.keys(rows[0]);
+  const csv = [
+    headers.join('\t'),
+    ...rows.map(r => headers.map(h => (r as any)[h]).join('\t')),
+  ].join('\n');
+
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `Персонал_${project.name}_${new Date(project.event_date).toLocaleDateString('ru-RU')}.csv`;
+  link.click();
+  toast.success('Персонал экспортирован');
+}
+
+// Импорт toast для экспорта
+import { toast } from 'sonner';
 
 export function ProjectManager({ companyId, venues = [], staff: companyStaff = [] }: ProjectManagerProps) {
   const { projects, loading, refresh, updateProject, addStaff, removeStaff, addTimeline, removeTimeline } = useProjects(companyId);
@@ -140,7 +203,7 @@ export function ProjectManager({ companyId, venues = [], staff: companyStaff = [
         <Tabs defaultValue="overview">
           <TabsList className="grid grid-cols-4 w-full">
             <TabsTrigger value="overview">Общее</TabsTrigger>
-            <TabsTrigger value="checklists">Чек-листы</TabsTrigger>
+            <TabsTrigger value="equipment">Оборудование</TabsTrigger>
             <TabsTrigger value="staff">Персонал</TabsTrigger>
             <TabsTrigger value="timeline">Таймлайн</TabsTrigger>
           </TabsList>
@@ -252,48 +315,47 @@ export function ProjectManager({ companyId, venues = [], staff: companyStaff = [
             </Card>
           </TabsContent>
 
-          {/* === ЧЕК-ЛИСТЫ === */}
-          <TabsContent value="checklists" className="space-y-4">
-            {selectedProject.checklists.length === 0 ? (
+          {/* === ОБОРУДОВАНИЕ === */}
+          <TabsContent value="equipment" className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <Package className="w-5 h-5" />
+                Оборудование по смете
+                <Badge variant="secondary">{selectedProject.equipment.length}</Badge>
+              </h3>
+              <Button size="sm" variant="outline" onClick={() => exportEquipmentToExcel(selectedProject)}>
+                <Download className="w-4 h-4 mr-1" />
+                Экспорт CSV
+              </Button>
+            </div>
+
+            {selectedProject.equipment.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                <CheckSquare className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>Нет чек-листов. Создайте чек-лист во вкладке "Чек-листы".</p>
+                <Package className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <p>Нет оборудования в смете</p>
               </div>
             ) : (
-              <div className="space-y-3">
-                {selectedProject.checklists.map(cl => (
-                  <Card key={cl.id} className="cursor-pointer hover:bg-muted/50">
-                    <CardContent className="py-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          {cl.completed === cl.total && cl.total > 0 ? (
-                            <CheckCircle2 className="w-5 h-5 text-green-500" />
-                          ) : (
-                            <Circle className="w-5 h-5 text-muted-foreground" />
-                          )}
-                          <div>
-                            <div className="font-medium">{cl.name}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {cl.completed} / {cl.total} выполнено
-                            </div>
-                          </div>
-                        </div>
-                        <Badge variant={cl.completed === cl.total && cl.total > 0 ? 'default' : 'secondary'}>
-                          {cl.total > 0 ? Math.round((cl.completed / cl.total) * 100) : 0}%
-                        </Badge>
-                      </div>
-                      {/* Прогресс бар */}
-                      {cl.total > 0 && (
-                        <div className="mt-3 h-2 bg-muted rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-primary transition-all"
-                            style={{ width: `${(cl.completed / cl.total) * 100}%` }}
-                          />
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
+              <div className="border rounded-lg overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted">
+                    <tr>
+                      <th className="px-4 py-2 text-left">Категория</th>
+                      <th className="px-4 py-2 text-left">Наименование</th>
+                      <th className="px-4 py-2 text-center">Кол-во</th>
+                      <th className="px-4 py-2 text-left">Примечание</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedProject.equipment.map((e) => (
+                      <tr key={e.id} className="border-t">
+                        <td className="px-4 py-2 text-muted-foreground">{e.category}</td>
+                        <td className="px-4 py-2 font-medium">{e.name}</td>
+                        <td className="px-4 py-2 text-center">{e.quantity} {e.unit}</td>
+                        <td className="px-4 py-2 text-muted-foreground">{e.comment || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </TabsContent>
@@ -302,10 +364,16 @@ export function ProjectManager({ companyId, venues = [], staff: companyStaff = [
           <TabsContent value="staff" className="space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-semibold">Задействованный персонал</h3>
-              <Button size="sm" onClick={() => setShowAddStaff(true)}>
-                <Plus className="w-4 h-4 mr-1" />
-                Добавить
-              </Button>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => exportStaffToExcel(selectedProject)}>
+                  <Download className="w-4 h-4 mr-1" />
+                  Экспорт CSV
+                </Button>
+                <Button size="sm" onClick={() => setShowAddStaff(true)}>
+                  <Plus className="w-4 h-4 mr-1" />
+                  Добавить
+                </Button>
+              </div>
             </div>
 
             {showAddStaff && (
@@ -492,10 +560,10 @@ export function ProjectManager({ companyId, venues = [], staff: companyStaff = [
                               {project.staff_count}
                             </span>
                           )}
-                          {project.checklist_progress.total > 0 && (
+                          {project.equipment.length > 0 && (
                             <span className="flex items-center gap-1 text-xs">
-                              <CheckSquare className="w-3 h-3" />
-                              {project.checklist_progress.completed}/{project.checklist_progress.total}
+                              <Package className="w-3 h-3" />
+                              {project.equipment.length}
                             </span>
                           )}
                           {project.timeline.length > 0 && (

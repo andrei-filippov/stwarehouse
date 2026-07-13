@@ -26,11 +26,13 @@ export interface ProjectTimeline {
   color: string | null;
 }
 
-export interface ProjectChecklist {
+export interface ProjectEquipment {
   id: string;
   name: string;
-  total: number;
-  completed: number;
+  category: string;
+  quantity: number;
+  unit: string;
+  comment: string | null;
 }
 
 export interface ProjectWithDetails {
@@ -60,8 +62,7 @@ export interface ProjectWithDetails {
   staff: ProjectStaff[];
   staff_count: number;
   timeline: ProjectTimeline[];
-  checklists: ProjectChecklist[];
-  checklist_progress: { total: number; completed: number };
+  equipment: ProjectEquipment[];
 }
 
 export function useProjects(companyId: string | undefined) {
@@ -94,8 +95,7 @@ export function useProjects(companyId: string | undefined) {
           estimates:estimate_id (event_name,event_date,event_start_date,event_end_date,status,total,customer_name),
           venue_details:venue_id (name,city,address,contact_name,contact_phone)
         `)
-        .eq('company_id', companyId)
-        .order('estimate_id', { ascending: false });
+        .eq('company_id', companyId);
 
       if (projectsError) {
         if (projectsError.code === '42P01') {
@@ -115,11 +115,11 @@ export function useProjects(companyId: string | undefined) {
       const projectIds = projectsData.map((p: any) => p.id);
       const estimateIds = projectsData.map((p: any) => p.estimate_id).filter(Boolean);
 
-      // 2. Параллельно загружаем staff, timeline, checklists
-      const [staffRes, timelineRes, checklistsRes] = await Promise.all([
+      // 2. Параллельно загружаем staff, timeline, equipment (estimate_items)
+      const [staffRes, timelineRes, equipmentRes] = await Promise.all([
         supabase.from('project_staff').select('*').in('project_id', projectIds).eq('company_id', companyId),
         supabase.from('project_timeline').select('*').in('project_id', projectIds).eq('company_id', companyId).order('start_time', { ascending: true }),
-        supabase.from('checklists').select('id,estimate_id,project_id,name,total,completed').in('estimate_id', estimateIds).eq('company_id', companyId),
+        supabase.from('estimate_items').select('id,estimate_id,name,category,quantity,unit,comment').in('estimate_id', estimateIds),
       ]);
 
       const staffByProject: Record<string, ProjectStaff[]> = {};
@@ -153,55 +153,47 @@ export function useProjects(companyId: string | undefined) {
         });
       });
 
-      const checklistsByProject: Record<string, ProjectChecklist[]> = {};
-      (checklistsRes.data || []).forEach((c: any) => {
-        // Находим project_id по estimate_id
-        const project = (projectsData || []).find((p: any) => p.estimate_id === c.estimate_id);
-        const pid = c.project_id || project?.id;
-        if (!pid) return;
-        if (!checklistsByProject[pid]) checklistsByProject[pid] = [];
-        checklistsByProject[pid].push({
-          id: c.id,
-          name: c.name,
-          total: c.total || 0,
-          completed: c.completed || 0,
+      const equipmentByProject: Record<string, ProjectEquipment[]> = {};
+      (equipmentRes.data || []).forEach((e: any) => {
+        const project = (projectsData || []).find((p: any) => p.estimate_id === e.estimate_id);
+        if (!project) return;
+        if (!equipmentByProject[project.id]) equipmentByProject[project.id] = [];
+        equipmentByProject[project.id].push({
+          id: e.id,
+          name: e.name,
+          category: e.category || 'Без категории',
+          quantity: e.quantity || 1,
+          unit: e.unit || 'шт.',
+          comment: e.comment,
         });
       });
 
-      const result: ProjectWithDetails[] = (projectsData || []).map((p: any) => {
-        const projectStaff = staffByProject[p.id] || [];
-        const projectChecklists = checklistsByProject[p.id] || [];
-        const totalChecklist = projectChecklists.reduce((sum, c) => sum + c.total, 0);
-        const completedChecklist = projectChecklists.reduce((sum, c) => sum + c.completed, 0);
-
-        return {
-          id: p.id,
-          estimate_id: p.estimate_id,
-          venue_id: p.venue_id,
-          guest_count: p.guest_count,
-          expected_attendance: p.expected_attendance,
-          tech_rider: p.tech_rider,
-          stage_plan_url: p.stage_plan_url,
-          notes: p.notes,
-          name: p.estimates?.event_name || 'Без названия',
-          event_date: p.estimates?.event_date,
-          event_start_date: p.estimates?.event_start_date,
-          event_end_date: p.estimates?.event_end_date,
-          status: p.estimates?.status || 'draft',
-          total: p.estimates?.total || 0,
-          customer_name: p.estimates?.customer_name,
-          venue_name: p.venue_details?.name,
-          venue_city: p.venue_details?.city,
-          venue_address: p.venue_details?.address,
-          venue_contact_name: p.venue_details?.contact_name,
-          venue_contact_phone: p.venue_details?.contact_phone,
-          staff: projectStaff,
-          staff_count: projectStaff.length,
-          timeline: timelineByProject[p.id] || [],
-          checklists: projectChecklists,
-          checklist_progress: { total: totalChecklist, completed: completedChecklist },
-        };
-      });
+      const result: ProjectWithDetails[] = (projectsData || []).map((p: any) => ({
+        id: p.id,
+        estimate_id: p.estimate_id,
+        venue_id: p.venue_id,
+        guest_count: p.guest_count,
+        expected_attendance: p.expected_attendance,
+        tech_rider: p.tech_rider,
+        stage_plan_url: p.stage_plan_url,
+        notes: p.notes,
+        name: p.estimates?.event_name || 'Без названия',
+        event_date: p.estimates?.event_date,
+        event_start_date: p.estimates?.event_start_date,
+        event_end_date: p.estimates?.event_end_date,
+        status: p.estimates?.status || 'draft',
+        total: p.estimates?.total || 0,
+        customer_name: p.estimates?.customer_name,
+        venue_name: p.venue_details?.name,
+        venue_city: p.venue_details?.city,
+        venue_address: p.venue_details?.address,
+        venue_contact_name: p.venue_details?.contact_name,
+        venue_contact_phone: p.venue_details?.contact_phone,
+        staff: staffByProject[p.id] || [],
+        staff_count: (staffByProject[p.id] || []).length,
+        timeline: timelineByProject[p.id] || [],
+        equipment: equipmentByProject[p.id] || [],
+      }));
 
       setProjects(result);
       setCached(cacheKey, result);
@@ -233,7 +225,6 @@ export function useProjects(companyId: string | undefined) {
       const { error } = await supabase.from('projects').update(dbUpdates).eq('id', id).eq('company_id', companyId);
       if (error) throw error;
 
-      // Обновляем локальный стейт
       setProjects(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
       return { error: null };
     } catch (err: any) {
