@@ -49,12 +49,21 @@ export function VenueManager({ companyId }: VenueManagerProps) {
 
   if (selectedVenue) {
     return (
-      <VenueDetail
-        venue={selectedVenue}
-        onBack={() => setSelectedVenue(null)}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-      />
+      <>
+        <VenueDetail
+          venue={selectedVenue}
+          onBack={() => setSelectedVenue(null)}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+        />
+        {isFormOpen && (
+          <VenueForm
+            venue={editingVenue}
+            onSave={handleSave}
+            onCancel={() => { setIsFormOpen(false); setEditingVenue(null); }}
+          />
+        )}
+      </>
     );
   }
 
