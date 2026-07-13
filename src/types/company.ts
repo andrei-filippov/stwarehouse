@@ -148,6 +148,8 @@ export const ROLE_PERMISSIONS: Record<CompanyRole, string[]> = {
     'invoices.*',
     'acts.*',
     'reports.*',
+    'venues.*',
+    'projects.*',
   ],
   manager: [
     'estimates.view',
@@ -162,6 +164,13 @@ export const ROLE_PERMISSIONS: Record<CompanyRole, string[]> = {
     'customers.edit',
     'invoices.view',
     'acts.view',
+    'venues.view',
+    'venues.create',
+    'venues.edit',
+    'projects.view',
+    'projects.edit',
+    'projects.export',
+    'projects.staff.assign',
   ],
   accountant: [
     'estimates.view',

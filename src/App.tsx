@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
-import { Package, User, Cloud } from 'lucide-react';
+import { Package, User, Cloud, MapPin, FolderKanban } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from './hooks/useAuth';
 import { logAction } from './hooks/useAuditLogs';
@@ -29,6 +29,8 @@ const AdminPanel = lazy(() => import('./components/AdminPanel'));
 const EquipmentKits = lazy(() => import('./components/EquipmentKits').then(m => ({ default: m.EquipmentKits })));
 const YandexDiskFileManager = lazy(() => import('./components/YandexDiskFileManager').then(m => ({ default: m.YandexDiskFileManager })));
 const QRScanPage = lazy(() => import('./components/QRScanPage'));
+const VenueManager = lazy(() => import('./components/venues/VenueManager'));
+// const ProjectManager = lazy(() => import('./components/projects/ProjectManager'));
 
 import { AccessDenied } from './components/AccessDenied';
 import { BottomNav } from './components/BottomNav';
@@ -54,6 +56,7 @@ import { useSalary } from './hooks/useSalary';
 import { useIncomes } from './hooks/useIncomes';
 import { useContracts } from './hooks/useContracts';
 import { useCompanyBankAccounts } from './hooks/useCompanyBankAccounts';
+import { useVenues } from './hooks/useVenues';
 
 // Компонент-обёртка для Suspense
 const LazyComponent = ({ children }: { children: React.ReactNode }) => (
@@ -517,6 +520,8 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
     { id: 'staff' as Tab, label: 'Персонал', icon: Users },
     { id: 'goals' as Tab, label: 'Задачи и цели', icon: Target },
     { id: 'cables' as Tab, label: 'Учёт оборудования', icon: Cable },
+    { id: 'venues' as Tab, label: 'Площадки', icon: MapPin },
+    { id: 'projects' as Tab, label: 'Проекты', icon: FolderKanban },
     { id: 'finance' as Tab, label: 'Финансы', icon: DollarSign },
     { id: 'customers' as Tab, label: 'Заказчики', icon: Building2 },
     { id: 'contracts' as Tab, label: 'Договоры', icon: FileSignature },
@@ -786,6 +791,22 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
                 kits={kits}
                 companyId={companyId}
               />
+            </LazyComponent>
+          )}
+
+          {activeTab === 'venues' && (
+            <LazyComponent>
+              <VenueManager companyId={companyId} />
+            </LazyComponent>
+          )}
+
+          {activeTab === 'projects' && (
+            <LazyComponent>
+              <div className="p-8 text-center text-muted-foreground">
+                <FolderKanban className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <h2 className="text-xl font-semibold mb-2">Проекты</h2>
+                <p>Вкладка в разработке. Будет доступна в ближайшее время.</p>
+              </div>
             </LazyComponent>
           )}
 
