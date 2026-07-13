@@ -25,12 +25,24 @@ export function useVenues(companyId: string | undefined) {
         .eq('company_id', companyId)
         .order('name');
 
-      if (error) throw error;
+      if (error) {
+        // Если таблица не существует — не показываем ошибку, просто пустой список
+        if (error.code === '42P01') {
+          console.warn('venue_details table not found');
+          setVenues([]);
+          return;
+        }
+        throw error;
+      }
       const result = data || [];
       setVenues(result);
       setCached(cacheKey, result);
     } catch (err: any) {
-      toast.error('Ошибка загрузки площадок', { description: err.message });
+      console.error('Error fetching venues:', err);
+      // Не показываем toast для 42P01
+      if (err.code !== '42P01') {
+        toast.error('Ошибка загрузки площадок', { description: err.message });
+      }
     } finally {
       setLoading(false);
     }
