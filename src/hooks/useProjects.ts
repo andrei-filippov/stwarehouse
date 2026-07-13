@@ -53,8 +53,8 @@ export function useProjects(companyId: string | undefined) {
           expected_attendance,
           tech_rider,
           stage_plan_url,
-          estimates:event_name,event_date,event_start_date,event_end_date,status,total,customer_name,
-          venue_details:name,city
+          estimates:estimate_id (event_name,event_date,event_start_date,event_end_date,status,total,customer_name),
+          venue_details:venue_id (name,city)
         `)
         .eq('company_id', companyId)
         .order('created_at', { ascending: false });
