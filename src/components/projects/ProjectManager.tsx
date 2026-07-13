@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
-import { Search, FolderKanban, Calendar, MapPin, Users, CheckSquare, ArrowLeft } from 'lucide-react';
+import { Search, FolderKanban, Calendar, MapPin, Users, CheckSquare, ArrowLeft, ChevronDown, ChevronRight } from 'lucide-react';
 import type { ProjectWithDetails } from '../../hooks/useProjects';
 
 interface ProjectManagerProps {
@@ -15,6 +15,7 @@ export function ProjectManager({ companyId }: ProjectManagerProps) {
   const { projects, loading, refresh } = useProjects(companyId);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProject, setSelectedProject] = useState<ProjectWithDetails | null>(null);
+  const [collapsedMonths, setCollapsedMonths] = useState<Set<string>>(new Set());
 
   const filteredProjects = projects.filter(p =>
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -22,14 +23,42 @@ export function ProjectManager({ companyId }: ProjectManagerProps) {
     p.venue_name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Группировка по месяцам
+  // Группировка по месяцам — сортировка: грядущие месяцы наверху, прошедшие внизу
   const groupedProjects = filteredProjects.reduce((acc, project) => {
     const date = new Date(project.event_date);
+    const yearMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
     const monthKey = date.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
-    if (!acc[monthKey]) acc[monthKey] = [];
-    acc[monthKey].push(project);
+    if (!acc[yearMonth]) acc[yearMonth] = { label: monthKey, projects: [] };
+    acc[yearMonth].projects.push(project);
     return acc;
-  }, {} as Record<string, ProjectWithDetails[]>);
+  }, {} as Record<string, { label: string; projects: ProjectWithDetails[] }>);
+
+  // Сортируем месяцы: грядущие наверху (по возрастанию даты), прошедшие внизу (по убыванию даты)
+  const now = new Date();
+  const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  
+  const sortedMonthKeys = Object.keys(groupedProjects).sort((a, b) => {
+    const aFuture = a >= currentYearMonth;
+    const bFuture = b >= currentYearMonth;
+    if (aFuture && bFuture) return a.localeCompare(b); // оба в будущем — по возрастанию
+    if (!aFuture && !bFuture) return b.localeCompare(a); // оба в прошлом — по убыванию
+    return aFuture ? -1 : 1; // будущее всегда перед прошлым
+  });
+
+  // По умолчанию сворачиваем все месяцы кроме текущего
+  useState(() => {
+    const defaultCollapsed = new Set(sortedMonthKeys.filter(m => m !== currentYearMonth));
+    setCollapsedMonths(defaultCollapsed);
+  });
+
+  const toggleMonth = (yearMonth: string) => {
+    setCollapsedMonths(prev => {
+      const next = new Set(prev);
+      if (next.has(yearMonth)) next.delete(yearMonth);
+      else next.add(yearMonth);
+      return next;
+    });
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -161,15 +190,27 @@ export function ProjectManager({ companyId }: ProjectManagerProps) {
         </div>
       ) : (
         <div className="space-y-6">
-          {Object.entries(groupedProjects).map(([month, monthProjects]) => (
-            <div key={month}>
-              <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+          {sortedMonthKeys.map((yearMonth) => {
+            const group = groupedProjects[yearMonth];
+            const isCollapsed = collapsedMonths.has(yearMonth);
+            return (
+            <div key={yearMonth}>
+              <h3
+                className="text-lg font-semibold mb-3 flex items-center gap-2 cursor-pointer select-none hover:text-primary transition-colors"
+                onClick={() => toggleMonth(yearMonth)}
+              >
+                {isCollapsed ? (
+                  <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                )}
                 <Calendar className="w-5 h-5 text-muted-foreground" />
-                {month}
-                <Badge variant="secondary">{monthProjects.length}</Badge>
+                {group.label}
+                <Badge variant="secondary">{group.projects.length}</Badge>
               </h3>
+              {!isCollapsed && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {monthProjects.map((project) => (
+                {group.projects.map((project) => (
                   <Card
                     key={project.id}
                     className="cursor-pointer hover:bg-muted/50 transition-colors"
@@ -215,8 +256,10 @@ export function ProjectManager({ companyId }: ProjectManagerProps) {
                   </Card>
                 ))}
               </div>
+              )}
             </div>
-          ))}
+          );
+          })}
         </div>
       )}
     </div>
