@@ -32,7 +32,7 @@ export interface ProjectEquipment {
   category: string;
   quantity: number;
   unit: string;
-  comment: string;
+  description: string;
 }
 
 export interface ProjectWithDetails {
@@ -164,7 +164,7 @@ export function useProjects(companyId: string | undefined) {
           category: e.category || 'Без категории',
           quantity: e.quantity || 1,
           unit: e.unit || 'шт.',
-          comment: e.comment || '',
+          description: e.description || '',
         });
       });
 

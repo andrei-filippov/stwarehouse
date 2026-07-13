@@ -85,7 +85,7 @@ export function Sidebar(props: SidebarProps) {
   }, [ctx.company?.id]);
 
   const mainTabs = availableTabs.filter(tab => 
-    ['qr-scan', 'equipment', 'estimates', 'calendar', 'customers', 'contracts'].includes(tab.id)
+    ['qr-scan', 'equipment', 'estimates', 'calendar', 'customers', 'contracts', 'projects'].includes(tab.id)
   );
   
   const financeTabs = availableTabs.filter(tab => 
@@ -93,7 +93,7 @@ export function Sidebar(props: SidebarProps) {
   );
   
   const referenceTabs = availableTabs.filter(tab => 
-    ['templates', 'checklists', 'kits', 'staff', 'goals', 'cables', 'files', 'venues', 'projects'].includes(tab.id)
+    ['templates', 'checklists', 'kits', 'staff', 'goals', 'cables', 'files', 'venues'].includes(tab.id)
   );
   
   const systemTabs = availableTabs.filter(tab => 

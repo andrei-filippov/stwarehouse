@@ -67,9 +67,10 @@ function exportEquipmentToExcel(project: ProjectWithDetails) {
   const rows = project.equipment.map(e => ({
     'Категория': e.category,
     'Наименование': e.name,
+    'Описание': e.description || '',
     'Кол-во': e.quantity,
     'Ед. изм.': e.unit,
-    'Примечание': e.comment || '',
+    'Комментарий': '', // для ручного заполнения (кофр, рэк и т.д.)
   }));
 
   if (rows.length === 0) {
@@ -341,9 +342,9 @@ export function ProjectManager({ companyId, venues = [], staff: companyStaff = [
                     <tr>
                       <th className="px-4 py-2 text-left">Категория</th>
                       <th className="px-4 py-2 text-left">Наименование</th>
+                      <th className="px-4 py-2 text-left">Описание</th>
                       <th className="px-4 py-2 text-center">Кол-во</th>
                       <th className="px-4 py-2 text-center">Ед.</th>
-                      <th className="px-4 py-2 text-left">Примечание</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -351,9 +352,9 @@ export function ProjectManager({ companyId, venues = [], staff: companyStaff = [
                       <tr key={e.id} className="border-t">
                         <td className="px-4 py-2 text-muted-foreground">{e.category}</td>
                         <td className="px-4 py-2 font-medium">{e.name}</td>
+                        <td className="px-4 py-2 text-muted-foreground">{e.description || '—'}</td>
                         <td className="px-4 py-2 text-center">{e.quantity}</td>
                         <td className="px-4 py-2 text-center">{e.unit}</td>
-                        <td className="px-4 py-2 text-muted-foreground">{e.comment || '—'}</td>
                       </tr>
                     ))}
                   </tbody>
