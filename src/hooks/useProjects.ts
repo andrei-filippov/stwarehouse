@@ -207,11 +207,12 @@ export function useProjects(companyId: string | undefined) {
         equipment: equipmentByProject[p.id] || [],
       }));
 
-      // Убираем дубли по estimate_id (оставляем первый)
-      const seenEstimateIds = new Set<string>();
+      // Убираем дубли по name + event_date (оставляем первый)
+      const seenKeys = new Set<string>();
       const uniqueProjects = result.filter(p => {
-        if (seenEstimateIds.has(p.estimate_id)) return false;
-        seenEstimateIds.add(p.estimate_id);
+        const key = `${p.name}_${p.event_date}`;
+        if (seenKeys.has(key)) return false;
+        seenKeys.add(key);
         return true;
       });
 
