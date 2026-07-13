@@ -115,12 +115,21 @@ export function useProjects(companyId: string | undefined) {
       const projectIds = projectsData.map((p: any) => p.id);
       const estimateIds = projectsData.map((p: any) => p.estimate_id).filter(Boolean);
 
+      console.log('[useProjects] Projects loaded:', projectsData?.length, 'Estimate IDs:', estimateIds.length, estimateIds.slice(0, 3));
+
       // 2. Параллельно загружаем staff, timeline, equipment (estimate_items)
       const [staffRes, timelineRes, equipmentRes] = await Promise.all([
         supabase.from('project_staff').select('*').in('project_id', projectIds).eq('company_id', companyId),
         supabase.from('project_timeline').select('*').in('project_id', projectIds).eq('company_id', companyId).order('start_time', { ascending: true }),
         supabase.from('estimate_items').select('*').in('estimate_id', estimateIds),
       ]);
+
+      console.log('[useProjects] Equipment response:', {
+        status: equipmentRes.status,
+        count: equipmentRes.data?.length || 0,
+        error: equipmentRes.error?.message || null,
+        firstItem: equipmentRes.data?.[0] ? { estimate_id: equipmentRes.data[0].estimate_id, name: equipmentRes.data[0].name } : null,
+      });
 
       const staffByProject: Record<string, ProjectStaff[]> = {};
       (staffRes.data || []).forEach((s: any) => {
@@ -154,8 +163,10 @@ export function useProjects(companyId: string | undefined) {
       });
 
       const equipmentByProject: Record<string, ProjectEquipment[]> = {};
+      console.log('[useProjects] Mapping equipment, projectsData count:', (projectsData || []).length);
       (equipmentRes.data || []).forEach((e: any) => {
         const project = (projectsData || []).find((p: any) => p.estimate_id === e.estimate_id);
+        console.log('[useProjects] Equipment item:', e.name, 'estimate_id:', e.estimate_id, 'matched project:', project?.id || 'NOT FOUND');
         if (!project) return;
         if (!equipmentByProject[project.id]) equipmentByProject[project.id] = [];
         equipmentByProject[project.id].push({
@@ -167,6 +178,7 @@ export function useProjects(companyId: string | undefined) {
           description: e.description || '',
         });
       });
+      console.log('[useProjects] Equipment by project:', Object.keys(equipmentByProject).map(k => ({ projectId: k, count: equipmentByProject[k].length })));
 
       const result: ProjectWithDetails[] = (projectsData || []).map((p: any) => ({
         id: p.id,
