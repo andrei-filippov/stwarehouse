@@ -29,7 +29,7 @@ const AdminPanel = lazy(() => import('./components/AdminPanel'));
 const EquipmentKits = lazy(() => import('./components/EquipmentKits').then(m => ({ default: m.EquipmentKits })));
 const YandexDiskFileManager = lazy(() => import('./components/YandexDiskFileManager').then(m => ({ default: m.YandexDiskFileManager })));
 const QRScanPage = lazy(() => import('./components/QRScanPage'));
-// const VenueManager = lazy(() => import('./components/venues/VenueManager'));
+import { ProjectManager } from './components/projects/ProjectManager';
 import { VenueManager } from './components/venues/VenueManager';
 
 import { AccessDenied } from './components/AccessDenied';
@@ -423,6 +423,7 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
   const { staff, loading: staffLoading, addStaff, updateStaff, deleteStaff } = useStaff(companyId);
   const { tasks, loading: goalsLoading, addTask, updateTask, deleteTask, activeCount: taskCount } = useGoals(companyId);
   const { customers, loading: customersLoading, error: customersError, addCustomer, updateCustomer, deleteCustomer } = useCustomers(companyId);
+  const { venues } = useVenues(companyId);
   const { categories: cableCategories, inventory: cableInventory, movements: cableMovements, repairs: cableRepairs, inventoryItems: cableInventoryItems, stats: cableStats, loading: cableLoading, addCategory: addCableCategory, updateCategory: updateCableCategory, deleteCategory: deleteCableCategory, reorderCategories: reorderCableCategories,
 importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInventory, updateInventoryQty: updateCableInventoryQty, deleteInventory: deleteCableInventory, issueCable, returnCable, sendToRepair, updateRepairStatus, deleteRepair, refresh: refreshCableInventory } = useCableInventory(companyId, activeTab);
   const { expenses, loading: expensesLoading, addExpense, updateExpense, deleteExpense } = useExpenses(companyId);
@@ -641,6 +642,7 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
                 equipment={equipment}
                 templates={templates}
                 customers={customers}
+                venues={venues}
                 pdfSettings={pdfSettings}
                 company={company}
                 equipmentCategories={
@@ -802,11 +804,7 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
 
           {activeTab === 'projects' && (
             <LazyComponent>
-              <div className="p-8 text-center text-muted-foreground">
-                <FolderKanban className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <h2 className="text-xl font-semibold mb-2">Проекты</h2>
-                <p>Вкладка в разработке. Будет доступна в ближайшее время.</p>
-              </div>
+              <ProjectManager companyId={companyId} />
             </LazyComponent>
           )}
 

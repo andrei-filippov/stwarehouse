@@ -35,6 +35,7 @@ import {
   Bookmark
 } from 'lucide-react';
 import type { Equipment, Estimate, EstimateItem, EstimateSection, Customer, PDFSettings, EquipmentRepair, CableCategory } from '../types';
+import type { VenueDetails } from '../types/venues';
 import { EstimateSections } from './EstimateSections';
 import { cn } from '../lib/utils';
 import { toast } from 'sonner';
@@ -46,6 +47,7 @@ interface EstimateBuilderProps {
   estimates: Estimate[];
   templates: any[];
   customers: Customer[];
+  venues?: VenueDetails[];
   estimate: Estimate | null;
   selectedTemplate: any;
   pdfSettings: PDFSettings;
@@ -64,6 +66,7 @@ export function EstimateBuilder({
   estimates,
   templates,
   customers,
+  venues = [],
   estimate,
   selectedTemplate,
   pdfSettings,
@@ -1245,12 +1248,23 @@ export function EstimateBuilder({
                       />
                     </div>
                     
-                    <Input
-                      placeholder="Место проведения"
-                      value={venue}
-                      onChange={(e) => setVenue(e.target.value)}
-                      className="h-9 text-sm"
-                    />
+                    <div className="space-y-1">
+                      <select
+                        value={venue}
+                        onChange={(e) => setVenue(e.target.value)}
+                        className="w-full px-3 py-2 border rounded-md text-sm h-9 bg-card"
+                      >
+                        <option value="">Место проведения</option>
+                        {venues.map(v => (
+                          <option key={v.id} value={v.name}>
+                            {v.name}{v.city ? ` (${v.city})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                      {venue && !venues.find(v => v.name === venue) && (
+                        <span className="text-xs text-muted-foreground">{venue} (не из справочника)</span>
+                      )}
+                    </div>
 
                     <select
                       value={customerId}

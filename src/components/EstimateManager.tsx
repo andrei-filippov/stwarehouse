@@ -7,6 +7,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Plus, Edit, Trash2, Layout, Copy, FileSpreadsheet, Users, Loader2, Lock, CheckCircle2, Clock, XCircle, FileText, Search, ChevronDown, ChevronRight, CalendarDays, ClipboardCheck, Save } from 'lucide-react';
 import type { Estimate, PDFSettings, Template, EstimateItem, EstimateStatus } from '../types';
+import type { VenueDetails } from '../types/venues';
 import { EstimateBuilder } from './EstimateBuilder';
 import { EstimateImportDialog } from './EstimateImportDialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
@@ -19,6 +20,7 @@ interface EstimateManagerProps {
   equipment: any[];
   templates: Template[];
   customers: any[];
+  venues?: VenueDetails[];
   pdfSettings: PDFSettings;
   company?: { name?: string; inn?: string; kpp?: string; ogrn?: string; legal_address?: string } | null;
   equipmentCategories?: string[];
@@ -44,6 +46,7 @@ export const EstimateManager = memo(function EstimateManager({
   equipment,
   templates,
   customers,
+  venues = [],
   pdfSettings,
   company,
   equipmentCategories,
@@ -327,6 +330,7 @@ export const EstimateManager = memo(function EstimateManager({
         estimates={estimates}
         templates={templates}
         customers={customers}
+        venues={venues}
         estimate={editingEstimate}
         selectedTemplate={selectedTemplate}
         pdfSettings={pdfSettings}
