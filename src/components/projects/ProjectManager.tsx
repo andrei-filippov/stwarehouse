@@ -12,11 +12,14 @@ import {
   StickyNote, Plus, Trash2, Download, Package
 } from 'lucide-react';
 import type { ProjectWithDetails, ProjectStaff, ProjectTimeline } from '../../hooks/useProjects';
+import type { PDFSettings } from '../../types';
 
 interface ProjectManagerProps {
   companyId: string | undefined;
   venues?: { id: string; name: string; city?: string }[];
-  staff?: { id: string; name: string; phone?: string; email?: string }[];
+  staff?: { id: string; full_name: string; phone?: string; email?: string }[];
+  pdfSettings?: PDFSettings;
+  company?: { name?: string; inn?: string; kpp?: string; ogrn?: string; legal_address?: string } | null;
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -62,35 +65,214 @@ const PHASE_COLORS: Record<string, string> = {
   custom: 'bg-gray-500',
 };
 
-// ========== ЭКСПОРТ В EXCEL ==========
-function exportEquipmentToExcel(project: ProjectWithDetails) {
-  const rows = project.equipment.map(e => ({
-    'Категория': e.category,
-    'Наименование': e.name,
-    'Описание': e.description || '',
-    'Кол-во': e.quantity,
-    'Ед. изм.': e.unit,
-    'Комментарий': '', // для ручного заполнения (кофр, рэк и т.д.)
-  }));
-
-  if (rows.length === 0) {
+// ========== ЭКСПОРТ ОБОРУДОВАНИЯ В EXCEL (формат сметы, без цен) ==========
+async function exportEquipmentToExcel(
+  project: ProjectWithDetails,
+  pdfSettings?: PDFSettings,
+  company?: { name?: string; inn?: string; kpp?: string; ogrn?: string; legal_address?: string } | null
+) {
+  if (project.equipment.length === 0) {
     toast.error('Нет оборудования для экспорта');
     return;
   }
 
-  // CSV экспорт (простой, без зависимостей)
-  const headers = Object.keys(rows[0]);
-  const csv = [
-    headers.join('\t'),
-    ...rows.map(r => headers.map(h => (r as any)[h]).join('\t')),
-  ].join('\n');
+  const ExcelJS = await import('exceljs');
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('Оборудование');
 
-  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  let currentRow = 1;
+  const startRow = 1;
+
+  // === ШАПКА: Логотип слева ===
+  if (pdfSettings?.logo) {
+    try {
+      const base64Data = pdfSettings.logo.split(',')[1];
+      if (base64Data) {
+        const binaryString = atob(base64Data);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        const imageType = pdfSettings.logo.includes('image/png') ? 'png' :
+                         pdfSettings.logo.includes('image/jpeg') ? 'jpeg' : 'png';
+        const imageId = workbook.addImage({
+          buffer: bytes,
+          extension: imageType as 'png' | 'jpeg',
+        });
+        worksheet.addImage(imageId, {
+          tl: { col: 0.2, row: 0.5 },
+          ext: { width: 180, height: 60 },
+          editAs: 'absolute',
+        });
+      }
+    } catch (e) {
+      console.error('Error adding logo:', e);
+    }
+  }
+
+  // === ШАПКА: Реквизиты справа ===
+  let detailsRow = 1;
+
+  if (company?.name || pdfSettings?.companyName) {
+    worksheet.mergeCells(`D${detailsRow}:G${detailsRow}`);
+    worksheet.getCell(detailsRow, 4).value = company?.name || pdfSettings?.companyName;
+    worksheet.getCell(detailsRow, 4).font = { bold: true, size: 14 };
+    worksheet.getCell(detailsRow, 4).alignment = { horizontal: 'right', vertical: 'center', wrapText: true };
+    worksheet.getRow(detailsRow).height = 20;
+    detailsRow++;
+  }
+
+  if (company?.inn || company?.kpp) {
+    worksheet.mergeCells(`D${detailsRow}:G${detailsRow}`);
+    worksheet.getCell(detailsRow, 4).value = `ИНН: ${company?.inn || '-'} / КПП: ${company?.kpp || '-'}`;
+    worksheet.getCell(detailsRow, 4).font = { size: 10 };
+    worksheet.getCell(detailsRow, 4).alignment = { horizontal: 'right', vertical: 'center', wrapText: true };
+    worksheet.getRow(detailsRow).height = 16;
+    detailsRow++;
+  }
+
+  if (company?.ogrn) {
+    worksheet.mergeCells(`D${detailsRow}:G${detailsRow}`);
+    worksheet.getCell(detailsRow, 4).value = `ОГРН: ${company.ogrn}`;
+    worksheet.getCell(detailsRow, 4).font = { size: 10 };
+    worksheet.getCell(detailsRow, 4).alignment = { horizontal: 'right', vertical: 'center', wrapText: true };
+    worksheet.getRow(detailsRow).height = 16;
+    detailsRow++;
+  }
+
+  if (company?.legal_address) {
+    worksheet.mergeCells(`D${detailsRow}:G${detailsRow}`);
+    worksheet.getCell(detailsRow, 4).value = company.legal_address;
+    worksheet.getCell(detailsRow, 4).font = { size: 10 };
+    worksheet.getCell(detailsRow, 4).alignment = { horizontal: 'right', vertical: 'center', wrapText: true };
+    worksheet.getRow(detailsRow).height = 32;
+    detailsRow++;
+  } else if (pdfSettings?.companyDetails) {
+    pdfSettings.companyDetails.split('\n').forEach((line) => {
+      worksheet.mergeCells(`D${detailsRow}:G${detailsRow}`);
+      worksheet.getCell(detailsRow, 4).value = line;
+      worksheet.getCell(detailsRow, 4).font = { size: 10 };
+      worksheet.getCell(detailsRow, 4).alignment = { horizontal: 'right', vertical: 'center', wrapText: true };
+      worksheet.getRow(detailsRow).height = 16;
+      detailsRow++;
+    });
+  }
+
+  const headerEndRow = Math.max(detailsRow - 1, 4);
+  worksheet.mergeCells(`A${startRow}:C${headerEndRow}`);
+
+  // === Информация о проекте ===
+  currentRow = headerEndRow + 2;
+  worksheet.getCell(currentRow, 1).value = 'Коммерческое предложение:';
+  worksheet.getCell(currentRow, 1).font = { bold: true, size: 12 };
+  currentRow++;
+
+  worksheet.getCell(currentRow, 1).value = `Заказчик: ${project.customer_name || 'не указан'}`;
+  currentRow++;
+
+  worksheet.getCell(currentRow, 1).value = `Дата начала: ${project.event_start_date ? new Date(project.event_start_date).toLocaleDateString('ru-RU') : new Date(project.event_date).toLocaleDateString('ru-RU')}`;
+  currentRow++;
+
+  worksheet.getCell(currentRow, 1).value = `Дата окончания: ${project.event_end_date ? new Date(project.event_end_date).toLocaleDateString('ru-RU') : new Date(project.event_date).toLocaleDateString('ru-RU')}`;
+  currentRow++;
+
+  worksheet.getCell(currentRow, 1).value = `Место: ${project.venue_name || 'не указано'}`;
+  currentRow++;
+  currentRow++;
+
+  // === Шапка таблицы (без цен и сумм) ===
+  const headerRow = worksheet.getRow(currentRow);
+  headerRow.values = ['№', 'Наименование', 'Ед. изм.', 'Кол-во', 'Комментарий'];
+
+  for (let col = 1; col <= 5; col++) {
+    headerRow.getCell(col).font = { bold: true };
+    headerRow.getCell(col).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFE3F2FD' }
+    };
+    headerRow.getCell(col).alignment = { horizontal: 'center', vertical: 'middle' };
+  }
+  currentRow++;
+
+  const dataStartRow = currentRow;
+
+  // === Группировка по категориям ===
+  const groupedByCategory: Record<string, typeof project.equipment> = {};
+  project.equipment.forEach((item) => {
+    const cat = item.category || 'Без категории';
+    if (!groupedByCategory[cat]) groupedByCategory[cat] = [];
+    groupedByCategory[cat].push(item);
+  });
+
+  Object.entries(groupedByCategory).forEach(([category, items]) => {
+    // Заголовок категории
+    const categoryRow = worksheet.getRow(currentRow);
+    categoryRow.values = [category, '', '', '', ''];
+    categoryRow.font = { bold: true };
+    categoryRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFF5F5F5' }
+    };
+    worksheet.mergeCells(`A${currentRow}:E${currentRow}`);
+    categoryRow.getCell(1).alignment = { horizontal: 'left' };
+    currentRow++;
+
+    // Позиции оборудования
+    items.forEach((item, idx) => {
+      const row = worksheet.getRow(currentRow);
+      row.values = [
+        idx + 1,
+        item.description ? `${item.name} - ${item.description}` : item.name,
+        item.unit || 'шт',
+        item.quantity,
+        '' // Комментарий — пустой для ручного заполнения
+      ];
+      row.getCell(2).alignment = { wrapText: true, vertical: 'top' };
+      row.getCell(4).numFmt = '#';
+      currentRow++;
+    });
+
+    currentRow++; // Пустая строка между категориями
+  });
+
+  // === Ширины колонок ===
+  worksheet.columns = [
+    { width: 5 },   // №
+    { width: 70 },  // Наименование (широкая для описания)
+    { width: 10 },  // Ед. изм.
+    { width: 9 },   // Кол-во
+    { width: 25 },  // Комментарий
+  ];
+
+  // === Границы ===
+  for (let row = dataStartRow - 1; row <= currentRow - 1; row++) {
+    for (let col = 1; col <= 5; col++) {
+      const cell = worksheet.getCell(row, col);
+      cell.border = {
+        top: { style: 'thin' },
+        left: { style: 'thin' },
+        bottom: { style: 'thin' },
+        right: { style: 'thin' }
+      };
+    }
+  }
+
+  const fileName = `Оборудование ${project.name || 'без названия'} ${project.event_date || ''}.xlsx`.trim();
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = `Оборудование_${project.name}_${new Date(project.event_date).toLocaleDateString('ru-RU')}.csv`;
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
   link.click();
-  toast.success('Оборудование экспортировано');
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+
+  toast.success('Оборудование экспортировано в Excel');
 }
 
 function exportStaffToExcel(project: ProjectWithDetails) {
@@ -126,7 +308,7 @@ function exportStaffToExcel(project: ProjectWithDetails) {
 // Импорт toast для экспорта
 import { toast } from 'sonner';
 
-export function ProjectManager({ companyId, venues = [], staff: companyStaff = [] }: ProjectManagerProps) {
+export function ProjectManager({ companyId, venues = [], staff: companyStaff = [], pdfSettings, company }: ProjectManagerProps) {
   const { projects, loading, refresh, updateProject, addStaff, removeStaff, addTimeline, removeTimeline } = useProjects(companyId);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProject, setSelectedProject] = useState<ProjectWithDetails | null>(null);
@@ -334,9 +516,9 @@ export function ProjectManager({ companyId, venues = [], staff: companyStaff = [
                 Оборудование по смете
                 <Badge variant="secondary">{selectedProject.equipment.length}</Badge>
               </h3>
-              <Button size="sm" variant="outline" onClick={() => exportEquipmentToExcel(selectedProject)}>
+              <Button size="sm" variant="outline" onClick={() => exportEquipmentToExcel(selectedProject, pdfSettings, company)}>
                 <Download className="w-4 h-4 mr-1" />
-                Экспорт CSV
+                Экспорт Excel
               </Button>
             </div>
 
@@ -413,7 +595,7 @@ export function ProjectManager({ companyId, venues = [], staff: companyStaff = [
                       <div className="flex items-start justify-between">
                         <div>
                           <div className="font-medium">
-                            {s.external_name || companyStaff.find(cs => cs.id === s.staff_id)?.name || 'Неизвестно'}
+                            {s.external_name || companyStaff.find(cs => cs.id === s.staff_id)?.full_name || 'Неизвестно'}
                           </div>
                           <div className="text-sm text-muted-foreground">
                             {ROLE_LABELS[s.role] || s.role}
@@ -604,7 +786,7 @@ export function ProjectManager({ companyId, venues = [], staff: companyStaff = [
 // ========== ВСПОМОГАТЕЛЬНЫЕ КОМПОНЕНТЫ ==========
 
 function AddStaffForm({ companyStaff, onAdd, onCancel }: {
-  companyStaff: { id: string; name: string; phone?: string; email?: string }[];
+  companyStaff: { id: string; full_name: string; phone?: string; email?: string }[];
   onAdd: (staff: Omit<ProjectStaff, 'id'>) => void;
   onCancel: () => void;
 }) {
@@ -649,7 +831,7 @@ function AddStaffForm({ companyStaff, onAdd, onCancel }: {
             >
               <option value="">Выберите сотрудника</option>
               {companyStaff.map(s => (
-                <option key={s.id} value={s.id}>{s.name}</option>
+                <option key={s.id} value={s.id}>{s.full_name}</option>
               ))}
             </select>
           ) : (

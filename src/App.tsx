@@ -804,7 +804,7 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
 
           {activeTab === 'projects' && (
             <LazyComponent>
-              <ProjectManager companyId={companyId} venues={venues} staff={staff} />
+              <ProjectManager companyId={companyId} venues={venues} staff={staff} pdfSettings={pdfSettings} company={company} />
             </LazyComponent>
           )}
 
