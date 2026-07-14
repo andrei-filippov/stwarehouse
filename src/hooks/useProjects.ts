@@ -286,6 +286,23 @@ export function useProjects(companyId: string | undefined) {
     }
   }, [companyId]);
 
+  const updateStaff = useCallback(async (projectId: string, staffId: string, updates: Partial<ProjectStaff>) => {
+    if (!companyId) return { error: 'No company' };
+    try {
+      const { error } = await supabase.from('project_staff').update(updates).eq('id', staffId).eq('company_id', companyId);
+      if (error) throw error;
+      setProjects(prev => prev.map(p => {
+        if (p.id !== projectId) return p;
+        const newStaff = p.staff.map(s => s.id === staffId ? { ...s, ...updates } : s);
+        return { ...p, staff: newStaff };
+      }));
+      return { error: null };
+    } catch (err: any) {
+      toast.error('Ошибка обновления персонала', { description: err.message });
+      return { error: err };
+    }
+  }, [companyId]);
+
   const addTimeline = useCallback(async (projectId: string, timeline: Omit<ProjectTimeline, 'id'>) => {
     if (!companyId) return { error: 'No company', data: null };
     try {
@@ -329,6 +346,7 @@ export function useProjects(companyId: string | undefined) {
     updateProject,
     addStaff,
     removeStaff,
+    updateStaff,
     addTimeline,
     removeTimeline,
   };

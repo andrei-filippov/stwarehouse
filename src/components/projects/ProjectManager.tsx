@@ -309,7 +309,7 @@ function exportStaffToExcel(project: ProjectWithDetails) {
 import { toast } from 'sonner';
 
 export function ProjectManager({ companyId, venues = [], staff: companyStaff = [], pdfSettings, company }: ProjectManagerProps) {
-  const { projects, loading, refresh, updateProject, addStaff, removeStaff, addTimeline, removeTimeline } = useProjects(companyId);
+  const { projects, loading, refresh, updateProject, addStaff, removeStaff, updateStaff, addTimeline, removeTimeline } = useProjects(companyId);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProject, setSelectedProject] = useState<ProjectWithDetails | null>(null);
   const [collapsedMonths, setCollapsedMonths] = useState<Set<string>>(new Set());
@@ -592,36 +592,84 @@ export function ProjectManager({ companyId, venues = [], staff: companyStaff = [
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {selectedProject.staff.map(s => (
-                  <Card key={s.id}>
-                    <CardContent className="py-3">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <div className="font-medium">
-                            {s.external_name || companyStaff.find(cs => cs.id === s.staff_id)?.full_name || 'Неизвестно'}
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            {ROLE_LABELS[s.role] || s.role}
-                            {s.custom_role && ` — ${s.custom_role}`}
-                          </div>
-                          {s.shift_start && (
-                            <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              {new Date(s.shift_start).toLocaleString('ru-RU')}
-                              {s.shift_end && ` — ${new Date(s.shift_end).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`}
+                {(() => {
+                  // Группируем staff по человеку (staff_id или external_name)
+                  const grouped = new Map<string, ProjectStaff[]>();
+                  selectedProject.staff.forEach(s => {
+                    const key = s.staff_id || s.external_name || 'unknown';
+                    if (!grouped.has(key)) grouped.set(key, []);
+                    grouped.get(key)!.push(s);
+                  });
+
+                  return Array.from(grouped.entries()).map(([key, assignments]) => {
+                    const first = assignments[0];
+                    const name = first.external_name || companyStaff.find(cs => cs.id === first.staff_id)?.full_name || 'Неизвестно';
+                    const allConfirmed = assignments.every(a => a.confirmed);
+
+                    return (
+                      <Card key={key}>
+                        <CardContent className="py-3 space-y-2">
+                          {/* Имя и статус */}
+                          <div className="flex items-start justify-between">
+                            <div className="font-medium">{name}</div>
+                            <div className="flex items-center gap-2">
+                              {allConfirmed && <Badge className="bg-green-100 text-green-700">Подтв.</Badge>}
                             </div>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {s.confirmed && <Badge className="bg-green-100 text-green-700">Подтв.</Badge>}
-                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => removeStaff(selectedProject.id, s.id)}>
-                            <Trash2 className="w-4 h-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                          </div>
+
+                          {/* Роли с временем */}
+                          <div className="space-y-1.5">
+                            {assignments.map(a => (
+                              <div key={a.id} className="flex items-center gap-2 text-sm">
+                                <Badge variant="secondary" className="text-xs font-normal shrink-0">
+                                  {a.custom_role || ROLE_LABELS[a.role] || a.role}
+                                </Badge>
+                                <div className="flex items-center gap-1 flex-1 min-w-0">
+                                  <Clock className="w-3 h-3 text-muted-foreground shrink-0" />
+                                  {a.shift_start ? (
+                                    <span className="text-xs text-muted-foreground truncate">
+                                      {new Date(a.shift_start).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                                      {a.shift_end && ` — ${new Date(a.shift_end).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`}
+                                    </span>
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground italic">Время не указано</span>
+                                  )}
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-5 w-5 p-0 ml-auto shrink-0"
+                                    title="Изменить время"
+                                    onClick={() => {
+                                      const start = prompt('Начало смены (YYYY-MM-DDTHH:MM):', a.shift_start ? new Date(a.shift_start).toISOString().slice(0, 16) : '');
+                                      if (start === null) return;
+                                      const end = prompt('Конец смены (YYYY-MM-DDTHH:MM):', a.shift_end ? new Date(a.shift_end).toISOString().slice(0, 16) : '');
+                                      if (end === null) return;
+                                      updateStaff(selectedProject.id, a.id, {
+                                        shift_start: start ? new Date(start).toISOString() : null,
+                                        shift_end: end ? new Date(end).toISOString() : null,
+                                      });
+                                    }}
+                                  >
+                                    <span className="text-xs">✎</span>
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-5 w-5 p-0 shrink-0"
+                                    title={`Удалить: ${a.custom_role || ROLE_LABELS[a.role] || a.role}`}
+                                    onClick={() => removeStaff(selectedProject.id, a.id)}
+                                  >
+                                    <Trash2 className="w-3 h-3 text-destructive" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  });
+                })()}
               </div>
             )}
           </TabsContent>
