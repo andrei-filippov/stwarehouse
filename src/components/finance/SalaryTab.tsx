@@ -79,17 +79,23 @@ export function SalaryTab({ staff, companyId, records = [], onAddOrUpdate, onDel
     return records.find(r => r.staff_id === staffId && r.month === month);
   };
 
-  // Добавить проект сотруднику
-  const handleAddProject = async (data: { name: string; amount: number; date: string }) => {
-    if (!selectedStaff || !onAddOrUpdate || !companyId) return;
+  // Добавить проект(ы) сотруднику
+  const handleAddProject = async (data: { name: string; amount: number; date: string }[]) => {
+    if (!selectedStaff || !onAddOrUpdate || !companyId || data.length === 0) return;
     setIsSubmitting(true);
 
     const existingRecord = getRecordForStaff(selectedStaff.id, activeMonth);
     const baseSalary = selectedStaff.base_salary || 0;
 
+    const newProjects: SalaryProject[] = data.map(d => ({
+      name: d.name,
+      amount: d.amount,
+      date: d.date,
+    }));
+
     const projects: SalaryProject[] = existingRecord
-      ? [...existingRecord.projects, data]
-      : [data];
+      ? [...existingRecord.projects, ...newProjects]
+      : [...newProjects];
 
     // Если есть оклад и это первый проект — добавляем оклад как проект
     if (baseSalary > 0 && !existingRecord) {
