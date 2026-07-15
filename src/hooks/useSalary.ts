@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import { supabase, safeChannel } from '../lib/supabase';
+import { getCached, setCached } from '../lib/queryCache';
 
 export type PaymentType = 'regular' | 'advance' | 'bonus';
 
@@ -51,17 +52,25 @@ export function useSalary(companyId: string | undefined) {
   const recentlyUpdatedIds = useRef<Set<string>>(new Set());
   const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const fetchRecords = useCallback(async () => {
+  const fetchRecords = useCallback(async (force = false) => {
     console.log('[useSalary] fetchRecords called, companyId:', companyId);
     if (!companyId) {
       console.log('[useSalary] no companyId, skipping');
       return;
     }
+
+    // Проверяем кэш
+    const cacheKey = `salary_records_${companyId}`;
+    if (!force) {
+      const cached = getCached<SalaryRecord[]>(cacheKey);
+      if (cached) {
+        console.log('[useSalary] using cached data:', cached.length);
+        setRecords(cached);
+        return;
+      }
+    }
+
     setLoading(true);
-    
-    // Пробуем загрузить с колонкой payments (для новых схем)
-    let data: any[] | null = null;
-    let error: any = null;
     
     try {
       const result = await supabase
@@ -70,53 +79,17 @@ export function useSalary(companyId: string | undefined) {
         .eq('company_id', companyId)
         .order('month', { ascending: false });
       
-      // Логируем ошибку для отладки
       if (result.error) {
-        console.log('[useSalary] fetch error:', result.error.message, result.error.code, result.error.details);
+        console.log('[useSalary] fetch error:', result.error.message);
+        toast.error('Ошибка при загрузке зарплат', { description: result.error.message });
+        setLoading(false);
+        return;
       }
       
-      // Проверяем разные варианты ошибки с колонкой payments
-      const isPaymentsError = result.error && (
-        result.error.message?.includes('payments') ||
-        result.error.message?.includes('column') ||
-        result.error.message?.includes('schema cache') ||
-        result.error.code === 'PGRST204'
-      );
+      const data = result.data || [];
       
-      if (isPaymentsError) {
-        // Fallback: колонка payments ещё не создана в БД
-        console.log('[useSalary] Fallback: loading without payments column');
-        const fallback = await supabase
-          .from('salary_records')
-          .select('id, company_id, staff_id, month, projects, total_calculated, paid, payment_date, notes, created_at, updated_at')
-          .eq('company_id', companyId)
-          .order('month', { ascending: false });
-        data = fallback.data;
-        error = fallback.error;
-      } else {
-        data = result.data;
-        error = result.error;
-      }
-      
-      // Если есть данные, но есть и ошибка — используем данные (частичный success)
-      if (!data && result.data) {
-        data = result.data;
-        error = null;
-      }
-    } catch (e) {
-      console.error('[useSalary] fetch exception:', e);
-      error = e;
-    }
-    
-    console.log('[useSalary] fetch result — error:', error?.message, 'data count:', data?.length, 'data:', data);
-    if (error) {
-      toast.error('Ошибка при загрузке зарплат', { description: error.message });
-    } else if (!data) {
-      console.log('[useSalary] data is null/undefined');
-      setRecords([]);
-    } else {
       // Миграция: если payments нет/null/пустой, но paid > 0 — создаём legacy-запись
-      const migrated = (data || []).map((r: any) => {
+      const migrated = data.map((r: any) => {
         const hasPayments = r.payments && Array.isArray(r.payments) && r.payments.length > 0;
         if (!hasPayments && r.paid > 0) {
           // Фоново сохраняем payments в БД
@@ -146,8 +119,15 @@ export function useSalary(companyId: string | undefined) {
         }
         return { ...r, payments: r.payments || [] };
       });
+
       setRecords(migrated);
+      setCached(cacheKey, migrated);
+      console.log('[useSalary] fetched and cached:', migrated.length);
+    } catch (e) {
+      console.error('[useSalary] fetch exception:', e);
+      toast.error('Ошибка при загрузке зарплат');
     }
+    
     setLoading(false);
   }, [companyId]);
 

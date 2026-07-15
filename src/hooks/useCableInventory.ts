@@ -29,6 +29,9 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(false);
   const lastFetchRef = useRef<number>(0);
+  // Флаги ленивой загрузки
+  const movementsLoadedRef = useRef(false);
+  const repairsLoadedRef = useRef(false);
 
   const fetchCategories = useCallback(async (force = false) => {
     if (!companyId) return;
@@ -148,6 +151,7 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
 
   const fetchMovements = useCallback(async (force = false) => {
     if (!companyId) return;
+    movementsLoadedRef.current = true;
     const cacheKey = `movements_${companyId}`;
     if (!force) {
       const cached = getCached<CableMovement[]>(cacheKey);
@@ -551,6 +555,7 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
   // ===== Функции для работы с ремонтом =====
   const fetchRepairs = useCallback(async (force = false) => {
     if (!companyId) return;
+    repairsLoadedRef.current = true;
     const cacheKey = `repairs_${companyId}`;
     if (!force) {
       const cached = getCached<EquipmentRepair[]>(cacheKey);
@@ -761,7 +766,8 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
     }
   }, [companyId, fetchCategories, fetchInventory]);
 
-  // Initial load - use cache if available
+  // Initial load - only categories + inventory + inventoryItems (eager)
+  // movements and repairs are lazy-loaded on first access
   useEffect(() => {
     const now = Date.now();
     if (now - lastFetchRef.current < DEFAULT_CACHE_TTL_MS) return;
@@ -769,9 +775,20 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
     fetchCategories();
     fetchInventory();
     fetchInventoryItems();
-    fetchMovements();
-    fetchRepairs();
-  }, [fetchCategories, fetchInventory, fetchInventoryItems, fetchMovements, fetchRepairs]);
+  }, [fetchCategories, fetchInventory, fetchInventoryItems]);
+
+  // Lazy loaders for movements and repairs
+  const loadMovements = useCallback(() => {
+    if (!movementsLoadedRef.current) {
+      fetchMovements();
+    }
+  }, [fetchMovements]);
+
+  const loadRepairs = useCallback(() => {
+    if (!repairsLoadedRef.current) {
+      fetchRepairs();
+    }
+  }, [fetchRepairs]);
 
   // Realtime on Vercel, smart polling on Yandex proxy
   useRealtimeWithFallback({
@@ -888,11 +905,15 @@ export function useCableInventory(companyId: string | undefined, activeTab?: str
     importFromEquipment,
     fetchInventoryItems,
     refresh: () => {
+      movementsLoadedRef.current = false;
+      repairsLoadedRef.current = false;
       fetchCategories();
       fetchInventory();
       fetchInventoryItems();
       fetchMovements();
       fetchRepairs();
-    }
+    },
+    loadMovements,
+    loadRepairs,
   };
 }
