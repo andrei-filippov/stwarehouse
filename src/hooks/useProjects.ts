@@ -100,6 +100,7 @@ export function useProjects(companyId: string | undefined) {
             status,
             total,
             customer_name,
+            venue,
             items:estimate_items(*)
           ),
           venue_details:venue_id (name,city,address,contact_name,contact_phone)
@@ -122,6 +123,17 @@ export function useProjects(companyId: string | undefined) {
       }
 
       const projectIds = projectsData.map((p: any) => p.id);
+
+      // Загружаем все venue_details для lookup по имени (если venue_id не задан, но venue есть в смете)
+      const { data: venuesData } = await supabase
+        .from('venue_details')
+        .select('id,name,city,address,contact_name,contact_phone')
+        .eq('company_id', companyId);
+
+      const venueByName: Record<string, { id: string; city?: string; address?: string; contact_name?: string; contact_phone?: string }> = {};
+      (venuesData || []).forEach((v: any) => {
+        venueByName[v.name] = v;
+      });
 
       // Параллельно загружаем staff, timeline
       const [staffRes, timelineRes] = await Promise.all([
@@ -171,10 +183,15 @@ export function useProjects(companyId: string | undefined) {
           description: e.description || '',
         }));
 
+        // Определяем площадку: сначала venue_id, потом поиск по имени из сметы
+        const venueFromEstimate = p.estimates?.venue;
+        const matchedVenue = venueFromEstimate ? venueByName[venueFromEstimate] : null;
+        const venueDetails = p.venue_details || matchedVenue;
+
         return {
           id: p.id,
           estimate_id: p.estimate_id,
-          venue_id: p.venue_id,
+          venue_id: p.venue_id || matchedVenue?.id || null,
           guest_count: p.guest_count,
           expected_attendance: p.expected_attendance,
           tech_rider: p.tech_rider,
@@ -187,11 +204,11 @@ export function useProjects(companyId: string | undefined) {
           status: p.estimates?.status || 'draft',
           total: p.estimates?.total || 0,
           customer_name: p.estimates?.customer_name,
-          venue_name: p.venue_details?.name,
-          venue_city: p.venue_details?.city,
-          venue_address: p.venue_details?.address,
-          venue_contact_name: p.venue_details?.contact_name,
-          venue_contact_phone: p.venue_details?.contact_phone,
+          venue_name: venueDetails?.name || venueFromEstimate,
+          venue_city: venueDetails?.city,
+          venue_address: venueDetails?.address,
+          venue_contact_name: venueDetails?.contact_name,
+          venue_contact_phone: venueDetails?.contact_phone,
           staff: staffByProject[p.id] || [],
           staff_count: (staffByProject[p.id] || []).length,
           timeline: timelineByProject[p.id] || [],
