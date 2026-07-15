@@ -1251,7 +1251,15 @@ export function EstimateBuilder({
                     <div className="space-y-1">
                       <select
                         value={venue}
-                        onChange={(e) => setVenue(e.target.value)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === '__custom__') {
+                            const custom = prompt('Введите название площадки:');
+                            if (custom) setVenue(custom);
+                          } else {
+                            setVenue(val);
+                          }
+                        }}
                         className="w-full px-3 py-2 border rounded-md text-sm h-9 bg-card"
                       >
                         <option value="">Место проведения</option>
@@ -1260,9 +1268,10 @@ export function EstimateBuilder({
                             {v.name}{v.city ? ` (${v.city})` : ''}
                           </option>
                         ))}
+                        <option value="__custom__">✏️ Другое...</option>
                       </select>
                       {venue && !venues.find(v => v.name === venue) && (
-                        <span className="text-xs text-muted-foreground">{venue} (не из справочника)</span>
+                        <span className="text-xs text-muted-foreground">{venue} (вручную)</span>
                       )}
                     </div>
 
@@ -1956,11 +1965,30 @@ export function EstimateBuilder({
                       </div>
                     </div>
                     
-                    <Input
-                      placeholder="Место проведения"
+                    <select
                       value={venue}
-                      onChange={(e) => setVenue(e.target.value)}
-                    />
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '__custom__') {
+                          const custom = prompt('Введите название площадки:');
+                          if (custom) setVenue(custom);
+                        } else {
+                          setVenue(val);
+                        }
+                      }}
+                      className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-card"
+                    >
+                      <option value="">Место проведения</option>
+                      {venues.map(v => (
+                        <option key={v.id} value={v.name}>
+                          {v.name}{v.city ? ` (${v.city})` : ''}
+                        </option>
+                      ))}
+                      <option value="__custom__">✏️ Другое...</option>
+                    </select>
+                    {venue && !venues.find(v => v.name === venue) && (
+                      <span className="text-xs text-muted-foreground">{venue} (вручную)</span>
+                    )}
 
                     <select
                       value={customerId}
