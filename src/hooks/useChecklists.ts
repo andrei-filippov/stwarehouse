@@ -95,10 +95,13 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
     if (isOnline()) {
       logger.debug('[fetchRules] Fetching rules for companyId:', companyId);
       
-      // Сначала загружаем правила
+      // Загружаем правила с items за один запрос (через JOIN)
       const { data: rulesData, error: rulesError } = await supabase
         .from('checklist_rules')
-        .select('*')
+        .select(`
+          *,
+          items:checklist_rule_items(*)
+        `)
         .eq('company_id', companyId);
       
       if (rulesError) {
@@ -109,19 +112,10 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
       
       logger.info('[fetchRules] Loaded rules:', rulesData?.length);
       
-      // Затем загружаем items для каждого правила отдельно
-      const rulesWithItems = await Promise.all((rulesData || []).map(async (rule) => {
-        const { data: itemsData, error: itemsError } = await supabase
-          .from('checklist_rule_items')
-          .select('*')
-          .eq('rule_id', rule.id);
-        
-        if (itemsError) {
-          console.error('[fetchRules] Error loading items for rule', rule.id, ':', itemsError);
-        }
-        
-        logger.debug('[fetchRules] Rule', rule.id, 'items:', itemsData?.length);
-        return { ...rule, items: itemsData || [] };
+      // Маппим результат
+      const rulesWithItems = (rulesData || []).map((rule: any) => ({
+        ...rule,
+        items: rule.items || [],
       }));
       
       logger.info('[fetchRules] Rules with items:', rulesWithItems.length);
@@ -260,19 +254,18 @@ export function useChecklists(companyId: string | undefined, estimates: Estimate
       let rulesToUse = rules;
       if (rulesToUse.length === 0) {
         if (isOnline()) {
-          // Онлайн: загружаем с сервера
+          // Онлайн: загружаем с сервера (один запрос с JOIN)
           const { data: rulesData } = await supabase
             .from('checklist_rules')
-            .select('*')
+            .select(`
+              *,
+              items:checklist_rule_items(*)
+            `)
             .eq('company_id', companyId);
           
-          // Загружаем items для каждого правила
-          rulesToUse = await Promise.all((rulesData || []).map(async (rule) => {
-            const { data: itemsData } = await supabase
-              .from('checklist_rule_items')
-              .select('*')
-              .eq('rule_id', rule.id);
-            return { ...rule, items: itemsData || [] };
+          rulesToUse = (rulesData || []).map((rule: any) => ({
+            ...rule,
+            items: rule.items || [],
           }));
           
           logger.info('[createChecklist] Loaded rules from server:', rulesToUse.length);
