@@ -311,6 +311,7 @@ import { toast } from 'sonner';
 export function ProjectManager({ companyId, venues = [], staff: companyStaff = [], pdfSettings, company }: ProjectManagerProps) {
   const { projects, loading, refresh, updateProject, addStaff, removeStaff, updateStaff, addTimeline, removeTimeline } = useProjects(companyId);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedStatuses, setSelectedStatuses] = useState<Set<string>>(new Set());
   const [selectedProject, setSelectedProject] = useState<ProjectWithDetails | null>(null);
   const [collapsedMonths, setCollapsedMonths] = useState<Set<string>>(new Set());
   const [editingNotes, setEditingNotes] = useState(false);
@@ -328,13 +329,38 @@ export function ProjectManager({ companyId, venues = [], staff: companyStaff = [
     }
   }, [projects, selectedProject?.id]);
 
-  const filteredProjects = projects.filter(p =>
-    p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.venue_name?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Фильтр по статусам
+  const STATUS_FILTERS: { key: string; label: string; color: string }[] = [
+    { key: 'completed', label: 'Выполнен', color: 'bg-green-100 text-green-700 border-green-200' },
+    { key: 'approved', label: 'Согласован', color: 'bg-blue-100 text-blue-700 border-blue-200' },
+    { key: 'pending', label: 'В работе', color: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
+    { key: 'cancelled', label: 'Отменён', color: 'bg-red-100 text-red-700 border-red-200' },
+    { key: 'draft', label: 'Черновик', color: 'bg-gray-100 text-gray-700 border-gray-200' },
+  ];
 
-  // Группировка по месяцам
+  const toggleStatus = (status: string) => {
+    setSelectedStatuses(prev => {
+      const next = new Set(prev);
+      if (next.has(status)) next.delete(status);
+      else next.add(status);
+      return next;
+    });
+  };
+
+  const clearStatusFilter = () => setSelectedStatuses(new Set());
+
+  const filteredProjects = projects.filter(p => {
+    // Текстовый поиск
+    const matchesSearch = !searchQuery ||
+      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.venue_name?.toLowerCase().includes(searchQuery.toLowerCase());
+    // Фильтр по статусу
+    const matchesStatus = selectedStatuses.size === 0 || selectedStatuses.has(p.status);
+    return matchesSearch && matchesStatus;
+  });
+
+  // Группировка по месяцам + сортировка внутри месяца по дате (убывание)
   const groupedProjects = filteredProjects.reduce((acc, project) => {
     const date = new Date(project.event_date);
     const yearMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -343,6 +369,11 @@ export function ProjectManager({ companyId, venues = [], staff: companyStaff = [
     acc[yearMonth].projects.push(project);
     return acc;
   }, {} as Record<string, { label: string; projects: ProjectWithDetails[] }>);
+
+  // Сортируем проекты внутри каждого месяца по дате (убывание — как во вкладке сметы)
+  Object.values(groupedProjects).forEach(group => {
+    group.projects.sort((a, b) => new Date(b.event_date).getTime() - new Date(a.event_date).getTime());
+  });
 
   const now = new Date();
   const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -736,6 +767,34 @@ export function ProjectManager({ companyId, venues = [], staff: companyStaff = [
           onChange={(e) => setSearchQuery(e.target.value)}
           className="pl-10"
         />
+      </div>
+
+      {/* Фильтр по статусам */}
+      <div className="flex flex-wrap gap-2 items-center">
+        <span className="text-sm text-muted-foreground">Статус:</span>
+        {STATUS_FILTERS.map(({ key, label, color }) => (
+          <button
+            key={key}
+            onClick={() => toggleStatus(key)}
+            className={`
+              px-2.5 py-1 rounded-full text-xs font-medium border transition-all
+              ${selectedStatuses.has(key)
+                ? `${color} ring-2 ring-offset-1 ring-primary/30`
+                : 'bg-background text-muted-foreground border-border hover:border-muted-foreground'
+              }
+            `}
+          >
+            {label}
+          </button>
+        ))}
+        {selectedStatuses.size > 0 && (
+          <button
+            onClick={clearStatusFilter}
+            className="text-xs text-muted-foreground hover:text-primary underline"
+          >
+            Сбросить
+          </button>
+        )}
       </div>
 
       {loading ? (
