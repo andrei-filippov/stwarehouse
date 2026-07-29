@@ -77,6 +77,7 @@ export function useEstimates(companyId: string | undefined, activeTab?: string) 
               id, user_id, event_name, venue, event_date, event_start_date, event_end_date,
               total, customer_id, customer_name, created_at, updated_at, status,
               creator_name, category_order, sections, color, is_editing, editing_by, editing_since, editing_session_id, editor_name,
+              vat_included, vat_rate,
               items:estimate_items(*)
             `)
             .eq('company_id', companyId)
@@ -89,7 +90,7 @@ export function useEstimates(companyId: string | undefined, activeTab?: string) 
             debugLog('[fetchEstimates] Trying fallback with minimal columns...');
             const fallback = await supabase
               .from('estimates')
-              .select('id, event_name, venue, event_date, total, status, created_at, updated_at, sections, items:estimate_items(*)')
+              .select('id, event_name, venue, event_date, total, status, created_at, updated_at, sections, vat_included, vat_rate, items:estimate_items(*)')
               .eq('company_id', companyId)
               .order('created_at', { ascending: false })
               .limit(500);

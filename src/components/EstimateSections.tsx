@@ -42,6 +42,10 @@ interface EstimateSectionsProps {
   getUsedQuantity: (equipmentId: string) => number;
   getBookedQuantity: (equipmentId: string) => number;
   equipment: any[];
+  subtotal: number;
+  vatAmount: number;
+  vatIncluded: boolean;
+  vatRate: number;
   total: number;
 }
 
@@ -71,6 +75,10 @@ export function EstimateSections({
   getUsedQuantity,
   getBookedQuantity,
   equipment,
+  subtotal,
+  vatAmount,
+  vatIncluded,
+  vatRate,
   total,
 }: EstimateSectionsProps) {
   console.log('[EstimateSections] Render:', items.length, 'items,', sections.length, 'sections');
@@ -418,9 +426,23 @@ export function EstimateSections({
       )}
 
       {/* Общий итог */}
-      <div className="flex items-center justify-between p-3 bg-primary/5 rounded-lg border border-primary/10">
-        <span className="font-semibold">ИТОГО:</span>
-        <span className="text-lg font-bold">{total.toLocaleString('ru-RU')}₽</span>
+      <div className="p-3 bg-primary/5 rounded-lg border border-primary/10 space-y-1">
+        <div className="flex items-center justify-between">
+          <span className="font-semibold">{vatIncluded ? 'ИТОГО без НДС:' : 'ИТОГО:'}</span>
+          <span className="text-lg font-bold">{subtotal.toLocaleString('ru-RU')}₽</span>
+        </div>
+        {vatIncluded && (
+          <>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">НДС ({vatRate}%):</span>
+              <span className="font-semibold">{vatAmount.toLocaleString('ru-RU')}₽</span>
+            </div>
+            <div className="flex items-center justify-between border-t border-primary/10 pt-1">
+              <span className="font-semibold">ИТОГО с НДС:</span>
+              <span className="text-lg font-bold">{total.toLocaleString('ru-RU')}₽</span>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

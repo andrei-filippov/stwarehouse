@@ -121,6 +121,8 @@ export function EstimateBuilder({
   const [showSectionDialog, setShowSectionDialog] = useState(false);
   const [newSectionName, setNewSectionName] = useState('');
   const [eventColor, setEventColor] = useState(estimate?.color || '');
+  const [vatIncluded, setVatIncluded] = useState(estimate?.vat_included ?? false);
+  const [vatRate, setVatRate] = useState<number>(estimate?.vat_rate ?? 5);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [activeMobileTab, setActiveMobileTab] = useState<'equipment' | 'estimate'>('equipment');
@@ -192,6 +194,8 @@ export function EstimateBuilder({
       setSections(estimate.sections || []);
       setCategoryOrder(estimate.category_order || equipmentCategories);
       setEventColor(estimate.color || '');
+      setVatIncluded(estimate.vat_included ?? false);
+      setVatRate(estimate.vat_rate ?? 5);
     }
     // Сбрасываем активную секцию при открытии сметы
     setActiveSectionId(null);
@@ -253,17 +257,57 @@ export function EstimateBuilder({
     [customers, customerId]
   );
 
-  const total = useMemo(() => 
+  const subtotal = useMemo(() =>
     items.reduce((sum, item) => sum + (item.price * item.quantity * (item.coefficient || 1)), 0),
     [items]
   );
-  
+
+  const vatAmount = useMemo(() =>
+    vatIncluded ? subtotal * (vatRate / 100) : 0,
+    [subtotal, vatIncluded, vatRate]
+  );
+
+  const total = useMemo(() =>
+    subtotal + vatAmount,
+    [subtotal, vatAmount]
+  );
+
+  const vatControl = (
+    <div className="flex items-center gap-3 flex-wrap">
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={vatIncluded}
+          onChange={(e) => setVatIncluded(e.target.checked)}
+          className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+        />
+        <span className="text-sm font-medium">С НДС</span>
+      </label>
+      {vatIncluded && (
+        <div className="flex items-center gap-2">
+          <Label className="text-[10px] text-muted-foreground">Ставка, %</Label>
+          <Input
+            type="number"
+            min={0}
+            max={100}
+            value={vatRate}
+            onChange={(e) => {
+              const val = e.target.value === '' ? 0 : parseFloat(e.target.value);
+              setVatRate(isNaN(val) ? 0 : Math.max(0, Math.min(100, val)));
+            }}
+            className="h-8 w-20 text-sm"
+          />
+        </div>
+      )}
+    </div>
+  );
+
   // Отслеживаем изменения для подтверждения выхода
   useEffect(() => {
     if (eventName || items.length > 0) {
       setHasUnsavedChanges(true);
     }
-  }, [eventName, items, venue, eventStartDate, eventEndDate, customerId]);
+  }, [eventName, items, venue, eventStartDate, eventEndDate, customerId, vatIncluded, vatRate]);
 
   // Предупреждение при закрытии страницы
   useEffect(() => {
@@ -502,6 +546,8 @@ export function EstimateBuilder({
       customer_name: selectedCustomer?.name || null,
       total,
       color: eventColor,
+      vat_included: vatIncluded,
+      vat_rate: vatRate,
       sections: sections.length > 0 ? sections : undefined,
     };
     console.log('[EstimateBuilder] Saving estimate:', estimate?.id, 'items:', items.length, 'sections:', sections.length);
@@ -728,13 +774,16 @@ export function EstimateBuilder({
       items,
       sections,
       categoryOrder,
+      subtotal,
       total,
+      vatIncluded,
+      vatRate,
       pdfSettings,
       company,
       customerId,
       customers,
     });
-  }, [eventName, venue, eventStartDate, eventEndDate, items, sections, categoryOrder, total, pdfSettings, company, customerId, customers]);
+  }, [eventName, venue, eventStartDate, eventEndDate, items, sections, categoryOrder, subtotal, total, vatIncluded, vatRate, pdfSettings, company, customerId, customers]);
 
   // Экспорт Excel
   const exportExcel = useCallback(async () => {
@@ -968,9 +1017,8 @@ export function EstimateBuilder({
     });
 
     // Общий итог - формула SUMIF с cached value для iOS
-    const grandTotal = items.reduce((sum, item) => sum + (item.price * item.quantity * (item.coefficient || 1)), 0);
     const grandTotalRow = worksheet.getRow(currentRow);
-    grandTotalRow.values = ['', '', '', '', '', 'ИТОГО:', { formula: `SUMIF(D${dataStartRow}:D${currentRow-1},">0",G${dataStartRow}:G${currentRow-1})`, result: grandTotal }];
+    grandTotalRow.values = ['', '', '', '', '', vatIncluded ? 'ИТОГО без НДС:' : 'ИТОГО:', { formula: `SUMIF(D${dataStartRow}:D${currentRow-1},">0",G${dataStartRow}:G${currentRow-1})`, result: subtotal }];
     grandTotalRow.font = { bold: true, size: 12 };
     grandTotalRow.fill = {
       type: 'pattern',
@@ -979,6 +1027,34 @@ export function EstimateBuilder({
     };
     grandTotalRow.getCell(6).alignment = { horizontal: 'right', vertical: 'center' };
     grandTotalRow.getCell(7).numFmt = '#,##0.00" ₽"';
+
+    if (vatIncluded) {
+      const subtotalRow = currentRow;
+      currentRow++;
+
+      const vatRow = worksheet.getRow(currentRow);
+      vatRow.values = ['', '', '', '', '', `НДС (${vatRate}%):`, { formula: `G${subtotalRow}*${vatRate / 100}`, result: vatAmount }];
+      vatRow.font = { bold: true, size: 12 };
+      vatRow.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFFFF9C4' }
+      };
+      vatRow.getCell(6).alignment = { horizontal: 'right', vertical: 'center' };
+      vatRow.getCell(7).numFmt = '#,##0.00" ₽"';
+      currentRow++;
+
+      const totalVatRow = worksheet.getRow(currentRow);
+      totalVatRow.values = ['', '', '', '', '', `Сумма с НДС (${vatRate}%):`, { formula: `G${subtotalRow}+G${subtotalRow + 1}`, result: total }];
+      totalVatRow.font = { bold: true, size: 13 };
+      totalVatRow.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFFFF9C4' }
+      };
+      totalVatRow.getCell(6).alignment = { horizontal: 'right', vertical: 'center' };
+      totalVatRow.getCell(7).numFmt = '#,##0.00" ₽"';
+    }
 
     worksheet.columns = [
       { width: 5 },   // №
@@ -1014,7 +1090,7 @@ export function EstimateBuilder({
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  }, [eventName, eventStartDate, eventEndDate, items, sections, categoryOrder, total, customerId, customers, pdfSettings, venue]);
+  }, [eventName, eventStartDate, eventEndDate, items, sections, categoryOrder, subtotal, vatAmount, total, vatIncluded, vatRate, customerId, customers, pdfSettings, venue]);
 
   const handlePrint = () => {
     window.print();
@@ -1317,6 +1393,8 @@ export function EstimateBuilder({
                         ))}
                       </div>
                     </div>
+
+                    {vatControl}
                   </div>
                 )}
               </div>
@@ -1752,9 +1830,28 @@ export function EstimateBuilder({
               
               {/* Фиксированная панель с Итого */}
               <div className="fixed bottom-[72px] left-0 right-0 bg-card border-t p-2 shadow-lg z-30 md:hidden">
-                <div className="flex items-center justify-center">
-                  <span className="text-sm text-muted-foreground mr-2">Итого:</span>
-                  <span className="text-lg font-bold">{total.toLocaleString('ru-RU')} ₽</span>
+                <div className="flex flex-col items-center justify-center gap-0.5">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <span>{vatIncluded ? 'Без НДС:' : 'Итого:'}</span>
+                    <span>{subtotal.toLocaleString('ru-RU')} ₽</span>
+                  </div>
+                  {vatIncluded && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span>НДС ({vatRate}%):</span>
+                      <span>{vatAmount.toLocaleString('ru-RU')} ₽</span>
+                    </div>
+                  )}
+                  {vatIncluded && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold">Итого с НДС:</span>
+                      <span className="text-lg font-bold">{total.toLocaleString('ru-RU')} ₽</span>
+                    </div>
+                  )}
+                  {!vatIncluded && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg font-bold">{total.toLocaleString('ru-RU')} ₽</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -2032,6 +2129,8 @@ export function EstimateBuilder({
                         ))}
                       </div>
                     </div>
+
+                    {vatControl}
                   </div>
                 </CollapsibleContent>
               </Collapsible>
@@ -2132,6 +2231,10 @@ export function EstimateBuilder({
                       getUsedQuantity={getUsedQuantity}
                       getBookedQuantity={getBookedQuantity}
                       equipment={equipment}
+                      subtotal={subtotal}
+                      vatAmount={vatAmount}
+                      vatIncluded={vatIncluded}
+                      vatRate={vatRate}
                       total={total}
                     />
                   )}

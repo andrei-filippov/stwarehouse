@@ -55,6 +55,9 @@ export type Estimate = {
   category_order?: string[]; // Порядок категорий для drag-and-drop
   // Статус сметы (для аналитики прибыли)
   status?: EstimateStatus;
+  // НДС
+  vat_included?: boolean;
+  vat_rate?: number;
   // Статус редактирования (realtime)
   is_editing?: boolean;
   editing_by?: string;

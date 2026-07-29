@@ -14,7 +14,10 @@ interface PDFExportData {
   items: EstimateItem[];
   sections: EstimateSection[];
   categoryOrder: string[];
+  subtotal: number;
   total: number;
+  vatIncluded: boolean;
+  vatRate: number;
   pdfSettings: PDFSettings;
   company?: { name?: string; inn?: string; kpp?: string; ogrn?: string; legal_address?: string } | null;
   customerId?: string;
@@ -30,7 +33,10 @@ export async function exportEstimateToPDF(data: PDFExportData): Promise<void> {
     items,
     sections,
     categoryOrder,
+    subtotal,
     total,
+    vatIncluded,
+    vatRate,
     pdfSettings,
     company,
     customerId,
@@ -59,7 +65,7 @@ export async function exportEstimateToPDF(data: PDFExportData): Promise<void> {
     // Формируем HTML содержимое
     const htmlContent = generatePDFHTML({
       eventName, venue, eventStartDate, eventEndDate,
-      items, sections, categoryOrder, total,
+      items, sections, categoryOrder, subtotal, total, vatIncluded, vatRate,
       pdfSettings, company, selectedCustomer
     });
 
@@ -155,16 +161,21 @@ function generatePDFHTML(params: {
   items: EstimateItem[];
   sections: EstimateSection[];
   categoryOrder: string[];
+  subtotal: number;
   total: number;
+  vatIncluded: boolean;
+  vatRate: number;
   pdfSettings: PDFSettings;
   company?: { name?: string; inn?: string; kpp?: string; ogrn?: string; legal_address?: string } | null;
   selectedCustomer?: Customer;
 }): string {
   const {
     eventName, venue, eventStartDate, eventEndDate,
-    items, sections, categoryOrder, total,
+    items, sections, categoryOrder, subtotal, total, vatIncluded, vatRate,
     pdfSettings, company, selectedCustomer
   } = params;
+
+  const vatAmount = vatIncluded ? subtotal * (vatRate / 100) : 0;
 
   const grouped = groupItemsBySections(items, sections, categoryOrder);
 
@@ -276,9 +287,17 @@ function generatePDFHTML(params: {
         `;
       }).join('')}
       
+      ${vatIncluded ? `
+      <div class="total">
+        <div>ИТОГО без НДС: ${subtotal.toLocaleString('ru-RU')} ₽</div>
+        <div>НДС (${vatRate}%): ${vatAmount.toLocaleString('ru-RU')} ₽</div>
+        <div style="font-size:16px;margin-top:6px;">Сумма с НДС (${vatRate}%): ${total.toLocaleString('ru-RU')} ₽</div>
+      </div>
+      ` : `
       <div class="total">
         ИТОГО: ${total.toLocaleString('ru-RU')} ₽
       </div>
+      `}
     </body>
     </html>
   `;
