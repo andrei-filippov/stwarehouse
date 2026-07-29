@@ -383,6 +383,28 @@ const addItem = async (item) => {
 - После insert может пройти 1-2 секунды перед тем как select вернёт данные
 - Использовать optimistic updates или задержку перед refresh
 
+### Атомарные операции с позициями сметы (estimate_items)
+
+#### Проблема
+Раньше обновление сметы выполнялось в два отдельных HTTP-запроса:
+1. `DELETE FROM estimate_items WHERE estimate_id = ...`
+2. `INSERT INTO estimate_items ...`
+
+При нестабильном соединении (особенно на Yandex proxy) `DELETE` мог пройти, а `INSERT` — упасть. Смета оставалась пустой.
+
+#### Решение
+Используется RPC-функция `public.replace_estimate_items(p_estimate_id uuid, p_company_id uuid, p_items jsonb)`:
+- Выполняет `DELETE` и `INSERT` в одной Postgres-транзакции.
+- Если `INSERT` падает, откатывается и `DELETE`, и старые позиции остаются на месте.
+- Работает под RLS-политиками вызывающего пользователя (`SECURITY INVOKER` + `is_company_member`).
+
+#### Где вызывается
+- `src/hooks/useEstimates.ts` — `createEstimate` / `updateEstimate` (online)
+- `src/hooks/useOfflineSync.ts` — синхронизация офлайн-очереди `estimate_items`
+
+#### Миграция
+`supabase/migrations/20260729_replace_estimate_items_atomic.sql`
+
 ### GitHub Actions
 - Может застревать в очереди (несколько runs)
 - Ручная отмена: GitHub → Actions → Cancel run

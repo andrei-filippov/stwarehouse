@@ -380,21 +380,19 @@ export function useEstimates(companyId: string | undefined, activeTab?: string) 
 
           if (estimateError) throw estimateError;
 
-          // Создаём позиции
+          // Создаём позиции атомарно через RPC
           if (items.length > 0) {
-            const itemsWithIds = items.map((item, index) => {
-              const { id, ...itemWithoutId } = item;
-              return {
-                ...itemWithoutId,
-                estimate_id: newEstimate.id,
-                company_id: companyId,
-                order_index: index
-              };
+            const itemsPayload = items.map((item, index) => {
+              const payload = { ...item, estimate_id: newEstimate.id, company_id: companyId, order_index: index };
+              delete payload.id;
+              return payload;
             });
 
-            const { error: itemsError } = await supabase
-              .from('estimate_items')
-              .insert(itemsWithIds);
+            const { error: itemsError } = await supabase.rpc('replace_estimate_items', {
+              p_estimate_id: newEstimate.id,
+              p_company_id: companyId,
+              p_items: itemsPayload
+            });
 
             if (itemsError) throw itemsError;
           }
@@ -510,41 +508,26 @@ export function useEstimates(companyId: string | undefined, activeTab?: string) 
           }
           console.log('[updateEstimate] Estimate updated successfully');
 
-          // Удаляем старые позиции
-          console.log('[updateEstimate] Deleting old items for estimate:', id);
-          await supabase
-            .from('estimate_items')
-            .delete()
-            .eq('estimate_id', id);
-          console.log('[updateEstimate] Old items deleted');
+          // Атомарно заменяем позиции через RPC (DELETE + INSERT в одной транзакции)
+          // Если вставка упадёт, откатится и DELETE, и старые items останутся.
+          console.log('[updateEstimate] Replacing items atomically for estimate:', id, 'count:', items.length);
+          const itemsPayload = items.map((item, index) => {
+            const payload = { ...item, estimate_id: id, company_id: companyId, order_index: index };
+            delete payload.id;
+            return payload;
+          });
 
-          // Создаём новые позиции
-          if (items.length > 0) {
-            console.log('[updateEstimate] Inserting', items.length, 'items');
-            const itemsWithIds = items.map((item, index) => {
-              const { id: itemId, ...itemWithoutId } = item;
-              return {
-                ...itemWithoutId,
-                estimate_id: id,
-                company_id: companyId,
-                order_index: index
-              };
-            });
-            console.log('[updateEstimate] Items to insert:', itemsWithIds);
+          const { error: itemsError } = await supabase.rpc('replace_estimate_items', {
+            p_estimate_id: id,
+            p_company_id: companyId,
+            p_items: itemsPayload
+          });
 
-            const { data: insertedItems, error: itemsError } = await supabase
-              .from('estimate_items')
-              .insert(itemsWithIds)
-              .select();
-
-            if (itemsError) {
-              console.error('[updateEstimate] Items insert error:', itemsError);
-              throw itemsError;
-            }
-            console.log('[updateEstimate] Items inserted successfully:', insertedItems?.length, 'sample:', insertedItems?.[0]);
-          } else {
-            console.log('[updateEstimate] No items to insert');
+          if (itemsError) {
+            console.error('[updateEstimate] Items replace error:', itemsError);
+            throw itemsError;
           }
+          console.log('[updateEstimate] Items replaced successfully');
 
           // Удаляем локальную версию если была (чтобы не было конфликтов)
           await deleteEstimateLocal(id).catch(() => {});

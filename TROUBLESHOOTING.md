@@ -86,6 +86,51 @@ VITE_SUPABASE_ANON_KEY=your_anon_key
 
 Если URL изменился (например, после переноса проекта), обновите его.
 
+## Пропали позиции (items) из сметы
+
+### Причина
+До 2026-07-29 обновление сметы делалось двумя запросами: сначала `DELETE` всех позиций, потом `INSERT` новых. Если связь прерывалась между ними (особенно на Yandex proxy), позиции удалялись безвозвратно.
+
+### Срочное восстановление
+Если в `audit_logs` остались записи `delete` для `estimate_item`, позиции можно восстановить из `old_data`. Пример для конкретной сметы:
+
+```sql
+WITH deleted_items AS (
+  SELECT
+    (old_data->>'id')::uuid AS id,
+    (old_data->>'company_id')::uuid AS company_id,
+    (old_data->>'estimate_id')::uuid AS estimate_id,
+    (old_data->>'equipment_id')::uuid AS equipment_id,
+    old_data->>'name' AS name,
+    old_data->>'description' AS description,
+    old_data->>'category' AS category,
+    old_data->>'unit' AS unit,
+    COALESCE((old_data->>'quantity')::int, 1) AS quantity,
+    COALESCE((old_data->>'price')::numeric, 0) AS price,
+    COALESCE((old_data->>'coefficient')::numeric, 1) AS coefficient,
+    COALESCE((old_data->>'order_index')::int, 0) AS order_index,
+    old_data->>'section_id' AS section_id,
+    created_at AS deleted_at
+  FROM audit_logs
+  WHERE entity_type = 'estimate_item'
+    AND action = 'delete'
+    AND entity_name ILIKE '%(смета: <НАЗВАНИЕ СМЕТЫ>)%'
+)
+INSERT INTO estimate_items (
+  id, company_id, estimate_id, equipment_id, name, description,
+  category, unit, quantity, price, coefficient, order_index, section_id
+)
+SELECT DISTINCT ON (order_index)
+  id, company_id, estimate_id, equipment_id, name, description,
+  category, unit, quantity, price, coefficient, order_index, section_id
+FROM deleted_items
+ORDER BY order_index, deleted_at DESC
+ON CONFLICT (id) DO NOTHING;
+```
+
+### Профилактика
+После применения миграции `supabase/migrations/20260729_replace_estimate_items_atomic.sql` и деплоя фронта обновление позиций идёт через RPC-функцию `replace_estimate_items`, которая выполняет `DELETE` + `INSERT` в одной Postgres-транзакции. Если вставка упадёт, старые позиции останутся на месте.
+
 ## Поштучный учёт экземпляров (track_items)
 
 ### Описание

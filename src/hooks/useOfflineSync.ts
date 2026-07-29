@@ -248,7 +248,14 @@ export function useOfflineSync(companyId: string | undefined) {
                   }
                 }
               } else if (item.operation === 'update') {
-                const { id, items: estimateItems, created_at, updated_at, user_id, company_id, ...data } = item.data;
+                const { id, ...rest } = item.data as Record<string, unknown>;
+                // Убираем поля, которые не нужно обновлять в estimates и синхронизируются отдельно
+                delete rest.items;
+                delete rest.created_at;
+                delete rest.updated_at;
+                delete rest.user_id;
+                delete rest.company_id;
+                const data = rest as Partial<Estimate>;
                 debugLog('[Sync] Estimate update - original ID:', id);
                 
                 let serverId = id?.startsWith('local_') ? idMapping[id] : id;
@@ -278,34 +285,8 @@ export function useOfflineSync(companyId: string | undefined) {
                 
                 debugLog('[Sync] Updating estimate - server ID:', serverId);
                 
-                // Удаляем старые позиции перед обновлением (чтобы избежать дубликатов)
-                await supabase.from('estimate_items').delete().eq('estimate_id', serverId);
-                debugLog('[Sync] Deleted old estimate_items for:', serverId);
-                
-                // Вставляем новые позиции из данных update (если есть)
-                if (estimateItems && estimateItems.length > 0) {
-                  const validItems = estimateItems
-                    .filter((item: any) => item.name || item.equipment_id)
-                    .map((item: any, idx: number) => {
-                      const { id: itemId, estimate_id, ...itemData } = item;
-                      return {
-                        ...itemData,
-                        estimate_id: serverId,
-                        company_id: companyId,
-                        order_index: idx
-                      };
-                    });
-                  
-                  if (validItems.length > 0) {
-                    const { error: itemsInsertError } = await supabase.from('estimate_items').insert(validItems);
-                    if (itemsInsertError) {
-                      debugError('[Sync] Error inserting items during update:', itemsInsertError);
-                    } else {
-                      debugLog('[Sync] Inserted items during update:', validItems.length);
-                    }
-                  }
-                }
-                
+                // Позиции сметы обновляются отдельной записью очереди (estimate_items)
+                // через атомарную RPC replace_estimate_items.
                 result = await supabase.from('estimates').update(data).eq('id', serverId);
               } else if (item.operation === 'delete') {
                 const { id, event_name, event_date } = item.data;
@@ -453,7 +434,7 @@ export function useOfflineSync(companyId: string | undefined) {
             
             // Заменяем local_id на server_id
             // Если estimateId не начинается с local_ - это уже серверный ID
-            let serverEstimateId = estimateId?.startsWith('local_') ? idMapping[estimateId] : estimateId;
+            const serverEstimateId = estimateId?.startsWith('local_') ? idMapping[estimateId] : estimateId;
             
             debugLog('[Sync] serverEstimateId:', serverEstimateId);
             
@@ -473,9 +454,9 @@ export function useOfflineSync(companyId: string | undefined) {
               continue;
             }
             
-            if (items && items.length > 0) {
+            if (serverEstimateId) {
               // Проверяем что все equipment_id замаплены
-              const hasUnmappedEquipment = items.some((item: any) => 
+              const hasUnmappedEquipment = items?.some((item: any) => 
                 item.equipment_id?.startsWith('local_') && !idMapping[item.equipment_id]
               );
               
@@ -487,10 +468,9 @@ export function useOfflineSync(companyId: string | undefined) {
               }
               
               debugLog('[Sync] Mapping items with serverEstimateId:', serverEstimateId);
+              debugLog('[Sync] Items before filtering:', items?.length || 0);
               
-              debugLog('[Sync] Items before filtering:', items?.length);
-              
-              const validItems = items
+              const itemsPayload = (items || [])
                 .filter((item: any) => {
                   const hasName = !!item.name;
                   const hasEquipment = !!item.equipment_id;
@@ -498,41 +478,40 @@ export function useOfflineSync(companyId: string | undefined) {
                   return hasName || hasEquipment;
                 })
                 .map((item: any, idx: number) => {
-                  const { id, estimate_id, ...itemData } = item;
+                  const payload = { ...item };
+                  delete payload.id;
+                  delete payload.estimate_id;
                   
-                  debugLog('[Sync] Processing item:', item.name, 'itemData keys:', Object.keys(itemData));
+                  debugLog('[Sync] Processing item:', item.name, 'payload keys:', Object.keys(payload));
                   
                   // Заменяем equipment_id если он локальный
-                  let serverEquipmentId = itemData.equipment_id;
-                  if (itemData.equipment_id?.startsWith('local_')) {
-                    serverEquipmentId = idMapping[itemData.equipment_id];
-                    debugLog('[Sync] Mapped equipment:', itemData.equipment_id, '->', serverEquipmentId);
+                  let serverEquipmentId = payload.equipment_id;
+                  if (payload.equipment_id?.startsWith('local_')) {
+                    serverEquipmentId = idMapping[payload.equipment_id];
+                    debugLog('[Sync] Mapped equipment:', payload.equipment_id, '->', serverEquipmentId);
                   }
                   
-                  const mappedItem = {
-                    ...itemData,
-                    equipment_id: serverEquipmentId || itemData.equipment_id,
-                    estimate_id: serverEstimateId,
-                    company_id: companyId,
-                    order_index: idx
-                  };
+                  payload.equipment_id = serverEquipmentId || payload.equipment_id;
+                  payload.order_index = idx;
                   
-                  debugLog('[Sync] Mapped item:', mappedItem.name, 'estimate_id:', mappedItem.estimate_id);
-                  return mappedItem;
+                  debugLog('[Sync] Mapped item:', payload.name, 'estimate_id:', serverEstimateId);
+                  return payload;
                 });
               
-              if (validItems.length > 0) {
-                // Вставляем новые позиции (удаление уже произведено в первом проходе при update, или не нужно при create)
-                debugLog('[Sync] Inserting estimate_items:', validItems.length);
-                debugLog('[Sync] First item:', JSON.stringify(validItems[0]));
-                result = await supabase.from('estimate_items').insert(validItems);
-                debugLog('[Sync] Insert result:', result);
-                if (result.error) {
-                  debugError('[Sync] Insert error:', result.error);
-                  throw result.error;
-                }
-              } else {
-                logger.warn('[Sync] No valid items to insert after filtering');
+              // Атомарно заменяем позиции через RPC (DELETE + INSERT в одной транзакции)
+              debugLog('[Sync] Replacing estimate_items via RPC:', itemsPayload.length);
+              if (itemsPayload.length > 0) {
+                debugLog('[Sync] First item:', JSON.stringify(itemsPayload[0]));
+              }
+              result = await supabase.rpc('replace_estimate_items', {
+                p_estimate_id: serverEstimateId,
+                p_company_id: companyId,
+                p_items: itemsPayload
+              });
+              debugLog('[Sync] RPC result:', result);
+              if (result.error) {
+                debugError('[Sync] RPC error:', result.error);
+                throw result.error;
               }
             }
           }
