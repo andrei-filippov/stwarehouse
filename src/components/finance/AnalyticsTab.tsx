@@ -585,19 +585,19 @@ export function AnalyticsTab({ estimates, salaryRecords = [], staff = [], expens
     return Object.entries(data).sort(([a], [b]) => a.localeCompare(b)).slice(-12).map(([, v]) => v);
   }, [salaryRecords]);
 
-  // ─── Funnel data (based on filtered estimates, cumulative flow) ───
+  // ─── Funnel data (cumulative flow: each stage includes those that reached at least this stage) ───
+  // Отменённые сметы не входят в воронку — они уходят из процесса согласования.
   const funnelData = useMemo(() => {
-    // Funnel shows cumulative counts: each stage includes those that reached at least this stage
     const all = filteredEstimates;
-    const draft = all.filter(e => e.status === 'draft' || !e.status).length;
-    const pending = all.filter(e => e.status === 'pending' || e.status === 'approved' || e.status === 'completed').length;
-    const approved = all.filter(e => e.status === 'approved' || e.status === 'completed').length;
+    const total = all.length;
+    const reachedPending = all.filter(e => e.status === 'pending' || e.status === 'approved' || e.status === 'completed').length;
+    const reachedApproved = all.filter(e => e.status === 'approved' || e.status === 'completed').length;
     const completed = all.filter(e => e.status === 'completed').length;
 
     return [
-      { name: 'Черновик', value: draft, color: STATUS_COLORS.draft },
-      { name: 'В работе', value: pending, color: STATUS_COLORS.pending },
-      { name: 'Согласовано', value: approved, color: STATUS_COLORS.approved },
+      { name: 'Всего смет', value: total, color: STATUS_COLORS.draft },
+      { name: 'Дошли до «В работе»', value: reachedPending, color: STATUS_COLORS.pending },
+      { name: 'Дошли до «Согласовано»', value: reachedApproved, color: STATUS_COLORS.approved },
       { name: 'Выполнено', value: completed, color: STATUS_COLORS.completed },
     ];
   }, [filteredEstimates]);
@@ -915,6 +915,13 @@ export function AnalyticsTab({ estimates, salaryRecords = [], staff = [], expens
                   );
                 })}
               </div>
+              {estimateStats.cancelled > 0 && (
+                <div className="mt-3 flex justify-center">
+                  <Badge variant="secondary" className="bg-red-100 text-red-700 hover:bg-red-100 text-xs">
+                    Отменено: {estimateStats.cancelled} ({estimateStats.total > 0 ? ((estimateStats.cancelled / estimateStats.total) * 100).toFixed(0) : 0}%)
+                  </Badge>
+                </div>
+              )}
             </CardContent>
           </Card>
 
