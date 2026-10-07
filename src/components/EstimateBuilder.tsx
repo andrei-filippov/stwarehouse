@@ -377,7 +377,7 @@ export function EstimateBuilder({
     const currentEnd = eventEndDate || eventStartDate;
     
     return estimates
-      .filter(e => e.id !== currentEstimateId && e.items)
+      .filter(e => e.id !== currentEstimateId && e.items && e.status !== 'cancelled')
       .filter(e => datesOverlap(currentStart!, currentEnd!, e.event_start_date || e.event_date, e.event_end_date || e.event_date))
       .reduce((total, e) => {
         const bookedInEstimate = (e.items || [])
