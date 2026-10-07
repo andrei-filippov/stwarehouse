@@ -107,52 +107,69 @@ def handler(event, context):
         import base64
         body = base64.b64decode(body).decode('utf-8')
     
+    # Короткий таймаут + ретраи: зависший коннект к Supabase пересоздаётся,
+    # а не висит 30 секунд до 504 от API Gateway
+    REQUEST_TIMEOUT = 8
+    MAX_ATTEMPTS = 3
+    last_error = None
+
+    for attempt in range(1, MAX_ATTEMPTS + 1):
+        try:
+            # Создаём запрос к Supabase
+            req = urllib.request.Request(
+                target_url,
+                method=http_method,
+                headers=req_headers,
+            )
+
+            # Pass body for all methods that may have it (including DELETE)
+            if body and http_method in ['POST', 'PUT', 'PATCH', 'DELETE']:
+                req.data = body.encode('utf-8') if isinstance(body, str) else body
+
+            # Выполняем запрос
+            response = urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT)
+
+            # Читаем ответ
+            response_body = response.read().decode('utf-8')
+            response_headers = dict(response.headers)
+
+            # Формируем ответ
+            result_headers = get_cors_headers(origin)
+
+            # Прокидываем важные заголовки от Supabase
+            for h in ['content-type', 'content-range', 'x-total-count', 'preference-applied']:
+                if h in response_headers:
+                    result_headers[h] = response_headers[h]
+
+            return {
+                'statusCode': response.status,
+                'headers': result_headers,
+                'body': response_body
+            }
+
+        except urllib.error.HTTPError as e:
+            # Ошибки HTTP (4xx, 5xx) — легитимный ответ Supabase, ретраить не нужно
+            error_body = e.read().decode('utf-8') if e.fp else json.dumps({'error': str(e)})
+
+            # Log error details for debugging
+            print(f'PROXY ERROR: {http_method} {target_url} -> {e.code}: {error_body}')
+
+            return {
+                'statusCode': e.code,
+                'headers': {**get_cors_headers(origin), 'Content-Type': 'application/json'},
+                'body': error_body
+            }
+
+        except Exception as e:
+            # Таймаут/сетевая ошибка — ретраим
+            last_error = e
+            print(f'PROXY RETRY {attempt}/{MAX_ATTEMPTS}: {http_method} {target_url} -> {e}')
+            if attempt < MAX_ATTEMPTS:
+                import time
+                time.sleep(0.5)
+
     try:
-        # Создаём запрос к Supabase
-        req = urllib.request.Request(
-            target_url,
-            method=http_method,
-            headers=req_headers,
-        )
-        
-        # Pass body for all methods that may have it (including DELETE)
-        if body and http_method in ['POST', 'PUT', 'PATCH', 'DELETE']:
-            req.data = body.encode('utf-8') if isinstance(body, str) else body
-        
-        # Выполняем запрос
-        response = urllib.request.urlopen(req, timeout=30)
-        
-        # Читаем ответ
-        response_body = response.read().decode('utf-8')
-        response_headers = dict(response.headers)
-        
-        # Формируем ответ
-        result_headers = get_cors_headers(origin)
-        
-        # Прокидываем важные заголовки от Supabase
-        for h in ['content-type', 'content-range', 'x-total-count', 'preference-applied']:
-            if h in response_headers:
-                result_headers[h] = response_headers[h]
-        
-        return {
-            'statusCode': response.status,
-            'headers': result_headers,
-            'body': response_body
-        }
-        
-    except urllib.error.HTTPError as e:
-        # Ошибки HTTP (4xx, 5xx)
-        error_body = e.read().decode('utf-8') if e.fp else json.dumps({'error': str(e)})
-        
-        # Log error details for debugging
-        print(f'PROXY ERROR: {http_method} {target_url} -> {e.code}: {error_body}')
-        
-        return {
-            'statusCode': e.code,
-            'headers': {**get_cors_headers(origin), 'Content-Type': 'application/json'},
-            'body': error_body
-        }
-        
+        raise last_error
     except Exception as e:
         return {
             'statusCode': 500,

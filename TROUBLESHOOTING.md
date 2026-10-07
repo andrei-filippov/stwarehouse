@@ -214,3 +214,17 @@ ON CONFLICT (id) DO NOTHING;
 1. `InventoryItemsManager.tsx` — поллинг только на Yandex (был всегда 60с)
 2. `useChecklistsV2.ts` — kits без поллинга (`pollingIntervalMs: 0`)
 3. `useRealtimeWithFallback.ts` — проверка `pollingIntervalMs > 0` перед запуском
+
+---
+
+## 504 от Yandex API Gateway (прокси к Supabase)
+
+**Симптомы:** фронт на Yandex не видит базу, в консоли `Failed to load resource: 504` на `/auth/v1/token`, `AuthRetryableFetchError`.
+
+**Диагностика:** Supabase напрямую отвечает (`https://<project>.supabase.co/auth/v1/health` → 401 за <1с = жив), а через API Gateway часть запросов зависает на 30с и падает с 504.
+
+**Причина:** коннект Cloud Function → Supabase периодически зависает (сетевая нестабильность egress Yandex Cloud). Внутренний таймаут `urlopen(timeout=30)` съедал весь лимит, шлюз возвращал 504.
+
+**Фикс (окт 2026):** `yandex-proxy/proxy-supabase/index.py` — таймаут снижен до 8с, добавлены 3 попытки с паузой 0.5с. HTTPError (4xx/5xx от Supabase) не ретраится.
+
+**Деплой фикса:** обновить код функции `proxy-supabase` в Yandex Cloud Console (загрузить `index.py` из `yandex-proxy/proxy-supabase/`).
