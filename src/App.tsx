@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
-import { Package, User, Cloud, MapPin, FolderKanban, Building2, Plus, Sun, Moon, LogOut } from 'lucide-react';
+import { Package, User, Cloud, MapPin, FolderKanban, Plus, Sun, Moon, LogOut } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
