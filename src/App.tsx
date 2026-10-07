@@ -165,7 +165,6 @@ function App() {
 // Внутренний компонент с доступом к компании
 function AppContent({ user, profile, permissions, signOut: originalSignOut }: any) {
   const companyContext = useCompanyContext();
-  const { resolvedTheme, toggleTheme } = useTheme();
   const company = companyContext.company;
   const myRoleName = companyContext.myMember?.role || '';
   const companyName = companyContext.company?.name || '';
@@ -362,6 +361,8 @@ function AppContent({ user, profile, permissions, signOut: originalSignOut }: an
 
 // Основной компонент с хуками
 function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitchCompany, initialScanCode }: any) {
+  const companyContext = useCompanyContext();
+  const { resolvedTheme, toggleTheme } = useTheme();
   const companyId = company?.id;
   const userRole = (myRole || profile?.role || 'manager') as UserRole;
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
