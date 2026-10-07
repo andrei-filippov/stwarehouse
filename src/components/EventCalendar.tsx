@@ -304,10 +304,8 @@ export const EventCalendar = memo(function EventCalendar({ estimates, equipment 
       <div
         key={idx}
         onClick={() => {
+          // Открываем модалку дня без переключения вида календаря
           setSelectedDate(day);
-          if (view === 'day') return;
-          setView('day');
-          setCurrentDate(day);
         }}
         className={cn(
           "min-h-[60px] sm:min-h-[100px] p-1 sm:p-2 rounded-lg sm:rounded-xl border-2 cursor-pointer transition-all duration-200 relative group",
