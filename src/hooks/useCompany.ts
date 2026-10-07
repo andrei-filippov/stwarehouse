@@ -11,6 +11,7 @@ const logger = createLogger('company');
 export function useCompany(options?: { skipAutoLoad?: boolean }) {
   const [company, setCompany] = useState<Company | null>(null);
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [ownedCompanyCount, setOwnedCompanyCount] = useState(0);
   const [members, setMembers] = useState<CompanyMember[]>([]);
   const [myMember, setMyMember] = useState<CompanyMember | null>(null);
   const [loading, setLoading] = useState(true);
@@ -219,6 +220,7 @@ export function useCompany(options?: { skipAutoLoad?: boolean }) {
       const { data, error } = await supabase
         .from('company_members')
         .select(`
+          role,
           company:company_id (*)
         `)
         .eq('user_id', user.id)
@@ -227,11 +229,11 @@ export function useCompany(options?: { skipAutoLoad?: boolean }) {
       if (error) throw error;
       
       // Filter out deleted companies
-      const userCompanies = (data || [])
-        .map((m: any) => m.company)
-        .filter(Boolean)
-        .filter((c: any) => !c.deleted_at);
+      const activeMemberships = (data || [])
+        .filter((m: any) => m.company && !m.company.deleted_at);
+      const userCompanies = activeMemberships.map((m: any) => m.company);
       setCompanies(userCompanies);
+      setOwnedCompanyCount(activeMemberships.filter((m: any) => m.role === 'owner').length);
     } catch (err) {
       logger.error('Error loading user companies:', err);
     }
@@ -523,6 +525,7 @@ export function useCompany(options?: { skipAutoLoad?: boolean }) {
   return {
     company,
     companies,
+    ownedCompanyCount,
     members,
     myMember,
     myRole,

@@ -67,10 +67,14 @@ export type CompanyMember = {
   };
 };
 
+// Максимум компаний, которыми пользователь может владеть (дублирует триггер enforce_company_owner_limit в БД)
+export const MAX_COMPANIES_PER_USER = 3;
+
 // Контекст компании
 export type CompanyContextType = {
   company: Company | null;
   companies: Company[];
+  ownedCompanyCount: number;
   members: CompanyMember[];
   myRole: CompanyRole | null;
   myMember: CompanyMember | null;

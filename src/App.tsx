@@ -1,9 +1,17 @@
 import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
-import { Package, User, Cloud, MapPin, FolderKanban } from 'lucide-react';
+import { Package, User, Cloud, MapPin, FolderKanban, Building2, Plus, Sun, Moon, LogOut } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from './components/ui/dropdown-menu';
 import { toast } from 'sonner';
 import { useAuth } from './hooks/useAuth';
 import { logAction } from './hooks/useAuditLogs';
 import { CompanyProvider, useCompanyContext } from './contexts/CompanyContext';
+import { useTheme } from './contexts/ThemeContext';
 import { getSlugFromPath, saveSelectedCompany, clearSelectedCompany, getSelectedCompany } from './lib/companyUrl';
 import { RegisterCompanyForm } from './components/auth/RegisterCompanyForm';
 import { CompanySelector } from './components/auth/CompanySelector';
@@ -86,6 +94,7 @@ import {
   Scan
 } from 'lucide-react';
 import type { PDFSettings as PDFSettingsType } from './types';
+import { MAX_COMPANIES_PER_USER } from './types/company';
 import { hasAccess, getRoleLabel, type UserRole, type TabId } from './lib/permissions';
 import { logger } from './lib/logger';
 
@@ -156,6 +165,7 @@ function App() {
 // Внутренний компонент с доступом к компании
 function AppContent({ user, profile, permissions, signOut: originalSignOut }: any) {
   const companyContext = useCompanyContext();
+  const { resolvedTheme, toggleTheme } = useTheme();
   const company = companyContext.company;
   const myRoleName = companyContext.myMember?.role || '';
   const companyName = companyContext.company?.name || '';
@@ -403,7 +413,7 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
   const { checklists: checklistsV2, kits, fetchChecklists, createChecklistFromEstimate, createKit, updateKit, deleteKit } = useChecklistsV2(companyId, activeTab);
   
   // Offline sync - автоматическая синхронизация при возврате онлайн
-  const { syncing: isSyncing, syncData: syncNow } = useOfflineSync(companyId);
+  const { syncing: isSyncing, syncData: syncNow, serverAvailable } = useOfflineSync(companyId);
   const wasSyncing = useRef(false);
   
   // Обновляем данные после синхронизации
@@ -574,9 +584,82 @@ importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInven
           <span className="font-bold text-lg">СкладОборуд</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-gradient-to-br from-muted to-muted/80 rounded-full flex items-center justify-center">
-            <User className="w-4 h-4" />
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="w-8 h-8 bg-gradient-to-br from-muted to-muted/80 rounded-full flex items-center justify-center hover:ring-2 hover:ring-primary/40 transition-all">
+                <User className="w-4 h-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64">
+              {/* Пользователь */}
+              <div className="px-2 py-1.5">
+                <div className="text-sm font-semibold">{profile?.name || 'Пользователь'}</div>
+                <div className="text-xs text-muted-foreground">{getRoleLabel(userRole)}</div>
+              </div>
+              <DropdownMenuSeparator />
+
+              {/* Компании */}
+              {companyContext.companies?.length > 0 && (
+                <>
+                  <div className="px-2 py-1.5 text-sm font-semibold text-muted-foreground">
+                    Ваши компании
+                  </div>
+                  {companyContext.companies.map((c: any) => (
+                    <DropdownMenuItem
+                      key={c.id}
+                      onClick={() => companyContext.switchCompany(c.id)}
+                      className={c.id === company?.id ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400' : ''}
+                    >
+                      <Building2 className="w-4 h-4 mr-2" />
+                      {c.name}
+                      {c.id === company?.id && <span className="ml-auto text-xs">✓</span>}
+                    </DropdownMenuItem>
+                  ))}
+                  <DropdownMenuItem
+                    disabled={companyContext.ownedCompanyCount >= MAX_COMPANIES_PER_USER}
+                    onClick={() => {
+                      if (companyContext.ownedCompanyCount >= MAX_COMPANIES_PER_USER) return;
+                      localStorage.setItem('show_create_company', '1');
+                      window.location.reload();
+                    }}
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Создать компанию
+                    {companyContext.ownedCompanyCount >= MAX_COMPANIES_PER_USER && (
+                      <span className="ml-auto text-xs text-muted-foreground">лимит {MAX_COMPANIES_PER_USER}</span>
+                    )}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              )}
+
+              {/* Тема */}
+              <DropdownMenuItem onClick={toggleTheme}>
+                {resolvedTheme === 'dark' ? (
+                  <><Sun className="w-4 h-4 mr-2" /> Светлая тема</>
+                ) : (
+                  <><Moon className="w-4 h-4 mr-2" /> Тёмная тема</>
+                )}
+              </DropdownMenuItem>
+
+              {/* Статус сервера */}
+              <div className={`mx-2 my-1.5 px-2 py-1.5 rounded-md text-xs font-medium flex items-center gap-2 ${
+                serverAvailable
+                  ? 'bg-green-50 text-green-700 dark:bg-green-950/40 dark:text-green-400'
+                  : 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400'
+              }`}>
+                <span className={`w-2 h-2 rounded-full ${serverAvailable ? 'bg-green-500' : 'bg-red-500'}`} />
+                {serverAvailable ? 'Сервер доступен' : 'Сервер недоступен'}
+                {isSyncing && <span className="ml-auto">Синхронизация…</span>}
+              </div>
+
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={signOut} className="text-red-600 dark:text-red-400">
+                <LogOut className="w-4 h-4 mr-2" />
+                Выйти
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </header>
 

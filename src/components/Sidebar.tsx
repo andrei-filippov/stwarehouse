@@ -32,6 +32,7 @@ import {
 } from './ui/dropdown-menu';
 import { Button } from './ui/button';
 import type { TabId } from '../lib/permissions';
+import { MAX_COMPANIES_PER_USER } from '../types/company';
 import { useCompanyContext } from '../contexts/CompanyContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { SyncDialog } from './SyncDialog';
@@ -131,6 +132,8 @@ export function Sidebar(props: SidebarProps) {
   const companies = ctx.companies || [];
   const currentCompany = ctx.company;
   const onSwitchCompany = ctx.switchCompany;
+  const ownedCompanyCount = ctx.ownedCompanyCount || 0;
+  const canCreateCompany = ownedCompanyCount < MAX_COMPANIES_PER_USER;
 
   return (
     <aside 
@@ -222,12 +225,19 @@ export function Sidebar(props: SidebarProps) {
                 </DropdownMenuItem>
               ))}
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => {
-                localStorage.setItem('show_create_company', '1');
-                window.location.reload();
-              }}>
+              <DropdownMenuItem
+                disabled={!canCreateCompany}
+                onClick={() => {
+                  if (!canCreateCompany) return;
+                  localStorage.setItem('show_create_company', '1');
+                  window.location.reload();
+                }}
+              >
                 <Plus className="w-4 h-4 mr-2" />
                 Создать компанию
+                {!canCreateCompany && (
+                  <span className="ml-auto text-xs text-muted-foreground">лимит {MAX_COMPANIES_PER_USER}</span>
+                )}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
