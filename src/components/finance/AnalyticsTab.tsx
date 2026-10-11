@@ -416,6 +416,14 @@ export function AnalyticsTab({ estimates, salaryRecords = [], staff = [], expens
     return Object.values(map).sort((a, b) => b.value - a.value);
   }, [filteredExpenses]);
 
+  // Структура расходов для круговых диаграмм: категории расходов + зарплаты
+  const expensesByCategoryWithSalary = useMemo(() => {
+    const totalSalary = filteredSalaryRecords.reduce((s, r) => s + (r.paid || 0), 0);
+    if (totalSalary <= 0) return expensesByCategory;
+    return [...expensesByCategory, { name: 'Зарплаты', value: totalSalary, color: '#3b82f6' }]
+      .sort((a, b) => b.value - a.value);
+  }, [expensesByCategory, filteredSalaryRecords]);
+
   // ─── Monthly expenses by category (for stacked bar) ───
   const monthlyExpensesByCategory = useMemo(() => {
     const data: Record<string, Record<string, number>> = {};
@@ -746,11 +754,11 @@ export function AnalyticsTab({ estimates, salaryRecords = [], staff = [], expens
                 <CardTitle className="text-base">Структура расходов</CardTitle>
               </CardHeader>
               <CardContent>
-                {expensesByCategory.length > 0 ? (
+                {expensesByCategoryWithSalary.length > 0 ? (
                   <ResponsiveContainer width="100%" height={250}>
                     <PieChart>
                       <Pie
-                        data={expensesByCategory}
+                        data={expensesByCategoryWithSalary}
                         cx="50%" cy="50%"
                         innerRadius={60} outerRadius={90}
                         paddingAngle={3}
@@ -758,8 +766,8 @@ export function AnalyticsTab({ estimates, salaryRecords = [], staff = [], expens
                         label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                         labelStyle={{ fill: 'hsl(210 40% 98%)', fontSize: 11 }}
                       >
-                        {expensesByCategory.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        {expensesByCategoryWithSalary.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>
                       <Tooltip
