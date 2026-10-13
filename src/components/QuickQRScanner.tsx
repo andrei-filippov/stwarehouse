@@ -118,13 +118,13 @@ export function QuickQRScanner({
 
   const fetchKits = useCallback(async () => {
     if (!companyId || kits.length > 0) return;
-    
+
     // Загружаем комплекты
     const { data: kitsData } = await supabase
       .from('equipment_kits')
       .select('*')
       .eq('company_id', companyId);
-    
+
     // Загружаем items для каждого комплекта с названиями оборудования
     const kitsWithItems = await Promise.all((kitsData || []).map(async (kit: any) => {
       const { data: itemsData } = await supabase
@@ -134,7 +134,7 @@ export function QuickQRScanner({
           cable_inventory:inventory_id(name)
         `)
         .eq('kit_id', kit.id);
-      
+
       return {
         ...kit,
         items: (itemsData || []).map((item: any) => ({
@@ -143,9 +143,27 @@ export function QuickQRScanner({
         }))
       };
     }));
-    
+
     setLocalKits(kitsWithItems);
   }, [companyId, kits.length]);
+
+  // Загрузка экземпляров (для распознавания QR вида EQ-XXXX-NN), с пагинацией
+  const fetchInventoryItems = useCallback(async () => {
+    if (!companyId) return;
+    const allItems: InventoryItem[] = [];
+    const pageSize = 1000;
+    for (let from = 0; ; from += pageSize) {
+      const { data: page } = await supabase
+        .from('inventory_items')
+        .select('*')
+        .eq('company_id', companyId)
+        .range(from, from + pageSize - 1);
+      if (!page || page.length === 0) break;
+      allItems.push(...page);
+      if (page.length < pageSize) break;
+    }
+    setInventoryItems(allItems);
+  }, [companyId]);
 
   // Объединенные данные
   const allInventory = inventory.length > 0 ? inventory : localInventory;
@@ -202,8 +220,9 @@ export function QuickQRScanner({
   const openMainDialog = useCallback(() => {
     fetchInventory();
     fetchKits();
+    fetchInventoryItems();
     setIsMainOpen(true);
-  }, [fetchInventory, fetchKits]);
+  }, [fetchInventory, fetchKits, fetchInventoryItems]);
 
   // Обработка сканирования в режиме информации
   const handleInfoScan = useCallback((qrCode: string) => {
@@ -501,15 +520,16 @@ export function QuickQRScanner({
 
   // Общий обработчик сканирования
   const handleScan = useCallback((qrCode: string) => {
+    const code = qrCode.trim().toUpperCase();
     switch (scanMode) {
       case 'info':
-        handleInfoScan(qrCode);
+        handleInfoScan(code);
         break;
       case 'issue':
-        handleIssueScan(qrCode);
+        handleIssueScan(code);
         break;
       case 'checklist':
-        handleChecklistScan(qrCode);
+        handleChecklistScan(code);
         break;
     }
   }, [scanMode, handleInfoScan, handleIssueScan, handleChecklistScan]);
