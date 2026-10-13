@@ -97,8 +97,6 @@ export async function exportEstimateToPDF(data: PDFExportData): Promise<void> {
       windowWidth: 794,
     });
 
-    const imgData = canvas.toDataURL('image/png');
-
     // Создаём PDF из canvas
     const doc = new jsPDF({
       orientation: 'portrait',
@@ -108,20 +106,60 @@ export async function exportEstimateToPDF(data: PDFExportData): Promise<void> {
 
     const imgWidth = 210; // A4 width in mm
     const pageHeight = 297; // A4 height in mm
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-    let heightLeft = imgHeight;
-    let position = 0;
 
-    doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-    heightLeft -= pageHeight;
+    // Умная разбивка на страницы: режем canvas не механически каждые 297мм,
+    // а по границам строк/секций, чтобы строки не разрывались
+    const scaleX = canvas.width / container.offsetWidth;
+    const containerRect = container.getBoundingClientRect();
+    const pageHeightPx = canvas.width * (pageHeight / imgWidth);
 
-    // Если контент не влезает на одну страницу — добавляем страницы
-    while (heightLeft > 0) {
-      position = heightLeft - imgHeight;
-      doc.addPage();
-      doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
+    // Собираем верхние границы всех неделимых элементов (координаты в px canvas)
+    const boundaries: number[] = [0];
+    container.querySelectorAll('tr, .section-header, .section-total, .total').forEach(el => {
+      const top = (el.getBoundingClientRect().top - containerRect.top) * scaleX;
+      if (top > 0) boundaries.push(top);
+    });
+    boundaries.sort((a, b) => a - b);
+
+    // Вычисляем разрезы: страница заканчивается на последней границе, влезающей в лист
+    const cuts: Array<[number, number]> = [];
+    let pageStart = 0;
+    while (pageStart < canvas.height) {
+      const limit = pageStart + pageHeightPx;
+      if (limit >= canvas.height) {
+        cuts.push([pageStart, canvas.height]);
+        break;
+      }
+      // Последняя граница, влезающая на страницу (с минимальным запасом контента)
+      let cut = limit;
+      for (let i = boundaries.length - 1; i >= 0; i--) {
+        if (boundaries[i] <= limit && boundaries[i] > pageStart + 100) {
+          cut = boundaries[i];
+          break;
+        }
+      }
+      cuts.push([pageStart, cut]);
+      pageStart = cut;
     }
+
+    // Вырезаем куски canvas и кладём каждый на свою страницу
+    cuts.forEach(([from, to], pageIdx) => {
+      const sliceHeight = to - from;
+      const pageCanvas = document.createElement('canvas');
+      pageCanvas.width = canvas.width;
+      pageCanvas.height = sliceHeight;
+      const ctx = pageCanvas.getContext('2d')!;
+      // Заливаем белым, иначе обрезанные края будут прозрачными
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+      ctx.drawImage(canvas, 0, from, canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
+
+      const sliceData = pageCanvas.toDataURL('image/png');
+      const sliceHeightMm = (sliceHeight * imgWidth) / canvas.width;
+
+      if (pageIdx > 0) doc.addPage();
+      doc.addImage(sliceData, 'PNG', 0, 0, imgWidth, sliceHeightMm);
+    });
 
     const fileName = `Смета_${eventName.replace(/[^a-zA-Z0-9а-яА-Я\s]/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`;
     const pdfBlob = doc.output('blob');
