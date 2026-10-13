@@ -101,17 +101,25 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
       
       if (invData) setInventory(invData);
       
-      // Загружаем экземпляры
-      const { data: itemsData } = await supabase
-        .from('inventory_items')
-        .select(`
-          *,
-          cable_inventory!inner(name, category_id)
-        `)
-        .eq('company_id', companyId);
-      
-      if (itemsData) {
-        setInventoryItems(itemsData.map((item: any) => ({
+      // Загружаем экземпляры (с пагинацией — PostgREST отдаёт максимум 1000 строк за раз)
+      const allItems: any[] = [];
+      const pageSize = 1000;
+      for (let from = 0; ; from += pageSize) {
+        const { data: page } = await supabase
+          .from('inventory_items')
+          .select(`
+            *,
+            cable_inventory(name, category_id)
+          `)
+          .eq('company_id', companyId)
+          .range(from, from + pageSize - 1);
+        if (!page || page.length === 0) break;
+        allItems.push(...page);
+        if (page.length < pageSize) break;
+      }
+
+      if (allItems.length > 0) {
+        setInventoryItems(allItems.map((item: any) => ({
           ...item,
           inventory_name: item.cable_inventory?.name,
           inventory_category_id: item.cable_inventory?.category_id,
@@ -306,7 +314,23 @@ export default function QRScanPage({ companyId, categories = [], checklists = []
     logger.debug('[QRScan] Clean code:', cleanCode);
     
     // 1. Ищем экземпляр (case-insensitive) — ПРИОРИТЕТ
-    const invItem = inventoryItems.find(i => i.qr_code?.toUpperCase() === cleanCode);
+    let invItem = inventoryItems.find(i => i.qr_code?.toUpperCase() === cleanCode);
+
+    // Fallback: если не нашли в загруженном списке (пагинация, устаревшие данные) — спрашиваем базу
+    if (!invItem && companyId) {
+      const { data: directItem } = await supabase
+        .from('inventory_items')
+        .select('*')
+        .eq('company_id', companyId)
+        .ilike('qr_code', cleanCode)
+        .maybeSingle();
+      if (directItem) {
+        invItem = directItem as InventoryItem;
+        // Добавляем в локальный список, чтобы дальше работал без перезагрузки
+        setInventoryItems(prev => prev.some(i => i.id === invItem!.id) ? prev : [...prev, invItem!]);
+      }
+    }
+
     if (invItem) {
       logger.debug('[QRScan] Found inventory item:', invItem.qr_code);
       const inventoryGroup = inventory.find(i => i.id === invItem.inventory_id);
