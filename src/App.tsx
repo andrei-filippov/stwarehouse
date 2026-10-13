@@ -436,7 +436,15 @@ function MainApp({ user, profile, permissions, company, myRole, signOut, onSwitc
   const { customers, loading: customersLoading, error: customersError, addCustomer, updateCustomer, deleteCustomer } = useCustomers(companyId);
   const { venues } = useVenues(companyId);
   const { categories: cableCategories, inventory: cableInventory, movements: cableMovements, repairs: cableRepairs, inventoryItems: cableInventoryItems, stats: cableStats, loading: cableLoading, addCategory: addCableCategory, updateCategory: updateCableCategory, deleteCategory: deleteCableCategory, reorderCategories: reorderCableCategories,
-importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInventory, updateInventoryQty: updateCableInventoryQty, deleteInventory: deleteCableInventory, issueCable, returnCable, sendToRepair, updateRepairStatus, deleteRepair, refresh: refreshCableInventory } = useCableInventory(companyId, activeTab);
+importFromEquipment: importCableFromEquipment, upsertInventory: upsertCableInventory, updateInventoryQty: updateCableInventoryQty, deleteInventory: deleteCableInventory, issueCable, returnCable, sendToRepair, updateRepairStatus, deleteRepair, refresh: refreshCableInventory, loadMovements: loadCableMovements, loadRepairs: loadCableRepairs } = useCableInventory(companyId, activeTab);
+
+  // Ленивая загрузка истории выдачи и ремонтов при открытии вкладки "Учёт оборудования"
+  useEffect(() => {
+    if (activeTab === 'cables') {
+      loadCableMovements();
+      loadCableRepairs();
+    }
+  }, [activeTab, loadCableMovements, loadCableRepairs]);
   const { expenses, loading: expensesLoading, addExpense, updateExpense, deleteExpense } = useExpenses(companyId);
   const { records: salaryRecords, loading: salaryLoading, addOrUpdateRecord: addOrUpdateSalary, deleteRecord: deleteSalary } = useSalary(companyId);
   const { incomes, addIncome, deleteIncome } = useIncomes(companyId);
