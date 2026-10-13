@@ -128,8 +128,21 @@ export async function exportEstimateToPDF(data: PDFExportData): Promise<void> {
     const url = URL.createObjectURL(pdfBlob);
 
     if (isIOS) {
-      // На iOS используем location.href — Safari откроет PDF в том же окне
-      // Пользователь увидит PDF и сможет вернуться через кнопку "Назад" браузера
+      // На iOS пробуем Web Share API с файлом — откроется нативное меню
+      // "Поделиться", PDF уйдёт файлом (WhatsApp, Telegram, почта и т.д.)
+      const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: fileName });
+          toast.success('PDF создан');
+          return;
+        } catch (shareErr: any) {
+          // Пользователь отменил шаринг — не показываем ошибку
+          if (shareErr?.name === 'AbortError') return;
+          // Иначе проваливаемся в старый вариант
+        }
+      }
+      // Fallback для старых iOS: Safari откроет PDF в том же окне
       window.location.href = url;
     } else {
       const link = document.createElement('a');

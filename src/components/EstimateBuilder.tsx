@@ -1117,12 +1117,11 @@ export function EstimateBuilder({
                 <span className="hidden md:inline ml-2 whitespace-nowrap">Новое</span>
               </Button>
             )}
-            {/* Excel только на десктопе */}
-            <Button variant="outline" size="sm" onClick={exportExcel} className="hidden md:flex h-8 px-2 shrink-0">
-              <FileSpreadsheet className="w-4 h-4 mr-2 shrink-0" />
-              <span className="whitespace-nowrap">Excel</span>
-            </Button>
             {/* На мобильном только иконки */}
+            <Button variant="outline" size="sm" onClick={exportExcel} className="h-8 w-8 md:w-auto p-0 md:px-2 shrink-0" title="Excel">
+              <FileSpreadsheet className="w-4 h-4" />
+              <span className="hidden md:inline ml-2 whitespace-nowrap">Excel</span>
+            </Button>
             <Button variant="outline" size="sm" onClick={exportPDF} className="h-8 w-8 md:w-auto p-0 md:px-2 shrink-0" title="PDF">
               <FileText className="w-4 h-4" />
               <span className="hidden md:inline ml-2 whitespace-nowrap">PDF</span>
