@@ -401,12 +401,20 @@ export function ProjectManager({ companyId, venues = [], staff: companyStaff = [
     });
   };
 
+  const STATUS_BORDER_COLORS: Record<string, string> = {
+    completed: 'border-l-green-500',
+    approved: 'border-l-blue-500',
+    pending: 'border-l-yellow-500',
+    cancelled: 'border-l-red-500',
+    draft: 'border-l-muted-foreground/30',
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'completed': return <Badge className="bg-green-100 text-green-700">Выполнен</Badge>;
-      case 'approved': return <Badge className="bg-blue-100 text-blue-700">Согласован</Badge>;
-      case 'pending': return <Badge className="bg-yellow-100 text-yellow-700">В работе</Badge>;
-      case 'cancelled': return <Badge className="bg-red-100 text-red-700">Отменён</Badge>;
+      case 'completed': return <Badge className="bg-green-100 text-green-700 dark:bg-green-950/60 dark:text-green-400">Выполнен</Badge>;
+      case 'approved': return <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400">Согласован</Badge>;
+      case 'pending': return <Badge className="bg-yellow-100 text-yellow-700 dark:bg-yellow-950/60 dark:text-yellow-400">В работе</Badge>;
+      case 'cancelled': return <Badge className="bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-400">Отменён</Badge>;
       default: return <Badge variant="outline">Черновик</Badge>;
     }
   };
@@ -828,57 +836,61 @@ export function ProjectManager({ companyId, venues = [], staff: companyStaff = [
                 {group.projects.map((project) => (
                   <Card
                     key={project.id}
-                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    className={`cursor-pointer transition-all hover:shadow-md hover:border-primary/40 border-l-4 ${STATUS_BORDER_COLORS[project.status] || STATUS_BORDER_COLORS.draft}`}
                     onClick={() => setSelectedProject(project)}
                   >
-                    <CardHeader className="pb-2">
-                      <div className="flex items-start justify-between">
-                        <CardTitle className="text-lg flex items-center gap-2">
-                          <FolderKanban className="w-5 h-5 text-primary" />
+                    <CardContent className="p-4">
+                      {/* Название + статус */}
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div className="font-semibold leading-snug line-clamp-2 min-w-0">
                           {project.name}
-                        </CardTitle>
-                        {getStatusBadge(project.status)}
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-2">
-                          <Calendar className="w-3 h-3" />
-                          {new Date(project.event_date).toLocaleDateString('ru-RU')}
                         </div>
+                        <div className="shrink-0">{getStatusBadge(project.status)}</div>
+                      </div>
+
+                      {/* Мета одной строкой */}
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                        <span className="flex items-center gap-1.5 whitespace-nowrap">
+                          <Calendar className="w-3.5 h-3.5 shrink-0" />
+                          {new Date(project.event_date).toLocaleDateString('ru-RU')}
+                        </span>
                         {project.venue_name && (
-                          <div className="flex items-center gap-2">
-                            <MapPin className="w-3 h-3" />
-                            {project.venue_name}
-                          </div>
+                          <span className="flex items-center gap-1.5 min-w-0">
+                            <MapPin className="w-3.5 h-3.5 shrink-0" />
+                            <span className="truncate">{project.venue_name}</span>
+                          </span>
                         )}
                         {project.customer_name && (
-                          <div className="flex items-center gap-2">
-                            <Users className="w-3 h-3" />
-                            {project.customer_name}
-                          </div>
+                          <span className="flex items-center gap-1.5 min-w-0">
+                            <Users className="w-3.5 h-3.5 shrink-0" />
+                            <span className="truncate">{project.customer_name}</span>
+                          </span>
                         )}
-                        <div className="pt-2 flex items-center gap-3">
+                      </div>
+
+                      {/* Счётчики */}
+                      {(project.staff_count > 0 || project.equipment.length > 0 || project.timeline.length > 0) && (
+                        <div className="mt-3 pt-3 border-t border-border/60 flex items-center gap-3 text-xs text-muted-foreground">
                           {project.staff_count > 0 && (
-                            <span className="flex items-center gap-1 text-xs">
+                            <span className="flex items-center gap-1">
                               <Users className="w-3 h-3" />
-                              {project.staff_count}
+                              {project.staff_count} чел.
                             </span>
                           )}
                           {project.equipment.length > 0 && (
-                            <span className="flex items-center gap-1 text-xs">
+                            <span className="flex items-center gap-1">
                               <Package className="w-3 h-3" />
-                              {project.equipment.length}
+                              {project.equipment.length} поз.
                             </span>
                           )}
                           {project.timeline.length > 0 && (
-                            <span className="flex items-center gap-1 text-xs">
+                            <span className="flex items-center gap-1">
                               <Clock className="w-3 h-3" />
                               {project.timeline.length} этапов
                             </span>
                           )}
                         </div>
-                      </div>
+                      )}
                     </CardContent>
                   </Card>
                 ))}
