@@ -112,8 +112,9 @@ export function EstimateBuilder({
   };
   const [eventName, setEventName] = useState(estimate?.event_name || '');
   const [venue, setVenue] = useState(estimate?.venue || '');
-  const [eventStartDate, setEventStartDate] = useState(estimate?.event_start_date || '');
-  const [eventEndDate, setEventEndDate] = useState(estimate?.event_end_date || '');
+  // Fallback на event_date для старых смет, где нет event_start_date/event_end_date
+  const [eventStartDate, setEventStartDate] = useState(estimate?.event_start_date || estimate?.event_date || '');
+  const [eventEndDate, setEventEndDate] = useState(estimate?.event_end_date || estimate?.event_date || '');
   const [customerId, setCustomerId] = useState(estimate?.customer_id || '');
   const [items, setItems] = useState<EstimateItem[]>(estimate?.items || []);
   const [sections, setSections] = useState<EstimateSection[]>(estimate?.sections || []);
@@ -187,8 +188,8 @@ export function EstimateBuilder({
       console.log('[EstimateBuilder] Sections from estimate:', estimate.sections?.length || 0, estimate.sections);
       setEventName(estimate.event_name || '');
       setVenue(estimate.venue || '');
-      setEventStartDate(estimate.event_start_date || '');
-      setEventEndDate(estimate.event_end_date || '');
+      setEventStartDate(estimate.event_start_date || estimate.event_date || '');
+      setEventEndDate(estimate.event_end_date || estimate.event_date || '');
       setCustomerId(estimate.customer_id || '');
       setItems(estimate.items || []);
       setSections(estimate.sections || []);
@@ -534,7 +535,8 @@ export function EstimateBuilder({
 
   const handleSave = async () => {
     // event_date - обязательное поле для обратной совместимости
-    const eventDate = eventStartDate || eventEndDate || new Date().toISOString();
+    // Fallback на исходную дату сметы, чтобы не затереть её текущей при пустых полях
+    const eventDate = eventStartDate || eventEndDate || estimate?.event_date || new Date().toISOString();
     
     const estimateData = {
       event_name: eventName,
