@@ -100,8 +100,7 @@ export function useProjects(companyId: string | undefined) {
             status,
             total,
             customer_name,
-            venue,
-            items:estimate_items(*)
+            venue
           ),
           venue_details:venue_id (name,city,address,contact_name,contact_phone)
         `)
@@ -123,6 +122,18 @@ export function useProjects(companyId: string | undefined) {
       }
 
       const projectIds = projectsData.map((p: any) => p.id);
+
+      // Позиции смет грузим отдельным запросом (join с estimate_items на Яндексе
+      // даёт слишком большой ответ → 502 от API Gateway)
+      const { data: estimateItemsData } = await supabase
+        .from('estimate_items')
+        .select('*')
+        .eq('company_id', companyId);
+      const itemsByEstimate = new Map<string, any[]>();
+      (estimateItemsData || []).forEach((it: any) => {
+        if (!itemsByEstimate.has(it.estimate_id)) itemsByEstimate.set(it.estimate_id, []);
+        itemsByEstimate.get(it.estimate_id)!.push(it);
+      });
 
       // Загружаем все venue_details для lookup по имени (если venue_id не задан, но venue есть в смете)
       const { data: venuesData } = await supabase
@@ -173,7 +184,7 @@ export function useProjects(companyId: string | undefined) {
       });
 
       const result: ProjectWithDetails[] = (projectsData || []).map((p: any) => {
-        const items = p.estimates?.items || [];
+        const items = itemsByEstimate.get(p.estimate_id) || [];
         const equipment: ProjectEquipment[] = items.map((e: any) => ({
           id: e.id,
           name: e.name,

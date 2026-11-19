@@ -85,20 +85,18 @@ export function useEstimates(companyId: string | undefined, activeTab?: string) 
             .order('created_at', { ascending: false })
             .limit(500);
 
-          // Отдельно загружаем позиции смет (estimate_items имеет company_id — см. миграцию 20250601)
+          // Отдельно загружаем позиции смет (estimate_items имеет company_id — см. миграцию 20250601).
+          // Используем .eq('company_id', ...) — тот же проверенный паттерн, что и fetchEstimateItems.
           const attachItems = async (rows: any[] | null) => {
-            const ids = (rows || []).map((e: any) => e.id).filter(Boolean);
+            const { data: allItems, error: itemsError } = await supabase
+              .from('estimate_items')
+              .select('*')
+              .eq('company_id', companyId);
+            if (itemsError) throw itemsError;
             const itemsByEstimate = new Map<string, any[]>();
-            for (let i = 0; i < ids.length; i += 100) {
-              const { data: itemsChunk, error: itemsError } = await supabase
-                .from('estimate_items')
-                .select('*')
-                .in('estimate_id', ids.slice(i, i + 100));
-              if (itemsError) throw itemsError;
-              for (const item of itemsChunk || []) {
-                if (!itemsByEstimate.has(item.estimate_id)) itemsByEstimate.set(item.estimate_id, []);
-                itemsByEstimate.get(item.estimate_id)!.push(item);
-              }
+            for (const item of allItems || []) {
+              if (!itemsByEstimate.has(item.estimate_id)) itemsByEstimate.set(item.estimate_id, []);
+              itemsByEstimate.get(item.estimate_id)!.push(item);
             }
             return (rows || []).map((e: any) => ({ ...e, items: itemsByEstimate.get(e.id) || [] }));
           };
