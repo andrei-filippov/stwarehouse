@@ -22,7 +22,7 @@ yc config get token > /dev/null 2>&1 || {
 FUNCTION_NAME="proxy-supabase"
 API_GATEWAY_NAME="supabase-proxy"
 RUNTIME="python312"
-MEMORY="128m"
+MEMORY="256m"
 TIMEOUT="30s"
 
 # Загружаем переменные из .env если есть

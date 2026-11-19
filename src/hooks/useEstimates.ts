@@ -70,27 +70,56 @@ export function useEstimates(companyId: string | undefined, activeTab?: string) 
       if (isOnline()) {
         // ОНЛАЙН: загружаем с сервера и мержим с локальными
         try {
-          // Загружаем сметы с items через join (как checklist_items)
+          // Загружаем сметы БЕЗ join: один тяжёлый ответ с вложенными items
+          // превышает лимит ответа Yandex Cloud Functions / API Gateway (502).
+          // Позиции грузим отдельным запросом и склеиваем в памяти.
           let { data: estimatesData, error: estimatesError } = await supabase
             .from('estimates')
             .select(`
               id, user_id, event_name, venue, event_date, event_start_date, event_end_date,
               total, customer_id, customer_name, created_at, updated_at, status,
               creator_name, category_order, sections, color, is_editing, editing_by, editing_since, editing_session_id, editor_name,
-              vat_included, vat_rate,
-              items:estimate_items(*)
+              vat_included, vat_rate
             `)
             .eq('company_id', companyId)
             .order('created_at', { ascending: false })
             .limit(500);
-          
+
+          // Отдельно загружаем позиции смет (estimate_items имеет company_id — см. миграцию 20250601)
+          const attachItems = async (rows: any[] | null) => {
+            const ids = (rows || []).map((e: any) => e.id).filter(Boolean);
+            const itemsByEstimate = new Map<string, any[]>();
+            for (let i = 0; i < ids.length; i += 100) {
+              const { data: itemsChunk, error: itemsError } = await supabase
+                .from('estimate_items')
+                .select('*')
+                .in('estimate_id', ids.slice(i, i + 100));
+              if (itemsError) throw itemsError;
+              for (const item of itemsChunk || []) {
+                if (!itemsByEstimate.has(item.estimate_id)) itemsByEstimate.set(item.estimate_id, []);
+                itemsByEstimate.get(item.estimate_id)!.push(item);
+              }
+            }
+            return (rows || []).map((e: any) => ({ ...e, items: itemsByEstimate.get(e.id) || [] }));
+          };
+
+          if (!estimatesError) {
+            try {
+              // @ts-ignore
+              estimatesData = await attachItems(estimatesData);
+            } catch (itemsError: any) {
+              console.error('[fetchEstimates] Error loading estimate items:', itemsError?.message);
+              estimatesError = itemsError;
+            }
+          }
+
           if (estimatesError) {
             console.error('[fetchEstimates] Error loading estimates:', estimatesError.message, estimatesError.code, estimatesError.details);
             // Fallback: пробуем загрузить с минимальным набором колонок
             debugLog('[fetchEstimates] Trying fallback with minimal columns...');
             const fallback = await supabase
               .from('estimates')
-              .select('id, event_name, venue, event_date, total, status, created_at, updated_at, sections, vat_included, vat_rate, items:estimate_items(*)')
+              .select('id, event_name, venue, event_date, total, status, created_at, updated_at, sections, vat_included, vat_rate')
               .eq('company_id', companyId)
               .order('created_at', { ascending: false })
               .limit(500);
@@ -100,7 +129,7 @@ export function useEstimates(companyId: string | undefined, activeTab?: string) 
             }
             debugLog('[fetchEstimates] Fallback success, count:', fallback.data?.length);
             // @ts-ignore
-            estimatesData = fallback.data;
+            estimatesData = await attachItems(fallback.data);
           }
           
           console.log('[fetchEstimates] Loaded estimates with join:', estimatesData?.length, 'first estimate items:', estimatesData?.[0]?.items?.length);
