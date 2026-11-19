@@ -86,19 +86,34 @@ export function useEstimates(companyId: string | undefined, activeTab?: string) 
             .limit(500);
 
           // Отдельно загружаем позиции смет (estimate_items имеет company_id — см. миграцию 20250601).
-          // Используем .eq('company_id', ...) — тот же проверенный паттерн, что и fetchEstimateItems.
+          // Паттерн тот же, что в проверенном fetchEstimateItems: .eq('estimate_id', ...).eq('company_id', ...),
+          // пакетами по 25 смет параллельно.
           const attachItems = async (rows: any[] | null) => {
-            const { data: allItems, error: itemsError } = await supabase
-              .from('estimate_items')
-              .select('*')
-              .eq('company_id', companyId);
-            if (itemsError) throw itemsError;
+            const list = rows || [];
             const itemsByEstimate = new Map<string, any[]>();
-            for (const item of allItems || []) {
-              if (!itemsByEstimate.has(item.estimate_id)) itemsByEstimate.set(item.estimate_id, []);
-              itemsByEstimate.get(item.estimate_id)!.push(item);
+            const ids = list.map((e: any) => e.id).filter(Boolean);
+            for (let i = 0; i < ids.length; i += 25) {
+              const chunk = ids.slice(i, i + 25);
+              const results = await Promise.all(
+                chunk.map((estimateId: string) =>
+                  supabase
+                    .from('estimate_items')
+                    .select('*')
+                    .eq('estimate_id', estimateId)
+                    .eq('company_id', companyId)
+                    .then(({ data, error }) => {
+                      if (error) throw error;
+                      return data || [];
+                    })
+                )
+              );
+              chunk.forEach((estimateId: string, idx: number) => {
+                itemsByEstimate.set(estimateId, results[idx]);
+              });
             }
-            return (rows || []).map((e: any) => ({ ...e, items: itemsByEstimate.get(e.id) || [] }));
+            const totalItems = [...itemsByEstimate.values()].reduce((sum, arr) => sum + arr.length, 0);
+            debugLog('[fetchEstimates] Total items loaded:', totalItems, 'for', ids.length, 'estimates');
+            return list.map((e: any) => ({ ...e, items: itemsByEstimate.get(e.id) || [] }));
           };
 
           if (!estimatesError) {

@@ -123,17 +123,29 @@ export function useProjects(companyId: string | undefined) {
 
       const projectIds = projectsData.map((p: any) => p.id);
 
-      // Позиции смет грузим отдельным запросом (join с estimate_items на Яндексе
-      // даёт слишком большой ответ → 502 от API Gateway)
-      const { data: estimateItemsData } = await supabase
-        .from('estimate_items')
-        .select('*')
-        .eq('company_id', companyId);
+      // Позиции смет грузим отдельными запросами по estimate_id (как fetchEstimateItems) —
+      // join с estimate_items на Яндексе даёт слишком большой ответ → 502 от API Gateway
+      const estimateIds = [...new Set((projectsData || []).map((p: any) => p.estimate_id).filter(Boolean))];
       const itemsByEstimate = new Map<string, any[]>();
-      (estimateItemsData || []).forEach((it: any) => {
-        if (!itemsByEstimate.has(it.estimate_id)) itemsByEstimate.set(it.estimate_id, []);
-        itemsByEstimate.get(it.estimate_id)!.push(it);
-      });
+      for (let i = 0; i < estimateIds.length; i += 25) {
+        const chunk = estimateIds.slice(i, i + 25);
+        const results = await Promise.all(
+          chunk.map((estimateId: string) =>
+            supabase
+              .from('estimate_items')
+              .select('*')
+              .eq('estimate_id', estimateId)
+              .eq('company_id', companyId)
+              .then(({ data, error }) => {
+                if (error) throw error;
+                return data || [];
+              })
+          )
+        );
+        chunk.forEach((estimateId: string, idx: number) => {
+          itemsByEstimate.set(estimateId, results[idx]);
+        });
+      }
 
       // Загружаем все venue_details для lookup по имени (если venue_id не задан, но venue есть в смете)
       const { data: venuesData } = await supabase
