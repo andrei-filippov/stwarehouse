@@ -11,7 +11,8 @@ import {
   GripVertical,
   MapPin,
   Copy,
-  ClipboardPaste
+  ClipboardPaste,
+  Pencil
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import type { EstimateItem, EstimateSection } from '../types';
@@ -23,6 +24,7 @@ interface EstimateSectionsProps {
   onActiveSectionChange: (id: string | null) => void;
   onAddSection: (name: string) => void;
   onRemoveSection: (id: string) => void;
+  onRenameSection?: (id: string, name: string) => void;
   onDuplicateSection?: (sourceSectionId: string, targetSectionId: string) => void;
   onUpdateItem: (itemId: string, updates: Partial<EstimateItem>) => void;
   onRemoveItem: (itemId: string) => void;
@@ -56,6 +58,7 @@ export function EstimateSections({
   onActiveSectionChange,
   onAddSection,
   onRemoveSection,
+  onRenameSection,
   onDuplicateSection,
   onUpdateItem,
   onRemoveItem,
@@ -84,6 +87,22 @@ export function EstimateSections({
   console.log('[EstimateSections] Render:', items.length, 'items,', sections.length, 'sections');
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
   const [copiedSectionId, setCopiedSectionId] = useState<string | null>(null);
+  const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
+  const [editingSectionName, setEditingSectionName] = useState('');
+
+  const startRename = (e: React.MouseEvent, section: EstimateSection) => {
+    e.stopPropagation();
+    setEditingSectionId(section.id);
+    setEditingSectionName(section.name);
+  };
+
+  const commitRename = (sectionId: string) => {
+    const trimmed = editingSectionName.trim();
+    if (trimmed && onRenameSection) {
+      onRenameSection(sectionId, trimmed);
+    }
+    setEditingSectionId(null);
+  };
 
   const toggleSection = (sectionId: string) => {
     setCollapsedSections(prev => {
@@ -313,12 +332,38 @@ export function EstimateSections({
           )}
           onClick={() => onActiveSectionChange(isActive ? null : section.id)}
         >
-          <div className="flex items-center gap-2">
-            <MapPin className={cn("w-4 h-4", isActive ? "text-blue-500" : "text-muted-foreground")} />
-            <span className={cn("font-medium", isActive && "text-blue-700 dark:text-blue-300")}>
-              {section.name}
-            </span>
-            <Badge variant="secondary" className="text-xs">{sectionItems.length}</Badge>
+          <div className="flex items-center gap-2 min-w-0">
+            <MapPin className={cn("w-4 h-4 shrink-0", isActive ? "text-blue-500" : "text-muted-foreground")} />
+            {editingSectionId === section.id ? (
+              <Input
+                autoFocus
+                value={editingSectionName}
+                onChange={(e) => setEditingSectionName(e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                onBlur={() => commitRename(section.id)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') commitRename(section.id);
+                  if (e.key === 'Escape') setEditingSectionId(null);
+                }}
+                className="h-7 w-48 text-sm"
+              />
+            ) : (
+              <>
+                <span className={cn("font-medium truncate", isActive && "text-blue-700 dark:text-blue-300")}>
+                  {section.name}
+                </span>
+                {onRenameSection && (
+                  <button
+                    onClick={(e) => startRename(e, section)}
+                    className="shrink-0 text-muted-foreground/60 hover:text-blue-600 hover:bg-blue-50 rounded p-1 transition-colors"
+                    title="Переименовать секцию"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </>
+            )}
+            <Badge variant="secondary" className="text-xs shrink-0">{sectionItems.length}</Badge>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-muted-foreground">

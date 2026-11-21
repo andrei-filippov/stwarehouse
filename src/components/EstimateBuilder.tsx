@@ -2196,6 +2196,10 @@ export function EstimateBuilder({
                         if (activeSectionId === id) setActiveSectionId(null);
                         setHasUnsavedChanges(true);
                       }}
+                      onRenameSection={(id, name) => {
+                        setSections(prev => prev.map(s => s.id === id ? { ...s, name } : s));
+                        setHasUnsavedChanges(true);
+                      }}
                       onDuplicateSection={(sourceSectionId, targetSectionId) => {
                         const sourceItems = items.filter(item => item.section_id === sourceSectionId);
                         const newItems = sourceItems.map(item => ({
