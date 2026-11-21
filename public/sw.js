@@ -1,7 +1,7 @@
 // Service Worker для оффлайн-режима и фоновой синхронизации
-const CACHE_NAME = 'stwarehouse-v12';
-const STATIC_CACHE = 'stwarehouse-static-v12';
-const ASSETS_CACHE = 'stwarehouse-assets-v12';
+const CACHE_NAME = 'stwarehouse-v13';
+const STATIC_CACHE = 'stwarehouse-static-v13';
+const ASSETS_CACHE = 'stwarehouse-assets-v13';
 
 // Критические ресурсы для кэширования при установке
 const PRECACHE_URLS = [
@@ -136,25 +136,24 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   
-  // 2. Навигационные запросы (HTML) — Stale While Revalidate
+  // 2. Навигационные запросы (HTML) — NETWORK FIRST:
+  // index.html НЕ кэшируем со старением, иначе после деплоя SW отдаёт старый
+  // HTML со ссылками на несуществующие чанки (ChunkLoadError / вечный Suspense).
   if (isNavigationRequest(request)) {
     event.respondWith(
-      caches.match('/index.html').then((cached) => {
-        const fetchPromise = fetch(request).then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            const responseClone = networkResponse.clone();
-            caches.open(STATIC_CACHE).then((cache) => {
-              cache.put('/index.html', responseClone);
-            });
-          }
-          return networkResponse;
-        }).catch(() => {
-          // Нет сети — возвращаем кэш или ошибку
+      fetch(request).then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200) {
+          const responseClone = networkResponse.clone();
+          caches.open(STATIC_CACHE).then((cache) => {
+            cache.put('/index.html', responseClone);
+          });
+        }
+        return networkResponse;
+      }).catch(() => {
+        // Нет сети — только тогда возвращаем кэш
+        return caches.match('/index.html').then((cached) => {
           return cached || new Response('Offline - no cached page', { status: 503 });
         });
-        
-        // Возвращаем кэш сразу, параллельно обновляем
-        return cached || fetchPromise;
       })
     );
     return;
