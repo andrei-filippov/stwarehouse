@@ -120,9 +120,10 @@ export function Dashboard({
       .slice(0, 5);
   }, [estimates]);
 
-  // Мероприятия сегодня
+  // Мероприятия сегодня (исключаем черновики и отмененные)
   const todayEvents = useMemo(() => {
     return estimates.filter(e => {
+      if (e.status === 'draft' || e.status === 'cancelled') return false;
       const date = safeParseISO(e.event_start_date || e.event_date);
       return date ? isToday(date) : false;
     });
