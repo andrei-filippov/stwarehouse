@@ -85,30 +85,52 @@ export function useEstimates(companyId: string | undefined, activeTab?: string) 
             .order('created_at', { ascending: false })
             .limit(500);
 
-          // Отдельно загружаем позиции смет (estimate_items имеет company_id — см. миграцию 20250601).
-          // Паттерн тот же, что в проверенном fetchEstimateItems: .eq('estimate_id', ...).eq('company_id', ...),
-          // пакетами по 25 смет параллельно.
+          // Отдельно загружаем позиции смет. Раньше было N+1 (по запросу на смету,
+          // пачками по 25 параллельно) — Yandex API Gateway отвечал 502 на такой burst.
+          // Теперь грузим пачками через in.(...) — один запрос на 10 смет,
+          // параллельно не более 3 запросов, с одним ретраем при сетевой ошибке.
           const attachItems = async (rows: any[] | null) => {
             const list = rows || [];
             const itemsByEstimate = new Map<string, any[]>();
             const ids = list.map((e: any) => e.id).filter(Boolean);
-            for (let i = 0; i < ids.length; i += 25) {
-              const chunk = ids.slice(i, i + 25);
-              const results = await Promise.all(
-                chunk.map((estimateId: string) =>
-                  supabase
-                    .from('estimate_items')
-                    .select('*')
-                    .eq('estimate_id', estimateId)
-                    .eq('company_id', companyId)
-                    .then(({ data, error }) => {
-                      if (error) throw error;
-                      return data || [];
-                    })
-                )
-              );
-              chunk.forEach((estimateId: string, idx: number) => {
-                itemsByEstimate.set(estimateId, results[idx]);
+
+            const fetchChunk = async (chunk: string[], attempt = 1): Promise<Map<string, any[]>> => {
+              try {
+                const { data, error } = await supabase
+                  .from('estimate_items')
+                  .select('*')
+                  .in('estimate_id', chunk)
+                  .eq('company_id', companyId);
+                if (error) throw error;
+                const map = new Map<string, any[]>();
+                chunk.forEach(id => map.set(id, []));
+                (data || []).forEach((item: any) => {
+                  const arr = map.get(item.estimate_id);
+                  if (arr) arr.push(item);
+                });
+                return map;
+              } catch (e) {
+                // 502 от API Gateway приходит как TypeError: Failed to fetch — ретраим один раз
+                if (attempt < 2) {
+                  debugLog('[fetchEstimates] Retrying items chunk after error:', e);
+                  await new Promise(r => setTimeout(r, 500));
+                  return fetchChunk(chunk, attempt + 1);
+                }
+                throw e;
+              }
+            };
+
+            const CHUNK_SIZE = 10;
+            const PARALLEL = 3;
+            for (let i = 0; i < ids.length; i += CHUNK_SIZE * PARALLEL) {
+              const chunks: string[][] = [];
+              for (let p = 0; p < PARALLEL; p++) {
+                const chunk = ids.slice(i + p * CHUNK_SIZE, i + (p + 1) * CHUNK_SIZE);
+                if (chunk.length) chunks.push(chunk);
+              }
+              const results = await Promise.all(chunks.map(c => fetchChunk(c)));
+              results.forEach(map => {
+                map.forEach((items, id) => itemsByEstimate.set(id, items));
               });
             }
             const totalItems = [...itemsByEstimate.values()].reduce((sum, arr) => sum + arr.length, 0);
