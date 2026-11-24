@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import { createLogger } from '../lib/logger';
 
@@ -7,89 +7,94 @@ const logger = createLogger('sw');
 export function useServiceWorker() {
   const [swStatus, setSwStatus] = useState<'checking' | 'installed' | 'updated' | 'error'>('checking');
   const [needRefresh, setNeedRefresh] = useState(false);
+  // Перезагружаемся на controllerchange только если сами запросили обновление,
+  // иначе первая активация SW вызовет лишнюю перезагрузку страницы
+  const updateRequestedRef = useRef(false);
 
   useEffect(() => {
-    if ('serviceWorker' in navigator) {
-      // Принудительно обновляем Service Worker при каждой загрузке
-      navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
-        .then((registration) => {
-          logger.info('SW registered');
-          
-          // Принудительно проверяем обновления
-          registration.update();
-          
-          // Проверяем обновления
-          registration.addEventListener('updatefound', () => {
-            const newWorker = registration.installing;
-            if (newWorker) {
-              newWorker.addEventListener('statechange', () => {
-                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  // Новый SW установлен, но ждет активации
-                  setNeedRefresh(true);
-                  setSwStatus('updated');
-                  toast.info('Доступно обновление', {
-                    description: 'Нажмите для обновления приложения',
-                    action: {
-                      label: 'Обновить',
-                      onClick: () => updateServiceWorker()
-                    }
-                  });
+    if (!('serviceWorker' in navigator)) return;
+
+    let registration: ServiceWorkerRegistration | null = null;
+
+    navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
+      .then((reg) => {
+        registration = reg;
+        logger.info('SW registered');
+
+        // Проверяем обновления при загрузке страницы
+        reg.update();
+
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          if (!newWorker) return;
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              // Новый SW установлен, но ждет активации
+              setNeedRefresh(true);
+              setSwStatus('updated');
+              toast.info('Доступно обновление', {
+                description: 'Нажмите для обновления приложения',
+                action: {
+                  label: 'Обновить',
+                  onClick: () => updateServiceWorker()
                 }
               });
             }
           });
-
-          // Проверяем есть ли контролирующий SW
-          if (registration.active) {
-            setSwStatus('installed');
-          }
-        })
-        .catch((error) => {
-          console.error('SW registration failed:', error);
-          setSwStatus('error');
         });
 
-      // Слушаем сообщения от SW
-      navigator.serviceWorker.addEventListener('message', (event) => {
-        if (event.data?.type === 'SW_UPDATE') {
-          setNeedRefresh(true);
+        if (reg.active) {
+          setSwStatus('installed');
         }
+      })
+      .catch((error) => {
+        console.error('SW registration failed:', error);
+        setSwStatus('error');
       });
-      
-      // Принудительно перезагружаем страницу если контролирующий SW изменился
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
+
+    // Перезагружаем страницу только когда контроллер сменился по нашему запросу
+    const onControllerChange = () => {
+      if (updateRequestedRef.current) {
         logger.info('SW controller changed, reloading...');
         window.location.reload();
-      });
-    }
+      }
+    };
+    navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
+
+    return () => {
+      navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
+    };
   }, []);
 
   const updateServiceWorker = useCallback(() => {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.ready.then((registration) => {
-        // Отправляем сообщение SW чтобы пропустить ожидание
-        registration.waiting?.postMessage('SKIP_WAITING');
-        
-        // Перезагружаем страницу
-        window.location.reload();
-      });
-    }
+    if (!('serviceWorker' in navigator)) return;
+    updateRequestedRef.current = true;
+    navigator.serviceWorker.ready.then((registration) => {
+      // Новый SW активируется и пришлёт controllerchange — перезагрузка произойдёт там
+      registration.waiting?.postMessage('SKIP_WAITING');
+    });
   }, []);
 
   const clearCaches = useCallback(async () => {
-    if ('serviceWorker' in navigator) {
-      const registration = await navigator.serviceWorker.ready;
-      const messageChannel = new MessageChannel();
-      
-      messageChannel.port1.onmessage = (event) => {
-        if (event.data?.cleared) {
-          toast.success('Кэш очищен');
-          window.location.reload();
-        }
-      };
-      
-      registration.active?.postMessage('CLEAR_CACHES', [messageChannel.port2]);
+    // Очищаем кэши напрямую с клиента — не зависим от состояния SW
+    if ('caches' in window) {
+      const names = await caches.keys();
+      await Promise.all(names.map((name) => caches.delete(name)));
     }
+
+    // Просим SW тоже очистить кэши (на случай если он держит записи)
+    if ('serviceWorker' in navigator) {
+      try {
+        const registration = await navigator.serviceWorker.ready;
+        const messageChannel = new MessageChannel();
+        registration.active?.postMessage('CLEAR_CACHES', [messageChannel.port2]);
+      } catch (e) {
+        logger.warn('Could not reach SW for cache clear:', e);
+      }
+    }
+
+    toast.success('Кэш очищен');
+    window.location.reload();
   }, []);
 
   return {

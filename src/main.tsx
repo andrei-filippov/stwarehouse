@@ -24,54 +24,19 @@ setInterval(() => {
     .catch(() => {});
 }, 10 * 60 * 1000);
 
-// Регистрация Service Worker для офлайн-режима
+// Регистрация Service Worker происходит в src/hooks/useServiceWorker.ts
+// (там же — обработка обновлений и очистка кэша)
+
+// Обработка сообщений от SW
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
-      .then((registration) => {
-        logger.debug('SW registered:', registration);
-        
-        // Проверяем обновления каждые 5 минут (быстрее для critical fixes)
-        setInterval(() => {
-          registration.update();
-        }, 5 * 60 * 1000);
-        
-        // Если есть новый SW — предлагаем обновить
-        registration.addEventListener('updatefound', () => {
-          const newWorker = registration.installing;
-          if (newWorker) {
-            newWorker.addEventListener('statechange', () => {
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                // Новый SW установлен, но ждёт активации
-                logger.debug('New version available!');
-                // Можно показать уведомление пользователю
-                // Force reload to get latest JS with egress optimizations
-                newWorker.postMessage('SKIP_WAITING');
-                window.location.reload();
-              }
-            });
-          }
-        });
-      })
-      .catch((error) => {
-        logger.debug('SW registration failed:', error);
-      });
-    
-    // Обработка сообщений от SW
-    navigator.serviceWorker.addEventListener('message', (event) => {
-      if (event.data === 'RELOAD_PAGE') {
-        window.location.reload();
-      }
-      
-      // Background sync request from SW (every 3-5 minutes)
-      if (event.data?.type === 'BACKGROUND_SYNC_REQUEST') {
-        logger.debug('[SW] Background sync requested');
-        // Dispatch global event that hooks can listen to
-        window.dispatchEvent(new CustomEvent('background-sync', {
-          detail: { timestamp: event.data.timestamp }
-        }));
-      }
-    });
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    if (event.data?.type === 'BACKGROUND_SYNC_REQUEST') {
+      logger.debug('[SW] Background sync requested');
+      // Dispatch global event that hooks can listen to
+      window.dispatchEvent(new CustomEvent('background-sync', {
+        detail: { timestamp: event.data.timestamp }
+      }));
+    }
   });
 }
 

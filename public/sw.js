@@ -1,17 +1,29 @@
 // Service Worker для оффлайн-режима и фоновой синхронизации
-const CACHE_NAME = 'stwarehouse-v13';
-const STATIC_CACHE = 'stwarehouse-static-v13';
-const ASSETS_CACHE = 'stwarehouse-assets-v13';
+const CACHE_NAME = 'stwarehouse-v14';
+const STATIC_CACHE = 'stwarehouse-static-v14';
+const ASSETS_CACHE = 'stwarehouse-assets-v14';
 
 // Критические ресурсы для кэширования при установке
+// favicon.ico убран — его нет в public/, и 404 ломал весь install
 const PRECACHE_URLS = [
   '/',
   '/index.html',
   '/manifest.json',
   '/icon-192x192.png',
-  '/icon-512x512.png',
-  '/favicon.ico'
+  '/icon-512x512.png'
 ];
+
+// Кэшируем каждый URL отдельно — если один упадёт, остальные продолжат
+async function cacheSafely(cache, url) {
+  try {
+    const response = await fetch(url, { cache: 'no-cache' });
+    if (response.status === 200) {
+      await cache.put(url, response);
+    }
+  } catch (err) {
+    console.warn('[SW] Failed to cache:', url, err.message);
+  }
+}
 
 // ===== BACKGROUND SYNC =====
 // Периодическая синхронизация данных с сервером
@@ -22,11 +34,13 @@ const SYNC_TAG = 'stwarehouse-data-sync';
 let lastSyncTime = 0;
 let syncInProgress = false;
 
-// При установке кэшируем критические ресурсы
+// При установке кэшируем критические ресурсы (с проверкой)
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(STATIC_CACHE).then((cache) => {
-      return cache.addAll(PRECACHE_URLS);
+    caches.open(STATIC_CACHE).then(async (cache) => {
+      for (const url of PRECACHE_URLS) {
+        await cacheSafely(cache, url);
+      }
     }).then(() => {
       return self.skipWaiting();
     })
@@ -44,11 +58,6 @@ self.addEventListener('activate', (event) => {
       );
     }).then(() => {
       return self.clients.claim();
-    }).then(() => {
-      // Force reload all clients to get latest JS
-      return self.clients.matchAll({ type: 'window' }).then(clients => {
-        clients.forEach(client => client.postMessage('RELOAD_PAGE'));
-      });
     }).then(() => {
       // Запускаем периодическую синхронизацию
       startPeriodicSync();
