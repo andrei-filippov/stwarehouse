@@ -24,6 +24,35 @@ setInterval(() => {
     .catch(() => {});
 }, 10 * 60 * 1000);
 
+// Восстановление при ошибке загрузки чанка (ChunkLoadError / failed dynamic import):
+// отменяем регистрацию SW, чистим кэши и перезагружаемся один раз за сессию
+function recoverFromChunkError() {
+  if (sessionStorage.getItem('chunk-recovery')) return;
+  sessionStorage.setItem('chunk-recovery', '1');
+  const cleanup = async () => {
+    try {
+      if ('caches' in window) {
+        const names = await caches.keys();
+        await Promise.all(names.map((n) => caches.delete(n)));
+      }
+      const regs = await navigator.serviceWorker?.getRegistrations();
+      await Promise.all((regs || []).map((r) => r.unregister()));
+    } catch { /* ignore */ }
+    location.reload();
+  };
+  void cleanup();
+}
+
+const isChunkError = (msg: string) =>
+  msg.includes('dynamically imported module') || msg.includes('ChunkLoadError') || msg.includes('Loading chunk');
+
+window.addEventListener('error', (e) => {
+  if (isChunkError(e.message || '')) recoverFromChunkError();
+});
+window.addEventListener('unhandledrejection', (e) => {
+  if (isChunkError(String(e.reason || ''))) recoverFromChunkError();
+});
+
 // Регистрация Service Worker происходит в src/hooks/useServiceWorker.ts
 // (там же — обработка обновлений и очистка кэша)
 
